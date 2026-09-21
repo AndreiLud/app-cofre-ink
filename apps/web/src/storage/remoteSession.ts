@@ -5,7 +5,19 @@
 // What the screens get back has the same shape as the local one, so no screen knows
 // which of the two it is talking to.
 
-import type { Account, Change, Invitation, Space, SpaceMember, User } from "@cofre/storage";
+import type {
+	Account,
+	AccountBalance,
+	Change,
+	CreateTransactionInput,
+	Invitation,
+	Space,
+	SpaceMember,
+	Transaction,
+	TransactionFilter,
+	UpdateTransactionInput,
+	User,
+} from "@cofre/storage";
 import type {
 	AssignableRole,
 	CofreSession,
@@ -188,6 +200,36 @@ export function createRemoteSession(
 			archive: (id: string) => send<Account>(`/api/accounts/${id}/archive`, "POST", {}),
 			unarchive: (id: string) => send<Account>(`/api/accounts/${id}/unarchive`, "POST", {}),
 			remove: (id: string) => send<void>(`/api/accounts/${id}`, "DELETE"),
+		},
+
+		transactions: {
+			list: (filter: TransactionFilter = {}) => {
+				const { spaceId, limit, ...rest } = filter;
+				const query = new URLSearchParams();
+				for (const [name, value] of Object.entries(rest)) {
+					if (value !== undefined && value !== "") query.set(name, String(value));
+				}
+				if (limit !== undefined) query.set("limit", String(limit));
+				const search = query.toString();
+				// Without a space the server would have to walk every space of the person,
+				// so the interface always asks about the one that is open.
+				return get<Transaction[]>(
+					`/api/spaces/${spaceId ?? ""}/transactions${search === "" ? "" : `?${search}`}`,
+				);
+			},
+			create: (input: CreateTransactionInput) => {
+				const { spaceId, ...rest } = input;
+				return send<Transaction[]>(`/api/spaces/${spaceId}/transactions`, "POST", rest);
+			},
+			update: (id: string, input: UpdateTransactionInput) =>
+				send<Transaction>(`/api/transactions/${id}`, "PATCH", input),
+			settle: (id: string) => send<Transaction>(`/api/transactions/${id}/settle`, "POST", {}),
+			reconcile: (id: string, reconciled: boolean) =>
+				send<Transaction>(`/api/transactions/${id}/reconcile`, "POST", { reconciled }),
+			remove: (id: string) => send<void>(`/api/transactions/${id}`, "DELETE"),
+			removeGroup: async (groupId: string) =>
+				(await send<{ removed: number }>(`/api/installments/${groupId}`, "DELETE")).removed,
+			balances: (spaceId: string) => get<AccountBalance[]>(`/api/spaces/${spaceId}/balances`),
 		},
 
 		changes: {

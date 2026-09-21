@@ -6,12 +6,17 @@
 
 import type {
 	Account,
+	AccountBalance,
 	AccountKind,
 	Change,
+	CreateTransactionInput,
 	Role,
 	Space,
 	SpaceKind,
 	SpaceMember,
+	Transaction,
+	TransactionFilter,
+	UpdateTransactionInput,
 	User,
 } from "@cofre/storage";
 
@@ -30,6 +35,10 @@ export type CreateAccountInput = {
 	currency?: string;
 	initialBalance?: number;
 	institution?: string | null;
+	/** Only a credit card carries these, and without them a purchase has no invoice. */
+	closingDay?: number | null;
+	dueDay?: number | null;
+	creditLimit?: number | null;
 };
 
 export type AssignableRole = Exclude<Role, "owner">;
@@ -62,6 +71,16 @@ export type CofreSession = {
 		archive: (id: string) => Promise<Account>;
 		unarchive: (id: string) => Promise<Account>;
 		remove: (id: string) => Promise<void>;
+	};
+	transactions: {
+		list: (filter?: TransactionFilter) => Promise<Transaction[]>;
+		create: (input: CreateTransactionInput) => Promise<Transaction[]>;
+		update: (id: string, input: UpdateTransactionInput) => Promise<Transaction>;
+		settle: (id: string) => Promise<Transaction>;
+		reconcile: (id: string, reconciled: boolean) => Promise<Transaction>;
+		remove: (id: string) => Promise<void>;
+		removeGroup: (groupId: string) => Promise<number>;
+		balances: (spaceId: string) => Promise<AccountBalance[]>;
 	};
 	changes: {
 		list: (input: { spaceId: string; after?: string }) => Promise<Change[]>;

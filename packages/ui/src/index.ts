@@ -25,6 +25,11 @@ export {
 	type MenuProps,
 	MenuSeparator,
 } from "./components/Menu.tsx";
+export {
+	Segmented,
+	type SegmentedOption,
+	type SegmentedProps,
+} from "./components/Segmented.tsx";
 export { Select, type SelectOption, type SelectProps } from "./components/Select.tsx";
 export {
 	SPACE_COLOURS,

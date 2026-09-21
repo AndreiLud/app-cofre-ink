@@ -33,6 +33,16 @@ export async function openCofre(
 	});
 }
 
+/**
+ * A link in the top navigation. Several screens also link to the same places in their
+ * own words, so the tests say which one they mean.
+ */
+export function nav(page: Page, label: string) {
+	return page
+		.getByRole("navigation", { name: "Seções do aplicativo" })
+		.getByRole("link", { name: label, exact: true });
+}
+
 /** The amount shown as the answer to "how much do I have". */
 export function total(page: Page) {
 	return page.locator("main p.font-mono").first();

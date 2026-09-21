@@ -49,9 +49,39 @@ const accountInput = z.object({
 	currency: z.string().trim().length(3).optional(),
 	initialBalance: z.number().int().optional(),
 	institution: z.string().trim().max(80).nullable().optional(),
+	closingDay: z.number().int().min(1).max(31).nullable().optional(),
+	dueDay: z.number().int().min(1).max(31).nullable().optional(),
+	creditLimit: z.number().int().nonnegative().nullable().optional(),
 });
 
 const roleInput = z.enum(["admin", "editor", "viewer", "logger"]);
+
+const calendarDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected a calendar date");
+
+const transactionInput = z.object({
+	kind: z.enum(["income", "expense", "transfer"]),
+	// Always positive: the direction comes from the kind, as registry 0010 says.
+	amount: z.number().int().positive(),
+	happenedOn: calendarDate,
+	description: z.string().trim().min(1).max(200),
+	accountId: z.string().min(1),
+	counterAccountId: z.string().min(1).nullable().optional(),
+	status: z.enum(["planned", "settled"]).optional(),
+	currency: z.string().trim().length(3).optional(),
+	fxRate: z.number().int().positive().nullable().optional(),
+	notes: z.string().trim().max(2000).nullable().optional(),
+	installments: z.number().int().min(1).max(420).optional(),
+});
+
+const transactionPatch = z.object({
+	amount: z.number().int().positive().optional(),
+	happenedOn: calendarDate.optional(),
+	description: z.string().trim().min(1).max(200).optional(),
+	accountId: z.string().min(1).optional(),
+	counterAccountId: z.string().min(1).nullable().optional(),
+	status: z.enum(["planned", "settled"]).optional(),
+	notes: z.string().trim().max(2000).nullable().optional(),
+});
 
 export function createApp({ config, database, auth }: AppDependencies) {
 	const app = new Hono<{ Variables: Variables }>();
@@ -226,6 +256,67 @@ export function createApp({ config, database, auth }: AppDependencies) {
 	app.delete("/api/accounts/:id", async (context) => {
 		await context.get("session").accounts.remove(context.req.param("id"));
 		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/transactions", async (context) => {
+		const query = context.req.query();
+		return context.json(
+			await context.get("session").transactions.list({
+				spaceId: context.req.param("id"),
+				accountId: query.accountId,
+				kind: query.kind as "income" | "expense" | "transfer" | undefined,
+				status: query.status as "planned" | "settled" | undefined,
+				from: query.from,
+				to: query.to,
+				invoiceMonth: query.invoiceMonth,
+				search: query.search,
+				limit: query.limit === undefined ? undefined : Number(query.limit),
+			}),
+		);
+	});
+
+	app.post("/api/spaces/:id/transactions", async (context) => {
+		const input = transactionInput.parse(await context.req.json());
+		const written = await context
+			.get("session")
+			.transactions.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(written, 201);
+	});
+
+	app.get("/api/spaces/:id/balances", async (context) =>
+		context.json(await context.get("session").transactions.balances(context.req.param("id"))),
+	);
+
+	app.patch("/api/transactions/:id", async (context) => {
+		const input = transactionPatch.parse(await context.req.json());
+		return context.json(
+			await context.get("session").transactions.update(context.req.param("id"), input),
+		);
+	});
+
+	app.post("/api/transactions/:id/settle", async (context) =>
+		context.json(await context.get("session").transactions.settle(context.req.param("id"))),
+	);
+
+	app.post("/api/transactions/:id/reconcile", async (context) => {
+		const input = z.object({ reconciled: z.boolean() }).parse(await context.req.json());
+		return context.json(
+			await context
+				.get("session")
+				.transactions.reconcile(context.req.param("id"), input.reconciled),
+		);
+	});
+
+	app.delete("/api/transactions/:id", async (context) => {
+		await context.get("session").transactions.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.delete("/api/installments/:groupId", async (context) => {
+		const removed = await context
+			.get("session")
+			.transactions.removeGroup(context.req.param("groupId"));
+		return context.json({ removed });
 	});
 
 	app.get("/api/spaces/:id/changes", async (context) => {

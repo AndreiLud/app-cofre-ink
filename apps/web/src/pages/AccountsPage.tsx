@@ -39,6 +39,8 @@ export function AccountsPage() {
 	const [name, setName] = useState("");
 	const [balance, setBalance] = useState("");
 	const [institution, setInstitution] = useState("");
+	const [closingDay, setClosingDay] = useState("3");
+	const [dueDay, setDueDay] = useState("10");
 	const [problem, setProblem] = useState<string | null>(null);
 
 	const spaceId = currentSpace?.id ?? "";
@@ -52,6 +54,9 @@ export function AccountsPage() {
 	const invalidate = () => {
 		void queries.invalidateQueries({ queryKey: ["accounts"] });
 		void queries.invalidateQueries({ queryKey: ["accountsEverywhere"] });
+		// An opening balance is part of what an account is worth, so the balances the
+		// overview is showing are no longer true.
+		void queries.invalidateQueries({ queryKey: ["balances"] });
 	};
 
 	const create = useMutation({
@@ -67,6 +72,9 @@ export function AccountsPage() {
 				name,
 				institution: institution.trim() === "" ? null : institution.trim(),
 				initialBalance: amount,
+				// Only a card carries a cycle, and without it a purchase has no invoice.
+				closingDay: kind === "credit" ? Number(closingDay) : null,
+				dueDay: kind === "credit" ? Number(dueDay) : null,
 			});
 		},
 		onSuccess: () => {
@@ -231,6 +239,30 @@ export function AccountsPage() {
 						onChange={(event) => setInstitution(event.target.value)}
 						placeholder={t("accounts.institutionPlaceholder")}
 					/>
+					{kind === "credit" ? (
+						<div className="grid gap-4 md:grid-cols-2">
+							<Select
+								label={t("accounts.closingDay")}
+								hint={t("accounts.closingDayHint")}
+								value={closingDay}
+								onChange={(event) => setClosingDay(event.target.value)}
+								options={Array.from({ length: 31 }, (_unused, index) => ({
+									value: String(index + 1),
+									label: String(index + 1),
+								}))}
+							/>
+							<Select
+								label={t("accounts.dueDay")}
+								hint={t("accounts.dueDayHint")}
+								value={dueDay}
+								onChange={(event) => setDueDay(event.target.value)}
+								options={Array.from({ length: 31 }, (_unused, index) => ({
+									value: String(index + 1),
+									label: String(index + 1),
+								}))}
+							/>
+						</div>
+					) : null}
 					<Field
 						label={t("accounts.balance")}
 						hint={t("accounts.balanceHint")}

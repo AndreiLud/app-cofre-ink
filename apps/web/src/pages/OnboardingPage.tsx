@@ -13,6 +13,11 @@ import { deviceId } from "../storage/localProfile.ts";
 
 const CURRENCIES = ["BRL", "USD", "EUR", "GBP"];
 
+/**
+ * The address a profile gets when nobody types one. It carries a few random letters
+ * because a browser can keep the database and lose the profile identifier, and then a
+ * second profile with the same name would collide with the first.
+ */
 function localAddress(name: string): string {
 	const slug = name
 		.normalize("NFD")
@@ -20,7 +25,8 @@ function localAddress(name: string): string {
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, "")
 		.slice(0, 20);
-	return `${slug === "" ? "eu" : slug}@dispositivo.local`;
+	const tail = Math.random().toString(36).slice(2, 7);
+	return `${slug === "" ? "eu" : slug}.${tail}@dispositivo.local`;
 }
 
 export function OnboardingPage() {
@@ -69,7 +75,19 @@ export function OnboardingPage() {
 
 			await adoptUser(person);
 		} catch (error) {
-			setProblem(error instanceof Error ? error.message : String(error));
+			// A rule of the model has a name, so it can be said in the language of the
+			// person instead of the language of the code.
+			const rule =
+				error !== null && typeof error === "object" && "rule" in error
+					? String((error as { rule: unknown }).rule)
+					: null;
+			setProblem(
+				rule === null
+					? error instanceof Error
+						? error.message
+						: String(error)
+					: t(`rules.${rule}`, { defaultValue: t("rules.unknown") }),
+			);
 			setBusy(false);
 		}
 	}

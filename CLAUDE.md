@@ -127,7 +127,8 @@ nothing.
 | 1 block D. Browser flows in Playwright, server with authentication, invitations, Docker | done |
 | 1 block E. The interface in server mode: sign in, invitation screen, mode switch | done |
 | 2 block A. Transaction model, invoice cycle, installments, balances | done |
-| 2 block B. The screens: register, list with filters, card invoice, quick entry | next |
+| 2 block B. The screens: register, list with filters, balances on the overview | done |
+| 2 block C. Card invoice screen, quick entry by free text, bulk edit, saved filters | next |
 | 3. Categories, priorities, rules, recurrences, calendar | planned |
 | 4. Budget, savings rule, goals, expense splitting, alerts | planned |
 | 5. Dashboard, consolidated view, reports and charts | planned |

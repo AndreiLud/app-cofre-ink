@@ -8,6 +8,7 @@ import { DesignSystemPage } from "./pages/DesignSystemPage.tsx";
 import { InvitationPage } from "./pages/InvitationPage.tsx";
 import { MembersPage } from "./pages/MembersPage.tsx";
 import { SpacesPage } from "./pages/SpacesPage.tsx";
+import { TransactionsPage } from "./pages/TransactionsPage.tsx";
 import { AppShell } from "./shell/AppShell.tsx";
 
 const rootRoute = createRootRoute({
@@ -42,6 +43,12 @@ const accountsRoute = createRoute({
 	component: AccountsPage,
 });
 
+const transactionsRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/lancamentos",
+	component: TransactionsPage,
+});
+
 const invitationRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/convite/$token",
@@ -56,6 +63,7 @@ const designSystemRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
 	dashboardRoute,
+	transactionsRoute,
 	spacesRoute,
 	membersRoute,
 	accountsRoute,
@@ -73,6 +81,7 @@ declare module "@tanstack/react-router" {
 
 export const ROUTES = {
 	dashboard: "/",
+	transactions: "/lancamentos",
 	spaces: "/espacos",
 	members: "/membros",
 	accounts: "/contas",
