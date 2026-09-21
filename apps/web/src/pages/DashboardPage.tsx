@@ -37,7 +37,7 @@ export function DashboardPage() {
 	return (
 		<div className="space-y-10">
 			<section className="space-y-3">
-				<InsightTitle detail={t("dashboard.openingOnly")}>
+				<InsightTitle level="h1" detail={t("dashboard.openingOnly")}>
 					{t("dashboard.headline", { space: currentSpace.name })}
 				</InsightTitle>
 				{accounts.isPending ? (

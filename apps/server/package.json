@@ -1,0 +1,21 @@
+{
+	"name": "@cofre/server",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Cofre on your own server",
+	"scripts": {
+		"dev": "node --watch --experimental-sqlite src/main.ts",
+		"start": "node --experimental-sqlite src/main.ts",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@cofre/core": "workspace:*",
+		"@cofre/db": "workspace:*",
+		"@cofre/storage": "workspace:*",
+		"better-auth": "^1.7.5",
+		"hono": "^4.13.8",
+		"zod": "^4.6.5"
+	}
+}

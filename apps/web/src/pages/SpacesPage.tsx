@@ -54,6 +54,7 @@ export function SpacesPage() {
 	return (
 		<div className="space-y-6">
 			<SectionTitle
+				level="h1"
 				action={
 					<Button
 						size="small"
