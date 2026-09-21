@@ -20,6 +20,9 @@
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join, relative, extname, isAbsolute, sep } from "node:path";
 
+// The class below holds eight characters that look almost the same on screen:
+// hyphen minus, hyphen, non breaking hyphen, figure dash, en dash, em dash,
+// horizontal bar and minus sign. The map after it turns one into a readable name.
 const FORBIDDEN = /[-‐‑‒–—―−]/;
 const FORBIDDEN_NAMES = {
 	"-": "hyphen",

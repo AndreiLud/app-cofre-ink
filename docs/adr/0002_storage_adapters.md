@@ -60,9 +60,17 @@ Edge, Firefox and Safari. GitHub Pages serves `.wasm` with the correct media typ
 the file sizes involved are well inside its limits.
 
 Because this is the load bearing assumption of the browser mode, the very first task
-of phase 1 is a spike: a page deployed to GitHub Pages that opens a database, writes
-rows, reloads and reads them back, tested in Chrome, Firefox and Safari. Nothing else
-in phase 1 starts before that spike is green.
+of phase 1 is a spike: a page opens a database, writes rows, reloads and reads them
+back, served with no isolation headers. Nothing else in phase 1 starts before that
+spike is green.
+
+**Verified on 21 September 2026.** The spike passed on the first attempt. With no
+isolation headers and no `SharedArrayBuffer`, SQLite 3.53.4 opened a database through
+the pool backend, wrote five thousand rows in 195 milliseconds and read them back
+after a reload. Aggregating ten thousand rows by month took 63 milliseconds inside the
+worker. Numbers and method are in `docs/spikeOpfs.md`, and the code stays in
+`spike/opfsSqlite` as evidence. Firefox and Safari are still to be checked when the
+demo goes live, with a runtime capability check choosing the fallback if needed.
 
 Fallbacks, in the order they would be taken:
 

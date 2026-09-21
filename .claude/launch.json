@@ -1,0 +1,11 @@
+{
+	"version": "0.0.1",
+	"configurations": [
+		{
+			"name": "spikeOpfs",
+			"runtimeExecutable": "node",
+			"runtimeArgs": ["scripts/spikeServer.mjs"],
+			"port": 5183
+		}
+	]
+}

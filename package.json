@@ -1,0 +1,20 @@
+{
+	"name": "cofre",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Personal finance app you host yourself, with private and shared spaces",
+	"license": "MIT",
+	"packageManager": "pnpm@12.5.1",
+	"engines": {
+		"node": ">=22"
+	},
+	"scripts": {
+		"check:writing": "node scripts/checkWriting.mjs",
+		"spike:prepare": "node scripts/prepareSpike.mjs",
+		"spike:opfs": "node scripts/prepareSpike.mjs && node scripts/spikeServer.mjs"
+	},
+	"devDependencies": {
+		"@sqlite.org/sqlite-wasm": "3.53.4-build1"
+	}
+}

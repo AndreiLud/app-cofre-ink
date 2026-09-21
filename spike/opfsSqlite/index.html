@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Cofre, prova de conceito do SQLite no navegador</title>
+		<style>
+			:root {
+				--paper: #f4efe4;
+				--ink: #16150f;
+				--graphite: #63605a;
+				--cedar: #2e6b4f;
+				--seal: #a8321e;
+				font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, monospace;
+			}
+			body {
+				margin: 0;
+				padding: 48px 24px;
+				background: var(--paper);
+				color: var(--ink);
+				display: flex;
+				justify-content: center;
+			}
+			main {
+				width: 100%;
+				max-width: 720px;
+			}
+			h1 {
+				font-size: 1.375rem;
+				margin: 0 0 4px;
+				letter-spacing: 0.01em;
+			}
+			p {
+				margin: 0 0 24px;
+				color: var(--graphite);
+				line-height: 1.5;
+				max-width: 60ch;
+			}
+			#status {
+				border-top: 1px solid var(--ink);
+				border-bottom: 1px solid var(--ink);
+				padding: 12px 0;
+				font-size: 1rem;
+				margin-bottom: 20px;
+			}
+			#status[data-kind="success"] {
+				color: var(--cedar);
+			}
+			#status[data-kind="failure"] {
+				color: var(--seal);
+			}
+			pre {
+				margin: 0 0 24px;
+				font-size: 0.8125rem;
+				line-height: 1.7;
+				white-space: pre-wrap;
+			}
+			button {
+				font: inherit;
+				font-size: 0.8125rem;
+				background: transparent;
+				color: var(--ink);
+				border: 1px solid var(--ink);
+				padding: 8px 14px;
+				cursor: pointer;
+			}
+			button:focus-visible {
+				outline: 2px solid var(--ink);
+				outline-offset: 2px;
+			}
+			button + button {
+				margin-left: 8px;
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<h1>SQLite no navegador, com persistencia em OPFS</h1>
+			<p>
+				Esta pagina e servida sem os cabecalhos de isolamento de origem, do mesmo jeito que o
+				GitHub Pages serve. Se o banco persistir aqui, persiste la.
+			</p>
+			<div id="status" data-kind="running">iniciando</div>
+			<pre id="output"></pre>
+			<button id="again" type="button">Rodar de novo</button>
+			<button id="wipe" type="button">Apagar os dados</button>
+		</main>
+		<script type="module" src="./spikePage.js"></script>
+	</body>
+</html>
