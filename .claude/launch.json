@@ -2,6 +2,12 @@
 	"version": "0.0.1",
 	"configurations": [
 		{
+			"name": "web",
+			"runtimeExecutable": "pnpm",
+			"runtimeArgs": ["--filter", "@cofre/web", "dev"],
+			"port": 5174
+		},
+		{
 			"name": "spikeOpfs",
 			"runtimeExecutable": "node",
 			"runtimeArgs": ["scripts/spikeServer.mjs"],

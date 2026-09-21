@@ -117,7 +117,9 @@ Phase 1 creates these. Until then only the writing checker exists.
 | phase | state |
 | --- | --- |
 | 0. Discovery, product brief, ADRs, visual direction | done |
-| 1. Monorepo, CI, design system, storage, auth, spaces, onboarding, i18n | next |
+| 1 block A. Storage spike, monorepo, CI, money primitives, design system | done |
+| 1 block B. Data model, repository layer, adapters, conformance suite | next |
+| 1 block C. Auth, spaces, roles, invitations, onboarding, app shell | planned |
 | 2. Accounts, transactions, cards, installments, transfers | planned |
 | 3. Categories, priorities, rules, recurrences, calendar | planned |
 | 4. Budget, savings rule, goals, expense splitting, alerts | planned |

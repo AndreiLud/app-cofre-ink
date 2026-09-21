@@ -33,6 +33,11 @@
 			"quoteStyle": "double"
 		}
 	},
+	"css": {
+		"parser": {
+			"tailwindDirectives": true
+		}
+	},
 	"assist": {
 		"enabled": true,
 		"actions": {
@@ -42,6 +47,16 @@
 		}
 	},
 	"overrides": [
+		{
+			"includes": ["**/styles/tokens.css"],
+			"linter": {
+				"rules": {
+					"complexity": {
+						"noImportantStyles": "off"
+					}
+				}
+			}
+		},
 		{
 			"includes": ["scripts/**", "spike/**"],
 			"linter": {

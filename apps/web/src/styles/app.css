@@ -1,0 +1,13 @@
+@import "tailwindcss";
+@import "@cofre/ui/styles/tokens.css";
+
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-serif/400.css";
+@import "@fontsource/ibm-plex-serif/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+
+/* The design system lives in another package, so Tailwind has to look there too. */
+@source "../../../../packages/ui/src";

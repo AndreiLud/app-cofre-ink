@@ -1,0 +1,72 @@
+{
+	"app": {
+		"name": "Cofre",
+		"tagline": "Your money, on your own infrastructure"
+	},
+	"actions": {
+		"save": "Save",
+		"cancel": "Cancel",
+		"newEntry": "New entry",
+		"delete": "Delete",
+		"seeTable": "See the table",
+		"markPaid": "Mark as paid"
+	},
+	"theme": {
+		"label": "Theme",
+		"light": "Light",
+		"dark": "Dark",
+		"system": "From the system"
+	},
+	"language": {
+		"label": "Language",
+		"portuguese": "Portuguese",
+		"english": "English"
+	},
+	"privacy": {
+		"hide": "Hide amounts",
+		"show": "Show amounts"
+	},
+	"spaces": {
+		"personal": "Personal",
+		"house": "House",
+		"current": "You are in the {{name}} space"
+	},
+	"designSystem": {
+		"title": "Design system",
+		"subtitle": "Direction Papel e tinta. Every piece here is the piece that ships.",
+		"colours": "Colours",
+		"colourNote": "Contrast measured against the background of the active theme, with the WCAG formula. Text needs at least 4.5.",
+		"typography": "Typography",
+		"components": "Components",
+		"tableSample": "Due in the next days",
+		"chartSample": "Where the money went",
+		"ratio": "contrast",
+		"specimenTitle": "What is left until the end of the month",
+		"specimenBody": "Interface text in IBM Plex Sans, at the standard reading size.",
+		"specimenSupport": "Supporting text, in graphite, for labels and short explanations.",
+		"textTokens": "Text and icons",
+		"fillTokens": "Fills and surfaces",
+		"fillNote": "measured, no requirement"
+	},
+	"fields": {
+		"amount": "Amount",
+		"amountHint": "Use a comma for the cents.",
+		"description": "Description",
+		"descriptionPlaceholder": "Corner grocery",
+		"amountError": "I could not read that amount. Write something like 42,90."
+	},
+	"table": {
+		"date": "Date",
+		"description": "Description",
+		"category": "Category",
+		"amount": "Amount",
+		"caption": "Bills due in the next days, with date, description, category and amount"
+	},
+	"insight": {
+		"headline": "Groceries are up 18 percent since March",
+		"detail": "September came to 1,240.00 against an average of 1,050.00 over the six months before."
+	},
+	"demo": {
+		"notice": "Made up data, for demonstration only."
+	}
+}

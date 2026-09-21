@@ -1,0 +1,33 @@
+{
+	"name": "@cofre/web",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Cofre in the browser",
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc --noEmit && vite build",
+		"preview": "vite preview --port 5174",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@cofre/core": "workspace:*",
+		"@cofre/ui": "workspace:*",
+		"i18next": "^26.4.2",
+		"react": "^19.3.0",
+		"react-dom": "^19.3.0",
+		"react-i18next": "^17.0.14"
+	},
+	"devDependencies": {
+		"@fontsource/ibm-plex-mono": "^5.3.0",
+		"@fontsource/ibm-plex-sans": "^5.3.0",
+		"@fontsource/ibm-plex-serif": "^5.3.0",
+		"@tailwindcss/vite": "^4.3.3",
+		"@types/react": "^19.3.0",
+		"@types/react-dom": "^19.3.0",
+		"@vitejs/plugin-react": "^6.1.1",
+		"tailwindcss": "^4.3.3",
+		"typescript": "^7.0.2",
+		"vite": "^8.3.0"
+	}
+}

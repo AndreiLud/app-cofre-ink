@@ -1,0 +1,72 @@
+{
+	"app": {
+		"name": "Cofre",
+		"tagline": "Suas finanças, na sua infraestrutura"
+	},
+	"actions": {
+		"save": "Salvar",
+		"cancel": "Cancelar",
+		"newEntry": "Novo lançamento",
+		"delete": "Apagar",
+		"seeTable": "Ver tabela",
+		"markPaid": "Marcar como pago"
+	},
+	"theme": {
+		"label": "Tema",
+		"light": "Claro",
+		"dark": "Escuro",
+		"system": "Do sistema"
+	},
+	"language": {
+		"label": "Idioma",
+		"portuguese": "Português",
+		"english": "Inglês"
+	},
+	"privacy": {
+		"hide": "Esconder valores",
+		"show": "Mostrar valores"
+	},
+	"spaces": {
+		"personal": "Pessoal",
+		"house": "Casa",
+		"current": "Você está no espaço {{name}}"
+	},
+	"designSystem": {
+		"title": "Design system",
+		"subtitle": "Direção Papel e tinta. Cada peça aqui já é a peça que vai para as telas.",
+		"colours": "Cores",
+		"colourNote": "Contraste medido contra o fundo do tema ativo, pela fórmula da WCAG. O mínimo para texto é 4,5.",
+		"typography": "Tipografia",
+		"components": "Componentes",
+		"tableSample": "Vence nos próximos dias",
+		"chartSample": "Para onde foi o dinheiro",
+		"ratio": "contraste",
+		"specimenTitle": "Quanto sobra até o fim do mês",
+		"specimenBody": "Texto de interface em IBM Plex Sans, no tamanho padrão de leitura.",
+		"specimenSupport": "Texto de apoio, em grafite, para rótulos e explicações curtas.",
+		"textTokens": "Texto e ícones",
+		"fillTokens": "Preenchimento e superfícies",
+		"fillNote": "medido, sem exigência"
+	},
+	"fields": {
+		"amount": "Valor",
+		"amountHint": "Use vírgula para os centavos.",
+		"description": "Descrição",
+		"descriptionPlaceholder": "Mercado do bairro",
+		"amountError": "Não consegui ler esse valor. Escreva algo como 42,90."
+	},
+	"table": {
+		"date": "Data",
+		"description": "Descrição",
+		"category": "Categoria",
+		"amount": "Valor",
+		"caption": "Contas a vencer nos próximos dias, com data, descrição, categoria e valor"
+	},
+	"insight": {
+		"headline": "Mercado subiu 18 por cento desde março",
+		"detail": "Foram 1.240,00 em setembro contra 1.050,00 na média dos seis meses anteriores."
+	},
+	"demo": {
+		"notice": "Dados fictícios, só para demonstração."
+	}
+}
