@@ -1,6 +1,7 @@
 // The tables of Cofre. Phase 1 covers people, spaces, membership, one account table
 // to exercise the space scope, and the change log that every write passes through.
 
+import { AUTH_TABLES } from "./authTables.ts";
 import { defineTable, type Table } from "./types.ts";
 
 export const ROLES = ["owner", "admin", "editor", "viewer", "logger"] as const;
@@ -126,7 +127,14 @@ export const changes = defineTable({
 	],
 });
 
-export const SCHEMA: readonly Table[] = [users, spaces, spaceMembers, accounts, changes];
+export const SCHEMA: readonly Table[] = [
+	users,
+	spaces,
+	spaceMembers,
+	accounts,
+	changes,
+	...AUTH_TABLES,
+];
 
 export function tableByName(name: string): Table {
 	const found = SCHEMA.find((table) => table.name === name);

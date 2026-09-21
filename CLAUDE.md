@@ -63,7 +63,7 @@ apps/
   desktop/    Tauri 2 wrapping the web build with local SQLite
 packages/
   core/       business rules, pure TypeScript, no framework
-  db/         Drizzle schema, migrations for SQLite and PostgreSQL, seeds
+  db/         schema described once, generated for SQLite and PostgreSQL, migrations
   storage/    repository layer and adapters, one permission model
   importers/  CSV, OFX, QIF, XLSX, JSON readers and the statement pipeline
   ui/         design tokens, components, chart presets
@@ -76,18 +76,22 @@ scripts/
 
 ## Commands
 
-Phase 1 creates these. Until then only the writing checker exists.
-
 | command | what it does |
 | --- | --- |
 | `pnpm install` | installs the workspace |
 | `pnpm dev` | runs web and server in watch mode |
 | `pnpm build` | builds every package and app |
-| `pnpm check` | Biome lint and format check, plus TypeScript |
+| `pnpm lint` | Biome lint and format check |
+| `pnpm typecheck` | TypeScript across every package |
 | `pnpm test` | Vitest across packages |
-| `pnpm test:e2e` | Playwright flows |
+| `pnpm test:e2e` | Playwright flows in a real browser |
 | `pnpm check:writing` | writing rule over Markdown and translations |
-| `pnpm run configurar` | setup wizard that asks the mode and writes the config |
+| `docker compose up -d` | the server and the interface in one container |
+| `pnpm run configurar` | setup wizard that asks the mode and writes the config, still to be written |
+
+The server needs `.env`. Copy `.env.example` and fill `COFRE_SECRET`. On Node 22 it
+runs with `--experimental-sqlite`, which the scripts already pass. Node 24 needs
+nothing.
 
 ## Conventions
 
@@ -120,7 +124,8 @@ Phase 1 creates these. Until then only the writing checker exists.
 | 1 block A. Storage spike, monorepo, CI, money primitives, design system | done |
 | 1 block B. Data model, repository layer, adapters, conformance suite | done |
 | 1 block C. Browser mode end to end: worker, onboarding, shell, spaces, members | done |
-| 1 block D. Server with Hono and Better Auth, real invitations, http adapter | next |
+| 1 block D. Browser flows in Playwright, server with authentication, invitations, Docker | done |
+| 1 block E. The interface in server mode: sign in, invitation screen, mode switch | next |
 | 2. Accounts, transactions, cards, installments, transfers | planned |
 | 3. Categories, priorities, rules, recurrences, calendar | planned |
 | 4. Budget, savings rule, goals, expense splitting, alerts | planned |
@@ -143,3 +148,4 @@ Phase 1 creates these. Until then only the writing checker exists.
 | [0006](docs/adr/0006_visual_direction.md) | visual direction and design system |
 | [0007](docs/adr/0007_language_and_writing_rule.md) | language policy and writing rule |
 | [0008](docs/adr/0008_storage_implementation.md) | how the storage layer is actually built |
+| [0009](docs/adr/0009_authentication_and_identity.md) | authentication, identity and invitations |

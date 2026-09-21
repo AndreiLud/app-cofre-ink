@@ -71,6 +71,49 @@ export async function findUserById(driver: Driver, userId: string): Promise<User
 	return first ? toUser(first) : null;
 }
 
+export type IdentityInput = {
+	id: string;
+	email: string;
+	name: string;
+	image?: string | null;
+};
+
+/**
+ * Keeps the product's own row for a person in step with whoever signed in.
+ *
+ * In server mode the authentication layer owns the identity, and every space, member
+ * and record in Cofre points at this row instead. One direction only: what is typed
+ * in the sign in screen wins.
+ */
+export async function upsertUserFromIdentity(
+	driver: Driver,
+	identity: IdentityInput,
+	now: () => number = Date.now,
+): Promise<User> {
+	const email = identity.email.trim().toLowerCase();
+	const name = identity.name.trim() === "" ? email : identity.name.trim();
+	const moment = now();
+
+	const existing = await driver.all(`${SELECT} WHERE "id" = ?`, [identity.id]);
+	if (existing.length === 0) {
+		await driver.run(
+			`INSERT INTO "users" ("id", "email", "name", "image", "email_verified", "created_at", "updated_at")
+			 VALUES (${marks(7)})`,
+			[identity.id, email, name, identity.image ?? null, 0, moment, moment],
+		);
+	} else {
+		await driver.run(
+			`UPDATE "users" SET "email" = ?, "name" = ?, "image" = ?, "updated_at" = ? WHERE "id" = ?`,
+			[email, name, identity.image ?? null, moment, identity.id],
+		);
+	}
+
+	const rows = await driver.all(`${SELECT} WHERE "id" = ?`, [identity.id]);
+	const first = rows[0];
+	if (!first) throw new NotFoundError("user", identity.id);
+	return toUser(first);
+}
+
 export function createUsersRepository(context: RepositoryContext) {
 	return {
 		/** The person who is asking. */

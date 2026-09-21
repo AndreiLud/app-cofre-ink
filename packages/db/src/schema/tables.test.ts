@@ -46,10 +46,10 @@ describe("generated sql", () => {
 	});
 
 	it("writes the same columns in both dialects", () => {
+		// One column per line, so the name is whatever is quoted at the start of it.
+		// Matching on the type would need this test edited every time a type is added.
 		const columnsOf = (sql: string) =>
-			[...sql.matchAll(/"([a-z_]+)" (?:TEXT|INTEGER|BIGINT|DOUBLE PRECISION|BYTEA|JSONB)/g)].map(
-				(match) => match[1],
-			);
+			[...sql.matchAll(/^\t"([a-z_]+)"/gm)].map((match) => match[1]);
 		for (const table of SCHEMA) {
 			expect(columnsOf(createTableSql(table, "sqlite"))).toEqual(
 				columnsOf(createTableSql(table, "postgres")),

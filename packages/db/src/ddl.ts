@@ -14,6 +14,8 @@ const TYPES: Record<Dialect, Record<ColumnType, string>> = {
 		real: "REAL",
 		blob: "BLOB",
 		json: "TEXT",
+		boolean: "INTEGER",
+		timestampText: "TEXT",
 	},
 	postgres: {
 		text: "TEXT",
@@ -22,6 +24,8 @@ const TYPES: Record<Dialect, Record<ColumnType, string>> = {
 		real: "DOUBLE PRECISION",
 		blob: "BYTEA",
 		json: "JSONB",
+		boolean: "BOOLEAN",
+		timestampText: "TEXT",
 	},
 };
 

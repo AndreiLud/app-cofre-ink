@@ -3,7 +3,17 @@
 // it is the place where the rule "every data row belongs to a space" is enforced by
 // construction instead of by review.
 
-export type ColumnType = "text" | "integer" | "bigint" | "real" | "blob" | "json";
+export type ColumnType =
+	| "text"
+	| "integer"
+	| "bigint"
+	| "real"
+	| "blob"
+	| "json"
+	/** True or false. SQLite keeps it as a number, PostgreSQL as a boolean. */
+	| "boolean"
+	/** An instant written by a library that speaks in dates, stored as text. */
+	| "timestampText";
 
 export type ReferenceAction = "cascade" | "restrict" | "setNull";
 

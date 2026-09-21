@@ -7,6 +7,7 @@ import type { Driver } from "./driver.ts";
 import { createAccountsRepository } from "./repositories/accounts.ts";
 import { createChangesRepository } from "./repositories/changes.ts";
 import type { RepositoryContext } from "./repositories/context.ts";
+import { createInvitationsRepository } from "./repositories/invitations.ts";
 import { createMembersRepository } from "./repositories/members.ts";
 import { createSpacesRepository } from "./repositories/spaces.ts";
 import { createUsersRepository } from "./repositories/users.ts";
@@ -27,6 +28,7 @@ export type Session = {
 	refresh(): Promise<void>;
 	spaces: ReturnType<typeof createSpacesRepository>;
 	members: ReturnType<typeof createMembersRepository>;
+	invitations: ReturnType<typeof createInvitationsRepository>;
 	accounts: ReturnType<typeof createAccountsRepository>;
 	changes: ReturnType<typeof createChangesRepository>;
 	users: ReturnType<typeof createUsersRepository>;
@@ -90,6 +92,7 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 		refresh: context.refreshActor,
 		spaces: createSpacesRepository(context),
 		members: createMembersRepository(context),
+		invitations: createInvitationsRepository(context),
 		accounts: createAccountsRepository(context),
 		changes: createChangesRepository(context),
 		users: createUsersRepository(context),

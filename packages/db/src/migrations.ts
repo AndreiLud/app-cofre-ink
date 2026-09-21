@@ -8,6 +8,7 @@
 // they ever stop being identical.
 
 import { createSchemaSql, type Dialect } from "./ddl.ts";
+import { AUTH_TABLES } from "./schema/authTables.ts";
 import { SCHEMA } from "./schema/tables.ts";
 
 export type Migration = {
@@ -19,6 +20,13 @@ export const MIGRATIONS: readonly Migration[] = [
 	{
 		id: "0001_initial",
 		statements: (dialect) => createSchemaSql(SCHEMA, dialect),
+	},
+	// Every statement is written to be harmless on a database that already has the
+	// table, so the baseline above can keep creating everything for a fresh install
+	// while an older database catches up here.
+	{
+		id: "0002_authentication_and_invitations",
+		statements: (dialect) => createSchemaSql([...AUTH_TABLES], dialect),
 	},
 ];
 

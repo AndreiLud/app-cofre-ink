@@ -7,6 +7,7 @@
 import {
 	columnsQuery,
 	differences,
+	MIGRATIONS,
 	SCHEMA,
 	type ShapeRow,
 	shapeOfRows,
@@ -84,7 +85,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 			it("creates the schema once and stays quiet afterwards", async () => {
 				const driver = await adapter.open();
 				try {
-					expect(await migrate(driver)).toEqual(["0001_initial"]);
+					expect(await migrate(driver)).toEqual(MIGRATIONS.map((migration) => migration.id));
 					expect(await migrate(driver)).toEqual([]);
 				} finally {
 					await driver.close();

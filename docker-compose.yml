@@ -1,0 +1,44 @@
+# Cofre on your own machine.
+#
+#   1. cp .env.example .env
+#   2. fill COFRE_SECRET
+#   3. docker compose up -d
+#
+# The data lives in the named volume below, so it survives an update of the image.
+# For PostgreSQL instead of SQLite, uncomment the database service and point
+# COFRE_DATABASE at it.
+
+services:
+  cofre:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${COFRE_PORT:-4321}:4321"
+    environment:
+      COFRE_PORT: 4321
+      COFRE_DATABASE: ${COFRE_DATABASE:-/data/cofre.db}
+      COFRE_SECRET: ${COFRE_SECRET:?set COFRE_SECRET in .env}
+      COFRE_WEB_ORIGIN: ${COFRE_WEB_ORIGIN:-http://localhost:4321}
+      COFRE_PUBLIC_URL: ${COFRE_PUBLIC_URL:-http://localhost:4321}
+      NODE_ENV: production
+    volumes:
+      - cofreData:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4321/health').then(r => process.exit(r.ok ? 0 : 1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # database:
+  #   image: postgres:17-alpine
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_USER: cofre
+  #     POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+  #     POSTGRES_DB: cofre
+  #   volumes:
+  #     - cofrePostgres:/var/lib/postgresql/data
+
+volumes:
+  cofreData:
+  # cofrePostgres:

@@ -75,6 +75,14 @@ export function createUuidV7(wallClock: () => number = Date.now): () => string {
 /** The generator the application uses, on the real clock. */
 export const uuidV7 = createUuidV7();
 
+/**
+ * A secret that travels in a link, such as an invitation. Thirty two bytes of chance,
+ * which is far beyond guessing, written as hexadecimal so it survives any transport.
+ */
+export function randomToken(bytes = 32): string {
+	return toHex(randomBytes(bytes));
+}
+
 const PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 export function isUuidV7(value: string): boolean {

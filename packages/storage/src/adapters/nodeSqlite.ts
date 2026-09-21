@@ -53,10 +53,23 @@ function wrap(database: DatabaseSync, insideTransaction: boolean): Driver {
 	return driver;
 }
 
-export function openNodeSqlite(options: NodeSqliteOptions): Driver {
+/**
+ * Opens the database and hands back the handle itself. The server needs it because
+ * the authentication library talks to SQLite directly, and both have to be looking at
+ * the same file.
+ */
+export function openNodeSqliteHandle(options: NodeSqliteOptions): DatabaseSync {
 	const database = new DatabaseSync(options.location);
 	database.exec("PRAGMA journal_mode = WAL");
 	database.exec("PRAGMA foreign_keys = ON");
 	database.exec("PRAGMA busy_timeout = 5000");
+	return database;
+}
+
+export function wrapNodeSqlite(database: DatabaseSync): Driver {
 	return wrap(database, false);
+}
+
+export function openNodeSqlite(options: NodeSqliteOptions): Driver {
+	return wrap(openNodeSqliteHandle(options), false);
 }
