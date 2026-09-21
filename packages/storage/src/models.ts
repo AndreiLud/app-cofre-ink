@@ -7,6 +7,8 @@ import { asJson, asNumber, asOptionalNumber, asOptionalText, asText, type Row } 
 export type SpaceKind = "personal" | "shared";
 export type AccountKind = "checking" | "savings" | "cash" | "credit" | "voucher" | "investment";
 export type ChangeOperation = "insert" | "update" | "delete";
+export type TransactionKind = "income" | "expense" | "transfer";
+export type TransactionStatus = "planned" | "settled";
 
 export type User = {
 	id: string;
@@ -51,9 +53,46 @@ export type Account = {
 	initialBalance: number;
 	institution: string | null;
 	archivedAt: number | null;
+	/** Only a credit card has these three. */
+	closingDay: number | null;
+	dueDay: number | null;
+	creditLimit: number | null;
 	createdBy: string;
 	createdAt: number;
 	updatedAt: number;
+};
+
+export type Transaction = {
+	id: string;
+	spaceId: string;
+	kind: TransactionKind;
+	status: TransactionStatus;
+	/** Signed minor units. Negative is money leaving. */
+	amount: number;
+	currency: string;
+	fxRate: number | null;
+	amountInBase: number;
+	happenedOn: string;
+	description: string;
+	accountId: string;
+	counterAccountId: string | null;
+	notes: string | null;
+	reconciledAt: number | null;
+	installmentGroup: string | null;
+	installmentNumber: number | null;
+	installmentCount: number | null;
+	invoiceMonth: string | null;
+	createdBy: string;
+	createdAt: number;
+	updatedAt: number;
+};
+
+/** What an account is worth, counting what has happened and what is still planned. */
+export type AccountBalance = {
+	accountId: string;
+	currency: string;
+	settled: number;
+	projected: number;
 };
 
 export type Change = {
@@ -119,6 +158,35 @@ export function toAccount(row: Row): Account {
 		initialBalance: asNumber(row.initial_balance),
 		institution: asOptionalText(row.institution),
 		archivedAt: asOptionalNumber(row.archived_at),
+		closingDay: asOptionalNumber(row.closing_day),
+		dueDay: asOptionalNumber(row.due_day),
+		creditLimit: asOptionalNumber(row.credit_limit),
+		createdBy: asText(row.created_by),
+		createdAt: asNumber(row.created_at),
+		updatedAt: asNumber(row.updated_at),
+	};
+}
+
+export function toTransaction(row: Row): Transaction {
+	return {
+		id: asText(row.id),
+		spaceId: asText(row.space_id),
+		kind: asText(row.kind) as TransactionKind,
+		status: asText(row.status) as TransactionStatus,
+		amount: asNumber(row.amount),
+		currency: asText(row.currency),
+		fxRate: asOptionalNumber(row.fx_rate),
+		amountInBase: asNumber(row.amount_in_base),
+		happenedOn: asText(row.happened_on),
+		description: asText(row.description),
+		accountId: asText(row.account_id),
+		counterAccountId: asOptionalText(row.counter_account_id),
+		notes: asOptionalText(row.notes),
+		reconciledAt: asOptionalNumber(row.reconciled_at),
+		installmentGroup: asOptionalText(row.installment_group),
+		installmentNumber: asOptionalNumber(row.installment_number),
+		installmentCount: asOptionalNumber(row.installment_count),
+		invoiceMonth: asOptionalText(row.invoice_month),
 		createdBy: asText(row.created_by),
 		createdAt: asNumber(row.created_at),
 		updatedAt: asNumber(row.updated_at),

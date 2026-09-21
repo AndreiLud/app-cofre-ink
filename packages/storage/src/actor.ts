@@ -37,6 +37,12 @@ export const PERMISSIONS = {
 	"account.update": ["owner", "admin", "editor"],
 	"account.archive": ["owner", "admin", "editor"],
 	"account.delete": ["owner", "admin"],
+	// The logger writes and reads, but only ever sees what they wrote themselves.
+	"transaction.read": ["owner", "admin", "editor", "viewer", "logger"],
+	"transaction.create": ["owner", "admin", "editor", "logger"],
+	"transaction.update": ["owner", "admin", "editor", "logger"],
+	"transaction.delete": ["owner", "admin", "editor", "logger"],
+	"transaction.reconcile": ["owner", "admin", "editor"],
 	"activity.read": ["owner", "admin", "editor", "viewer"],
 } as const satisfies Record<string, readonly Role[]>;
 
@@ -54,6 +60,14 @@ export function roleIn(actor: Actor, spaceId: string): Role | null {
 
 export function isMember(actor: Actor, spaceId: string): boolean {
 	return roleIn(actor, spaceId) !== null;
+}
+
+/**
+ * True for the role meant for a child, or for whoever helps with the house: they
+ * record what they spent and see what they recorded, and nothing else.
+ */
+export function seesOwnRowsOnly(actor: Actor, spaceId: string): boolean {
+	return roleIn(actor, spaceId) === "logger";
 }
 
 /** Every space this person can read, which is what the consolidated view is made of. */

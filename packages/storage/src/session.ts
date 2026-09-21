@@ -10,6 +10,7 @@ import type { RepositoryContext } from "./repositories/context.ts";
 import { createInvitationsRepository } from "./repositories/invitations.ts";
 import { createMembersRepository } from "./repositories/members.ts";
 import { createSpacesRepository } from "./repositories/spaces.ts";
+import { createTransactionsRepository } from "./repositories/transactions.ts";
 import { createUsersRepository } from "./repositories/users.ts";
 import type { WriteContext } from "./writer.ts";
 
@@ -30,6 +31,7 @@ export type Session = {
 	members: ReturnType<typeof createMembersRepository>;
 	invitations: ReturnType<typeof createInvitationsRepository>;
 	accounts: ReturnType<typeof createAccountsRepository>;
+	transactions: ReturnType<typeof createTransactionsRepository>;
 	changes: ReturnType<typeof createChangesRepository>;
 	users: ReturnType<typeof createUsersRepository>;
 };
@@ -94,6 +96,7 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 		members: createMembersRepository(context),
 		invitations: createInvitationsRepository(context),
 		accounts: createAccountsRepository(context),
+		transactions: createTransactionsRepository(context),
 		changes: createChangesRepository(context),
 		users: createUsersRepository(context),
 	};

@@ -126,7 +126,8 @@ nothing.
 | 1 block C. Browser mode end to end: worker, onboarding, shell, spaces, members | done |
 | 1 block D. Browser flows in Playwright, server with authentication, invitations, Docker | done |
 | 1 block E. The interface in server mode: sign in, invitation screen, mode switch | done |
-| 2. Accounts, transactions, cards, installments, transfers | next |
+| 2 block A. Transaction model, invoice cycle, installments, balances | done |
+| 2 block B. The screens: register, list with filters, card invoice, quick entry | next |
 | 3. Categories, priorities, rules, recurrences, calendar | planned |
 | 4. Budget, savings rule, goals, expense splitting, alerts | planned |
 | 5. Dashboard, consolidated view, reports and charts | planned |
@@ -149,3 +150,4 @@ nothing.
 | [0007](docs/adr/0007_language_and_writing_rule.md) | language policy and writing rule |
 | [0008](docs/adr/0008_storage_implementation.md) | how the storage layer is actually built |
 | [0009](docs/adr/0009_authentication_and_identity.md) | authentication, identity and invitations |
+| [0010](docs/adr/0010_shape_of_a_transaction.md) | the shape of a transaction |

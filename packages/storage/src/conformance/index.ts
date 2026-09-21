@@ -20,13 +20,18 @@ import { migrate } from "../migrate.ts";
 import { createUser } from "../repositories/users.ts";
 import type { Session } from "../session.ts";
 import { type AdapterUnderTest, type Fixture, prepare } from "./setup.ts";
+import { runTransactionConformance } from "./transactions.ts";
+
+type ProbeContext = {
+	spaceId: string;
+	accountId: string;
+	transactionId: string;
+	guestId: string;
+};
 
 type Probe = {
 	permission: Permission;
-	run: (
-		session: Session,
-		context: { spaceId: string; accountId: string; guestId: string },
-	) => Promise<unknown>;
+	run: (session: Session, context: ProbeContext) => Promise<unknown>;
 };
 
 const PROBES: Probe[] = [
@@ -70,14 +75,39 @@ const PROBES: Probe[] = [
 		run: (session, where) => session.accounts.remove(where.accountId),
 	},
 	{
+		permission: "transaction.read",
+		run: (session, where) => session.transactions.list({ spaceId: where.spaceId }),
+	},
+	{
+		permission: "transaction.create",
+		run: (session, where) =>
+			session.transactions.create({
+				spaceId: where.spaceId,
+				kind: "expense",
+				amount: 1000,
+				happenedOn: "2026-09-10",
+				description: "Cafe",
+				accountId: where.accountId,
+			}),
+	},
+	{
+		permission: "transaction.update",
+		run: (session, where) =>
+			session.transactions.update(where.transactionId, { description: "Outro" }),
+	},
+	{
+		permission: "transaction.delete",
+		run: (session, where) => session.transactions.remove(where.transactionId),
+	},
+	{
+		permission: "transaction.reconcile",
+		run: (session, where) => session.transactions.reconcile(where.transactionId, true),
+	},
+	{
 		permission: "activity.read",
 		run: (session, where) => session.changes.list({ spaceId: where.spaceId }),
 	},
 ];
-
-async function expectPermissionError(work: () => Promise<unknown>): Promise<void> {
-	await expect(work()).rejects.toBeInstanceOf(PermissionError);
-}
 
 export function runConformanceSuite(adapter: AdapterUnderTest): void {
 	describe(`storage adapter: ${adapter.name}`, () => {
@@ -468,6 +498,8 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 			});
 		});
 
+		runTransactionConformance(adapter);
+
 		describe("the permission matrix", () => {
 			it("covers every permission with at least one probe", () => {
 				const covered = new Set(PROBES.map((probe) => probe.permission));
@@ -501,10 +533,19 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 								kind: "checking",
 								name: "Conta da casa",
 							});
+							const [record] = await fixture.asAna.transactions.create({
+								spaceId: space.id,
+								kind: "expense",
+								amount: 1000,
+								happenedOn: "2026-09-10",
+								description: "Cafe da Ana",
+								accountId: account.id,
+							});
 
 							const where = {
 								spaceId: space.id,
 								accountId: account.id,
+								transactionId: record?.id ?? "",
 								guestId: fixture.carla.id,
 							};
 
@@ -513,8 +554,30 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 								await probe.run(fixture.asJoao, where).catch((error: unknown) => {
 									expect(error).not.toBeInstanceOf(PermissionError);
 								});
+								return;
+							}
+
+							const refusal = await probe.run(fixture.asJoao, where).then(
+								() => null,
+								(error: unknown) => error,
+							);
+							expect(refusal, "it went through when it should not have").not.toBeNull();
+
+							// A logger cannot see a record somebody else wrote, so a refusal
+							// over one of those arrives as "there is no such thing", which
+							// says even less than "you may not".
+							const invisibleToLogger =
+								role === "logger" &&
+								(probe.permission === "transaction.update" ||
+									probe.permission === "transaction.delete" ||
+									probe.permission === "transaction.reconcile");
+
+							if (invisibleToLogger) {
+								expect(refusal instanceof PermissionError || refusal instanceof NotFoundError).toBe(
+									true,
+								);
 							} else {
-								await expectPermissionError(() => probe.run(fixture.asJoao, where));
+								expect(refusal).toBeInstanceOf(PermissionError);
 							}
 						} finally {
 							await fixture.close();
@@ -532,7 +595,20 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 						kind: "checking",
 						name: "Conta da casa",
 					});
-					const where = { spaceId: space.id, accountId: account.id, guestId: fixture.carla.id };
+					const [record] = await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "expense",
+						amount: 1000,
+						happenedOn: "2026-09-10",
+						description: "Cafe da Ana",
+						accountId: account.id,
+					});
+					const where = {
+						spaceId: space.id,
+						accountId: account.id,
+						transactionId: record?.id ?? "",
+						guestId: fixture.carla.id,
+					};
 
 					for (const probe of PROBES) {
 						await expect(

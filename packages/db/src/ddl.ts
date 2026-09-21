@@ -57,6 +57,11 @@ function columnSql(column: Column, dialect: Dialect): string {
 	return parts.join(" ");
 }
 
+/** Adds one column to a table that already exists, for a migration. */
+export function addColumnSql(tableName: string, column: Column, dialect: Dialect): string {
+	return `ALTER TABLE ${quote(tableName)} ADD COLUMN ${columnSql(column, dialect)}`;
+}
+
 export function createTableSql(table: Table, dialect: Dialect): string {
 	const lines = table.columns.map((column) => `\t${columnSql(column, dialect)}`);
 	for (const group of table.uniqueTogether) {

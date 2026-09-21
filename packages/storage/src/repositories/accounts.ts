@@ -14,6 +14,10 @@ export type CreateAccountInput = {
 	/** In minor units, as every amount in this project. */
 	initialBalance?: number;
 	institution?: string | null;
+	/** A credit card needs all three, and nothing else uses them. */
+	closingDay?: number | null;
+	dueDay?: number | null;
+	creditLimit?: number | null;
 };
 
 export type UpdateAccountInput = {
@@ -23,7 +27,8 @@ export type UpdateAccountInput = {
 };
 
 const SELECT = `SELECT "id", "space_id", "kind", "name", "currency", "initial_balance",
-	"institution", "archived_at", "created_by", "created_at", "updated_at"
+	"institution", "archived_at", "closing_day", "due_day", "credit_limit", "created_by",
+	"created_at", "updated_at"
 	FROM "accounts"`;
 
 export function createAccountsRepository(context: RepositoryContext) {
@@ -68,6 +73,9 @@ export function createAccountsRepository(context: RepositoryContext) {
 					initial_balance: input.initialBalance ?? 0,
 					institution: input.institution ?? null,
 					archived_at: null,
+					closing_day: input.closingDay ?? null,
+					due_day: input.dueDay ?? null,
+					credit_limit: input.creditLimit ?? null,
 					created_by: context.actor().userId,
 				},
 			});

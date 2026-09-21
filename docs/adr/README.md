@@ -16,3 +16,4 @@ new one.
 | [0007](0007_language_and_writing_rule.md) | language per artifact and the writing rule | accepted |
 | [0008](0008_storage_implementation.md) | how the storage layer is actually built, replacing two tool choices in 0002 | accepted |
 | [0009](0009_authentication_and_identity.md) | authentication on the server, identity mirroring and invitations | accepted |
+| [0010](0010_shape_of_a_transaction.md) | transfers, signs, invoices and installments | accepted |

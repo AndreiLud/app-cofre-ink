@@ -2,6 +2,7 @@
 // to exercise the space scope, and the change log that every write passes through.
 
 import { AUTH_TABLES } from "./authTables.ts";
+import { TRANSACTION_TABLES } from "./transactionTables.ts";
 import { defineTable, type Table } from "./types.ts";
 
 export const ROLES = ["owner", "admin", "editor", "viewer", "logger"] as const;
@@ -87,6 +88,10 @@ export const accounts = defineTable({
 		{ name: "initial_balance", type: "bigint", notNull: true, defaultTo: 0 },
 		{ name: "institution", type: "text" },
 		{ name: "archived_at", type: "bigint" },
+		// What a credit card needs. Empty on every other kind of account.
+		{ name: "closing_day", type: "integer" },
+		{ name: "due_day", type: "integer" },
+		{ name: "credit_limit", type: "bigint" },
 		{
 			name: "created_by",
 			type: "text",
@@ -134,6 +139,7 @@ export const SCHEMA: readonly Table[] = [
 	accounts,
 	changes,
 	...AUTH_TABLES,
+	...TRANSACTION_TABLES,
 ];
 
 export function tableByName(name: string): Table {

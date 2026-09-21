@@ -1,32 +1,49 @@
 // Migrations, in order. The runner lives in the storage package, because it needs a
 // database to talk to. This file only says what has to happen.
 //
-// The rule when the schema changes: describe the change in `schema/tables.ts` and add
-// a migration here with the explicit statements for a database that already exists.
-// The first migration is generated from the description, so a brand new database and
-// a migrated one end up identical. The drift test in the conformance suite fails if
-// they ever stop being identical.
+// Two shapes of change, and they are handled differently.
+//
+// A new table is created by the baseline as well, so its migration just repeats the
+// creation with "if not exists" and costs nothing on a fresh database.
+//
+// A new column on an existing table cannot work that way: the baseline already writes
+// it, so an unguarded ALTER would fail on a fresh database and succeed on an old one.
+// That is what the context is for. It says what the database already has, so a
+// migration can add only what is missing.
 
-import { createSchemaSql, type Dialect } from "./ddl.ts";
+import { addColumnSql, createSchemaSql, type Dialect } from "./ddl.ts";
 import { AUTH_TABLES } from "./schema/authTables.ts";
 import { SCHEMA } from "./schema/tables.ts";
+import { CARD_COLUMNS, TRANSACTION_TABLES } from "./schema/transactionTables.ts";
+
+export type MigrationContext = {
+	dialect: Dialect;
+	hasTable: (table: string) => boolean;
+	hasColumn: (table: string, column: string) => boolean;
+};
 
 export type Migration = {
 	id: string;
-	statements: (dialect: Dialect) => string[];
+	statements: (context: MigrationContext) => string[];
 };
 
 export const MIGRATIONS: readonly Migration[] = [
 	{
 		id: "0001_initial",
-		statements: (dialect) => createSchemaSql(SCHEMA, dialect),
+		statements: (context) => createSchemaSql(SCHEMA, context.dialect),
 	},
-	// Every statement is written to be harmless on a database that already has the
-	// table, so the baseline above can keep creating everything for a fresh install
-	// while an older database catches up here.
 	{
 		id: "0002_authentication_and_invitations",
-		statements: (dialect) => createSchemaSql([...AUTH_TABLES], dialect),
+		statements: (context) => createSchemaSql([...AUTH_TABLES], context.dialect),
+	},
+	{
+		id: "0003_transactions_and_cards",
+		statements: (context) => [
+			...createSchemaSql([...TRANSACTION_TABLES], context.dialect),
+			...CARD_COLUMNS.filter((column) => !context.hasColumn("accounts", column.name)).map(
+				(column) => addColumnSql("accounts", column, context.dialect),
+			),
+		],
 	},
 ];
 
