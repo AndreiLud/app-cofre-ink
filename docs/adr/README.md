@@ -14,3 +14,4 @@ new one.
 | [0005](0005_spaces_and_permissions.md) | spaces, roles, scoping and the permission matrix | accepted |
 | [0006](0006_visual_direction.md) | visual direction, tokens, typography and motion | accepted |
 | [0007](0007_language_and_writing_rule.md) | language per artifact and the writing rule | accepted |
+| [0008](0008_storage_implementation.md) | how the storage layer is actually built, replacing two tool choices in 0002 | accepted |

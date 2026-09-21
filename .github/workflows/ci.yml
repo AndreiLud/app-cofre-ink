@@ -13,6 +13,12 @@ jobs:
   check:
     name: lint, types, tests and build
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # SQLite ships inside Node and is stable from 24. On 22 it needs a flag, and
+        # running both makes sure the project keeps working either way.
+        node: [22, 24]
     steps:
       - uses: actions/checkout@v4
 
@@ -20,7 +26,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ matrix.node }}
           cache: pnpm
 
       - name: install

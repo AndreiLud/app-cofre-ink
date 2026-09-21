@@ -118,8 +118,8 @@ Phase 1 creates these. Until then only the writing checker exists.
 | --- | --- |
 | 0. Discovery, product brief, ADRs, visual direction | done |
 | 1 block A. Storage spike, monorepo, CI, money primitives, design system | done |
-| 1 block B. Data model, repository layer, adapters, conformance suite | next |
-| 1 block C. Auth, spaces, roles, invitations, onboarding, app shell | planned |
+| 1 block B. Data model, repository layer, adapters, conformance suite | done |
+| 1 block C. Auth, spaces, roles, invitations, onboarding, app shell | next |
 | 2. Accounts, transactions, cards, installments, transfers | planned |
 | 3. Categories, priorities, rules, recurrences, calendar | planned |
 | 4. Budget, savings rule, goals, expense splitting, alerts | planned |
@@ -141,3 +141,4 @@ Phase 1 creates these. Until then only the writing checker exists.
 | [0005](docs/adr/0005_spaces_and_permissions.md) | spaces, roles and permissions |
 | [0006](docs/adr/0006_visual_direction.md) | visual direction and design system |
 | [0007](docs/adr/0007_language_and_writing_rule.md) | language policy and writing rule |
+| [0008](docs/adr/0008_storage_implementation.md) | how the storage layer is actually built |

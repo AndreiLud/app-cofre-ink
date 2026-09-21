@@ -1,6 +1,6 @@
 # ADR 0002: Storage adapters and the repository layer
 
-**Status:** Accepted
+**Status:** Accepted, with the tool choices replaced by registry 0008
 **Date:** 21 September 2026
 **Deciders:** Andrei Ludescher (owner), Claude (implementation)
 
