@@ -13,6 +13,8 @@
 	},
 	"dependencies": {
 		"@cofre/core": "workspace:*",
+		"@radix-ui/react-dialog": "^1.1.23",
+		"@radix-ui/react-dropdown-menu": "^2.1.24",
 		"clsx": "^2.1.1",
 		"lucide-react": "^1.47.0",
 		"tailwind-merge": "^3.7.0"

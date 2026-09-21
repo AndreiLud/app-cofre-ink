@@ -12,7 +12,11 @@
 	},
 	"dependencies": {
 		"@cofre/core": "workspace:*",
+		"@cofre/db": "workspace:*",
+		"@cofre/storage": "workspace:*",
 		"@cofre/ui": "workspace:*",
+		"@tanstack/react-query": "^5.103.1",
+		"@tanstack/react-router": "^1.170.38",
 		"i18next": "^26.4.2",
 		"react": "^19.3.0",
 		"react-dom": "^19.3.0",

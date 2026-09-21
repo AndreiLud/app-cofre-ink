@@ -7,8 +7,6 @@ import {
 	Field,
 	InsightTitle,
 	SectionTitle,
-	SpaceMark,
-	SpaceRule,
 	Table,
 	TableBody,
 	TableCell,
@@ -18,9 +16,9 @@ import {
 } from "@cofre/ui";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { LanguageToggle, PrivacyToggle, ThemeToggle } from "../components/Controls.tsx";
 import { type Language, LOCALE_OF } from "../i18n/index.ts";
-import { readToken, type ThemeChoice } from "../lib/theme.ts";
+import { readToken, useTheme } from "../lib/theme.ts";
+import { useCofre } from "../storage/CofreProvider.tsx";
 
 const TEXT_TOKENS = ["ink", "graphite", "cedar", "seal", "ochre"] as const;
 const FILL_TOKENS = ["amber", "rule", "raised"] as const;
@@ -88,40 +86,20 @@ function Swatch({ entry, showLevel }: { entry: Measured; showLevel: boolean }) {
 	);
 }
 
-export type DesignSystemPageProps = {
-	themeChoice: ThemeChoice;
-	isDark: boolean;
-	onThemeChange: (next: ThemeChoice) => void;
-};
-
-export function DesignSystemPage({ themeChoice, isDark, onThemeChange }: DesignSystemPageProps) {
+export function DesignSystemPage() {
 	const { t, i18n } = useTranslation();
-	const [hiddenAmounts, setHiddenAmounts] = useState(false);
+	const { amountsHidden } = useCofre();
+	const { choice } = useTheme();
+	const isDark =
+		choice === "dark" ||
+		(choice === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
 	const palette = useMeasuredPalette(isDark);
 	const locale = LOCALE_OF[(i18n.resolvedLanguage ?? "pt") as Language];
+	const hiddenAmounts = amountsHidden;
 
 	return (
-		<div className="min-h-dvh bg-paper text-ink">
-			<header className="sticky top-0 z-10 bg-paper">
-				<div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
-					<div className="flex items-center gap-3">
-						<span className="font-serif text-lg font-semibold">{t("app.name")}</span>
-						<SpaceMark
-							name={t("spaces.personal")}
-							colour="slate"
-							description={t("spaces.current", { name: t("spaces.personal") })}
-						/>
-					</div>
-					<div className="flex items-center gap-1">
-						<PrivacyToggle hidden={hiddenAmounts} onChange={setHiddenAmounts} />
-						<LanguageToggle />
-						<ThemeToggle choice={themeChoice} isDark={isDark} onChange={onThemeChange} />
-					</div>
-				</div>
-				<SpaceRule colour="slate" />
-			</header>
-
-			<main className="mx-auto max-w-5xl space-y-12 px-4 py-10">
+		<div>
+			<div className="space-y-12">
 				<div className="space-y-2">
 					<h1 className="text-3xl">{t("designSystem.title")}</h1>
 					<p className="max-w-[60ch] text-graphite">{t("designSystem.subtitle")}</p>
@@ -238,7 +216,7 @@ export function DesignSystemPage({ themeChoice, isDark, onThemeChange }: DesignS
 					</SectionTitle>
 					<InsightTitle detail={t("insight.detail")}>{t("insight.headline")}</InsightTitle>
 				</section>
-			</main>
+			</div>
 		</div>
 	);
 }

@@ -13,8 +13,8 @@
 	},
 	"theme": {
 		"label": "Theme",
-		"light": "Light",
-		"dark": "Dark",
+		"light": "Light theme",
+		"dark": "Dark theme",
 		"system": "From the system"
 	},
 	"language": {
@@ -26,10 +26,150 @@
 		"hide": "Hide amounts",
 		"show": "Show amounts"
 	},
+	"nav": {
+		"label": "Sections of the application",
+		"dashboard": "Overview",
+		"accounts": "Accounts",
+		"spaces": "Spaces",
+		"members": "Members"
+	},
+	"shell": {
+		"opening": "Opening your database on this device.",
+		"failedTitle": "I could not open the database",
+		"failedBody": "This usually means the browser is blocking storage. Try leaving the private window, or allowing site data.",
+		"notPersistentTitle": "The data is only in memory",
+		"notPersistentBody": "This browser would not let anything be written to disk, so everything goes away when the tab closes. Fine for a look around, not for real use."
+	},
+	"palette": {
+		"title": "What do you want to do?",
+		"description": "Find a screen, switch space, or run an action.",
+		"placeholder": "Type to search",
+		"shortcut": "Ctrl K",
+		"navigate": "Go to",
+		"switchSpace": "Switch space",
+		"actions": "Actions",
+		"nothing": "Nothing matches that text."
+	},
+	"onboarding": {
+		"title": "Let us open your Cofre",
+		"subtitle": "Three fields and you are in. None of this leaves this device.",
+		"name": "What you are called",
+		"namePlaceholder": "Your name",
+		"email": "Email",
+		"emailHint": "Optional. It links this profile to a server of yours, if one day you want to sync.",
+		"emailPlaceholder": "you@example.com",
+		"currency": "Currency",
+		"currencyHint": "Accounts in other currencies can come later.",
+		"personalSpace": "Name of your personal space",
+		"personalSpaceHint": "This space is private and can never be shared with anyone.",
+		"personalDefault": "Personal",
+		"demo": "Start with demonstration data",
+		"demoHint": "Creates made up accounts and an example shared space, so you can see the product working. You can delete it afterwards.",
+		"start": "Start",
+		"working": "Getting ready",
+		"privacy": "No data leaves this device.",
+		"nameMissing": "Write your name to continue.",
+		"failedTitle": "I could not create the profile"
+	},
+	"dashboard": {
+		"headline": "You have this much in {{space}}",
+		"openingOnly": "For now this counts only the opening balances of the accounts. Transactions arrive in the next phase.",
+		"consolidated": "Across all of your spaces:",
+		"seeAccounts": "See all",
+		"whereItIs": "Where the money is"
+	},
+	"accounts": {
+		"title": "Accounts in {{space}}",
+		"create": "New account",
+		"createDescription": "The account goes into the {{space}} space.",
+		"caption": "Accounts of the {{space}} space, with name, kind, institution and balance",
+		"name": "Name",
+		"namePlaceholder": "Current account",
+		"kind": "Kind",
+		"institution": "Institution",
+		"institutionPlaceholder": "Name of the bank",
+		"balance": "Opening balance",
+		"balanceHint": "How much is in this account today. Use a comma for the cents.",
+		"actions": "Account actions",
+		"archive": "Archive",
+		"unarchive": "Bring back",
+		"emptyTitle": "No accounts here yet",
+		"emptyBody": "Start with the account your salary lands in. Cards, cash and investments can come later."
+	},
+	"accountKind": {
+		"checking": "Current account",
+		"savings": "Savings",
+		"cash": "Cash",
+		"credit": "Credit card",
+		"voucher": "Meal voucher",
+		"investment": "Investment"
+	},
 	"spaces": {
-		"personal": "Personal",
-		"house": "House",
-		"current": "You are in the {{name}} space"
+		"title": "Your spaces",
+		"explain": "Each space holds one slice of your money life. The personal one is yours alone. A shared space has members, roles and expense splitting.",
+		"create": "New space",
+		"createDescription": "A shared space, for splitting bills with other people.",
+		"name": "Name of the space",
+		"namePlaceholder": "House",
+		"colour": "Colour",
+		"colourHint": "The colour shows in the top bar, so you always know where you are writing.",
+		"personalKind": "Personal and private",
+		"sharedKind": "Shared",
+		"open": "open now",
+		"enter": "Enter",
+		"members": "Members",
+		"current": "You are in the {{name}} space",
+		"switch": "Switch space",
+		"manage": "Manage spaces",
+		"personal": "Personal"
+	},
+	"spaceColour": {
+		"slate": "Slate",
+		"cedar": "Cedar",
+		"clay": "Clay",
+		"plum": "Plum",
+		"sea": "Sea",
+		"rose": "Rose"
+	},
+	"members": {
+		"title": "Who is in {{space}}",
+		"caption": "Members of the {{space}} space, with role and state",
+		"person": "Person",
+		"role": "Role",
+		"state": "State",
+		"you": "{{name}} (you)",
+		"invite": "Invite",
+		"inviteDescription": "The person joins the {{space}} space once they accept.",
+		"sendInvite": "Send the invitation",
+		"email": "Email of the person",
+		"makeRole": "Make {{role}}",
+		"remove": "Remove from the space",
+		"leave": "Leave this space",
+		"aloneTitle": "Just you, for now",
+		"aloneBody": "Invite whoever splits these bills with you. What each person sees comes from the role they get.",
+		"personalTitle": "Personal space",
+		"personalBody": "This space is yours alone and takes no members. To split bills, create a shared space.",
+		"needsServerTitle": "Invitation by link, not yet",
+		"needsServerBody": "Sending an invitation by email or link needs a server, which arrives in the next block. For now you can invite someone who already has a profile in this browser.",
+		"notFoundHere": "I found nobody with that email on this device."
+	},
+	"role": {
+		"owner": "Owner",
+		"admin": "Administrator",
+		"editor": "Editor",
+		"viewer": "Viewer",
+		"logger": "Logger"
+	},
+	"roleHint": {
+		"admin": "Does everything, except deleting the space or transferring it.",
+		"editor": "Writes and edits transactions, accounts, goals and budgets.",
+		"viewer": "Only looks, changes nothing.",
+		"logger": "Only records expenses and sees their own. Meant for a child, or for whoever helps with the house."
+	},
+	"memberState": {
+		"invited": "Invited",
+		"active": "Active",
+		"removed": "Removed"
 	},
 	"designSystem": {
 		"title": "Design system",

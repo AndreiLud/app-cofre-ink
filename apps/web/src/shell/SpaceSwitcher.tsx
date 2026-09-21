@@ -1,0 +1,49 @@
+// Which space am I in, and how do I change it. The colour is a helper, the name is
+// the message, and both are always on screen.
+
+import type { SpaceColour } from "@cofre/ui";
+import { Button, Icon, Menu, MenuItem, MenuLabel, MenuSeparator, SpaceMark } from "@cofre/ui";
+import { useNavigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
+import { ROUTES } from "../router.tsx";
+import { useCofre } from "../storage/CofreProvider.tsx";
+
+export function SpaceSwitcher() {
+	const { t } = useTranslation();
+	const navigate = useNavigate();
+	const { spaces, currentSpace, selectSpace } = useCofre();
+
+	if (!currentSpace) return null;
+
+	return (
+		<Menu
+			align="start"
+			trigger={
+				<Button size="small" variant="quiet" className="min-w-0">
+					<SpaceMark
+						name={currentSpace.name}
+						colour={currentSpace.colour as SpaceColour}
+						description={t("spaces.current", { name: currentSpace.name })}
+					/>
+					<Icon name="chevronDown" className="ml-1 text-graphite" />
+				</Button>
+			}
+		>
+			<MenuLabel>{t("spaces.switch")}</MenuLabel>
+			{spaces.map((space) => (
+				<MenuItem
+					key={space.id}
+					onSelect={() => selectSpace(space.id)}
+					selected={space.id === currentSpace.id}
+					detail={space.id === currentSpace.id ? <Icon name="check" /> : undefined}
+				>
+					<SpaceMark name={space.name} colour={space.colour as SpaceColour} />
+				</MenuItem>
+			))}
+			<MenuSeparator />
+			<MenuItem onSelect={() => void navigate({ to: ROUTES.spaces })}>
+				{t("spaces.manage")}
+			</MenuItem>
+		</Menu>
+	);
+}

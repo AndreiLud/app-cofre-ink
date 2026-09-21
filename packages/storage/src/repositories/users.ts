@@ -61,6 +61,16 @@ export async function findUserByEmail(driver: Driver, email: string): Promise<Us
 	return first ? toUser(first) : null;
 }
 
+/**
+ * Used before opening a session, to tell a profile that was never created from one
+ * whose database was wiped. The browser can drop the data and keep the identifier.
+ */
+export async function findUserById(driver: Driver, userId: string): Promise<User | null> {
+	const rows = await driver.all(`${SELECT} WHERE "id" = ?`, [userId]);
+	const first = rows[0];
+	return first ? toUser(first) : null;
+}
+
 export function createUsersRepository(context: RepositoryContext) {
 	return {
 		/** The person who is asking. */

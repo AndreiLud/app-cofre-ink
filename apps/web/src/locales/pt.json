@@ -13,8 +13,8 @@
 	},
 	"theme": {
 		"label": "Tema",
-		"light": "Claro",
-		"dark": "Escuro",
+		"light": "Tema claro",
+		"dark": "Tema escuro",
 		"system": "Do sistema"
 	},
 	"language": {
@@ -26,10 +26,150 @@
 		"hide": "Esconder valores",
 		"show": "Mostrar valores"
 	},
+	"nav": {
+		"label": "Seções do aplicativo",
+		"dashboard": "Painel",
+		"accounts": "Contas",
+		"spaces": "Espaços",
+		"members": "Membros"
+	},
+	"shell": {
+		"opening": "Abrindo o seu banco de dados neste dispositivo.",
+		"failedTitle": "Não consegui abrir o banco de dados",
+		"failedBody": "Isso costuma acontecer quando o navegador está com o armazenamento bloqueado. Tente sair da janela anônima ou liberar dados de sites.",
+		"notPersistentTitle": "Os dados estão só na memória",
+		"notPersistentBody": "Este navegador não deixou gravar em disco, então tudo some ao fechar a aba. Funciona para experimentar, não para usar de verdade."
+	},
+	"palette": {
+		"title": "O que você quer fazer?",
+		"description": "Busque uma tela, troque de espaço ou execute uma ação.",
+		"placeholder": "Digite para buscar",
+		"shortcut": "Ctrl K",
+		"navigate": "Ir para",
+		"switchSpace": "Trocar de espaço",
+		"actions": "Ações",
+		"nothing": "Nada encontrado com esse texto."
+	},
+	"onboarding": {
+		"title": "Vamos abrir o seu Cofre",
+		"subtitle": "Três campos e você já está dentro. Nada disso sai deste dispositivo.",
+		"name": "Como você se chama",
+		"namePlaceholder": "Seu nome",
+		"email": "Email",
+		"emailHint": "Opcional. Serve para ligar este perfil a um servidor seu, se um dia você quiser sincronizar.",
+		"emailPlaceholder": "voce@exemplo.com",
+		"currency": "Moeda",
+		"currencyHint": "Dá para ter contas em outras moedas depois.",
+		"personalSpace": "Nome do seu espaço pessoal",
+		"personalSpaceHint": "Esse espaço é privado e não pode ser compartilhado com ninguém.",
+		"personalDefault": "Pessoal",
+		"demo": "Começar com dados de demonstração",
+		"demoHint": "Cria contas fictícias e um espaço compartilhado de exemplo, para você ver o app funcionando. Dá para apagar depois.",
+		"start": "Começar",
+		"working": "Preparando",
+		"privacy": "Nenhum dado sai daqui.",
+		"nameMissing": "Escreva o seu nome para continuar.",
+		"failedTitle": "Não consegui criar o perfil"
+	},
+	"dashboard": {
+		"headline": "Você tem isto em {{space}}",
+		"openingOnly": "Por enquanto isso conta só os saldos de abertura das contas. Lançamentos entram na próxima fase.",
+		"consolidated": "Somando todos os seus espaços:",
+		"seeAccounts": "Ver todas",
+		"whereItIs": "Onde o dinheiro está"
+	},
+	"accounts": {
+		"title": "Contas de {{space}}",
+		"create": "Nova conta",
+		"createDescription": "A conta vai para o espaço {{space}}.",
+		"caption": "Contas do espaço {{space}}, com nome, tipo, instituição e saldo",
+		"name": "Nome",
+		"namePlaceholder": "Conta corrente",
+		"kind": "Tipo",
+		"institution": "Instituição",
+		"institutionPlaceholder": "Nome do banco",
+		"balance": "Saldo de abertura",
+		"balanceHint": "Quanto tem hoje nessa conta. Use vírgula para os centavos.",
+		"actions": "Ações da conta",
+		"archive": "Arquivar",
+		"unarchive": "Desarquivar",
+		"emptyTitle": "Nenhuma conta por aqui ainda",
+		"emptyBody": "Comece pela conta onde cai o seu salário. Dá para adicionar cartão, dinheiro e investimento depois."
+	},
+	"accountKind": {
+		"checking": "Conta corrente",
+		"savings": "Poupança",
+		"cash": "Dinheiro",
+		"credit": "Cartão de crédito",
+		"voucher": "Vale refeição",
+		"investment": "Investimento"
+	},
 	"spaces": {
-		"personal": "Pessoal",
-		"house": "Casa",
-		"current": "Você está no espaço {{name}}"
+		"title": "Seus espaços",
+		"explain": "Cada espaço separa um pedaço da sua vida financeira. O pessoal é só seu. Um espaço compartilhado tem membros, papéis e divisão de despesas.",
+		"create": "Novo espaço",
+		"createDescription": "Um espaço compartilhado, para dividir contas com outras pessoas.",
+		"name": "Nome do espaço",
+		"namePlaceholder": "Casa",
+		"colour": "Cor",
+		"colourHint": "A cor aparece na barra do topo, para você saber onde está lançando.",
+		"personalKind": "Pessoal e privado",
+		"sharedKind": "Compartilhado",
+		"open": "aberto agora",
+		"enter": "Entrar",
+		"members": "Membros",
+		"current": "Você está no espaço {{name}}",
+		"switch": "Trocar de espaço",
+		"manage": "Gerenciar espaços",
+		"personal": "Pessoal"
+	},
+	"spaceColour": {
+		"slate": "Ardósia",
+		"cedar": "Cedro",
+		"clay": "Barro",
+		"plum": "Ameixa",
+		"sea": "Mar",
+		"rose": "Rosa"
+	},
+	"members": {
+		"title": "Quem está em {{space}}",
+		"caption": "Membros do espaço {{space}}, com papel e situação",
+		"person": "Pessoa",
+		"role": "Papel",
+		"state": "Situação",
+		"you": "{{name}} (você)",
+		"invite": "Convidar",
+		"inviteDescription": "A pessoa entra no espaço {{space}} depois de aceitar.",
+		"sendInvite": "Enviar convite",
+		"email": "Email da pessoa",
+		"makeRole": "Tornar {{role}}",
+		"remove": "Remover do espaço",
+		"leave": "Sair deste espaço",
+		"aloneTitle": "Por enquanto só você",
+		"aloneBody": "Convide quem divide essas contas com você. Cada pessoa escolhe o que enxerga pelo papel que recebe.",
+		"personalTitle": "Espaço pessoal",
+		"personalBody": "Este espaço é só seu e não aceita membros. Para dividir contas, crie um espaço compartilhado.",
+		"needsServerTitle": "Convite por link ainda não",
+		"needsServerBody": "Enviar convite por email ou link exige um servidor, que entra no próximo bloco. Por enquanto dá para convidar alguém que já tenha perfil neste navegador.",
+		"notFoundHere": "Não encontrei ninguém com esse email neste dispositivo."
+	},
+	"role": {
+		"owner": "Dono",
+		"admin": "Administrador",
+		"editor": "Editor",
+		"viewer": "Leitor",
+		"logger": "Registrador"
+	},
+	"roleHint": {
+		"admin": "Faz tudo, menos apagar o espaço ou transferir a posse.",
+		"editor": "Registra e edita lançamentos, contas, metas e orçamentos.",
+		"viewer": "Só visualiza, não altera nada.",
+		"logger": "Só lança gastos e vê os próprios. Pensado para filhos ou para quem ajuda com a casa."
+	},
+	"memberState": {
+		"invited": "Convidado",
+		"active": "Ativo",
+		"removed": "Removido"
 	},
 	"designSystem": {
 		"title": "Design system",

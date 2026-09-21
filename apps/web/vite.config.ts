@@ -8,6 +8,13 @@ export default defineConfig({
 	resolve: {
 		dedupe: ["react", "react-dom"],
 	},
+	// The SQLite build locates its own WebAssembly file, so it has to stay whole.
+	optimizeDeps: {
+		exclude: ["@sqlite.org/sqlite-wasm"],
+	},
+	worker: {
+		format: "es",
+	},
 	server: {
 		port: 5174,
 	},

@@ -5,8 +5,27 @@ export {
 	type ButtonSize,
 	type ButtonVariant,
 } from "./components/Button.tsx";
+export { Dialog, type DialogProps } from "./components/Dialog.tsx";
+export {
+	Callout,
+	type CalloutProps,
+	type CalloutTone,
+	EmptyState,
+	type EmptyStateProps,
+	Skeleton,
+	type SkeletonProps,
+} from "./components/Feedback.tsx";
 export { Field, type FieldProps } from "./components/Field.tsx";
 export { Icon, type IconName, type IconProps } from "./components/Icon.tsx";
+export {
+	Menu,
+	MenuItem,
+	type MenuItemProps,
+	MenuLabel,
+	type MenuProps,
+	MenuSeparator,
+} from "./components/Menu.tsx";
+export { Select, type SelectOption, type SelectProps } from "./components/Select.tsx";
 export {
 	SPACE_COLOURS,
 	type SpaceColour,
