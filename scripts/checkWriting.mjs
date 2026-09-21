@@ -17,8 +17,8 @@
 //   node scripts/checkWriting.mjs file.md ...      scans the given files
 //   node scripts/checkWriting.mjs --commitMsg PATH scans a commit message
 
-import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
-import { join, relative, extname, isAbsolute, sep } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { extname, isAbsolute, join, relative, sep } from "node:path";
 
 // The class below holds eight characters that look almost the same on screen:
 // hyphen minus, hyphen, non breaking hyphen, figure dash, en dash, em dash,
@@ -179,7 +179,9 @@ function checkTranslation(text) {
 			return;
 		}
 		if (Array.isArray(value)) {
-			value.forEach((item, index) => walk(item, `${path}[${index}]`));
+			value.forEach((item, index) => {
+				walk(item, `${path}[${index}]`);
+			});
 			return;
 		}
 		if (value && typeof value === "object") {

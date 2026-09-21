@@ -1,12 +1,13 @@
 #!/usr/bin/env node
+
 // Static server for the browser storage spike.
 // It mirrors GitHub Pages on purpose: it serves plain files, sets the correct media
 // type for wasm, and never sends the two headers that would make the page cross
 // origin isolated. If SQLite persists here, it persists on GitHub Pages.
 
-import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { join, extname, normalize, sep } from "node:path";
+import { createServer } from "node:http";
+import { extname, join, normalize, sep } from "node:path";
 
 const root = join(process.cwd(), "spike", "opfsSqlite");
 const port = Number(process.env.PORT ?? 5183);

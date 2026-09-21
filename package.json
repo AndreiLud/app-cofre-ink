@@ -10,11 +10,30 @@
 		"node": ">=22"
 	},
 	"scripts": {
+		"dev": "turbo run dev",
+		"build": "turbo run build",
+		"test": "turbo run test",
+		"test:e2e": "turbo run test:e2e",
+		"typecheck": "turbo run typecheck",
+		"lint": "biome check .",
+		"format": "biome format --write .",
+		"check": "biome check . && turbo run typecheck && node scripts/checkWriting.mjs",
 		"check:writing": "node scripts/checkWriting.mjs",
 		"spike:prepare": "node scripts/prepareSpike.mjs",
-		"spike:opfs": "node scripts/prepareSpike.mjs && node scripts/spikeServer.mjs"
+		"spike:opfs": "node scripts/prepareSpike.mjs && node scripts/spikeServer.mjs",
+		"prepare": "simple-git-hooks"
+	},
+	"simple-git-hooks": {
+		"pre-commit": "pnpm exec biome check --staged --no-errors-on-unmatched && node scripts/checkWriting.mjs",
+		"commit-msg": "node scripts/checkWriting.mjs --commitMsg $1"
 	},
 	"devDependencies": {
-		"@sqlite.org/sqlite-wasm": "3.53.4-build1"
+		"@biomejs/biome": "^2.5.14",
+		"@sqlite.org/sqlite-wasm": "3.53.4-build1",
+		"@types/node": "^26.6.2",
+		"simple-git-hooks": "^2.14.0",
+		"turbo": "^2.11.2",
+		"typescript": "^7.0.2",
+		"vitest": "^5.0.1"
 	}
 }

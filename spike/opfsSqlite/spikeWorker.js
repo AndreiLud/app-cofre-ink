@@ -12,7 +12,8 @@ const since = (start) => Math.round((now() - start) * 10) / 10;
 const CATEGORIES = ["mercado", "transporte", "moradia", "lazer", "saude", "educacao"];
 
 function describeEnvironment(sqlite3, initMs) {
-	const handlePrototype = typeof FileSystemFileHandle === "undefined" ? null : FileSystemFileHandle.prototype;
+	const handlePrototype =
+		typeof FileSystemFileHandle === "undefined" ? null : FileSystemFileHandle.prototype;
 	return {
 		sqliteVersion: sqlite3.version.libVersion,
 		initMs,
@@ -149,6 +150,10 @@ async function run(command) {
 
 self.onmessage = (event) => {
 	run(event.data?.command ?? "measure").catch((error) => {
-		post({ type: "error", message: String(error?.message ?? error), stack: String(error?.stack ?? "") });
+		post({
+			type: "error",
+			message: String(error?.message ?? error),
+			stack: String(error?.stack ?? ""),
+		});
 	});
 };

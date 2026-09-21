@@ -1,0 +1,20 @@
+{
+	"name": "@cofre/core",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Business rules of Cofre, plain TypeScript with no framework",
+	"exports": {
+		".": "./src/index.ts",
+		"./money": "./src/money/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"devDependencies": {
+		"fast-check": "^4.10.2",
+		"typescript": "^7.0.2",
+		"vitest": "^5.0.1"
+	}
+}
