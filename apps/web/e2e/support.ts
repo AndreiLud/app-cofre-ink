@@ -10,7 +10,12 @@ export async function openCofre(
 ): Promise<void> {
 	await page.goto("/");
 
-	await expect(page.getByRole("heading", { name: "Vamos abrir o seu Cofre" })).toBeVisible();
+	// The first question is where the data lives. These flows are about the mode that
+	// needs no server.
+	await page.getByRole("button", { name: "Usar este dispositivo" }).click();
+	await expect(page.getByRole("heading", { name: "Vamos abrir o seu Cofre" })).toBeVisible({
+		timeout: 20_000,
+	});
 
 	await page.getByLabel("Como você se chama").fill(options.name ?? "Andrei");
 	if (options.space) {

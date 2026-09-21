@@ -9,30 +9,55 @@ import type { Driver } from "@cofre/storage";
 import { migrate } from "@cofre/storage";
 import { openSqliteWasmMemory, openSqliteWasmOpfs } from "@cofre/storage/sqliteWasm";
 
+export type OpenOutcome = "persistent" | "memory" | "busy";
+
 export type WorkerRequest =
 	| { id: number; kind: "open" }
 	| { id: number; kind: "all"; sql: string; params: unknown[] }
 	| { id: number; kind: "run"; sql: string; params: unknown[] };
 
 export type WorkerResponse =
-	| { id: number; ok: true; rows?: unknown[]; persistent?: boolean }
+	| { id: number; ok: true; rows?: unknown[]; outcome?: OpenOutcome }
 	| { id: number; ok: false; error: string };
 
 let driver: Driver | null = null;
-let persistent = false;
+let outcome: OpenOutcome = "memory";
+
+/** Whether this browser could persist at all, which is a different problem. */
+function canPersist(): boolean {
+	const handle =
+		typeof FileSystemFileHandle === "undefined" ? null : FileSystemFileHandle.prototype;
+	return (
+		typeof navigator?.storage?.getDirectory === "function" &&
+		handle !== null &&
+		"createSyncAccessHandle" in handle
+	);
+}
 
 async function open(): Promise<void> {
 	if (driver) return;
+
+	if (!canPersist()) {
+		// A private window, or a browser without the backend. The application still
+		// works, and the screen says the data lives only in this tab.
+		driver = await openSqliteWasmMemory();
+		outcome = "memory";
+		await migrate(driver);
+		return;
+	}
+
 	try {
 		driver = await openSqliteWasmOpfs({ poolName: "cofre", fileName: "/cofre.db" });
-		persistent = true;
+		outcome = "persistent";
 	} catch (error) {
-		// A private window, a browser without the backend, or storage turned off. The
-		// application still works, and the screen says the data lives only in this tab.
-		console.warn("falling back to a database in memory", error);
-		driver = await openSqliteWasmMemory();
-		persistent = false;
+		// The storage is there, so the file is almost certainly held by another tab:
+		// this backend takes the file exclusively. Saying so beats opening an empty
+		// database that looks like lost data.
+		console.warn("could not take the database file", error);
+		outcome = "busy";
+		return;
 	}
+
 	await migrate(driver);
 }
 
@@ -43,12 +68,12 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 	try {
 		if (request.kind === "open") {
 			await open();
-			reply({ id: request.id, ok: true, persistent });
+			reply({ id: request.id, ok: true, outcome });
 			return;
 		}
 
 		if (!driver) await open();
-		if (!driver) throw new Error("the database did not open");
+		if (!driver) throw new Error("the database is open in another tab");
 
 		if (request.kind === "all") {
 			const rows = await driver.all(request.sql, request.params as never);

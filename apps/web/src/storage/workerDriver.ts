@@ -1,10 +1,10 @@
-﻿// The side of the driver that lives on the screen thread.
+// The side of the driver that lives on the screen thread.
 //
 // It speaks to the worker through messages and keeps the same shape the repositories
 // expect, so nothing above it knows that the database is on another thread.
 
 import type { Driver, Row, SqlValue } from "@cofre/storage";
-import type { WorkerRequest, WorkerResponse } from "./databaseWorker.ts";
+import type { OpenOutcome, WorkerRequest, WorkerResponse } from "./databaseWorker.ts";
 
 type Pending = {
 	resolve: (response: WorkerResponse) => void;
@@ -17,8 +17,8 @@ type RequestBody = WithoutId<WorkerRequest>;
 
 export type BrowserDatabase = {
 	driver: Driver;
-	/** False when the browser refused to persist, so the screen can say so. */
-	persistent: boolean;
+	/** How the database opened, which the screen has to be able to explain. */
+	outcome: OpenOutcome;
 };
 
 export async function openBrowserDatabase(): Promise<BrowserDatabase> {
@@ -110,7 +110,7 @@ export async function openBrowserDatabase(): Promise<BrowserDatabase> {
 
 	return {
 		driver: build(false),
-		persistent: opened.ok ? opened.persistent === true : false,
+		outcome: opened.ok ? (opened.outcome ?? "memory") : "memory",
 	};
 }
 

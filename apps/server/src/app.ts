@@ -34,6 +34,9 @@ type Variables = {
 
 const spaceInput = z.object({
 	name: z.string().trim().min(1).max(80),
+	// The personal space is created by the interface right after signing up, through
+	// the same route. The repository layer is what refuses a second one.
+	kind: z.enum(["personal", "shared"]).optional(),
 	colour: z.string().trim().min(1).max(20).optional(),
 	icon: z.string().trim().min(1).max(40).optional(),
 	baseCurrency: z.string().trim().length(3).optional(),
@@ -103,6 +106,11 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		const [me, spaces] = await Promise.all([session.users.me(), session.spaces.list()]);
 		return context.json({ user: me, spaces });
 	});
+
+	/** Everyone this person shares a space with, which is who the screens can name. */
+	app.get("/api/peers", async (context) =>
+		context.json(await context.get("session").users.peers()),
+	);
 
 	app.get("/api/spaces", async (context) =>
 		context.json(await context.get("session").spaces.list()),

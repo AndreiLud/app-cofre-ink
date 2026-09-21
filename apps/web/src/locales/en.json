@@ -9,7 +9,62 @@
 		"newEntry": "New entry",
 		"delete": "Delete",
 		"seeTable": "See the table",
-		"markPaid": "Mark as paid"
+		"markPaid": "Mark as paid",
+		"done": "Done"
+	},
+	"mode": {
+		"title": "Where will your data live?",
+		"subtitle": "You can change later, by exporting and importing. Both answers are good, they are good for different things.",
+		"browserTitle": "On this device",
+		"browserBody": "The database sits inside this browser. Nothing leaves it, no account is needed, and it works with no internet.",
+		"browserCaveat": "Only you, only here. Clearing site data erases everything.",
+		"browserAction": "Use this device",
+		"serverTitle": "A server of mine",
+		"serverBody": "The data lives on the server you keep, at home or on a rented machine. You sign in with email and password, from any device.",
+		"serverCaveat": "Needed to split bills with other people.",
+		"serverAction": "Connect to a server",
+		"serverAddress": "Address of the server",
+		"serverAddressHint": "The same address that shows up when you bring Cofre up with Docker.",
+		"connect": "Connect",
+		"connecting": "Connecting",
+		"changeLater": "Your choice is kept in this browser.",
+		"failedTitle": "I could not connect"
+	},
+	"signIn": {
+		"title": "Sign in",
+		"signUpTitle": "Create an account",
+		"connectedTo": "On the server {{server}}",
+		"password": "Password",
+		"passwordHint": "Ten characters at least.",
+		"action": "Sign in",
+		"signUpAction": "Create the account and sign in",
+		"toSignUp": "I do not have an account yet",
+		"toSignIn": "I already have an account",
+		"working": "One moment",
+		"failedTitle": "That did not work",
+		"signInFailed": "The email or the password does not match.",
+		"signUpFailed": "I could not create the account. That email may already be taken.",
+		"unreachable": "I could not reach {{server}}. Check that the server is up and that the address is right.",
+		"useThisDevice": "I would rather keep it on this device"
+	},
+	"invitation": {
+		"title": "Invitation",
+		"headline": "{{name}} invited you to the {{space}} space",
+		"asRole": "You come in as {{role}}.",
+		"join": "Join the space",
+		"joining": "Joining",
+		"goHome": "Go to the overview",
+		"needsServerTitle": "This link needs a server",
+		"needsServerBody": "Invitations live on the server of whoever sent them. Connect this browser to a server and open the link again.",
+		"cannotOpenTitle": "I could not open the invitation",
+		"reason": {
+			"invitationUsed": "This link was already used. Ask for another one.",
+			"invitationExpired": "This link has expired. Ask for another one.",
+			"invitationRevoked": "This invitation was cancelled.",
+			"alreadyInside": "You are already in that space.",
+			"notFound": "I could not find that invitation.",
+			"unknown": "The link is not valid."
+		}
 	},
 	"theme": {
 		"label": "Theme",
@@ -38,7 +93,10 @@
 		"failedTitle": "I could not open the database",
 		"failedBody": "This usually means the browser is blocking storage. Try leaving the private window, or allowing site data.",
 		"notPersistentTitle": "The data is only in memory",
-		"notPersistentBody": "This browser would not let anything be written to disk, so everything goes away when the tab closes. Fine for a look around, not for real use."
+		"notPersistentBody": "This browser would not let anything be written to disk, so everything goes away when the tab closes. Fine for a look around, not for real use.",
+		"busyTitle": "Cofre is already open in another tab",
+		"busyBody": "In this mode the database is held by one tab at a time, so that no write is lost. Use the tab that is already open, or close it and try again here.",
+		"tryAgain": "Try again"
 	},
 	"palette": {
 		"title": "What do you want to do?",
@@ -48,7 +106,9 @@
 		"navigate": "Go to",
 		"switchSpace": "Switch space",
 		"actions": "Actions",
-		"nothing": "Nothing matches that text."
+		"nothing": "Nothing matches that text.",
+		"signOut": "Sign out",
+		"changeMode": "Change where the data lives"
 	},
 	"onboarding": {
 		"title": "Let us open your Cofre",
@@ -139,9 +199,13 @@
 		"state": "State",
 		"you": "{{name}} (you)",
 		"invite": "Invite",
-		"inviteDescription": "The person joins the {{space}} space once they accept.",
-		"sendInvite": "Send the invitation",
-		"email": "Email of the person",
+		"inviteDescription": "The person joins the {{space}} space once they open the link and accept.",
+		"createLink": "Make a link",
+		"linkReady": "Done. Send this link to whoever you want in the space.",
+		"copyLink": "Copy the link",
+		"linkCopied": "Copied",
+		"linkRules": "Good for seven days, and for one person.",
+		"aboutModes": "See the modes",
 		"makeRole": "Make {{role}}",
 		"remove": "Remove from the space",
 		"leave": "Leave this space",
@@ -149,9 +213,8 @@
 		"aloneBody": "Invite whoever splits these bills with you. What each person sees comes from the role they get.",
 		"personalTitle": "Personal space",
 		"personalBody": "This space is yours alone and takes no members. To split bills, create a shared space.",
-		"needsServerTitle": "Invitation by link, not yet",
-		"needsServerBody": "Sending an invitation by email or link needs a server, which arrives in the next block. For now you can invite someone who already has a profile in this browser.",
-		"notFoundHere": "I found nobody with that email on this device."
+		"needsServerTitle": "Inviting needs a server",
+		"needsServerBody": "In this mode the data sits in this browser alone, so there is nowhere for an invitation to point. With a server of yours, you make a link and the person comes in through it."
 	},
 	"role": {
 		"owner": "Owner",

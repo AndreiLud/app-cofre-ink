@@ -5,6 +5,7 @@ import { createRootRoute, createRoute, createRouter, Outlet } from "@tanstack/re
 import { AccountsPage } from "./pages/AccountsPage.tsx";
 import { DashboardPage } from "./pages/DashboardPage.tsx";
 import { DesignSystemPage } from "./pages/DesignSystemPage.tsx";
+import { InvitationPage } from "./pages/InvitationPage.tsx";
 import { MembersPage } from "./pages/MembersPage.tsx";
 import { SpacesPage } from "./pages/SpacesPage.tsx";
 import { AppShell } from "./shell/AppShell.tsx";
@@ -41,6 +42,12 @@ const accountsRoute = createRoute({
 	component: AccountsPage,
 });
 
+const invitationRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/convite/$token",
+	component: InvitationPage,
+});
+
 const designSystemRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/designSystem",
@@ -52,6 +59,7 @@ const routeTree = rootRoute.addChildren([
 	spacesRoute,
 	membersRoute,
 	accountsRoute,
+	invitationRoute,
 	designSystemRoute,
 ]);
 

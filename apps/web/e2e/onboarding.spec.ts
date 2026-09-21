@@ -30,8 +30,19 @@ test.describe("opening Cofre for the first time", () => {
 
 	test("asks for a name before going anywhere", async ({ page }) => {
 		await page.goto("/");
+		await page.getByRole("button", { name: "Usar este dispositivo" }).click();
 		await page.getByRole("button", { name: "Começar" }).click();
 
 		await expect(page.getByRole("heading", { name: "Vamos abrir o seu Cofre" })).toBeVisible();
+	});
+
+	test("asks where the data will live before anything else", async ({ page }) => {
+		await page.goto("/");
+
+		await expect(
+			page.getByRole("heading", { name: "Onde os seus dados vão ficar?" }),
+		).toBeVisible();
+		await expect(page.getByRole("button", { name: "Usar este dispositivo" })).toBeVisible();
+		await expect(page.getByRole("button", { name: "Conectar a um servidor" })).toBeVisible();
 	});
 });

@@ -125,8 +125,8 @@ nothing.
 | 1 block B. Data model, repository layer, adapters, conformance suite | done |
 | 1 block C. Browser mode end to end: worker, onboarding, shell, spaces, members | done |
 | 1 block D. Browser flows in Playwright, server with authentication, invitations, Docker | done |
-| 1 block E. The interface in server mode: sign in, invitation screen, mode switch | next |
-| 2. Accounts, transactions, cards, installments, transfers | planned |
+| 1 block E. The interface in server mode: sign in, invitation screen, mode switch | done |
+| 2. Accounts, transactions, cards, installments, transfers | next |
 | 3. Categories, priorities, rules, recurrences, calendar | planned |
 | 4. Budget, savings rule, goals, expense splitting, alerts | planned |
 | 5. Dashboard, consolidated view, reports and charts | planned |

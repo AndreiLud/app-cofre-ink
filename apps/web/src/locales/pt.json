@@ -9,7 +9,62 @@
 		"newEntry": "Novo lançamento",
 		"delete": "Apagar",
 		"seeTable": "Ver tabela",
-		"markPaid": "Marcar como pago"
+		"markPaid": "Marcar como pago",
+		"done": "Pronto"
+	},
+	"mode": {
+		"title": "Onde os seus dados vão ficar?",
+		"subtitle": "Dá para trocar depois, exportando e importando. As duas respostas são boas, só servem para coisas diferentes.",
+		"browserTitle": "Neste dispositivo",
+		"browserBody": "O banco de dados fica dentro deste navegador. Nada sai daqui, não precisa de conta e funciona sem internet.",
+		"browserCaveat": "Só você, neste aparelho. Limpar os dados do site apaga tudo.",
+		"browserAction": "Usar este dispositivo",
+		"serverTitle": "Um servidor meu",
+		"serverBody": "Os dados ficam no servidor que você mantém, em casa ou numa VPS. Entra com email e senha, de qualquer aparelho.",
+		"serverCaveat": "Necessário para dividir contas com outras pessoas.",
+		"serverAction": "Conectar a um servidor",
+		"serverAddress": "Endereço do servidor",
+		"serverAddressHint": "O mesmo endereço que aparece quando você sobe o Cofre com Docker.",
+		"connect": "Conectar",
+		"connecting": "Conectando",
+		"changeLater": "Sua escolha fica guardada neste navegador.",
+		"failedTitle": "Não consegui conectar"
+	},
+	"signIn": {
+		"title": "Entrar",
+		"signUpTitle": "Criar conta",
+		"connectedTo": "No servidor {{server}}",
+		"password": "Senha",
+		"passwordHint": "Pelo menos dez caracteres.",
+		"action": "Entrar",
+		"signUpAction": "Criar conta e entrar",
+		"toSignUp": "Ainda não tenho conta",
+		"toSignIn": "Já tenho conta",
+		"working": "Só um momento",
+		"failedTitle": "Não deu certo",
+		"signInFailed": "Email ou senha não conferem.",
+		"signUpFailed": "Não consegui criar a conta. Talvez esse email já esteja em uso.",
+		"unreachable": "Não consegui falar com {{server}}. Confira se o servidor está no ar e se o endereço está certo.",
+		"useThisDevice": "Prefiro guardar só neste dispositivo"
+	},
+	"invitation": {
+		"title": "Convite",
+		"headline": "{{name}} convidou você para o espaço {{space}}",
+		"asRole": "Você entra como {{role}}.",
+		"join": "Entrar no espaço",
+		"joining": "Entrando",
+		"goHome": "Ir para o painel",
+		"needsServerTitle": "Este link precisa de um servidor",
+		"needsServerBody": "Convites vivem no servidor de quem convidou. Conecte este navegador a um servidor e abra o link de novo.",
+		"cannotOpenTitle": "Não consegui abrir o convite",
+		"reason": {
+			"invitationUsed": "Este link já foi usado. Peça outro para quem convidou.",
+			"invitationExpired": "Este link expirou. Peça outro para quem convidou.",
+			"invitationRevoked": "Este convite foi cancelado.",
+			"alreadyInside": "Você já está nesse espaço.",
+			"notFound": "Não encontrei esse convite.",
+			"unknown": "O link não é válido."
+		}
 	},
 	"theme": {
 		"label": "Tema",
@@ -38,7 +93,10 @@
 		"failedTitle": "Não consegui abrir o banco de dados",
 		"failedBody": "Isso costuma acontecer quando o navegador está com o armazenamento bloqueado. Tente sair da janela anônima ou liberar dados de sites.",
 		"notPersistentTitle": "Os dados estão só na memória",
-		"notPersistentBody": "Este navegador não deixou gravar em disco, então tudo some ao fechar a aba. Funciona para experimentar, não para usar de verdade."
+		"notPersistentBody": "Este navegador não deixou gravar em disco, então tudo some ao fechar a aba. Funciona para experimentar, não para usar de verdade.",
+		"busyTitle": "O Cofre já está aberto em outra aba",
+		"busyBody": "O banco de dados neste modo fica reservado para uma aba só, para nenhuma escrita se perder. Use a aba que já está aberta, ou feche ela e tente de novo aqui.",
+		"tryAgain": "Tentar de novo"
 	},
 	"palette": {
 		"title": "O que você quer fazer?",
@@ -48,7 +106,9 @@
 		"navigate": "Ir para",
 		"switchSpace": "Trocar de espaço",
 		"actions": "Ações",
-		"nothing": "Nada encontrado com esse texto."
+		"nothing": "Nada encontrado com esse texto.",
+		"signOut": "Sair da conta",
+		"changeMode": "Trocar onde os dados ficam"
 	},
 	"onboarding": {
 		"title": "Vamos abrir o seu Cofre",
@@ -139,9 +199,13 @@
 		"state": "Situação",
 		"you": "{{name}} (você)",
 		"invite": "Convidar",
-		"inviteDescription": "A pessoa entra no espaço {{space}} depois de aceitar.",
-		"sendInvite": "Enviar convite",
-		"email": "Email da pessoa",
+		"inviteDescription": "A pessoa entra no espaço {{space}} depois de abrir o link e aceitar.",
+		"createLink": "Gerar link",
+		"linkReady": "Pronto. Mande este link para quem você quer no espaço.",
+		"copyLink": "Copiar link",
+		"linkCopied": "Copiado",
+		"linkRules": "Vale por sete dias e serve para uma pessoa só.",
+		"aboutModes": "Ver os modos",
 		"makeRole": "Tornar {{role}}",
 		"remove": "Remover do espaço",
 		"leave": "Sair deste espaço",
@@ -149,9 +213,8 @@
 		"aloneBody": "Convide quem divide essas contas com você. Cada pessoa escolhe o que enxerga pelo papel que recebe.",
 		"personalTitle": "Espaço pessoal",
 		"personalBody": "Este espaço é só seu e não aceita membros. Para dividir contas, crie um espaço compartilhado.",
-		"needsServerTitle": "Convite por link ainda não",
-		"needsServerBody": "Enviar convite por email ou link exige um servidor, que entra no próximo bloco. Por enquanto dá para convidar alguém que já tenha perfil neste navegador.",
-		"notFoundHere": "Não encontrei ninguém com esse email neste dispositivo."
+		"needsServerTitle": "Convidar precisa de um servidor",
+		"needsServerBody": "Neste modo os dados ficam só neste navegador, então não há para onde apontar um convite. Com um servidor seu, você gera um link e a pessoa entra por ele."
 	},
 	"role": {
 		"owner": "Dono",

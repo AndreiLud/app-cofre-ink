@@ -1,17 +1,14 @@
 // Who is in this space and what each person may do.
 //
-// Inviting by link or by email needs a server, which arrives in the next block. Until
-// then the screen invites someone who already has a profile in this browser, which is
-// what the demonstration data creates.
+// Inviting exists only in server mode, and the screen says so rather than offering a
+// button that leads nowhere: in browser mode there is one profile in one browser, so
+// an invitation would have nobody to accept it.
 
-import type { Role } from "@cofre/storage";
-import { findUserByEmail } from "@cofre/storage";
 import {
 	Button,
 	Callout,
 	Dialog,
 	EmptyState,
-	Field,
 	Icon,
 	Menu,
 	MenuItem,
@@ -26,23 +23,26 @@ import {
 	TableRow,
 } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import type { AssignableRole } from "../storage/cofreSession.ts";
 
-const ASSIGNABLE: Exclude<Role, "owner">[] = ["admin", "editor", "viewer", "logger"];
+const ASSIGNABLE: AssignableRole[] = ["admin", "editor", "viewer", "logger"];
 
 export function MembersPage() {
 	const { t } = useTranslation();
-	const { session, driver, currentSpace, user, reload } = useCofre();
+	const { session, currentSpace, user, reload, linkInvitations, chooseMode } = useCofre();
 	const queries = useQueryClient();
 
 	const [isOpen, setOpen] = useState(false);
-	const [email, setEmail] = useState("");
-	const [role, setRole] = useState<Exclude<Role, "owner">>("editor");
+	const [role, setRole] = useState<AssignableRole>("editor");
+	const [link, setLink] = useState<string | null>(null);
+	const [copied, setCopied] = useState(false);
 	const [problem, setProblem] = useState<string | null>(null);
 
 	const spaceId = currentSpace?.id ?? "";
+	const canInvite = linkInvitations !== null && currentSpace?.kind === "shared";
 
 	const members = useQuery({
 		queryKey: ["members", spaceId],
@@ -61,16 +61,14 @@ export function MembersPage() {
 		void queries.invalidateQueries({ queryKey: ["peers"] });
 	};
 
-	const invite = useMutation({
+	const createLink = useMutation({
 		mutationFn: async () => {
-			if (!session || !driver) throw new Error("no session");
-			const person = await findUserByEmail(driver, email);
-			if (!person) throw new Error(t("members.notFoundHere"));
-			return session.members.invite({ spaceId, userId: person.id, role });
+			if (!linkInvitations) throw new Error("no server session");
+			return linkInvitations.create({ spaceId, role });
 		},
-		onSuccess: () => {
-			setOpen(false);
-			setEmail("");
+		onSuccess: (invitation) => {
+			setLink(invitation.link);
+			setCopied(false);
 			setProblem(null);
 			invalidate();
 		},
@@ -78,7 +76,7 @@ export function MembersPage() {
 	});
 
 	const changeRole = useMutation({
-		mutationFn: async (input: { userId: string; role: Exclude<Role, "owner"> }) =>
+		mutationFn: async (input: { userId: string; role: AssignableRole }) =>
 			session?.members.changeRole(spaceId, input.userId, input.role),
 		onSuccess: invalidate,
 	});
@@ -103,29 +101,39 @@ export function MembersPage() {
 		return people.data?.find((person) => person.id === userId)?.name ?? userId.slice(0, 8);
 	};
 
-	function submit(event: FormEvent) {
-		event.preventDefault();
-		invite.mutate();
-	}
-
 	const rows = members.data ?? [];
 	const isPersonal = currentSpace.kind === "personal";
+
+	async function copyLink() {
+		if (!link) return;
+		try {
+			await navigator.clipboard.writeText(link);
+			setCopied(true);
+		} catch {
+			// Some browsers refuse without a gesture they recognise. The link is on
+			// screen anyway, so it can be selected by hand.
+			setCopied(false);
+		}
+	}
 
 	return (
 		<div className="space-y-6">
 			<SectionTitle
 				level="h1"
 				action={
-					isPersonal ? null : (
+					canInvite ? (
 						<Button
 							size="small"
 							variant="primary"
 							icon={<Icon name="plus" />}
-							onClick={() => setOpen(true)}
+							onClick={() => {
+								setLink(null);
+								setOpen(true);
+							}}
 						>
 							{t("members.invite")}
 						</Button>
-					)
+					) : null
 				}
 			>
 				{t("members.title", { space: currentSpace.name })}
@@ -135,9 +143,23 @@ export function MembersPage() {
 				<Callout title={t("members.personalTitle")}>{t("members.personalBody")}</Callout>
 			) : null}
 
+			{!isPersonal && linkInvitations === null ? (
+				<Callout
+					tone="attention"
+					title={t("members.needsServerTitle")}
+					action={
+						<Button size="small" variant="secondary" onClick={() => void chooseMode("browser")}>
+							{t("members.aboutModes")}
+						</Button>
+					}
+				>
+					{t("members.needsServerBody")}
+				</Callout>
+			) : null}
+
 			{members.isPending ? <Skeleton lines={3} /> : null}
 
-			{!members.isPending && rows.length <= 1 && !isPersonal ? (
+			{!members.isPending && rows.length <= 1 && canInvite ? (
 				<EmptyState
 					title={t("members.aloneTitle")}
 					description={t("members.aloneBody")}
@@ -212,37 +234,49 @@ export function MembersPage() {
 				description={t("members.inviteDescription", { space: currentSpace.name })}
 				closeLabel={t("actions.cancel")}
 				footer={
-					<>
-						<Button variant="quiet" onClick={() => setOpen(false)}>
-							{t("actions.cancel")}
+					link ? (
+						<Button variant="primary" onClick={() => setOpen(false)}>
+							{t("actions.done")}
 						</Button>
-						<Button variant="primary" onClick={() => invite.mutate()} disabled={invite.isPending}>
-							{t("members.sendInvite")}
-						</Button>
-					</>
+					) : (
+						<>
+							<Button variant="quiet" onClick={() => setOpen(false)}>
+								{t("actions.cancel")}
+							</Button>
+							<Button
+								variant="primary"
+								onClick={() => createLink.mutate()}
+								disabled={createLink.isPending}
+							>
+								{t("members.createLink")}
+							</Button>
+						</>
+					)
 				}
 			>
-				<form onSubmit={submit} className="space-y-4">
-					<Callout tone="attention" title={t("members.needsServerTitle")}>
-						{t("members.needsServerBody")}
-					</Callout>
-					<Field
-						label={t("members.email")}
-						value={email}
-						onChange={(event) => setEmail(event.target.value)}
-						placeholder="joao@exemplo.invalido"
-						type="email"
-						required={true}
-					/>
-					<Select
-						label={t("members.role")}
-						value={role}
-						onChange={(event) => setRole(event.target.value as Exclude<Role, "owner">)}
-						options={ASSIGNABLE.map((value) => ({ value, label: t(`role.${value}`) }))}
-						hint={t(`roleHint.${role}`)}
-					/>
-					{problem ? <Callout tone="problem">{problem}</Callout> : null}
-				</form>
+				{link ? (
+					<div className="space-y-3">
+						<p className="text-sm text-graphite">{t("members.linkReady")}</p>
+						<p className="break-all border border-rule bg-raised p-3 font-mono text-xs">{link}</p>
+						<div className="flex items-center gap-3">
+							<Button variant="secondary" size="small" onClick={() => void copyLink()}>
+								{copied ? t("members.linkCopied") : t("members.copyLink")}
+							</Button>
+							<span className="text-xs text-graphite">{t("members.linkRules")}</span>
+						</div>
+					</div>
+				) : (
+					<div className="space-y-4">
+						<Select
+							label={t("members.role")}
+							value={role}
+							onChange={(event) => setRole(event.target.value as AssignableRole)}
+							options={ASSIGNABLE.map((value) => ({ value, label: t(`role.${value}`) }))}
+							hint={t(`roleHint.${role}`)}
+						/>
+						{problem ? <Callout tone="problem">{problem}</Callout> : null}
+					</div>
+				)}
 			</Dialog>
 		</div>
 	);

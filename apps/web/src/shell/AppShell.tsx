@@ -8,7 +8,9 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { LanguageToggle, PrivacyToggle, ThemeToggle } from "../components/Controls.tsx";
 import { useTheme } from "../lib/theme.ts";
+import { ModeChooserPage } from "../pages/ModeChooserPage.tsx";
 import { OnboardingPage } from "../pages/OnboardingPage.tsx";
+import { SignInPage } from "../pages/SignInPage.tsx";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { CommandPalette, useCommandPalette } from "./CommandPalette.tsx";
@@ -66,6 +68,30 @@ function Failure({ message }: { message: string | null }) {
 	);
 }
 
+/**
+ * The backend that persists in the browser takes the file exclusively, so a second tab
+ * cannot open it. Saying that is much better than opening an empty database, which
+ * would look exactly like losing everything.
+ */
+function Busy() {
+	const { t } = useTranslation();
+	return (
+		<div className="mx-auto max-w-2xl px-4 py-16">
+			<Callout
+				tone="attention"
+				title={t("shell.busyTitle")}
+				action={
+					<Button variant="secondary" size="small" onClick={() => window.location.reload()}>
+						{t("shell.tryAgain")}
+					</Button>
+				}
+			>
+				{t("shell.busyBody")}
+			</Callout>
+		</div>
+	);
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
 	const { t } = useTranslation();
 	const cofre = useCofre();
@@ -78,7 +104,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 	if (cofre.status === "opening") return <Loading />;
 	if (cofre.status === "failed") return <Failure message={cofre.error} />;
+	if (cofre.status === "busy") return <Busy />;
+	if (cofre.status === "needsMode") return <ModeChooserPage />;
 	if (cofre.status === "needsProfile") return <OnboardingPage />;
+	// The address is kept while this shows, so signing in from an invitation link
+	// lands back on the invitation.
+	if (cofre.status === "needsSignIn") return <SignInPage />;
 
 	const colour = (cofre.currentSpace?.colour ?? "slate") as SpaceColour;
 

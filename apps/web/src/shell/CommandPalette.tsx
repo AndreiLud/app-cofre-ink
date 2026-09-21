@@ -141,6 +141,15 @@ export function CommandPalette({ state }: { state: PaletteState }) {
 				},
 			},
 			{
+				id: "signOut",
+				group: t("palette.actions"),
+				label: cofre.mode === "server" ? t("palette.signOut") : t("palette.changeMode"),
+				run: () => {
+					void cofre.signOut();
+					state.close();
+				},
+			},
+			{
 				id: "language",
 				group: t("palette.actions"),
 				label: i18n.resolvedLanguage === "pt" ? t("language.english") : t("language.portuguese"),
