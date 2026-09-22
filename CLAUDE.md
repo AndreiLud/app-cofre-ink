@@ -77,6 +77,7 @@ scripts/
   makeIcons.mjs           draws the mark and writes every icon format
   buildServiceWorker.mjs  writes the worker from what the build produced
   copyFallback.mjs        the page a static host serves for an unknown address
+  checkTranslations.mjs   the two languages say the same things
 ```
 
 ## Commands
@@ -91,6 +92,7 @@ scripts/
 | `pnpm test` | Vitest across packages |
 | `pnpm test:e2e` | Playwright flows in a real browser |
 | `pnpm check:writing` | writing rule over Markdown and translations |
+| `pnpm check:translations` | the two languages hold the same keys and the same names |
 | `docker compose up -d` | the server and the interface in one container, built and run on 21 September 2026 |
 | `pnpm --filter @cofre/web icons` | redraws every icon, for the browser and for the shell |
 | `pnpm run configurar` | setup wizard that asks the mode and writes the config, still to be written |
@@ -148,7 +150,9 @@ nothing.
 | 8. Projections, scenarios, investments, simulators | done |
 | 9. Offline, publishing anywhere, the guides | done |
 | 9 revised. The shell dropped, housekeeping made automatic, findings, five sections | done |
-| 10. Accessibility audit, copy review, performance, README | next |
+| 10. Accessibility audit, copy review, performance, README and LEIAME | done |
+| 10 review. Charts on a telephone, the rate limit, a failure with a name | done |
+| Next. Real statements for the recogniser, and whatever the owner asks for | waiting |
 
 ## Architecture decision records
 

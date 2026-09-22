@@ -175,8 +175,11 @@ ganhou a parte que faltava, que é ler os números de volta para a pessoa: quinz
 sobre os próprios lançamentos, cada um com as contas que o produziram dentro da frase.
 As onze seções do menu viraram cinco. Registros 0021 e 0022.
 
-**Fase 10.** Auditoria de acessibilidade, revisão de todos os textos, desempenho,
-README, LEIAME, screenshots e o GIF de abertura.
+**Fase 10.** Cada tela passou a vir quando é pedida, e não na primeira vez que a página
+abre. O idioma que não está em uso também. Um atalho para pular o cabeçalho, um título
+de aba por tela, e os cinzas fracos demais corrigidos. Um script que recusa uma chave
+que existe em um idioma e não no outro. E o README e o LEIAME, que o repositório nunca
+teve.
 
 ## Riscos e como reduzo cada um
 
