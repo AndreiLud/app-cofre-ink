@@ -5,12 +5,12 @@
 // holding that was typed in turn into a portfolio that is worth something.
 
 import { expect, test } from "@playwright/test";
-import { nav, openCofre } from "./support.ts";
+import { go, openCofre } from "./support.ts";
 
 test.describe("the months ahead", () => {
 	test("says what each month is made of, and lets a scenario change it", async ({ page }) => {
 		await openCofre(page);
-		await nav(page, "Projeção").click();
+		await go(page, "Projeção");
 
 		await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 		await expect(page.getByRole("table")).toBeVisible();
@@ -47,7 +47,7 @@ test.describe("the months ahead", () => {
 test.describe("what is put aside", () => {
 	test("adds a holding by hand and says what the portfolio is worth", async ({ page }) => {
 		await openCofre(page);
-		await nav(page, "Investimentos").click();
+		await go(page, "Investimentos");
 
 		// The demonstration data comes with a couple of holdings, so the screen starts
 		// with a portfolio rather than an explanation of one.
@@ -79,7 +79,7 @@ test.describe("what is put aside", () => {
 
 	test("says it has no indices before anybody asks for them", async ({ page }) => {
 		await openCofre(page);
-		await nav(page, "Investimentos").click();
+		await go(page, "Investimentos");
 
 		await page.getByRole("button", { name: "Novo investimento" }).click();
 		await page.getByRole("dialog").getByLabel("Nome").fill("Fundo");

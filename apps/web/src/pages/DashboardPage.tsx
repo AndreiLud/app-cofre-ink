@@ -178,31 +178,16 @@ export function DashboardPage() {
 	return (
 		<div className="space-y-10">
 			<section className="space-y-3">
-				<div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-					<InsightTitle
-						level="h1"
-						detail={
-							projected === settled ? t("dashboard.nothingPending") : t("dashboard.projectedDetail")
-						}
-					>
-						{consolidated
-							? t("dashboard.headlineEverywhere")
-							: t("dashboard.headline", { space: currentSpace.name })}
-					</InsightTitle>
-
-					{spaces.length > 1 ? (
-						<Segmented
-							className="sm:w-auto"
-							label={t("dashboard.across")}
-							value={across}
-							onChange={setAcross}
-							options={[
-								{ value: "space", label: t("reports.thisSpace") },
-								{ value: "everything", label: t("reports.everySpace") },
-							]}
-						/>
-					) : null}
-				</div>
+				<InsightTitle
+					level="h1"
+					detail={
+						projected === settled ? t("dashboard.nothingPending") : t("dashboard.projectedDetail")
+					}
+				>
+					{consolidated
+						? t("dashboard.headlineEverywhere")
+						: t("dashboard.headline", { space: currentSpace.name })}
+				</InsightTitle>
 
 				{balances.isPending ? (
 					<Skeleton lines={2} />
@@ -211,6 +196,21 @@ export function DashboardPage() {
 						<Value amount={settled} currency={currentSpace.baseCurrency} tone="auto" />
 					</p>
 				)}
+
+				{/* Under the number it belongs to, not floating beside the heading: it
+				    changes what that number counts. */}
+				{spaces.length > 1 ? (
+					<Segmented
+						className="sm:w-auto"
+						label={t("dashboard.across")}
+						value={across}
+						onChange={setAcross}
+						options={[
+							{ value: "space", label: t("reports.thisSpace") },
+							{ value: "everything", label: t("reports.everySpace") },
+						]}
+					/>
+				) : null}
 
 				{projected !== settled ? (
 					<p className="text-sm text-graphite">

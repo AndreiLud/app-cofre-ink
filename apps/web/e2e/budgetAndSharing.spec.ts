@@ -1,12 +1,12 @@
 // Deciding money before spending it, and dividing what was spent together.
 
 import { expect, test } from "@playwright/test";
-import { nav, openCofre, openSetting, record } from "./support.ts";
+import { go, openCofre, openSetting, record } from "./support.ts";
 
 test.describe("the budget", () => {
 	test("puts a limit on a category and says how it is doing", async ({ page }) => {
 		await openCofre(page);
-		await nav(page, "Orçamento").click();
+		await go(page, "Orçamento");
 
 		await page.getByRole("button", { name: "Novo limite" }).first().click();
 		// The radio itself is only for the screen reader, so a person clicks the label.
@@ -22,7 +22,7 @@ test.describe("the budget", () => {
 
 	test("promises to save first and says whether the promise was kept", async ({ page }) => {
 		await openCofre(page);
-		await nav(page, "Orçamento").click();
+		await go(page, "Orçamento");
 
 		await page.getByRole("button", { name: "Definir a regra" }).click();
 		await page.getByRole("dialog").getByLabel("Porcentagem do que entra").fill("10");
@@ -38,14 +38,14 @@ test.describe("the budget", () => {
 		await openCofre(page);
 
 		// A place for the money to sit.
-		await nav(page, "Contas").click();
+		await go(page, "Contas");
 		await page.getByRole("button", { name: "Nova conta" }).first().click();
 		await page.getByRole("dialog").getByLabel("Nome").fill("Reserva");
 		await page.getByRole("dialog").getByLabel("Tipo").selectOption("savings");
 		await page.getByRole("dialog").getByLabel("Saldo de abertura").fill("2.500,00");
 		await page.getByRole("button", { name: "Salvar" }).click();
 
-		await nav(page, "Orçamento").click();
+		await go(page, "Orçamento");
 		await page.getByRole("button", { name: "Nova meta" }).click();
 		await page.getByRole("dialog").getByLabel("Nome").fill("Reserva de emergência");
 		await page.getByRole("dialog").getByLabel("Quanto", { exact: true }).fill("10.000,00");
@@ -70,7 +70,7 @@ test.describe("dividing with the house", () => {
 		await page.getByRole("button", { name: "Entrar" }).click();
 		await expect(page.getByRole("banner")).toContainText("Casa");
 
-		await nav(page, "Lançamentos").click();
+		await go(page, "Lançamentos");
 		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
 		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("200,00");
 		await page.getByRole("dialog").getByLabel("Descrição").fill("Conta de luz da casa");
@@ -93,7 +93,7 @@ test.describe("dividing with the house", () => {
 test.describe("what needs attention", () => {
 	test("says on the overview when a limit is over", async ({ page }) => {
 		await openCofre(page);
-		await nav(page, "Orçamento").click();
+		await go(page, "Orçamento");
 
 		// A limit small enough that the demonstration month is already past it.
 		await page.getByRole("button", { name: "Novo limite" }).first().click();
@@ -102,7 +102,7 @@ test.describe("what needs attention", () => {
 		await page.getByRole("dialog").getByLabel("Quanto por mês").fill("10,00");
 		await page.getByRole("button", { name: "Salvar" }).click();
 
-		await nav(page, "Painel").click();
+		await go(page, "Painel");
 		await expect(page.getByText("O que precisa de atenção")).toBeVisible();
 		await expect(page.getByText("passou do limite")).toBeVisible();
 	});

@@ -259,89 +259,95 @@ export function TransactionsPage() {
 
 			<QuickEntry spaceId={spaceId} accounts={accounts.data ?? []} today={today} />
 
-			<SavedFilters
-				spaceId={spaceId}
-				current={filters as unknown as FilterQuery}
-				onApply={(query) => {
-					setFilters(filtersFrom(query, monthOf(today)));
-					setPicked([]);
-				}}
-			/>
+			{/* The filters and the ones that were kept are one thing: a set of answers,
+			    and the shortcuts to a set of answers. Apart, the shortcuts read as a
+			    stray button floating above the screen. */}
+			<section className="space-y-3 border-t border-rule pt-4">
+				{/* One column on a phone, two on a tablet, three on a screen, which is two
+				    rows of three. Six in a row fits only by cutting every label in half,
+				    and a select narrower than its own text is a select nobody can read. */}
+				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+					<Field
+						label={t("transactions.month")}
+						type="month"
+						value={filters.month}
+						onChange={(event) => setFilters({ ...filters, month: event.target.value })}
+					/>
+					<Select
+						label={t("transactions.kind")}
+						value={filters.kind}
+						onChange={(event) =>
+							setFilters({ ...filters, kind: event.target.value as TransactionKind | "" })
+						}
+						options={[
+							{ value: "", label: t("transactions.anyKind") },
+							{ value: "expense", label: t("transactionKind.expense") },
+							{ value: "income", label: t("transactionKind.income") },
+							{ value: "transfer", label: t("transactionKind.transfer") },
+						]}
+					/>
+					<Select
+						label={t("transactions.status")}
+						value={filters.status}
+						onChange={(event) =>
+							setFilters({ ...filters, status: event.target.value as TransactionStatus | "" })
+						}
+						options={[
+							{ value: "", label: t("transactions.anyStatus") },
+							{ value: "settled", label: t("transactionStatus.settled") },
+							{ value: "planned", label: t("transactionStatus.planned") },
+						]}
+					/>
+					<Select
+						label={t("transactions.account")}
+						value={filters.accountId}
+						onChange={(event) => setFilters({ ...filters, accountId: event.target.value })}
+						options={[
+							{ value: "", label: t("transactions.anyAccount") },
+							...(accounts.data ?? []).map((account) => ({
+								value: account.id,
+								label: account.name,
+							})),
+						]}
+					/>
+					<Select
+						label={t("transactions.category")}
+						value={filters.categoryId}
+						onChange={(event) => setFilters({ ...filters, categoryId: event.target.value })}
+						options={[
+							{ value: "", label: t("transactions.anyCategory") },
+							{ value: "none", label: t("transactions.noCategory") },
+							...(categories.data ?? [])
+								.filter((category) => category.parentId === null)
+								.flatMap((parent) => [
+									{ value: parent.id, label: parent.name },
+									...(categories.data ?? [])
+										.filter((child) => child.parentId === parent.id)
+										.map((child) => ({
+											value: child.id,
+											label: `  ${child.name}`,
+										})),
+								]),
+						]}
+					/>
+					<Field
+						label={t("transactions.search")}
+						value={filters.search}
+						onChange={(event) => setFilters({ ...filters, search: event.target.value })}
+						placeholder={t("transactions.searchPlaceholder")}
+						type="search"
+					/>
+				</div>
 
-			{/* One column on a phone, two on a tablet, all six on a screen. A select that
-			    is narrower than its own text is a select nobody can read. */}
-			<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
-				<Field
-					label={t("transactions.month")}
-					type="month"
-					value={filters.month}
-					onChange={(event) => setFilters({ ...filters, month: event.target.value })}
+				<SavedFilters
+					spaceId={spaceId}
+					current={filters as unknown as FilterQuery}
+					onApply={(query) => {
+						setFilters(filtersFrom(query, monthOf(today)));
+						setPicked([]);
+					}}
 				/>
-				<Select
-					label={t("transactions.kind")}
-					value={filters.kind}
-					onChange={(event) =>
-						setFilters({ ...filters, kind: event.target.value as TransactionKind | "" })
-					}
-					options={[
-						{ value: "", label: t("transactions.anyKind") },
-						{ value: "expense", label: t("transactionKind.expense") },
-						{ value: "income", label: t("transactionKind.income") },
-						{ value: "transfer", label: t("transactionKind.transfer") },
-					]}
-				/>
-				<Select
-					label={t("transactions.status")}
-					value={filters.status}
-					onChange={(event) =>
-						setFilters({ ...filters, status: event.target.value as TransactionStatus | "" })
-					}
-					options={[
-						{ value: "", label: t("transactions.anyStatus") },
-						{ value: "settled", label: t("transactionStatus.settled") },
-						{ value: "planned", label: t("transactionStatus.planned") },
-					]}
-				/>
-				<Select
-					label={t("transactions.account")}
-					value={filters.accountId}
-					onChange={(event) => setFilters({ ...filters, accountId: event.target.value })}
-					options={[
-						{ value: "", label: t("transactions.anyAccount") },
-						...(accounts.data ?? []).map((account) => ({
-							value: account.id,
-							label: account.name,
-						})),
-					]}
-				/>
-				<Select
-					label={t("transactions.category")}
-					value={filters.categoryId}
-					onChange={(event) => setFilters({ ...filters, categoryId: event.target.value })}
-					options={[
-						{ value: "", label: t("transactions.anyCategory") },
-						{ value: "none", label: t("transactions.noCategory") },
-						...(categories.data ?? [])
-							.filter((category) => category.parentId === null)
-							.flatMap((parent) => [
-								{ value: parent.id, label: parent.name },
-								...(categories.data ?? [])
-									.filter((child) => child.parentId === parent.id)
-									.map((child) => ({
-										value: child.id,
-										label: `  ${child.name}`,
-									})),
-							]),
-					]}
-				/>
-				<Field
-					label={t("transactions.search")}
-					value={filters.search}
-					onChange={(event) => setFilters({ ...filters, search: event.target.value })}
-					placeholder={t("transactions.searchPlaceholder")}
-					type="search"
-				/>
-			</div>
+			</section>
 
 			{records.isPending ? <Skeleton lines={5} /> : null}
 

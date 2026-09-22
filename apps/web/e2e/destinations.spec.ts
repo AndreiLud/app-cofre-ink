@@ -9,10 +9,10 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
-import { nav, openCofre, openSetting, record } from "./support.ts";
+import { go, openCofre, openSetting, record } from "./support.ts";
 
 async function pickDestination(page: import("@playwright/test").Page, label: string) {
-	await nav(page, "Dados").click();
+	await go(page, "Dados");
 	await page.getByLabel("Onde guardar a cópia").selectOption({ label });
 }
 
@@ -33,12 +33,12 @@ test.describe("a copy somewhere else", () => {
 		await one.getByRole("button", { name: "Salvar" }).click();
 		await expect(one.getByRole("button", { name: /Você está no espaço Casa/ })).toBeVisible();
 
-		await nav(one, "Contas").click();
+		await go(one, "Contas");
 		await one.getByRole("button", { name: "Nova conta" }).first().click();
 		await one.getByRole("dialog").getByLabel("Nome").fill("Conta corrente");
 		await one.getByRole("button", { name: "Salvar" }).click();
 
-		await nav(one, "Lançamentos").click();
+		await go(one, "Lançamentos");
 		await one.getByRole("button", { name: "Novo lançamento" }).first().click();
 		await one.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("42,90");
 		await one.getByRole("dialog").getByLabel("Descrição").fill("Mercado do bairro");
@@ -76,7 +76,7 @@ test.describe("a copy somewhere else", () => {
 		// The space arrived, and it is theirs.
 		await expect(two.getByText(/Casa chegou e agora é seu/)).toBeVisible();
 
-		await nav(two, "Lançamentos").click();
+		await go(two, "Lançamentos");
 		await expect(record(two, "Mercado do bairro")).toBeVisible();
 		await expect(two.getByRole("cell", { name: "-R$ 42,90" })).toBeVisible();
 
@@ -116,7 +116,7 @@ test.describe("a copy somewhere else", () => {
 
 	test("says what each destination costs before anything is set up", async ({ page }) => {
 		await openCofre(page);
-		await nav(page, "Dados").click();
+		await go(page, "Dados");
 
 		// A drive that cannot say whether the file moved says so out loud.
 		await page

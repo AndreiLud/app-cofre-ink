@@ -95,7 +95,10 @@
 		"reports": "Relatórios",
 		"projection": "Projeção",
 		"investments": "Investimentos",
-		"data": "Dados"
+		"data": "Dados",
+		"allRecords": "Lista",
+		"planning": "Planejamento",
+		"settings": "Ajustes"
 	},
 	"projection": {
 		"headlineLasts": "Em {{month}} você teria {{amount}}",

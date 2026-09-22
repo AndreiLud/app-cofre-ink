@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { openCofre, openSetting, total } from "./support.ts";
+import { go, openCofre, openSetting, total } from "./support.ts";
 
 test.describe("accounts", () => {
 	test("creates one and shows it with the amount that was typed", async ({ page }) => {
 		await openCofre(page, { demo: false });
 
-		await page.getByRole("link", { name: "Contas" }).click();
+		await go(page, "Contas");
 		// The empty state offers the same action as the header, on purpose.
 		await page.getByRole("button", { name: "Nova conta" }).first().click();
 
@@ -23,7 +23,7 @@ test.describe("accounts", () => {
 	test("hides an archived account until it is asked for", async ({ page }) => {
 		await openCofre(page);
 
-		await page.getByRole("link", { name: "Contas" }).click();
+		await go(page, "Contas");
 		await page.getByRole("button", { name: "Ações da conta" }).first().click();
 		await page.getByRole("menuitem", { name: "Arquivar" }).click();
 
@@ -50,7 +50,7 @@ test.describe("spaces", () => {
 		await page.getByRole("button", { name: "Entrar" }).click();
 		await expect(page.getByRole("banner")).toContainText("Casa");
 
-		await page.getByRole("link", { name: "Contas" }).click();
+		await go(page, "Contas");
 		await expect(page.getByRole("cell", { name: "Conta conjunta" })).toBeVisible();
 		await expect(page.getByRole("cell", { name: "Carteira" })).toHaveCount(0);
 	});

@@ -1,12 +1,12 @@
 // Sorting money into categories, which is what turns a list of records into an answer.
 
 import { expect, test } from "@playwright/test";
-import { nav, openCofre, record } from "./support.ts";
+import { go, openCofre, record } from "./support.ts";
 
 test.describe("categories", () => {
 	test("starts with a set that is already usable", async ({ page }) => {
 		await openCofre(page);
-		await nav(page, "Categorias").click();
+		await go(page, "Categorias");
 
 		await expect(page.getByRole("heading", { level: 1 })).toContainText("Categorias");
 		// A category that stands on its own, and one that hangs under it.
@@ -20,7 +20,7 @@ test.describe("categories", () => {
 
 	test("adds one of your own and sorts a record into it", async ({ page }) => {
 		await openCofre(page);
-		await nav(page, "Categorias").click();
+		await go(page, "Categorias");
 
 		await page.getByRole("button", { name: "Nova categoria" }).first().click();
 		await page.getByRole("dialog").getByLabel("Nome").fill("Padaria da rua");
@@ -35,7 +35,7 @@ test.describe("categories", () => {
 			"Desejável",
 		);
 
-		await nav(page, "Lançamentos").click();
+		await go(page, "Lançamentos");
 		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
 		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("18,00");
 		await page.getByRole("dialog").getByLabel("Descrição").fill("Pão e café");
@@ -56,7 +56,7 @@ test.describe("categories", () => {
 
 	test("asking for a category asks for everything under it", async ({ page }) => {
 		await openCofre(page);
-		await nav(page, "Lançamentos").click();
+		await go(page, "Lançamentos");
 
 		// Alimentação has Mercado under it, and the demonstration data buys at one.
 		await page.getByLabel("Categoria", { exact: true }).selectOption({ label: "Alimentação" });
@@ -65,7 +65,7 @@ test.describe("categories", () => {
 
 	test("refuses a third level, and says why", async ({ page }) => {
 		await openCofre(page);
-		await nav(page, "Categorias").click();
+		await go(page, "Categorias");
 
 		await page.getByRole("button", { name: "Nova categoria" }).first().click();
 		await page.getByRole("dialog").getByLabel("Nome").fill("Hortifruti");

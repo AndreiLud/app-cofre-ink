@@ -99,21 +99,19 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 
 	return (
 		<form onSubmit={submit} className="space-y-2">
-			<div className="flex items-end gap-3">
-				<div className="grow">
-					<Field
-						label={t("quick.label")}
-						hint={t("quick.hint")}
-						value={text}
-						onChange={(event) => setText(event.target.value)}
-						placeholder={t("quick.placeholder")}
-						autoComplete="off"
-					/>
-				</div>
-				<Button type="submit" variant="primary" disabled={!ready || write.isPending}>
-					{t("quick.add")}
-				</Button>
-			</div>
+			<Field
+				label={t("quick.label")}
+				hint={t("quick.hint")}
+				value={text}
+				onChange={(event) => setText(event.target.value)}
+				placeholder={t("quick.placeholder")}
+				autoComplete="off"
+				action={
+					<Button type="submit" variant="primary" disabled={!ready || write.isPending}>
+						{t("quick.add")}
+					</Button>
+				}
+			/>
 
 			{text.trim() !== "" ? (
 				<p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-graphite">

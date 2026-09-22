@@ -1,7 +1,7 @@
 // Writing money down, which is the thing the product exists to make fast.
 
 import { expect, test } from "@playwright/test";
-import { nav, openCofre, record, total } from "./support.ts";
+import { go, openCofre, record, total } from "./support.ts";
 
 test.describe("records", () => {
 	test("writes an expense and takes it off the balance", async ({ page }) => {
@@ -9,7 +9,7 @@ test.describe("records", () => {
 
 		const before = await total(page).innerText();
 
-		await nav(page, "Lançamentos").click();
+		await go(page, "Lançamentos");
 		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
 
 		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("42,90");
@@ -23,14 +23,14 @@ test.describe("records", () => {
 		await expect(record(page, "Mercado do bairro")).toBeVisible();
 		await expect(page.getByRole("cell", { name: "-R$ 42,90" })).toBeVisible();
 
-		await nav(page, "Painel").click();
+		await go(page, "Painel");
 		await expect(total(page)).not.toHaveText(before);
 	});
 
 	test("splits a card purchase into parts that land on their own months", async ({ page }) => {
 		await openCofre(page);
 
-		await nav(page, "Lançamentos").click();
+		await go(page, "Lançamentos");
 		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
 
 		await page
@@ -57,7 +57,7 @@ test.describe("records", () => {
 	test("keeps what is planned out of the balance until it is paid", async ({ page }) => {
 		await openCofre(page);
 
-		await nav(page, "Lançamentos").click();
+		await go(page, "Lançamentos");
 		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
 
 		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("1.450,00");
@@ -71,7 +71,7 @@ test.describe("records", () => {
 
 		await expect(record(page, "Aluguel")).toBeVisible();
 
-		await nav(page, "Painel").click();
+		await go(page, "Painel");
 		await expect(page.getByText("Depois do que está previsto:")).toBeVisible();
 
 		// It falls due today, so the overview offers to settle it right there.
@@ -82,7 +82,7 @@ test.describe("records", () => {
 	test("finds a record by a word in its description", async ({ page }) => {
 		await openCofre(page);
 
-		await nav(page, "Lançamentos").click();
+		await go(page, "Lançamentos");
 		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
 		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("30,00");
 		await page.getByRole("dialog").getByLabel("Descrição").fill("Padaria da esquina");
@@ -103,7 +103,7 @@ test.describe("records", () => {
 
 	test("writes a whole record from one line of text", async ({ page }) => {
 		await openCofre(page);
-		await nav(page, "Lançamentos").click();
+		await go(page, "Lançamentos");
 
 		await page.getByLabel("Lançamento rápido").fill("pastel 63,40 ontem carteira");
 		// What it understood is shown before anything is written.
@@ -122,7 +122,7 @@ test.describe("records", () => {
 
 	test("changes a selection of records in one go", async ({ page }) => {
 		await openCofre(page);
-		await nav(page, "Lançamentos").click();
+		await go(page, "Lançamentos");
 
 		for (const [description, amount] of [
 			["Conta de luz", "180,00"],
@@ -154,7 +154,7 @@ test.describe("records", () => {
 
 	test("keeps a filter and brings it back by name", async ({ page }) => {
 		await openCofre(page);
-		await nav(page, "Lançamentos").click();
+		await go(page, "Lançamentos");
 
 		await page.getByLabel("Buscar").fill("cinema");
 		await page.getByRole("button", { name: "Salvar este filtro" }).click();
@@ -174,7 +174,7 @@ test.describe("records", () => {
 test.describe("the card invoice", () => {
 	test("says when it closes and what it will charge", async ({ page }) => {
 		await openCofre(page);
-		await nav(page, "Faturas").click();
+		await go(page, "Faturas");
 
 		// The demonstration data buys on the card, so the invoice is not empty.
 		await expect(page.getByRole("heading", { level: 1 })).toContainText("fatura");

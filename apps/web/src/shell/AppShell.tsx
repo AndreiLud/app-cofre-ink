@@ -14,7 +14,7 @@ import {
 	SpaceRule,
 } from "@cofre/ui";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { LanguageToggle, PrivacyToggle, ThemeToggle } from "../components/Controls.tsx";
 import { useTheme } from "../lib/theme.ts";
@@ -27,71 +27,136 @@ import { CommandPalette, useCommandPalette } from "./CommandPalette.tsx";
 import { SpaceSwitcher } from "./SpaceSwitcher.tsx";
 
 /**
- * Eleven sections do not fit on a phone, and by now they do not fit on a laptop either.
- * A row that scrolls sideways hides half of them behind a gesture nobody performs, so
- * the same list is a row of links where there is room and a menu where there is not,
- * inside one landmark either way.
+ * Eleven links in a row is a list nobody reads: it is eleven decisions before the first
+ * one, and on a laptop it wrapped onto two lines.
+ *
+ * So the screens are grouped into five, by the question somebody came to answer rather
+ * than by what the code calls them. The five are always there. The screens inside the
+ * one you are in are on a second line under it, and the rest are out of the way until
+ * you go there. Nothing is hidden behind a gesture and nothing needs a hover.
  */
+function sectionsOf(t: (key: string) => string) {
+	return [
+		{ to: ROUTES.dashboard, label: t("nav.dashboard"), children: [] },
+		{
+			to: ROUTES.transactions,
+			label: t("nav.transactions"),
+			children: [
+				{ to: ROUTES.transactions, label: t("nav.allRecords") },
+				{ to: ROUTES.invoices, label: t("nav.invoices") },
+				{ to: ROUTES.calendar, label: t("nav.calendar") },
+			],
+		},
+		{
+			to: ROUTES.budget,
+			label: t("nav.planning"),
+			children: [
+				{ to: ROUTES.budget, label: t("nav.budget") },
+				{ to: ROUTES.projection, label: t("nav.projection") },
+				{ to: ROUTES.investments, label: t("nav.investments") },
+			],
+		},
+		{ to: ROUTES.reports, label: t("nav.reports"), children: [] },
+		{
+			to: ROUTES.accounts,
+			label: t("nav.settings"),
+			children: [
+				{ to: ROUTES.accounts, label: t("nav.accounts") },
+				{ to: ROUTES.categories, label: t("nav.categories") },
+				{ to: ROUTES.data, label: t("nav.data") },
+			],
+		},
+	];
+}
+
 function Navigation() {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
 	const path = useRouterState({ select: (state) => state.location.pathname });
 
-	const entries = [
-		{ to: ROUTES.dashboard, label: t("nav.dashboard") },
-		{ to: ROUTES.transactions, label: t("nav.transactions") },
-		{ to: ROUTES.reports, label: t("nav.reports") },
-		{ to: ROUTES.budget, label: t("nav.budget") },
-		{ to: ROUTES.calendar, label: t("nav.calendar") },
-		{ to: ROUTES.invoices, label: t("nav.invoices") },
-		{ to: ROUTES.projection, label: t("nav.projection") },
-		{ to: ROUTES.investments, label: t("nav.investments") },
-		{ to: ROUTES.categories, label: t("nav.categories") },
-		{ to: ROUTES.accounts, label: t("nav.accounts") },
-		{ to: ROUTES.data, label: t("nav.data") },
-	];
+	const sections = sectionsOf(t);
+	const here =
+		sections.find(
+			(section) => section.to === path || section.children.some((child) => child.to === path),
+		) ?? sections[0];
 
-	const here = entries.find((entry) => entry.to === path) ?? entries[0];
+	const inside = here?.children ?? [];
 
 	return (
 		<nav aria-label={t("nav.label")}>
 			<div className="hidden flex-wrap gap-1 lg:flex">
-				{entries.map((entry) => (
+				{sections.map((section) => (
 					<Link
-						key={entry.to}
-						to={entry.to}
+						key={section.label}
+						to={section.to}
 						className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm ${
-							path === entry.to
+							section === here
 								? "border-ink font-medium text-ink"
 								: "border-transparent text-graphite hover:text-ink"
 						}`}
 					>
-						{entry.label}
+						{section.label}
 					</Link>
 				))}
 			</div>
 
+			{/* The screens inside the section you are in. It only appears where there is
+			    more than one, so a section with a single screen adds no furniture. */}
+			{inside.length > 1 ? (
+				<div className="hidden flex-wrap gap-4 pb-2 lg:flex">
+					{inside.map((child) => (
+						<Link
+							key={child.to}
+							to={child.to}
+							className={`text-sm ${
+								child.to === path
+									? "font-medium text-ink underline underline-offset-4"
+									: "text-graphite hover:text-ink"
+							}`}
+						>
+							{child.label}
+						</Link>
+					))}
+				</div>
+			) : null}
+
+			{/* On a phone the two levels are one menu, with the grouping kept. */}
 			<div className="py-1 lg:hidden">
 				<Menu
 					align="start"
 					trigger={
 						<Button size="small" variant="quiet" className="font-medium text-ink">
-							{here?.label}
+							{inside.find((child) => child.to === path)?.label ?? here?.label}
 							<Icon name="chevronDown" className="ml-1 text-graphite" />
 						</Button>
 					}
 				>
-					<MenuLabel>{t("nav.label")}</MenuLabel>
-					{entries.map((entry) => (
-						<MenuItem
-							key={entry.to}
-							onSelect={() => void navigate({ to: entry.to })}
-							selected={entry.to === path}
-							detail={entry.to === path ? <Icon name="check" /> : undefined}
-						>
-							{entry.label}
-						</MenuItem>
-					))}
+					{sections.map((section) =>
+						section.children.length > 0 ? (
+							<Fragment key={section.label}>
+								<MenuLabel>{section.label}</MenuLabel>
+								{section.children.map((child) => (
+									<MenuItem
+										key={child.to}
+										onSelect={() => void navigate({ to: child.to })}
+										selected={child.to === path}
+										detail={child.to === path ? <Icon name="check" /> : undefined}
+									>
+										{child.label}
+									</MenuItem>
+								))}
+							</Fragment>
+						) : (
+							<MenuItem
+								key={section.label}
+								onSelect={() => void navigate({ to: section.to })}
+								selected={section.to === path}
+								detail={section.to === path ? <Icon name="check" /> : undefined}
+							>
+								{section.label}
+							</MenuItem>
+						),
+					)}
 				</Menu>
 			</div>
 		</nav>

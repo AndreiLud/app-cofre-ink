@@ -5,7 +5,7 @@
 // figures, is a line nobody can check and nobody should believe.
 
 import { expect, test } from "@playwright/test";
-import { nav, openCofre } from "./support.ts";
+import { go, openCofre } from "./support.ts";
 
 test.describe("what the figures have to say", () => {
 	test("says nothing on the first day, when there is nothing to say", async ({ page }) => {
@@ -19,7 +19,7 @@ test.describe("what the figures have to say", () => {
 	test("finds the same charge twice and says what to check", async ({ page }) => {
 		await openCofre(page, { name: "Andrei" });
 
-		await nav(page, "Lançamentos").click();
+		await go(page, "Lançamentos");
 
 		// The same amount at the same shop, today and yesterday. This is the one finding
 		// a person acts on the same minute they read it.
@@ -29,7 +29,7 @@ test.describe("what the figures have to say", () => {
 			await expect(page.getByRole("button", { name: "Desfazer" })).toBeVisible();
 		}
 
-		await nav(page, "Painel").click();
+		await go(page, "Painel");
 
 		// The screen shows four lines and keeps the rest one click away.
 		const more = page.getByRole("button", { name: /Ver mais/ });

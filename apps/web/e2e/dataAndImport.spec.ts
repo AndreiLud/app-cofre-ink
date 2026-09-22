@@ -6,7 +6,7 @@
 
 import { buildPdf, drawLines } from "@cofre/importers";
 import { expect, test } from "@playwright/test";
-import { nav, openCofre, record } from "./support.ts";
+import { go, openCofre, record } from "./support.ts";
 
 const STATEMENT = [
 	"Data;Historico;Valor",
@@ -41,7 +41,7 @@ test.describe("reading a statement", () => {
 	test("writes only the lines the person kept", async ({ page }) => {
 		await openCofre(page);
 
-		await nav(page, "Dados").click();
+		await go(page, "Dados");
 		await page.getByRole("button", { name: "Abrir a importação" }).click();
 		await pickStatement(page, "extrato.csv", STATEMENT);
 
@@ -57,7 +57,7 @@ test.describe("reading a statement", () => {
 
 		await expect(page.getByText("1 lançamento gravado")).toBeVisible();
 
-		await nav(page, "Lançamentos").click();
+		await go(page, "Lançamentos");
 		await page.getByLabel("Mês").fill("2026-01");
 		await expect(record(page, "Padaria da esquina")).toBeVisible();
 		await expect(record(page, "Reembolso do plano")).toHaveCount(0);
@@ -66,7 +66,7 @@ test.describe("reading a statement", () => {
 	test("refuses to write the same entries a second time", async ({ page }) => {
 		await openCofre(page);
 
-		await nav(page, "Dados").click();
+		await go(page, "Dados");
 		await page.getByRole("button", { name: "Abrir a importação" }).click();
 
 		await pickStatement(page, "extrato.ofx", WITH_IDENTIFIERS);
@@ -97,7 +97,7 @@ test.describe("reading a statement", () => {
 			compress: true,
 		});
 
-		await nav(page, "Dados").click();
+		await go(page, "Dados");
 		await page.getByRole("button", { name: "Abrir a importação" }).click();
 		await page.getByLabel("Arquivo do banco").setInputFiles({
 			name: "fatura.pdf",
@@ -120,7 +120,7 @@ test.describe("reading a statement", () => {
 		await page.getByRole("button", { name: "Gravar 3 lançamentos" }).click();
 		await expect(page.getByText("3 lançamentos gravados")).toBeVisible();
 
-		await nav(page, "Lançamentos").click();
+		await go(page, "Lançamentos");
 		await page.getByLabel("Mês").fill("2026-01");
 		await expect(record(page, "Padaria da esquina")).toBeVisible();
 		await expect(record(page, "Pagamento recebido")).toBeVisible();
@@ -131,7 +131,7 @@ test.describe("reading a statement", () => {
 
 		const scan = buildPdf({ content: "q 100 0 0 100 50 700 cm /Im0 Do Q\n" });
 
-		await nav(page, "Dados").click();
+		await go(page, "Dados");
 		await page.getByRole("button", { name: "Abrir a importação" }).click();
 		await page.getByLabel("Arquivo do banco").setInputFiles({
 			name: "escaneado.pdf",
@@ -145,7 +145,7 @@ test.describe("reading a statement", () => {
 	test("says it could not read a file instead of falling over", async ({ page }) => {
 		await openCofre(page);
 
-		await nav(page, "Dados").click();
+		await go(page, "Dados");
 		await page.getByRole("button", { name: "Abrir a importação" }).click();
 		await pickStatement(page, "foto.json", "{ isto nao e json");
 
@@ -157,7 +157,7 @@ test.describe("taking the data out", () => {
 	test("hands over a backup of the space", async ({ page }) => {
 		await openCofre(page, { space: "Meu dinheiro" });
 
-		await nav(page, "Dados").click();
+		await go(page, "Dados");
 
 		const download = page.waitForEvent("download");
 		await page.getByRole("button", { name: "Backup de Meu dinheiro" }).click();
@@ -169,7 +169,7 @@ test.describe("taking the data out", () => {
 	test("hands over the records as a spreadsheet", async ({ page }) => {
 		await openCofre(page);
 
-		await nav(page, "Dados").click();
+		await go(page, "Dados");
 
 		const download = page.waitForEvent("download");
 		await page.getByRole("button", { name: "Lançamentos em planilha" }).click();

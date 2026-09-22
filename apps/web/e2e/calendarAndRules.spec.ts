@@ -1,12 +1,12 @@
 // What happens again, and what gets sorted without anybody being asked.
 
 import { expect, test } from "@playwright/test";
-import { nav, openCofre, record } from "./support.ts";
+import { go, openCofre, record } from "./support.ts";
 
 test.describe("the calendar", () => {
 	test("shows the month with what is already in it", async ({ page }) => {
 		await openCofre(page);
-		await nav(page, "Calendário").click();
+		await go(page, "Calendário");
 
 		await expect(page.getByRole("heading", { level: 1 })).toContainText("mês");
 		// The demonstration data bought a few things this month.
@@ -15,7 +15,7 @@ test.describe("the calendar", () => {
 
 	test("puts what repeats on the days it falls due", async ({ page }) => {
 		await openCofre(page);
-		await nav(page, "Calendário").click();
+		await go(page, "Calendário");
 
 		await page.getByRole("button", { name: "Nova recorrência" }).click();
 		await page.getByRole("dialog").getByLabel("Descrição").fill("Aluguel do mês");
@@ -31,7 +31,7 @@ test.describe("the calendar", () => {
 		await expect(page.getByText("Aluguel do mês").first()).toBeVisible();
 
 		// The list of records shows it as planned, not as money that moved.
-		await nav(page, "Lançamentos").click();
+		await go(page, "Lançamentos");
 		await expect(record(page, "Aluguel do mês")).toContainText("Previsto");
 	});
 
@@ -39,7 +39,7 @@ test.describe("the calendar", () => {
 		page,
 	}) => {
 		await openCofre(page);
-		await nav(page, "Calendário").click();
+		await go(page, "Calendário");
 
 		await page.getByRole("button", { name: "Nova recorrência" }).click();
 		await page.getByRole("dialog").getByLabel("Descrição").fill("Internet");
@@ -47,9 +47,9 @@ test.describe("the calendar", () => {
 		await page.getByRole("button", { name: "Salvar" }).click();
 		await expect(page.getByText("Internet").first()).toBeVisible();
 
-		await nav(page, "Painel").click();
-		await nav(page, "Calendário").click();
-		await nav(page, "Lançamentos").click();
+		await go(page, "Painel");
+		await go(page, "Calendário");
+		await go(page, "Lançamentos");
 
 		await expect(record(page, "Internet")).toHaveCount(1);
 	});
@@ -58,7 +58,7 @@ test.describe("the calendar", () => {
 test.describe("rules", () => {
 	test("learns from one record and sorts the next one on its own", async ({ page }) => {
 		await openCofre(page);
-		await nav(page, "Lançamentos").click();
+		await go(page, "Lançamentos");
 
 		// One record, sorted by hand.
 		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
@@ -86,13 +86,13 @@ test.describe("rules", () => {
 		await openCofre(page);
 
 		// A record nobody sorted, written before the rule exists.
-		await nav(page, "Lançamentos").click();
+		await go(page, "Lançamentos");
 		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
 		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("25,00");
 		await page.getByRole("dialog").getByLabel("Descrição").fill("Uber para o centro");
 		await page.getByRole("button", { name: "Salvar" }).click();
 
-		await nav(page, "Categorias").click();
+		await go(page, "Categorias");
 		await page.getByRole("button", { name: "Nova regra" }).click();
 		await page.getByRole("dialog").getByLabel("Quando a descrição tiver").fill("uber");
 		await page
@@ -106,7 +106,7 @@ test.describe("rules", () => {
 		await page.getByRole("button", { name: "Aplicar nos antigos" }).click();
 		await expect(page.getByText("Categorizei 1 lançamento")).toBeVisible();
 
-		await nav(page, "Lançamentos").click();
+		await go(page, "Lançamentos");
 		await expect(record(page, "Uber para o centro")).toContainText("Aplicativo e táxi");
 	});
 });

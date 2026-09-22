@@ -43,6 +43,28 @@ export function nav(page: Page, label: string) {
 		.getByRole("link", { name: label, exact: true });
 }
 
+/**
+ * The navigation has two levels: five sections, and the screens inside the one you are
+ * in. A test that wants a screen says which screen, and this opens its section first.
+ */
+const SECTION_OF: Record<string, string> = {
+	Lista: "Lançamentos",
+	Faturas: "Lançamentos",
+	Calendário: "Lançamentos",
+	Orçamento: "Planejamento",
+	Projeção: "Planejamento",
+	Investimentos: "Planejamento",
+	Contas: "Ajustes",
+	Categorias: "Ajustes",
+	Dados: "Ajustes",
+};
+
+export async function go(page: Page, label: string): Promise<void> {
+	const section = SECTION_OF[label];
+	if (section) await nav(page, section).click();
+	await nav(page, label).click();
+}
+
 /** The amount shown as the answer to "how much do I have". */
 export function total(page: Page) {
 	return page.locator("main p.font-mono").first();
