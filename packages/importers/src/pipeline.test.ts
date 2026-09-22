@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { buildPdf, drawLines } from "./pdf/buildPdf.ts";
 import { guessFormat, markDuplicates, readFile } from "./pipeline.ts";
 
 const bytes = (text: string) => new TextEncoder().encode(text);
@@ -75,6 +76,60 @@ describe("reading a statement", () => {
 	});
 });
 
+describe("a document, rather than a table", () => {
+	const statement = buildPdf({
+		content: drawLines([
+			"Banco Inter",
+			"Extrato da conta corrente",
+			"Periodo de 01/09/2026 a 30/09/2026",
+			"01/09/2026 Saldo anterior 1.000,00",
+			"05/09/2026 Salario 5.000,00 6.000,00",
+			"10/09/2026 Mercado do bairro 42,90 5.957,10",
+		]),
+		compress: true,
+	});
+
+	it("recognises a statement and says what it believes each line says", () => {
+		const result = readFile(statement, { fileName: "extrato.pdf" });
+
+		expect(result.format).toBe("pdf");
+		expect(result.document?.kind).toBe("statement");
+		expect(result.document?.institution).toBe("Inter");
+		expect(result.accountHint).toBe("Inter");
+
+		expect(result.records.map((record) => record.amount)).toEqual([500_000, -4290]);
+		expect(result.records.every((record) => record.confidence > 0.9)).toBe(true);
+		expect(result.records[1]?.source).toContain("Mercado do bairro");
+	});
+
+	it("marks what is already here, the same as any other file", () => {
+		const result = readFile(statement);
+		const marked = markDuplicates(result.records, [
+			{
+				id: "one",
+				happenedOn: "2026-09-10",
+				amount: -4290,
+				description: "Mercado do bairro",
+				externalId: null,
+			},
+		]);
+
+		expect(marked[1]?.duplicateOf).toBe("one");
+	});
+
+	it("says plainly when a PDF is a picture instead of a document", () => {
+		const picture = buildPdf({ content: "q 100 0 0 100 50 700 cm /Im0 Do Q\n" });
+		const result = readFile(picture, { fileName: "foto.pdf" });
+
+		expect(result.records).toEqual([]);
+		expect(result.skipped[0]?.reason).toBe("noText");
+	});
+
+	it("knows a PDF by its first bytes, whatever it is called", () => {
+		expect(guessFormat(statement, "qualquer.txt")).toBe("pdf");
+	});
+});
+
 describe("marking what is already here", () => {
 	const existing = [
 		{
@@ -97,6 +152,8 @@ describe("marking what is already here", () => {
 					externalId: "abc",
 					category: null,
 					line: 1,
+					confidence: 1,
+					source: null,
 				},
 			],
 			existing,
@@ -117,6 +174,8 @@ describe("marking what is already here", () => {
 					externalId: null,
 					category: null,
 					line: 1,
+					confidence: 1,
+					source: null,
 				},
 			],
 			existing,
@@ -135,6 +194,8 @@ describe("marking what is already here", () => {
 			externalId: null,
 			category: null,
 			line: index + 1,
+			confidence: 1,
+			source: null,
 		}));
 
 		const marked = markDuplicates(twice, existing);
@@ -153,6 +214,8 @@ describe("marking what is already here", () => {
 					externalId: null,
 					category: null,
 					line: 1,
+					confidence: 1,
+					source: null,
 				},
 			],
 			existing,

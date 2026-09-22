@@ -5,7 +5,8 @@
 // and what looks like something already here. An import that decides on its own is how
 // somebody ends up with two of every purchase in a month and no way to tell which.
 
-import type { FieldName, MarkedRecord } from "@cofre/importers";
+import { todayIn } from "@cofre/core";
+import type { FieldName, MarkedRecord, RecognisedDocument } from "@cofre/importers";
 import { markDuplicates, readFile } from "@cofre/importers";
 import type { ImportedRecord } from "@cofre/storage";
 import {
@@ -48,6 +49,46 @@ type Picked = {
 	bytes: Uint8Array;
 };
 
+/** Under this, the screen asks the person to look at the record before saying yes. */
+const SURE_ENOUGH = 0.67;
+
+/**
+ * What a recognised document turned out to be, said in one line.
+ *
+ * A file with columns needs no such line: it said what it was. A document had to be
+ * understood, and what was understood about it as a whole is the first thing to check,
+ * because a due date read as a purchase is visible here and nowhere else.
+ */
+function WhatItIs({ document }: { document: RecognisedDocument }) {
+	const { t } = useTranslation();
+	const { amountsHidden } = useCofre();
+
+	const facts = [
+		document.institution,
+		document.period
+			? t("importing.between", { from: document.period.from, to: document.period.to })
+			: null,
+		document.dueOn ? t("importing.dueOn", { day: document.dueOn }) : null,
+	].filter((fact): fact is string => fact !== null);
+
+	return (
+		<Callout tone="neutral" title={t(`importing.kind.${document.kind}`)}>
+			<p>
+				{facts.join(" · ")}
+				{document.total === null ? null : (
+					<>
+						{facts.length > 0 ? " · " : ""}
+						{t("importing.saysTotal")}{" "}
+						<span className={amountsHidden ? "blur-sm" : undefined}>
+							<Value amount={document.total} tone="neutral" />
+						</span>
+					</>
+				)}
+			</p>
+		</Callout>
+	);
+}
+
 export function ImportPage() {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
@@ -71,17 +112,20 @@ export function ImportPage() {
 	const usable = (accounts.data ?? []).filter((account) => account.archivedAt === null);
 	const chosen = usable.find((account) => account.id === accountId) ?? usable[0];
 
+	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
+
 	// Reading the file again with a corrected mapping is cheap and keeps one path:
 	// whatever is on screen is exactly what the reader produced.
 	const read = useMemo(() => {
 		if (!picked) return null;
-		const first = readFile(picked.bytes, { fileName: picked.name });
+		const first = readFile(picked.bytes, { fileName: picked.name, today });
 		if (!fields || !first.mapping) return first;
 		return readFile(picked.bytes, {
 			fileName: picked.name,
+			today,
 			mapping: { ...first.mapping, fields },
 		});
-	}, [picked, fields]);
+	}, [picked, fields, today]);
 
 	const span = useMemo(() => {
 		const days = (read?.records ?? []).map((record) => record.happenedOn).sort();
@@ -149,6 +193,7 @@ export function ImportPage() {
 	});
 
 	const duplicates = marked.filter((record) => record.duplicateOf !== null).length;
+	const unsure = marked.filter((record) => record.confidence < SURE_ENOUGH).length;
 
 	return (
 		<div className="space-y-6">
@@ -190,7 +235,7 @@ export function ImportPage() {
 				<input
 					id="statementFile"
 					type="file"
-					accept=".csv,.txt,.ofx,.qfx,.qif,.xlsx,.json"
+					accept=".csv,.txt,.ofx,.qfx,.qif,.xlsx,.json,.pdf"
 					onChange={(event) => void pick(event)}
 					className="block w-full max-w-md text-sm text-ink file:mr-3 file:rounded-sm file:border file:border-rule file:bg-raised file:px-3 file:py-2 file:text-sm file:text-ink"
 				/>
@@ -205,6 +250,8 @@ export function ImportPage() {
 
 			{read === null ? null : (
 				<div className="space-y-5">
+					{read.document ? <WhatItIs document={read.document} /> : null}
+
 					<div className="flex flex-wrap items-end gap-4">
 						<div className="min-w-[14rem] grow sm:grow-0">
 							<Select
@@ -261,14 +308,24 @@ export function ImportPage() {
 						</Callout>
 					) : null}
 
+					{unsure > 0 ? (
+						<Callout tone="attention" title={t("importing.unsureTitle", { count: unsure })}>
+							{t("importing.unsureBody")}
+						</Callout>
+					) : null}
+
 					{read.records.length === 0 ? (
 						<EmptyState
 							title={t("importing.emptyTitle")}
-							description={
-								read.skipped[0]?.reason === "unreadable"
-									? t("importing.unreadable")
-									: t("importing.emptyBody")
-							}
+							description={t(
+								`importing.${
+									read.skipped[0]?.reason === "unreadable"
+										? "unreadable"
+										: read.skipped[0]?.reason === "noText"
+											? "noText"
+											: "emptyBody"
+								}`,
+							)}
 						/>
 					) : (
 						<Table caption={t("importing.caption")}>
@@ -311,6 +368,16 @@ export function ImportPage() {
 														{certain ? t("importing.sameEntry") : t("importing.looksTheSame")}
 													</span>
 												)}
+												{/* What the reader was not sure about, beside the line it read,
+												    which is the only way somebody can check it. */}
+												{record.confidence < SURE_ENOUGH ? (
+													<span className="block text-xs text-ochre">
+														{t("importing.checkThisOne")}
+														{record.source ? (
+															<span className="block font-mono text-graphite">{record.source}</span>
+														) : null}
+													</span>
+												) : null}
 											</TableCell>
 											<TableCell numeric={true}>
 												<Value
@@ -333,7 +400,9 @@ export function ImportPage() {
 						</Table>
 					)}
 
-					{read.skipped.length > 0 && read.skipped[0]?.reason !== "unreadable" ? (
+					{read.skipped.length > 0 &&
+					read.skipped[0]?.reason !== "unreadable" &&
+					read.skipped[0]?.reason !== "noText" ? (
 						<details className="text-sm text-graphite">
 							<summary className="cursor-pointer">
 								{t("importing.skippedTitle", { count: read.skipped.length })}

@@ -709,7 +709,21 @@
 		"title": "Import a statement",
 		"explain": "Pick the file, check what Cofre understood, and only then write it down. Nothing is written before that.",
 		"pick": "File from the bank",
-		"pickHint": "CSV, OFX, QIF, XLSX or a JSON backup. The file does not leave this device.",
+		"pickHint": "A PDF invoice or receipt, CSV, OFX, QIF, XLSX or a JSON backup. The file does not leave this device.",
+		"kind": {
+			"statement": "This looks like a statement",
+			"invoice": "This looks like a card invoice",
+			"receipt": "This looks like a receipt",
+			"unknown": "I did not recognise what this document is"
+		},
+		"between": "from {{from}} to {{to}}",
+		"dueOn": "due on {{day}}",
+		"saysTotal": "and says it adds up to",
+		"unsureTitle_one": "1 line I am not sure I understood",
+		"unsureTitle_other": "{{count}} lines I am not sure I understood",
+		"unsureBody": "A PDF does not arrive in columns, so some lines were read by deduction. They are marked, with the original text of the document beside them, so you can compare before writing anything.",
+		"checkThisOne": "Check this one:",
+		"noText": "This PDF holds no text, only a picture. That is usually a scan or a photograph. Ask the bank for the original file, or use the CSV, the OFX or the spreadsheet.",
 		"account": "Into which account",
 		"accountHint": "The whole file goes into this account.",
 		"found_one": "1 record read from a {{format}} file.",
@@ -749,7 +763,9 @@
 			"noDate": "no date",
 			"noAmount": "no amount",
 			"noDescription": "no description",
-			"unreadable": "could not be read"
+			"unreadable": "could not be read",
+			"noText": "no text inside",
+			"notUnderstood": "holds money and names no day"
 		},
 		"nothingToWrite": "Nothing to write",
 		"write_one": "Write 1 record",

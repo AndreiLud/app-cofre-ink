@@ -709,7 +709,21 @@
 		"title": "Importar extrato",
 		"explain": "Escolha o arquivo, confira o que o Cofre entendeu e só então grave. Nada é escrito antes disso.",
 		"pick": "Arquivo do banco",
-		"pickHint": "CSV, OFX, QIF, XLSX ou um backup em JSON. O arquivo não sai deste dispositivo.",
+		"pickHint": "PDF de fatura ou comprovante, CSV, OFX, QIF, XLSX ou um backup em JSON. O arquivo não sai deste dispositivo.",
+		"kind": {
+			"statement": "Isto parece um extrato",
+			"invoice": "Isto parece uma fatura de cartão",
+			"receipt": "Isto parece um comprovante",
+			"unknown": "Não reconheci que documento é este"
+		},
+		"between": "de {{from}} a {{to}}",
+		"dueOn": "vence em {{day}}",
+		"saysTotal": "e diz somar",
+		"unsureTitle_one": "1 linha que eu não tenho certeza de ter entendido",
+		"unsureTitle_other": "{{count}} linhas que eu não tenho certeza de ter entendido",
+		"unsureBody": "Um PDF não vem em colunas, então algumas linhas eu li por dedução. Elas aparecem marcadas com o texto original do documento ao lado, para você comparar antes de gravar.",
+		"checkThisOne": "Confira esta:",
+		"noText": "Este PDF não tem texto dentro, só imagem. Costuma ser um documento escaneado ou uma foto. Peça o arquivo original ao banco, ou use o CSV, o OFX ou o extrato em planilha.",
 		"account": "Em qual conta",
 		"accountHint": "Todo o arquivo entra nesta conta.",
 		"found_one": "1 lançamento lido de um arquivo {{format}}.",
@@ -749,7 +763,9 @@
 			"noDate": "sem data",
 			"noAmount": "sem valor",
 			"noDescription": "sem descrição",
-			"unreadable": "não deu para ler"
+			"unreadable": "não deu para ler",
+			"noText": "sem texto dentro",
+			"notUnderstood": "tem dinheiro e não achei a data"
 		},
 		"nothingToWrite": "Nada para gravar",
 		"write_one": "Gravar 1 lançamento",

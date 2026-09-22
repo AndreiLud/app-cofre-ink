@@ -9,11 +9,13 @@ import type { CalendarDate } from "@cofre/core";
 import { readCsv } from "./csv.ts";
 import { applyMapping, type ColumnMapping, guessMapping } from "./mapping.ts";
 import { readOfx } from "./ofx.ts";
+import { looksLikePdf, readPdf } from "./pdf/index.ts";
 import { readQif } from "./qif.ts";
+import { type RecognisedDocument, recognise } from "./recognise/index.ts";
 import { decode, tidy } from "./text.ts";
 import { dayFromSerial, readXlsx } from "./xlsx.ts";
 
-export type SourceFormat = "csv" | "ofx" | "qif" | "xlsx" | "json";
+export type SourceFormat = "csv" | "ofx" | "qif" | "xlsx" | "json" | "pdf";
 
 export type DraftRecord = {
 	happenedOn: CalendarDate;
@@ -27,11 +29,28 @@ export type DraftRecord = {
 	category: string | null;
 	/** The line it came from, so a problem can be pointed at. */
 	line: number;
+	/**
+	 * How sure the reader is, from zero to one. A file with columns is read, not
+	 * recognised, so it arrives certain. A document that had to be understood arrives
+	 * with what it deserves, and the screen shows anything under two thirds as a record
+	 * to look at before saying yes.
+	 */
+	confidence: number;
+	/** The line of the document this came from, for a record that was recognised. */
+	source: string | null;
 };
 
 export type SkippedRow = {
 	line: number;
-	reason: "noDate" | "noAmount" | "noDescription" | "unreadable";
+	reason:
+		| "noDate"
+		| "noAmount"
+		| "noDescription"
+		| "unreadable"
+		/** A PDF that holds no text at all, which means it is a picture of one. */
+		| "noText"
+		/** A line of a document that held money and could not be read. */
+		| "notUnderstood";
 	/** The row as it was read, so the person can see what was skipped. */
 	values: string[];
 };
@@ -46,11 +65,14 @@ export type ReadFileResult = {
 	/** What the file says the account is, when it says. */
 	accountHint: string | null;
 	currency: string | null;
+	/** What a recognised document turned out to be, for the screen to show. */
+	document: RecognisedDocument | null;
 };
 
 /** What kind of file this is, by looking at it rather than at its name. */
 export function guessFormat(bytes: Uint8Array, fileName = ""): SourceFormat {
 	const name = fileName.toLowerCase();
+	if (looksLikePdf(bytes)) return "pdf";
 	if (name.endsWith(".xlsx") || (bytes[0] === 0x50 && bytes[1] === 0x4b)) return "xlsx";
 
 	const head = decode(bytes.subarray(0, 4096));
@@ -67,6 +89,8 @@ export type ReadOptions = {
 	/** Given when the person has corrected what the guesser decided. */
 	mapping?: ColumnMapping;
 	format?: SourceFormat;
+	/** The day where the person is, for a document that writes a day with no year. */
+	today?: CalendarDate;
 };
 
 /**
@@ -78,6 +102,7 @@ export function readFile(bytes: Uint8Array, options: ReadOptions = {}): ReadFile
 	const format = options.format ?? guessFormat(bytes, options.fileName ?? "");
 
 	try {
+		if (format === "pdf") return fromPdf(bytes, options.today);
 		if (format === "ofx") return fromOfx(decode(bytes));
 		if (format === "qif") return fromQif(decode(bytes));
 		if (format === "json") return fromJson(decode(bytes));
@@ -94,8 +119,63 @@ export function readFile(bytes: Uint8Array, options: ReadOptions = {}): ReadFile
 			header: [],
 			accountHint: null,
 			currency: null,
+			document: null,
 		};
 	}
+}
+
+/**
+ * A document, rather than a table.
+ *
+ * The two layers are visible here: the bytes become lines, and then the lines are
+ * recognised. A file with no lines in it is a file made of pictures, and saying so is
+ * the only useful thing to do about it.
+ */
+function fromPdf(bytes: Uint8Array, today?: CalendarDate): ReadFileResult {
+	const read = readPdf(bytes);
+
+	if (read.lines.length === 0) {
+		return {
+			format: "pdf",
+			records: [],
+			skipped: [{ line: 1, reason: "noText", values: [] }],
+			mapping: null,
+			header: [],
+			accountHint: null,
+			currency: null,
+			document: null,
+		};
+	}
+
+	const document = recognise(
+		read.lines.map((line) => line.text),
+		today ? { today } : {},
+	);
+
+	return {
+		format: "pdf",
+		records: document.entries.map((entry) => ({
+			happenedOn: entry.happenedOn,
+			amount: entry.amount,
+			description: entry.description,
+			notes: null,
+			externalId: entry.externalId,
+			category: null,
+			line: entry.line,
+			confidence: entry.confidence,
+			source: entry.source,
+		})),
+		skipped: document.unread.map((line) => ({
+			line: line.line,
+			reason: "notUnderstood" as const,
+			values: [line.text],
+		})),
+		mapping: null,
+		header: [],
+		accountHint: document.institution,
+		currency: document.currency,
+		document,
+	};
 }
 
 function fromRows(
@@ -139,6 +219,9 @@ function fromRows(
 			externalId: read.externalId,
 			category: read.category,
 			line,
+			// A table was read rather than understood, so there is nothing to be unsure of.
+			confidence: 1,
+			source: null,
 		});
 	});
 
@@ -150,6 +233,7 @@ function fromRows(
 		header: [...header],
 		accountHint: null,
 		currency: null,
+		document: null,
 	};
 }
 
@@ -168,6 +252,8 @@ function fromOfx(text: string): ReadFileResult {
 			externalId: entry.externalId,
 			category: null,
 			line: index + 1,
+			confidence: 1,
+			source: null,
 		});
 	});
 
@@ -179,6 +265,7 @@ function fromOfx(text: string): ReadFileResult {
 		header: [],
 		accountHint: statement.accountId,
 		currency: statement.currency,
+		document: null,
 	};
 }
 
@@ -195,12 +282,15 @@ function fromQif(text: string): ReadFileResult {
 			externalId: null,
 			category: entry.category,
 			line: index + 1,
+			confidence: 1,
+			source: null,
 		})),
 		skipped: [],
 		mapping: null,
 		header: [],
 		accountHint: null,
 		currency: null,
+		document: null,
 	};
 }
 
@@ -236,6 +326,8 @@ function fromJson(text: string): ReadFileResult {
 			externalId: typeof row.externalId === "string" ? row.externalId : null,
 			category: typeof row.category === "string" ? row.category : null,
 			line: index + 1,
+			confidence: 1,
+			source: null,
 		});
 	});
 
@@ -247,6 +339,7 @@ function fromJson(text: string): ReadFileResult {
 		header: [],
 		accountHint: null,
 		currency: null,
+		document: null,
 	};
 }
 
