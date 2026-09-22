@@ -43,6 +43,10 @@ export const PERMISSIONS = {
 	"transaction.update": ["owner", "admin", "editor", "logger"],
 	"transaction.delete": ["owner", "admin", "editor", "logger"],
 	"transaction.reconcile": ["owner", "admin", "editor"],
+	// A saved filter is a person's own shortcut. Everybody who can read a space can
+	// keep one, and the repository only ever shows somebody their own.
+	"filter.read": ["owner", "admin", "editor", "viewer", "logger"],
+	"filter.write": ["owner", "admin", "editor", "viewer", "logger"],
 	"activity.read": ["owner", "admin", "editor", "viewer"],
 } as const satisfies Record<string, readonly Role[]>;
 

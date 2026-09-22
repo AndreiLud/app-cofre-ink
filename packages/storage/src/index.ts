@@ -12,6 +12,7 @@ export * from "./repositories/changes.ts";
 export * from "./repositories/context.ts";
 export * from "./repositories/invitations.ts";
 export * from "./repositories/members.ts";
+export * from "./repositories/savedFilters.ts";
 export * from "./repositories/spaces.ts";
 export * from "./repositories/transactions.ts";
 export * from "./repositories/users.ts";

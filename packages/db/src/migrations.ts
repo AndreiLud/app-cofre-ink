@@ -15,6 +15,7 @@ import { addColumnSql, createSchemaSql, type Dialect } from "./ddl.ts";
 import { AUTH_TABLES } from "./schema/authTables.ts";
 import { SCHEMA } from "./schema/tables.ts";
 import { CARD_COLUMNS, TRANSACTION_TABLES } from "./schema/transactionTables.ts";
+import { VIEW_TABLES } from "./schema/viewTables.ts";
 
 export type MigrationContext = {
 	dialect: Dialect;
@@ -44,6 +45,10 @@ export const MIGRATIONS: readonly Migration[] = [
 				(column) => addColumnSql("accounts", column, context.dialect),
 			),
 		],
+	},
+	{
+		id: "0004_saved_filters",
+		statements: (context) => createSchemaSql([...VIEW_TABLES], context.dialect),
 	},
 ];
 

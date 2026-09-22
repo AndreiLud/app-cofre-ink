@@ -9,6 +9,7 @@ import { createChangesRepository } from "./repositories/changes.ts";
 import type { RepositoryContext } from "./repositories/context.ts";
 import { createInvitationsRepository } from "./repositories/invitations.ts";
 import { createMembersRepository } from "./repositories/members.ts";
+import { createSavedFiltersRepository } from "./repositories/savedFilters.ts";
 import { createSpacesRepository } from "./repositories/spaces.ts";
 import { createTransactionsRepository } from "./repositories/transactions.ts";
 import { createUsersRepository } from "./repositories/users.ts";
@@ -32,6 +33,7 @@ export type Session = {
 	invitations: ReturnType<typeof createInvitationsRepository>;
 	accounts: ReturnType<typeof createAccountsRepository>;
 	transactions: ReturnType<typeof createTransactionsRepository>;
+	savedFilters: ReturnType<typeof createSavedFiltersRepository>;
 	changes: ReturnType<typeof createChangesRepository>;
 	users: ReturnType<typeof createUsersRepository>;
 };
@@ -97,6 +99,7 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 		invitations: createInvitationsRepository(context),
 		accounts: createAccountsRepository(context),
 		transactions: createTransactionsRepository(context),
+		savedFilters: createSavedFiltersRepository(context),
 		changes: createChangesRepository(context),
 		users: createUsersRepository(context),
 	};

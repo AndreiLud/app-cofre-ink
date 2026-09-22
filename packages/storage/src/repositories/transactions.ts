@@ -161,6 +161,27 @@ export function createTransactionsRepository(context: RepositoryContext) {
 		return rows.map(toTransaction);
 	}
 
+	/**
+	 * A record that was ticked off against the bank does not change under anyone, and a
+	 * logger never reaches a row somebody else wrote.
+	 */
+	function assertChangeable(found: Transaction, verb: "changing" | "removing"): void {
+		if (found.reconciledAt !== null) {
+			throw new RuleError(
+				"reconciledIsFrozen",
+				verb === "changing"
+					? "this record was reconciled against the bank, undo that before changing it"
+					: "this record was reconciled against the bank, undo that before removing it",
+			);
+		}
+		if (
+			seesOwnRowsOnly(context.actor(), found.spaceId) &&
+			found.createdBy !== context.actor().userId
+		) {
+			throw new NotFoundError("transaction", found.id);
+		}
+	}
+
 	async function spaceCurrencyOf(spaceId: string): Promise<string> {
 		const rows = await context.driver.all(
 			`SELECT "base_currency" FROM "spaces" WHERE "id" = ? AND "deleted_at" IS NULL`,
@@ -169,6 +190,52 @@ export function createTransactionsRepository(context: RepositoryContext) {
 		const first = rows[0];
 		if (!first) throw new NotFoundError("space", spaceId);
 		return String(first.base_currency);
+	}
+
+	/** What a change turns into, once the rules have had their say. */
+	async function valuesFor(
+		found: Transaction,
+		input: UpdateTransactionInput,
+	): Promise<Record<string, SqlValue>> {
+		const values: Record<string, SqlValue> = {};
+
+		if (input.amount !== undefined) {
+			const amount = signFor(found.kind, input.amount);
+			values.amount = amount;
+			values.amount_in_base = baseAmount(
+				amount,
+				found.currency,
+				await spaceCurrencyOf(found.spaceId),
+				found.fxRate,
+			);
+		}
+		if (input.happenedOn !== undefined) {
+			parseCalendarDate(input.happenedOn);
+			values.happened_on = input.happenedOn;
+
+			const account = await accountIn(found.spaceId, input.accountId ?? found.accountId);
+			const cycle = cycleOf(account);
+			values.invoice_month = cycle ? invoiceMonthOf(input.happenedOn, cycle) : null;
+		}
+		if (input.description !== undefined) values.description = input.description.trim();
+		if (input.accountId !== undefined) {
+			const account = await accountIn(found.spaceId, input.accountId);
+			values.account_id = input.accountId;
+			// The invoice a purchase lands on follows the card it was made with, so
+			// moving a record to another account has to work it out again.
+			if (input.happenedOn === undefined) {
+				const cycle = cycleOf(account);
+				values.invoice_month = cycle ? invoiceMonthOf(found.happenedOn, cycle) : null;
+			}
+		}
+		if (input.counterAccountId !== undefined) {
+			if (input.counterAccountId) await accountIn(found.spaceId, input.counterAccountId);
+			values.counter_account_id = input.counterAccountId;
+		}
+		if (input.status !== undefined) values.status = input.status;
+		if (input.notes !== undefined) values.notes = input.notes;
+
+		return values;
 	}
 
 	return {
@@ -353,58 +420,70 @@ export function createTransactionsRepository(context: RepositoryContext) {
 		async update(id: string, input: UpdateTransactionInput): Promise<Transaction> {
 			const found = await reachable(id);
 			assertCan(context.actor(), found.spaceId, "transaction.update");
-
-			if (found.reconciledAt !== null) {
-				throw new RuleError(
-					"reconciledIsFrozen",
-					"this record was reconciled against the bank, undo that before changing it",
-				);
-			}
-			if (
-				seesOwnRowsOnly(context.actor(), found.spaceId) &&
-				found.createdBy !== context.actor().userId
-			) {
-				throw new NotFoundError("transaction", id);
-			}
-
-			const values: Record<string, SqlValue> = {};
-			if (input.amount !== undefined) {
-				const amount = signFor(found.kind, input.amount);
-				values.amount = amount;
-				values.amount_in_base = baseAmount(
-					amount,
-					found.currency,
-					await spaceCurrencyOf(found.spaceId),
-					found.fxRate,
-				);
-			}
-			if (input.happenedOn !== undefined) {
-				parseCalendarDate(input.happenedOn);
-				values.happened_on = input.happenedOn;
-
-				const account = await accountIn(found.spaceId, input.accountId ?? found.accountId);
-				const cycle = cycleOf(account);
-				values.invoice_month = cycle ? invoiceMonthOf(input.happenedOn, cycle) : null;
-			}
-			if (input.description !== undefined) values.description = input.description.trim();
-			if (input.accountId !== undefined) {
-				await accountIn(found.spaceId, input.accountId);
-				values.account_id = input.accountId;
-			}
-			if (input.counterAccountId !== undefined) {
-				if (input.counterAccountId) await accountIn(found.spaceId, input.counterAccountId);
-				values.counter_account_id = input.counterAccountId;
-			}
-			if (input.status !== undefined) values.status = input.status;
-			if (input.notes !== undefined) values.notes = input.notes;
+			assertChangeable(found, "changing");
 
 			await updateRow(context.write(), {
 				table: transactions,
 				spaceId: found.spaceId,
 				id,
-				values,
+				values: await valuesFor(found, input),
 			});
 			return reachable(id);
+		},
+
+		/**
+		 * The same change over a handful of records, written in one database transaction.
+		 * Every row is checked before any row is written, so a selection that includes
+		 * something frozen changes nothing at all rather than half of what was asked.
+		 */
+		async updateMany(ids: string[], input: UpdateTransactionInput): Promise<number> {
+			if (ids.length === 0) return 0;
+
+			const planned: { found: Transaction; values: Record<string, SqlValue> }[] = [];
+			for (const id of ids) {
+				const found = await reachable(id);
+				assertCan(context.actor(), found.spaceId, "transaction.update");
+				assertChangeable(found, "changing");
+				planned.push({ found, values: await valuesFor(found, input) });
+			}
+
+			await context.driver.transaction(async (tx) => {
+				const write = { ...context.write(), driver: tx };
+				for (const { found, values } of planned) {
+					await updateRow(write, {
+						table: transactions,
+						spaceId: found.spaceId,
+						id: found.id,
+						values,
+					});
+				}
+			});
+			return planned.length;
+		},
+
+		/** Removes a selection, all of it or none of it, for the same reason. */
+		async removeMany(ids: string[]): Promise<number> {
+			if (ids.length === 0) return 0;
+
+			const found: Transaction[] = [];
+			for (const id of ids) {
+				const row = await reachable(id);
+				assertCan(context.actor(), row.spaceId, "transaction.delete");
+				assertChangeable(row, "removing");
+				found.push(row);
+			}
+
+			await context.driver.transaction(async (tx) => {
+				const write = { ...context.write(), driver: tx };
+				for (const row of found) {
+					await softDeleteRow(write, {
+						table: transactions,
+						spaceId: row.spaceId,
+						id: row.id,
+					});
+				}
+			});
+			return found.length;
 		},
 
 		/** Marks a planned record as having actually happened. */
@@ -436,18 +515,7 @@ export function createTransactionsRepository(context: RepositoryContext) {
 		async remove(id: string): Promise<void> {
 			const found = await reachable(id);
 			assertCan(context.actor(), found.spaceId, "transaction.delete");
-			if (found.reconciledAt !== null) {
-				throw new RuleError(
-					"reconciledIsFrozen",
-					"this record was reconciled against the bank, undo that before removing it",
-				);
-			}
-			if (
-				seesOwnRowsOnly(context.actor(), found.spaceId) &&
-				found.createdBy !== context.actor().userId
-			) {
-				throw new NotFoundError("transaction", id);
-			}
+			assertChangeable(found, "removing");
 			await softDeleteRow(context.write(), {
 				table: transactions,
 				spaceId: found.spaceId,

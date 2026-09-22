@@ -165,6 +165,124 @@ describe("the api", () => {
 		expect(response.status).toBe(400);
 	});
 
+	describe("several records at once", () => {
+		/** A space, an account and three planned bills in it. */
+		async function threeBills(client: Client) {
+			const space = await client.json<{ id: string }>("/api/spaces", {
+				method: "POST",
+				body: JSON.stringify({ name: "Casa" }),
+			});
+			const account = await client.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+				method: "POST",
+				body: JSON.stringify({ kind: "checking", name: "Conta" }),
+			});
+
+			const ids: string[] = [];
+			for (const description of ["Aluguel", "Luz", "Internet"]) {
+				const [written] = await client.json<Array<{ id: string }>>(
+					`/api/spaces/${space.id}/transactions`,
+					{
+						method: "POST",
+						body: JSON.stringify({
+							kind: "expense",
+							amount: 10_000,
+							happenedOn: "2026-09-10",
+							description,
+							accountId: account.id,
+							status: "planned",
+						}),
+					},
+				);
+				ids.push(written?.id ?? "");
+			}
+			return { spaceId: space.id, accountId: account.id, ids };
+		}
+
+		it("settles a selection in one request", async () => {
+			const ana = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			const { spaceId, ids } = await threeBills(ana);
+
+			const answer = await ana.json<{ changed: number }>("/api/transactions", {
+				method: "PATCH",
+				body: JSON.stringify({ ids, patch: { status: "settled" } }),
+			});
+			expect(answer.changed).toBe(3);
+
+			const rows = await ana.json<Array<{ status: string }>>(`/api/spaces/${spaceId}/transactions`);
+			expect(rows.every((row) => row.status === "settled")).toBe(true);
+		});
+
+		it("removes a selection in one request", async () => {
+			const ana = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			const { spaceId, ids } = await threeBills(ana);
+
+			const answer = await ana.json<{ removed: number }>("/api/transactions/remove", {
+				method: "POST",
+				body: JSON.stringify({ ids }),
+			});
+			expect(answer.removed).toBe(3);
+			expect(await ana.json(`/api/spaces/${spaceId}/transactions`)).toEqual([]);
+		});
+
+		it("refuses a selection that belongs to someone else", async () => {
+			const ana = createClient(app);
+			const joao = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			await joao.signUp({ name: "Joao", email: "joao@exemplo.com" });
+			const { ids } = await threeBills(ana);
+
+			const response = await joao.request("/api/transactions", {
+				method: "PATCH",
+				body: JSON.stringify({ ids, patch: { status: "settled" } }),
+			});
+			expect(response.status).toBe(404);
+		});
+	});
+
+	describe("saved filters", () => {
+		it("keeps a filter for the person who wrote it, and for nobody else", async () => {
+			const ana = createClient(app);
+			const joao = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			await joao.signUp({ name: "Joao", email: "joao@exemplo.com" });
+
+			const space = await ana.json<{ id: string }>("/api/spaces", {
+				method: "POST",
+				body: JSON.stringify({ name: "Casa" }),
+			});
+			const invitation = await ana.json<{ token: string }>(`/api/spaces/${space.id}/invitations`, {
+				method: "POST",
+				body: JSON.stringify({ role: "editor" }),
+			});
+			await joao.request(`/api/invitations/${invitation.token}/accept`, { method: "POST" });
+
+			const filter = await ana.json<{ id: string; name: string }>(
+				`/api/spaces/${space.id}/filters`,
+				{
+					method: "POST",
+					body: JSON.stringify({ name: "A pagar", query: { status: "planned" } }),
+				},
+			);
+			expect(filter.name).toBe("A pagar");
+
+			expect(await joao.json(`/api/spaces/${space.id}/filters`)).toEqual([]);
+			const reach = await joao.request(`/api/filters/${filter.id}`, { method: "DELETE" });
+			expect(reach.status).toBe(404);
+
+			const renamed = await ana.json<{ name: string }>(`/api/filters/${filter.id}`, {
+				method: "PATCH",
+				body: JSON.stringify({ name: "Contas a pagar" }),
+			});
+			expect(renamed.name).toBe("Contas a pagar");
+
+			const gone = await ana.request(`/api/filters/${filter.id}`, { method: "DELETE" });
+			expect(gone.status).toBe(204);
+			expect(await ana.json(`/api/spaces/${space.id}/filters`)).toEqual([]);
+		});
+	});
+
 	describe("invitations", () => {
 		async function invite(client: Client, spaceId: string, role = "editor") {
 			return client.json<{ token: string; link: string }>(`/api/spaces/${spaceId}/invitations`, {

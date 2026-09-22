@@ -83,6 +83,16 @@ const transactionPatch = z.object({
 	notes: z.string().trim().max(2000).nullable().optional(),
 });
 
+/** A selection, kept small enough that one request cannot lock the database. */
+const selection = z.array(z.string().min(1)).min(1).max(500);
+
+const savedFilterInput = z.object({
+	name: z.string().trim().min(1).max(60),
+	// Whatever the screen puts in it. The repository stores it and gives it back.
+	query: z.record(z.string(), z.unknown()),
+	position: z.number().int().min(0).max(999).optional(),
+});
+
 export function createApp({ config, database, auth }: AppDependencies) {
 	const app = new Hono<{ Variables: Variables }>();
 
@@ -287,6 +297,22 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		context.json(await context.get("session").transactions.balances(context.req.param("id"))),
 	);
 
+	// The same change over a selection. It comes before the route with the identifier
+	// so that "several" is never read as a record called "several".
+	app.patch("/api/transactions", async (context) => {
+		const input = z
+			.object({ ids: selection, patch: transactionPatch })
+			.parse(await context.req.json());
+		const changed = await context.get("session").transactions.updateMany(input.ids, input.patch);
+		return context.json({ changed });
+	});
+
+	app.post("/api/transactions/remove", async (context) => {
+		const input = z.object({ ids: selection }).parse(await context.req.json());
+		const removed = await context.get("session").transactions.removeMany(input.ids);
+		return context.json({ removed });
+	});
+
 	app.patch("/api/transactions/:id", async (context) => {
 		const input = transactionPatch.parse(await context.req.json());
 		return context.json(
@@ -317,6 +343,30 @@ export function createApp({ config, database, auth }: AppDependencies) {
 			.get("session")
 			.transactions.removeGroup(context.req.param("groupId"));
 		return context.json({ removed });
+	});
+
+	app.get("/api/spaces/:id/filters", async (context) =>
+		context.json(await context.get("session").savedFilters.list(context.req.param("id"))),
+	);
+
+	app.post("/api/spaces/:id/filters", async (context) => {
+		const input = savedFilterInput.parse(await context.req.json());
+		const filter = await context
+			.get("session")
+			.savedFilters.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(filter, 201);
+	});
+
+	app.patch("/api/filters/:id", async (context) => {
+		const input = savedFilterInput.partial().parse(await context.req.json());
+		return context.json(
+			await context.get("session").savedFilters.update(context.req.param("id"), input),
+		);
+	});
+
+	app.delete("/api/filters/:id", async (context) => {
+		await context.get("session").savedFilters.remove(context.req.param("id"));
+		return context.body(null, 204);
 	});
 
 	app.get("/api/spaces/:id/changes", async (context) => {

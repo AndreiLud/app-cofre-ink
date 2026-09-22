@@ -5,3 +5,4 @@ export * from "./schema/authTables.ts";
 export * from "./schema/tables.ts";
 export * from "./schema/transactionTables.ts";
 export * from "./schema/types.ts";
+export * from "./schema/viewTables.ts";

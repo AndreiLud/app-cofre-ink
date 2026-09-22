@@ -4,6 +4,7 @@
 import { AUTH_TABLES } from "./authTables.ts";
 import { TRANSACTION_TABLES } from "./transactionTables.ts";
 import { defineTable, type Table } from "./types.ts";
+import { VIEW_TABLES } from "./viewTables.ts";
 
 export const ROLES = ["owner", "admin", "editor", "viewer", "logger"] as const;
 export const SPACE_KINDS = ["personal", "shared"] as const;
@@ -140,6 +141,7 @@ export const SCHEMA: readonly Table[] = [
 	changes,
 	...AUTH_TABLES,
 	...TRANSACTION_TABLES,
+	...VIEW_TABLES,
 ];
 
 export function tableByName(name: string): Table {

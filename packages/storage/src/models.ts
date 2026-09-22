@@ -95,6 +95,22 @@ export type AccountBalance = {
 	projected: number;
 };
 
+/**
+ * A question somebody asks often, kept so they can ask it again in one click. The query
+ * is whatever the screen put there, which is why it is not typed further here: the
+ * screen owns its own filters and this layer only stores and returns them.
+ */
+export type SavedFilter = {
+	id: string;
+	spaceId: string;
+	name: string;
+	query: Record<string, unknown>;
+	position: number;
+	createdBy: string;
+	createdAt: number;
+	updatedAt: number;
+};
+
 export type Change = {
 	id: string;
 	spaceId: string;
@@ -187,6 +203,19 @@ export function toTransaction(row: Row): Transaction {
 		installmentNumber: asOptionalNumber(row.installment_number),
 		installmentCount: asOptionalNumber(row.installment_count),
 		invoiceMonth: asOptionalText(row.invoice_month),
+		createdBy: asText(row.created_by),
+		createdAt: asNumber(row.created_at),
+		updatedAt: asNumber(row.updated_at),
+	};
+}
+
+export function toSavedFilter(row: Row): SavedFilter {
+	return {
+		id: asText(row.id),
+		spaceId: asText(row.space_id),
+		name: asText(row.name),
+		query: asJson<Record<string, unknown>>(row.query),
+		position: asNumber(row.position),
 		createdBy: asText(row.created_by),
 		createdAt: asNumber(row.created_at),
 		updatedAt: asNumber(row.updated_at),

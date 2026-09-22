@@ -446,6 +446,118 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 		});
 	});
 
+	describe("changing several records at once", () => {
+		/** Three planned bills, which is the selection people actually make. */
+		async function threeBills(adapter: AdapterUnderTest) {
+			const ready = await readySpace(adapter);
+			const ids: string[] = [];
+			for (const [day, description] of [
+				["2026-09-05", "Aluguel"],
+				["2026-09-10", "Luz"],
+				["2026-09-15", "Internet"],
+			] as const) {
+				const [written] = await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 10_000,
+					happenedOn: day,
+					description,
+					accountId: ready.checking.id,
+					status: "planned",
+				});
+				ids.push(written?.id ?? "");
+			}
+			return { ready, ids };
+		}
+
+		it("marks a selection as paid in one go", async () => {
+			const { ready, ids } = await threeBills(adapter);
+			try {
+				expect(await ready.fixture.asAna.transactions.updateMany(ids, { status: "settled" })).toBe(
+					3,
+				);
+				const rows = await ready.fixture.asAna.transactions.list({ spaceId: ready.spaceId });
+				expect(rows.every((row) => row.status === "settled")).toBe(true);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		it("changes nothing at all when one of them is frozen", async () => {
+			const { ready, ids } = await threeBills(adapter);
+			try {
+				await ready.fixture.asAna.transactions.reconcile(ids[1] ?? "", true);
+
+				await expect(
+					ready.fixture.asAna.transactions.updateMany(ids, { status: "settled" }),
+				).rejects.toBeInstanceOf(RuleError);
+
+				const rows = await ready.fixture.asAna.transactions.list({ spaceId: ready.spaceId });
+				expect(rows.every((row) => row.status === "planned")).toBe(true);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		it("moves a selection to another account and works out the invoice again", async () => {
+			const { ready, ids } = await threeBills(adapter);
+			try {
+				await ready.fixture.asAna.transactions.updateMany(ids, { accountId: ready.card.id });
+
+				const rows = await ready.fixture.asAna.transactions.list({ spaceId: ready.spaceId });
+				expect(rows.every((row) => row.accountId === ready.card.id)).toBe(true);
+				// The card closes on the third, so all three fall on the October invoice.
+				expect(rows.map((row) => row.invoiceMonth)).toEqual(["2026-10", "2026-10", "2026-10"]);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		it("removes a selection, or none of it", async () => {
+			const { ready, ids } = await threeBills(adapter);
+			try {
+				await ready.fixture.asAna.transactions.reconcile(ids[0] ?? "", true);
+				await expect(ready.fixture.asAna.transactions.removeMany(ids)).rejects.toBeInstanceOf(
+					RuleError,
+				);
+				expect(
+					(await ready.fixture.asAna.transactions.list({ spaceId: ready.spaceId })).length,
+				).toBe(3);
+
+				await ready.fixture.asAna.transactions.reconcile(ids[0] ?? "", false);
+				expect(await ready.fixture.asAna.transactions.removeMany(ids)).toBe(3);
+				expect(await ready.fixture.asAna.transactions.list({ spaceId: ready.spaceId })).toEqual([]);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		it("does nothing, quietly, when the selection is empty", async () => {
+			const { ready } = await threeBills(adapter);
+			try {
+				expect(await ready.fixture.asAna.transactions.updateMany([], { status: "settled" })).toBe(
+					0,
+				);
+				expect(await ready.fixture.asAna.transactions.removeMany([])).toBe(0);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		it("refuses a selection that reaches into a space the person cannot write to", async () => {
+			const { ready, ids } = await threeBills(adapter);
+			try {
+				await expect(
+					ready.fixture.asJoao.transactions.updateMany(ids, { status: "settled" }),
+				).rejects.toBeInstanceOf(NotFoundError);
+				const rows = await ready.fixture.asAna.transactions.list({ spaceId: ready.spaceId });
+				expect(rows.every((row) => row.status === "planned")).toBe(true);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+	});
+
 	describe("the logger role", () => {
 		async function withLogger(): Promise<{ ready: Ready; asLogger: Session }> {
 			const ready = await readySpace(adapter);

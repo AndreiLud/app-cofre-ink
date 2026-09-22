@@ -19,6 +19,7 @@ import { NotFoundError, PermissionError, RuleError } from "../errors.ts";
 import { migrate } from "../migrate.ts";
 import { createUser } from "../repositories/users.ts";
 import type { Session } from "../session.ts";
+import { runSavedFilterConformance } from "./savedFilters.ts";
 import { type AdapterUnderTest, type Fixture, prepare } from "./setup.ts";
 import { runTransactionConformance } from "./transactions.ts";
 
@@ -102,6 +103,19 @@ const PROBES: Probe[] = [
 	{
 		permission: "transaction.reconcile",
 		run: (session, where) => session.transactions.reconcile(where.transactionId, true),
+	},
+	{
+		permission: "filter.read",
+		run: (session, where) => session.savedFilters.list(where.spaceId),
+	},
+	{
+		permission: "filter.write",
+		run: (session, where) =>
+			session.savedFilters.create({
+				spaceId: where.spaceId,
+				name: "Deste mes",
+				query: { month: "2026-09" },
+			}),
 	},
 	{
 		permission: "activity.read",
@@ -499,6 +513,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 		});
 
 		runTransactionConformance(adapter);
+		runSavedFilterConformance(adapter);
 
 		describe("the permission matrix", () => {
 			it("covers every permission with at least one probe", () => {
