@@ -3,16 +3,21 @@ import { expect, type Page } from "@playwright/test";
 /**
  * Walks the onboarding, which every flow starts from because each test opens a
  * browser with nothing stored.
+ *
+ * The front door asks nothing and goes straight in, which is what a person meeting
+ * this application for the first time gets and what frontDoor.spec.ts is about. These
+ * flows need a person with a name and a space with a name, so they answer the first
+ * question the way a browser that has been here before does and land on the form that
+ * asks for both.
  */
 export async function openCofre(
 	page: Page,
 	options: { name?: string; demo?: boolean; space?: string } = {},
 ): Promise<void> {
 	await page.goto("/");
+	await page.evaluate(() => localStorage.setItem("cofreMode", "browser"));
+	await page.reload();
 
-	// The first question is where the data lives. These flows are about the mode that
-	// needs no server.
-	await page.getByRole("button", { name: "Usar este dispositivo" }).click();
 	await expect(page.getByRole("heading", { name: "Vamos abrir o seu Cofre" })).toBeVisible({
 		timeout: 20_000,
 	});

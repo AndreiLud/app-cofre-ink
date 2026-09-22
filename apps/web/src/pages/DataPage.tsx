@@ -110,10 +110,16 @@ function storedSheet(): { token: string; spreadsheetId: string } {
 export function DataPage() {
 	const { t, i18n } = useTranslation();
 	const navigate = useNavigate();
-	const { session, currentSpace, spaces, mode, reload } = useCofre();
+	const { session, currentSpace, spaces, mode, reload, chooseAgain } = useCofre();
 	const queries = useQueryClient();
 
 	const spaceId = currentSpace?.id ?? "";
+	/**
+	 * The copy section, forced open by the button above it. A details element keeps its
+	 * own state once it is on the page, so the key sends a new one in when the answer
+	 * to "should this be open" changes.
+	 */
+	const [openSync, setOpenSync] = useState(false);
 	const [problem, setProblem] = useState<string | null>(null);
 	const [restored, setRestored] = useState<RestoreResult | null>(null);
 	const [waiting, setWaiting] = useState<File | null>(null);
@@ -299,6 +305,30 @@ export function DataPage() {
 						</dd>
 					</div>
 				</dl>
+
+				{/* The way out of the answer above, which until now was only on screens
+				    reached by accident. Somebody who started in this browser and wants
+				    their records on the telephone comes here looking for exactly this. */}
+				<div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4">
+					{mode === "server" ? null : (
+						<Button
+							variant="secondary"
+							size="small"
+							onClick={() => {
+								setOpenSync(true);
+								document.getElementById("copia")?.scrollIntoView({ block: "start" });
+							}}
+						>
+							{t("data.turnOnSync")}
+						</Button>
+					)}
+					<Button variant="quiet" size="small" onClick={chooseAgain}>
+						{t("data.changeMode")}
+					</Button>
+				</div>
+				{mode === "server" ? null : (
+					<p className="mt-2 text-xs text-quiet">{t("data.changeModeHint")}</p>
+				)}
 			</Panel>
 
 			<Panel title={t("data.everydayTitle")} description={t("data.everydayBody")}>
@@ -356,13 +386,16 @@ export function DataPage() {
 
 			{/* Open already when it is set up, because then it is not a rarity any more:
 			    it is the button somebody came here to press. */}
-			<Disclosure
-				summary={t("data.syncTitle")}
-				hint={t("data.syncBody")}
-				open={destination.kind !== "file" || met !== null}
-			>
-				<Destinations />
-			</Disclosure>
+			<div id="copia">
+				<Disclosure
+					key={openSync ? "copiaAberta" : "copia"}
+					summary={t("data.syncTitle")}
+					hint={t("data.syncBody")}
+					open={openSync || destination.kind !== "file" || met !== null}
+				>
+					<Destinations />
+				</Disclosure>
+			</div>
 
 			<Disclosure summary={t("data.moreTitle")} hint={t("data.moreBody")}>
 				<div className="divide-y divide-line">

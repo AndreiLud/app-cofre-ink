@@ -20,7 +20,8 @@ async function arrive(browser: Browser, person: { name: string; email: string })
 	const page = await context.newPage();
 
 	await page.goto("/");
-	await page.getByRole("button", { name: "Conectar a um servidor" }).click();
+	// The second door opens on the way that needs a server, which is this one.
+	await page.getByRole("button", { name: "Ver as duas formas" }).click();
 	await page.getByLabel("Endereço do servidor").fill(API_ADDRESS);
 
 	// A server with nobody on it opens on creating the access rather than on a password

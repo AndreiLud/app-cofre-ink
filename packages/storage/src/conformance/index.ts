@@ -17,7 +17,7 @@ import { describe, expect, it } from "vitest";
 import { ALL_PERMISSIONS, PERMISSIONS, type Permission, type Role } from "../actor.ts";
 import { NotFoundError, PermissionError, RuleError } from "../errors.ts";
 import { migrate } from "../migrate.ts";
-import { createUser, listProfiles } from "../repositories/users.ts";
+import { createUser, listProfiles, renameProfile } from "../repositories/users.ts";
 import type { Session } from "../session.ts";
 import { runAdviceConformance } from "./advice.ts";
 import { runCardConformance } from "./cards.ts";
@@ -283,6 +283,27 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 						"Ana",
 						"Joao",
 					]);
+				} finally {
+					await fixture.close();
+				}
+			});
+
+			/**
+			 * A device can be opened without being asked anything, which means a profile
+			 * carries a name nobody chose until they choose one. A name that cannot be
+			 * corrected is the kind of default that turns into a life sentence.
+			 */
+			it("lets a profile be given the name nobody was asked for", async () => {
+				const fixture = await prepare(adapter);
+				try {
+					const renamed = await renameProfile(fixture.driver, fixture.ana.id, "  Ana Maria  ");
+					expect(renamed.name).toBe("Ana Maria");
+					expect((await fixture.asAna.users.me()).name).toBe("Ana Maria");
+
+					// And it stays a person: an empty name is not a name.
+					await expect(renameProfile(fixture.driver, fixture.ana.id, "   ")).rejects.toBeInstanceOf(
+						RuleError,
+					);
 				} finally {
 					await fixture.close();
 				}

@@ -92,7 +92,7 @@ test.describe("the built application", () => {
 		await page.reload();
 
 		// The first screen of the application, with no network at all.
-		await expect(page.getByRole("button", { name: "Usar este dispositivo" })).toBeVisible({
+		await expect(page.getByRole("button", { name: "Usar só neste navegador" })).toBeVisible({
 			timeout: 20_000,
 		});
 

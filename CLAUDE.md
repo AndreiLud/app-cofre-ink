@@ -156,6 +156,7 @@ nothing.
 | 12. The danger zone: erasing a space, and erasing everything | done |
 | 13. VA and VR as one, a database destination, the data screen redrawn | done |
 | 14. More than one person per device, and a gate in front of the sign in | done |
+| 15. The front door: two doors, nothing asked, and the defaults made correctable | done |
 | Next. Real statements for the recogniser, and whatever the owner asks for | waiting |
 
 ## Architecture decision records
@@ -189,3 +190,4 @@ nothing.
 | [0025](docs/adr/0025_taking_the_data_away.md) | erasing a space, erasing everything, and what neither can reach |
 | [0026](docs/adr/0026_a_copy_that_is_a_database.md) | a copy that is a database, and a screen ordered by how often |
 | [0027](docs/adr/0027_a_cost_before_a_password.md) | a cost before a password, and no captcha from anybody else |
+| [0028](docs/adr/0028_the_front_door.md) | the front door of an address anybody can open |

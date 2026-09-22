@@ -3,7 +3,13 @@
 // lives in this browser or on a server, which is why no screen has to.
 
 import type { Driver, Space, User } from "@cofre/storage";
-import { findUserById, listProfiles, openSession, tidyEverySpace } from "@cofre/storage";
+import {
+	findUserById,
+	listProfiles,
+	openSession,
+	renameProfile,
+	tidyEverySpace,
+} from "@cofre/storage";
 import {
 	createContext,
 	type ReactNode,
@@ -63,6 +69,11 @@ export type CofreValue = {
 	setAmountsHidden: (hidden: boolean) => void;
 	selectSpace: (spaceId: string) => void;
 	chooseMode: (mode: StorageMode, server?: string) => Promise<void>;
+	/**
+	 * Browser mode with nothing asked: the database opens and `setUp` makes the person
+	 * and their space, with whatever defaults the screen decided on.
+	 */
+	startHere: (setUp: (driver: Driver) => Promise<User>) => Promise<void>;
 	/** Called after a profile is created during onboarding, in browser mode. */
 	adoptUser: (user: User) => Promise<void>;
 	/** Called after signing in or signing up, in server mode. */
@@ -70,6 +81,8 @@ export type CofreValue = {
 	signOut: () => Promise<void>;
 	/** Back to the first question, from any screen that can be reached by accident. */
 	chooseAgain: () => void;
+	/** Browser mode: the name of the person reading, which nobody was asked for. */
+	renameMe: (name: string) => Promise<void>;
 	/** Browser mode: read this database as another profile that is already in it. */
 	switchProfile: (userId: string) => Promise<void>;
 	/** Browser mode: make room for somebody else on this device. */
@@ -271,6 +284,50 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 		[openBrowserMode, openServerMode],
 	);
 
+	/**
+	 * The front door of somebody who chose to keep everything here.
+	 *
+	 * Nothing is asked. A form standing between a stranger and the thing they came to
+	 * look at is a form most of them close, and every answer on it (their name, the
+	 * currency, what the space is called) can be corrected later from inside. What
+	 * cannot be undone is losing them at the door.
+	 */
+	const startHere = useCallback(
+		async (setUp: (database: Driver) => Promise<User>) => {
+			rememberMode("browser");
+			setMode("browser");
+			setStatus("opening");
+			setError(null);
+			try {
+				const database = await connect();
+				setDriver(database.driver);
+				setPersistent(database.outcome === "persistent");
+				if (database.outcome === "busy") {
+					setStatus("busy");
+					return;
+				}
+
+				const person = await setUp(database.driver);
+				rememberUser(person.id);
+				await startLocalSession(database.driver, person.id);
+			} catch (problem) {
+				setError(problem instanceof Error ? problem.message : String(problem));
+				setStatus("failed");
+			}
+		},
+		[startLocalSession],
+	);
+
+	const renameMe = useCallback(
+		async (name: string) => {
+			if (!driver || !user) return;
+			const renamed = await renameProfile(driver, user.id, name);
+			setUser(renamed);
+			setProfiles(await listProfiles(driver));
+		},
+		[driver, user],
+	);
+
 	const adoptUser = useCallback(
 		async (created: User) => {
 			if (!driver) return;
@@ -416,10 +473,12 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 			setAmountsHidden,
 			selectSpace,
 			chooseMode,
+			startHere,
 			adoptUser,
 			adoptServerSession,
 			signOut,
 			chooseAgain,
+			renameMe,
 			switchProfile,
 			addProfile,
 			reload,
@@ -442,10 +501,12 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 			amountsHidden,
 			selectSpace,
 			chooseMode,
+			startHere,
 			adoptUser,
 			adoptServerSession,
 			signOut,
 			chooseAgain,
+			renameMe,
 			switchProfile,
 			addProfile,
 			reload,

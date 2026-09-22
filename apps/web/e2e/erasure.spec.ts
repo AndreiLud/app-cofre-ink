@@ -49,14 +49,15 @@ test.describe("the danger zone", () => {
 		await dialog.getByLabel("Escreva APAGAR TUDO para confirmar").fill("apagar tudo");
 		await dialog.getByRole("button", { name: "Apagar agora" }).click();
 
-		// The page reloads onto onboarding, because what is left is nothing.
-		await expect(page.getByRole("button", { name: "Usar este dispositivo" })).toBeVisible({
+		// The page reloads onto the front door, because what is left is nothing: not the
+		// database, not the profile, and not the answer about where the data lives.
+		await expect(page.getByRole("button", { name: "Usar só neste navegador" })).toBeVisible({
 			timeout: 30_000,
 		});
 
 		// And it stays nothing: opening again does not find the old profile.
 		await page.reload();
-		await expect(page.getByRole("button", { name: "Usar este dispositivo" })).toBeVisible({
+		await expect(page.getByRole("button", { name: "Usar só neste navegador" })).toBeVisible({
 			timeout: 30_000,
 		});
 	});

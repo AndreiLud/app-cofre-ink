@@ -1,33 +1,19 @@
-// The first screen. Short on purpose: a name, where the money is counted, and one
-// decision about demonstration data. Everything else can wait.
+// Setting up a person on this device, asked in full.
+//
+// It is no longer the way in: the front door makes a profile with the defaults and
+// goes straight through. This is what somebody making room for a second person on the
+// same machine sees, and what a browser that kept the mode and lost the profile lands
+// on. Both of those are people who know what they are doing here.
 
-import { createUser, openSession } from "@cofre/storage";
 import { Button, Callout, Field, Select } from "@cofre/ui";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LanguageToggle, ThemeToggle } from "../components/Controls.tsx";
-import { seedDemo } from "../demo/seed.ts";
 import { useTheme } from "../lib/theme.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
-import { deviceId } from "../storage/localProfile.ts";
+import { startLocalProfile } from "../storage/startProfile.ts";
 
 const CURRENCIES = ["BRL", "USD", "EUR", "GBP"];
-
-/**
- * The address a profile gets when nobody types one. It carries a few random letters
- * because a browser can keep the database and lose the profile identifier, and then a
- * second profile with the same name would collide with the first.
- */
-function localAddress(name: string): string {
-	const slug = name
-		.normalize("NFD")
-		.replace(/[̀-ͯ]/g, "")
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, "")
-		.slice(0, 20);
-	const tail = Math.random().toString(36).slice(2, 7);
-	return `${slug === "" ? "eu" : slug}.${tail}@dispositivo.local`;
-}
 
 export function OnboardingPage() {
 	const { t, i18n } = useTranslation();
@@ -59,26 +45,14 @@ export function OnboardingPage() {
 		setBusy(true);
 		setProblem(null);
 		try {
-			const person = await createUser(driver, {
+			const person = await startLocalProfile(driver, {
 				name: name.trim(),
-				email: email.trim() === "" ? localAddress(name) : email.trim(),
-			});
-
-			const session = await openSession({ driver, userId: person.id, deviceId: deviceId() });
-			const personal = await session.spaces.create({
-				name: spaceName.trim() === "" ? t("onboarding.personalDefault") : spaceName.trim(),
-				kind: "personal",
-				baseCurrency: currency,
-			});
-
-			// The starting set of categories, in the language the screen is in. Anybody
-			// who wants none of it can throw it away in one screen.
-			await session.categories.installDefaults({
-				spaceId: personal.id,
+				email: email.trim(),
+				currency,
+				spaceName: spaceName.trim() === "" ? t("onboarding.personalDefault") : spaceName.trim(),
 				language: i18n.resolvedLanguage === "en" ? "en" : "pt",
+				demo: withDemo,
 			});
-
-			if (withDemo) await seedDemo(driver, session, personal.id);
 
 			await adoptUser(person);
 		} catch (error) {

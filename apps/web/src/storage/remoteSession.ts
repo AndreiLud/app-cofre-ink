@@ -249,7 +249,7 @@ export function createRemoteSession(
 		spaces: {
 			list: () => get<Space[]>("/api/spaces"),
 			create: (input: CreateSpaceInput) => send<Space>("/api/spaces", "POST", input),
-			update: (id: string, input: { name?: string; colour?: string }) =>
+			update: (id: string, input: { name?: string; colour?: string; baseCurrency?: string }) =>
 				send<Space>(`/api/spaces/${id}`, "PATCH", input),
 			remove: (id: string) => send<void>(`/api/spaces/${id}`, "DELETE"),
 			adopt: (id: string) => send<Space>(`/api/spaces/${id}/adopt`, "POST", {}),

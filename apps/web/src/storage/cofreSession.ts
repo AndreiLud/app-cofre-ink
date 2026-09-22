@@ -124,7 +124,10 @@ export type CofreSession = {
 	spaces: {
 		list: () => Promise<Space[]>;
 		create: (input: CreateSpaceInput) => Promise<Space>;
-		update: (id: string, input: { name?: string; colour?: string }) => Promise<Space>;
+		update: (
+			id: string,
+			input: { name?: string; colour?: string; baseCurrency?: string },
+		) => Promise<Space>;
 		remove: (id: string) => Promise<void>;
 		/** Takes a space that arrived from somewhere else and has nobody in it. */
 		adopt: (id: string) => Promise<Space>;
