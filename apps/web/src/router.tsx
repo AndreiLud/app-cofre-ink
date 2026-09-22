@@ -3,6 +3,7 @@
 
 import { createRootRoute, createRoute, createRouter, Outlet } from "@tanstack/react-router";
 import { AccountsPage } from "./pages/AccountsPage.tsx";
+import { CategoriesPage } from "./pages/CategoriesPage.tsx";
 import { DashboardPage } from "./pages/DashboardPage.tsx";
 import { DesignSystemPage } from "./pages/DesignSystemPage.tsx";
 import { InvitationPage } from "./pages/InvitationPage.tsx";
@@ -50,6 +51,12 @@ const transactionsRoute = createRoute({
 	component: TransactionsPage,
 });
 
+const categoriesRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/categorias",
+	component: CategoriesPage,
+});
+
 const invoicesRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/faturas",
@@ -72,6 +79,7 @@ const routeTree = rootRoute.addChildren([
 	dashboardRoute,
 	transactionsRoute,
 	invoicesRoute,
+	categoriesRoute,
 	spacesRoute,
 	membersRoute,
 	accountsRoute,
@@ -91,6 +99,7 @@ export const ROUTES = {
 	dashboard: "/",
 	transactions: "/lancamentos",
 	invoices: "/faturas",
+	categories: "/categorias",
 	spaces: "/espacos",
 	members: "/membros",
 	accounts: "/contas",

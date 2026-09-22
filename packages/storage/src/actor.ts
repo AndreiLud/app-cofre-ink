@@ -43,6 +43,10 @@ export const PERMISSIONS = {
 	"transaction.update": ["owner", "admin", "editor", "logger"],
 	"transaction.delete": ["owner", "admin", "editor", "logger"],
 	"transaction.reconcile": ["owner", "admin", "editor"],
+	// Everybody reads the categories, because everybody who writes a record has to
+	// pick one. Changing the list itself is a decision about the whole space.
+	"category.read": ["owner", "admin", "editor", "viewer", "logger"],
+	"category.write": ["owner", "admin", "editor"],
 	// A saved filter is a person's own shortcut. Everybody who can read a space can
 	// keep one, and the repository only ever shows somebody their own.
 	"filter.read": ["owner", "admin", "editor", "viewer", "logger"],

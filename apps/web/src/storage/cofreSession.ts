@@ -8,7 +8,9 @@ import type {
 	Account,
 	AccountBalance,
 	AccountKind,
+	Category,
 	Change,
+	CreateCategoryInput,
 	CreateSavedFilterInput,
 	CreateTransactionInput,
 	Role,
@@ -18,6 +20,7 @@ import type {
 	SpaceMember,
 	Transaction,
 	TransactionFilter,
+	UpdateCategoryInput,
 	UpdateSavedFilterInput,
 	UpdateTransactionInput,
 	User,
@@ -74,6 +77,16 @@ export type CofreSession = {
 		archive: (id: string) => Promise<Account>;
 		unarchive: (id: string) => Promise<Account>;
 		remove: (id: string) => Promise<void>;
+	};
+	categories: {
+		list: (spaceId: string, options?: { includeArchived?: boolean }) => Promise<Category[]>;
+		create: (input: CreateCategoryInput) => Promise<Category>;
+		update: (id: string, input: UpdateCategoryInput) => Promise<Category>;
+		archive: (id: string) => Promise<Category>;
+		unarchive: (id: string) => Promise<Category>;
+		remove: (id: string) => Promise<void>;
+		/** The starting set, written once into a space that has none. */
+		installDefaults: (input: { spaceId: string; language?: "pt" | "en" }) => Promise<Category[]>;
 	};
 	transactions: {
 		list: (filter?: TransactionFilter) => Promise<Transaction[]>;

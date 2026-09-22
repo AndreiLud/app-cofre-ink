@@ -21,6 +21,7 @@ import { NotFoundError, RuleError } from "../errors.ts";
 import {
 	type Account,
 	type AccountBalance,
+	type SpendingPriority,
 	type Transaction,
 	type TransactionKind,
 	type TransactionStatus,
@@ -34,7 +35,7 @@ import type { RepositoryContext } from "./context.ts";
 const SELECT = `SELECT "id", "space_id", "kind", "status", "amount", "currency", "fx_rate",
 	"amount_in_base", "happened_on", "description", "account_id", "counter_account_id", "notes",
 	"reconciled_at", "installment_group", "installment_number", "installment_count",
-	"invoice_month", "created_by", "created_at", "updated_at"
+	"invoice_month", "category_id", "priority", "created_by", "created_at", "updated_at"
 	FROM "transactions"`;
 
 export type CreateTransactionInput = {
@@ -54,6 +55,9 @@ export type CreateTransactionInput = {
 	notes?: string | null;
 	/** More than one turns the purchase into that many installments. */
 	installments?: number;
+	categoryId?: string | null;
+	/** Only when this one record disagrees with the priority of its category. */
+	priority?: SpendingPriority | null;
 };
 
 export type UpdateTransactionInput = {
@@ -64,6 +68,8 @@ export type UpdateTransactionInput = {
 	counterAccountId?: string | null;
 	status?: TransactionStatus;
 	notes?: string | null;
+	categoryId?: string | null;
+	priority?: SpendingPriority | null;
 };
 
 export type TransactionFilter = {
@@ -76,6 +82,10 @@ export type TransactionFilter = {
 	invoiceMonth?: string;
 	/** Matches the description, case insensitive. */
 	search?: string;
+	/** Any of these categories. The screen expands a parent into its children. */
+	categoryIds?: string[];
+	/** Records with no category at all, which is what "not sorted yet" means. */
+	withoutCategory?: boolean;
 	installmentGroup?: string;
 	limit?: number;
 	offset?: number;
@@ -98,6 +108,20 @@ function cycleOf(account: Account): CardCycle | undefined {
 }
 
 export function createTransactionsRepository(context: RepositoryContext) {
+	/**
+	 * A category has to live in the same space as the record that points at it. Without
+	 * this check a mistake, or somebody calling the API by hand, would tie a record in
+	 * one space to a category in another and quietly carry a name across spaces.
+	 */
+	async function categoryIn(spaceId: string, categoryId: string): Promise<string> {
+		const rows = await context.driver.all(
+			`SELECT "id" FROM "categories" WHERE "id" = ? AND "space_id" = ? AND "deleted_at" IS NULL`,
+			[categoryId, spaceId],
+		);
+		if (rows.length === 0) throw new NotFoundError("category", categoryId);
+		return categoryId;
+	}
+
 	async function accountIn(spaceId: string, accountId: string): Promise<Account> {
 		const rows = await context.driver.all(
 			`SELECT "id", "space_id", "kind", "name", "currency", "initial_balance", "institution",
@@ -234,6 +258,12 @@ export function createTransactionsRepository(context: RepositoryContext) {
 		}
 		if (input.status !== undefined) values.status = input.status;
 		if (input.notes !== undefined) values.notes = input.notes;
+		if (input.categoryId !== undefined) {
+			values.category_id = input.categoryId
+				? await categoryIn(found.spaceId, input.categoryId)
+				: null;
+		}
+		if (input.priority !== undefined) values.priority = input.priority;
 
 		return values;
 	}
@@ -302,6 +332,9 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			});
 
 			const group = count > 1 ? uuidV7() : null;
+			const categoryId = input.categoryId
+				? await categoryIn(input.spaceId, input.categoryId)
+				: null;
 
 			const written = await context.driver.transaction(async (tx) => {
 				const write = { ...context.write(), driver: tx };
@@ -332,6 +365,8 @@ export function createTransactionsRepository(context: RepositoryContext) {
 							installment_number: count > 1 ? part.number : null,
 							installment_count: count > 1 ? part.count : null,
 							invoice_month: part.invoiceMonth ?? null,
+							category_id: categoryId,
+							priority: input.priority ?? null,
 							created_by: context.actor().userId,
 						},
 					});
@@ -397,6 +432,13 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			if (filter.search && filter.search.trim() !== "") {
 				where.push(`lower("description") LIKE ?`);
 				params.push(`%${filter.search.trim().toLowerCase()}%`);
+			}
+			if (filter.categoryIds && filter.categoryIds.length > 0) {
+				where.push(`"category_id" IN (${marks(filter.categoryIds.length)})`);
+				params.push(...filter.categoryIds);
+			}
+			if (filter.withoutCategory) {
+				where.push(`"category_id" IS NULL`);
 			}
 
 			const limit = Math.min(Math.max(filter.limit ?? 200, 1), 1000);

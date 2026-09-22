@@ -36,6 +36,8 @@ type Filters = {
 	kind: TransactionKind | "";
 	status: TransactionStatus | "";
 	accountId: string;
+	/** A category, the word "none" for what was never sorted, or empty for everything. */
+	categoryId: string;
 	search: string;
 	month: string;
 };
@@ -47,6 +49,7 @@ function filtersFrom(query: FilterQuery, fallbackMonth: string): Filters {
 		kind: text("kind") as TransactionKind | "",
 		status: text("status") as TransactionStatus | "",
 		accountId: text("accountId"),
+		categoryId: text("categoryId"),
 		search: text("search"),
 		month: "month" in query ? text("month") : fallbackMonth,
 	};
@@ -62,6 +65,7 @@ export function TransactionsPage() {
 		kind: "",
 		status: "",
 		accountId: "",
+		categoryId: "",
 		search: "",
 		month: monthOf(today),
 	});
@@ -80,6 +84,22 @@ export function TransactionsPage() {
 		queryFn: () => session?.accounts.list(spaceId, { includeArchived: true }) ?? [],
 	});
 
+	const categories = useQuery({
+		queryKey: ["categories", spaceId],
+		enabled: Boolean(session && currentSpace),
+		queryFn: () => session?.categories.list(spaceId) ?? [],
+	});
+
+	// Asking for a category that has others under it means asking for all of them, which
+	// is the only reading that makes a two level list useful.
+	const chosenCategories = useMemo(() => {
+		if (filters.categoryId === "" || filters.categoryId === "none") return undefined;
+		const children = (categories.data ?? [])
+			.filter((category) => category.parentId === filters.categoryId)
+			.map((category) => category.id);
+		return [filters.categoryId, ...children];
+	}, [filters.categoryId, categories.data]);
+
 	const period = useMemo(() => {
 		if (filters.month === "") return {};
 		const [year, month] = filters.month.split("-").map(Number);
@@ -91,7 +111,7 @@ export function TransactionsPage() {
 	}, [filters.month]);
 
 	const records = useQuery({
-		queryKey: ["transactions", spaceId, filters],
+		queryKey: ["transactions", spaceId, filters, chosenCategories],
 		enabled: Boolean(session && currentSpace),
 		queryFn: () =>
 			session?.transactions.list({
@@ -100,6 +120,8 @@ export function TransactionsPage() {
 				status: filters.status === "" ? undefined : filters.status,
 				accountId: filters.accountId === "" ? undefined : filters.accountId,
 				search: filters.search === "" ? undefined : filters.search,
+				categoryIds: chosenCategories,
+				withoutCategory: filters.categoryId === "none",
 				...period,
 			}) ?? [],
 	});
@@ -132,8 +154,11 @@ export function TransactionsPage() {
 	};
 
 	const changeMany = useMutation({
-		mutationFn: async (patch: { status?: TransactionStatus; accountId?: string }) =>
-			session?.transactions.updateMany(picked, patch),
+		mutationFn: async (patch: {
+			status?: TransactionStatus;
+			accountId?: string;
+			categoryId?: string;
+		}) => session?.transactions.updateMany(picked, patch),
 		onSuccess: afterBulk,
 		onError: complain,
 	});
@@ -167,6 +192,8 @@ export function TransactionsPage() {
 	const rows = records.data ?? [];
 	const nameOf = (accountId: string) =>
 		accounts.data?.find((account) => account.id === accountId)?.name ?? "";
+	const nameOfCategory = (categoryId: string) =>
+		categories.data?.find((category) => category.id === categoryId)?.name ?? "";
 
 	const total = rows.reduce((sum, row) => (row.kind === "transfer" ? sum : sum + row.amount), 0);
 
@@ -209,7 +236,7 @@ export function TransactionsPage() {
 				}}
 			/>
 
-			<div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+			<div className="grid grid-cols-2 gap-3 md:grid-cols-6">
 				<Field
 					label={t("transactions.month")}
 					type="month"
@@ -251,6 +278,26 @@ export function TransactionsPage() {
 							value: account.id,
 							label: account.name,
 						})),
+					]}
+				/>
+				<Select
+					label={t("transactions.category")}
+					value={filters.categoryId}
+					onChange={(event) => setFilters({ ...filters, categoryId: event.target.value })}
+					options={[
+						{ value: "", label: t("transactions.anyCategory") },
+						{ value: "none", label: t("transactions.noCategory") },
+						...(categories.data ?? [])
+							.filter((category) => category.parentId === null)
+							.flatMap((parent) => [
+								{ value: parent.id, label: parent.name },
+								...(categories.data ?? [])
+									.filter((child) => child.parentId === parent.id)
+									.map((child) => ({
+										value: child.id,
+										label: `  ${child.name}`,
+									})),
+							]),
 					]}
 				/>
 				<Field
@@ -319,6 +366,35 @@ export function TransactionsPage() {
 								))}
 						</select>
 					</label>
+					<label className="flex items-center gap-2 text-graphite">
+						{t("transactions.sortInto")}
+						<select
+							value=""
+							aria-label={t("transactions.sortInto")}
+							onChange={(event) => {
+								if (event.target.value !== "") {
+									changeMany.mutate({ categoryId: event.target.value });
+								}
+							}}
+							className="h-8 rounded-sm border border-rule bg-raised px-2 text-sm text-ink"
+						>
+							<option value="">{t("transactions.pickCategory")}</option>
+							{(categories.data ?? [])
+								.filter((category) => category.parentId === null)
+								.flatMap((parent) => [
+									<option key={parent.id} value={parent.id}>
+										{parent.name}
+									</option>,
+									...(categories.data ?? [])
+										.filter((child) => child.parentId === parent.id)
+										.map((child) => (
+											<option key={child.id} value={child.id}>
+												{`  ${child.name}`}
+											</option>
+										)),
+								])}
+						</select>
+					</label>
 					<Button
 						size="small"
 						variant="destructive"
@@ -375,6 +451,11 @@ export function TransactionsPage() {
 										<span className={row.status === "planned" ? "text-graphite" : ""}>
 											{row.description}
 										</span>
+										{row.categoryId ? (
+											<span className="ml-2 text-xs text-graphite">
+												{nameOfCategory(row.categoryId)}
+											</span>
+										) : null}
 										{row.status === "planned" ? (
 											<span className="ml-2 text-xs text-ochre">
 												{t("transactionStatus.planned")}

@@ -20,7 +20,7 @@ import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 
 export function SpacesPage() {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const navigate = useNavigate();
 	const { session, spaces, currentSpace, selectSpace, reload } = useCofre();
 	const queries = useQueryClient();
@@ -33,7 +33,14 @@ export function SpacesPage() {
 	const create = useMutation({
 		mutationFn: async () => {
 			if (!session) throw new Error("no session");
-			return session.spaces.create({ name: name.trim(), colour });
+			const space = await session.spaces.create({ name: name.trim(), colour });
+			// A new space with no categories is a screen of empty pickers, so it starts
+			// with the same list the personal one did.
+			await session.categories.installDefaults({
+				spaceId: space.id,
+				language: i18n.resolvedLanguage === "en" ? "en" : "pt",
+			});
+			return space;
 		},
 		onSuccess: async (space) => {
 			setOpen(false);

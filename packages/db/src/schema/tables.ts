@@ -2,6 +2,7 @@
 // to exercise the space scope, and the change log that every write passes through.
 
 import { AUTH_TABLES } from "./authTables.ts";
+import { CATEGORY_TABLES } from "./categoryTables.ts";
 import { TRANSACTION_TABLES } from "./transactionTables.ts";
 import { defineTable, type Table } from "./types.ts";
 import { VIEW_TABLES } from "./viewTables.ts";
@@ -140,6 +141,8 @@ export const SCHEMA: readonly Table[] = [
 	accounts,
 	changes,
 	...AUTH_TABLES,
+	// Categories come before transactions, which point at them.
+	...CATEGORY_TABLES,
 	...TRANSACTION_TABLES,
 	...VIEW_TABLES,
 ];

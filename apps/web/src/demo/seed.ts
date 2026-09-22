@@ -53,6 +53,11 @@ export async function seedDemo(
 	const today = todayIn("America/Sao_Paulo");
 	const day = (back: number) => addDays(today, -back);
 
+	// The records are sorted into the starting set, so the categories screen and the
+	// reports have something true to show from the first minute.
+	const sorted = await session.categories.list(spaceId);
+	const find = (name: string) => sorted.find((category) => category.name === name)?.id ?? null;
+
 	const written: Array<Parameters<typeof session.transactions.create>[0]> = [
 		{
 			spaceId,
@@ -61,6 +66,7 @@ export async function seedDemo(
 			happenedOn: day(16),
 			description: "Salário",
 			accountId: checking.id,
+			categoryId: find("Salário"),
 		},
 		{
 			spaceId,
@@ -69,6 +75,7 @@ export async function seedDemo(
 			happenedOn: day(14),
 			description: "Feira da semana",
 			accountId: checking.id,
+			categoryId: find("Mercado"),
 		},
 		{
 			spaceId,
@@ -77,6 +84,7 @@ export async function seedDemo(
 			happenedOn: day(12),
 			description: "Livraria",
 			accountId: card.id,
+			categoryId: find("Cursos e livros"),
 		},
 		{
 			spaceId,
@@ -85,6 +93,7 @@ export async function seedDemo(
 			happenedOn: day(9),
 			description: "Cinema",
 			accountId: card.id,
+			categoryId: find("Cinema, show e teatro"),
 		},
 		{
 			spaceId,
@@ -93,6 +102,7 @@ export async function seedDemo(
 			happenedOn: day(6),
 			description: "Streaming",
 			accountId: card.id,
+			categoryId: find("Streaming"),
 		},
 		{
 			spaceId,
@@ -101,6 +111,7 @@ export async function seedDemo(
 			happenedOn: day(4),
 			description: "Almoço perto do trabalho",
 			accountId: voucher.id,
+			categoryId: find("Restaurante"),
 		},
 		{
 			spaceId,
@@ -109,6 +120,7 @@ export async function seedDemo(
 			happenedOn: day(2),
 			description: "Café da esquina",
 			accountId: wallet.id,
+			categoryId: find("Restaurante"),
 		},
 		{
 			spaceId,
@@ -130,6 +142,7 @@ export async function seedDemo(
 		amount: 89_700,
 		happenedOn: day(7),
 		description: "Fone de ouvido",
+		categoryId: find("Hobby"),
 		accountId: card.id,
 		installments: 3,
 	});
@@ -143,6 +156,7 @@ export async function seedDemo(
 		(await createUser(driver, { email: address, name: "João (exemplo)" }));
 
 	const house = await session.spaces.create({ name: "Casa", colour: "clay", icon: "wallet" });
+	await session.categories.installDefaults({ spaceId: house.id });
 	await session.members.invite({ spaceId: house.id, userId: partner.id, role: "editor" });
 
 	const asPartner = await openSession({

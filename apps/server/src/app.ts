@@ -58,6 +58,18 @@ const roleInput = z.enum(["admin", "editor", "viewer", "logger"]);
 
 const calendarDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected a calendar date");
 
+const priority = z.enum(["essential", "important", "desirable", "superfluous"]);
+
+const categoryInput = z.object({
+	name: z.string().trim().min(1).max(60),
+	kind: z.enum(["expense", "income"]),
+	priority: priority.optional(),
+	parentId: z.string().min(1).nullable().optional(),
+	colour: z.string().trim().max(20).nullable().optional(),
+	icon: z.string().trim().max(40).nullable().optional(),
+	position: z.number().int().min(0).max(999).optional(),
+});
+
 const transactionInput = z.object({
 	kind: z.enum(["income", "expense", "transfer"]),
 	// Always positive: the direction comes from the kind, as registry 0010 says.
@@ -71,6 +83,8 @@ const transactionInput = z.object({
 	fxRate: z.number().int().positive().nullable().optional(),
 	notes: z.string().trim().max(2000).nullable().optional(),
 	installments: z.number().int().min(1).max(420).optional(),
+	categoryId: z.string().min(1).nullable().optional(),
+	priority: priority.nullable().optional(),
 });
 
 const transactionPatch = z.object({
@@ -81,6 +95,8 @@ const transactionPatch = z.object({
 	counterAccountId: z.string().min(1).nullable().optional(),
 	status: z.enum(["planned", "settled"]).optional(),
 	notes: z.string().trim().max(2000).nullable().optional(),
+	categoryId: z.string().min(1).nullable().optional(),
+	priority: priority.nullable().optional(),
 });
 
 /** A selection, kept small enough that one request cannot lock the database. */
@@ -268,6 +284,54 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		return context.body(null, 204);
 	});
 
+	app.get("/api/spaces/:id/categories", async (context) => {
+		const includeArchived = context.req.query("archived") === "true";
+		return context.json(
+			await context.get("session").categories.list(context.req.param("id"), { includeArchived }),
+		);
+	});
+
+	app.post("/api/spaces/:id/categories", async (context) => {
+		const input = categoryInput.parse(await context.req.json());
+		const category = await context
+			.get("session")
+			.categories.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(category, 201);
+	});
+
+	/** The starting set, written once and only into a space that has none. */
+	app.post("/api/spaces/:id/categories/defaults", async (context) => {
+		const input = z
+			.object({ language: z.enum(["pt", "en"]).optional() })
+			.parse(await context.req.json().catch(() => ({})));
+		const written = await context
+			.get("session")
+			.categories.installDefaults({ spaceId: context.req.param("id"), language: input.language });
+		return context.json(written, 201);
+	});
+
+	app.patch("/api/categories/:id", async (context) => {
+		const input = categoryInput.partial().omit({ kind: true });
+		return context.json(
+			await context
+				.get("session")
+				.categories.update(context.req.param("id"), input.parse(await context.req.json())),
+		);
+	});
+
+	app.post("/api/categories/:id/archive", async (context) =>
+		context.json(await context.get("session").categories.archive(context.req.param("id"))),
+	);
+
+	app.post("/api/categories/:id/unarchive", async (context) =>
+		context.json(await context.get("session").categories.unarchive(context.req.param("id"))),
+	);
+
+	app.delete("/api/categories/:id", async (context) => {
+		await context.get("session").categories.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
 	app.get("/api/spaces/:id/transactions", async (context) => {
 		const query = context.req.query();
 		return context.json(
@@ -280,6 +344,11 @@ export function createApp({ config, database, auth }: AppDependencies) {
 				to: query.to,
 				invoiceMonth: query.invoiceMonth,
 				search: query.search,
+				categoryIds:
+					query.categoryIds === undefined || query.categoryIds === ""
+						? undefined
+						: query.categoryIds.split(","),
+				withoutCategory: query.withoutCategory === "true",
 				limit: query.limit === undefined ? undefined : Number(query.limit),
 			}),
 		);

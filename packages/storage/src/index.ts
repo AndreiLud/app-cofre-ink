@@ -8,6 +8,7 @@ export * from "./errors.ts";
 export * from "./migrate.ts";
 export * from "./models.ts";
 export * from "./repositories/accounts.ts";
+export * from "./repositories/categories.ts";
 export * from "./repositories/changes.ts";
 export * from "./repositories/context.ts";
 export * from "./repositories/invitations.ts";

@@ -6,9 +6,15 @@
 // split, and neither makes sense for the other.
 
 import { parseMoney } from "@cofre/core";
-import type { Account, Transaction, TransactionKind } from "@cofre/storage";
+import type {
+	Account,
+	Category,
+	SpendingPriority,
+	Transaction,
+	TransactionKind,
+} from "@cofre/storage";
 import { Button, Callout, Dialog, Field, Segmented, Select } from "@cofre/ui";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -45,7 +51,15 @@ export function TransactionForm({
 	const [installments, setInstallments] = useState("1");
 	const [planned, setPlanned] = useState(false);
 	const [notes, setNotes] = useState("");
+	const [categoryId, setCategoryId] = useState("");
+	const [priority, setPriority] = useState("");
 	const [problem, setProblem] = useState<string | null>(null);
+
+	const categories = useQuery({
+		queryKey: ["categories", spaceId],
+		enabled: Boolean(session && spaceId !== ""),
+		queryFn: () => session?.categories.list(spaceId) ?? [],
+	});
 
 	const usable = accounts.filter((account) => account.archivedAt === null);
 	const chosen = usable.find((account) => account.id === accountId);
@@ -65,6 +79,8 @@ export function TransactionForm({
 			setPlanned(editing.status === "planned");
 			setNotes(editing.notes ?? "");
 			setInstallments("1");
+			setCategoryId(editing.categoryId ?? "");
+			setPriority(editing.priority ?? "");
 			return;
 		}
 		setKind("expense");
@@ -76,6 +92,8 @@ export function TransactionForm({
 		setInstallments("1");
 		setPlanned(false);
 		setNotes("");
+		setCategoryId("");
+		setPriority("");
 	}, [open, editing, today, usable[0]?.id]);
 
 	const save = useMutation({
@@ -87,6 +105,13 @@ export function TransactionForm({
 				throw new Error(t("transactions.amountMissing"));
 			}
 
+			// A transfer moves money between two accounts of the same person, so it is
+			// not spending and never carries a category.
+			const sorting = {
+				categoryId: kind === "transfer" || categoryId === "" ? null : categoryId,
+				priority: priority === "" ? null : (priority as SpendingPriority),
+			};
+
 			if (editing) {
 				return session.transactions.update(editing.id, {
 					amount: parsed.amount,
@@ -96,6 +121,7 @@ export function TransactionForm({
 					counterAccountId: kind === "transfer" ? counterAccountId : null,
 					status: planned ? "planned" : "settled",
 					notes: notes.trim() === "" ? null : notes.trim(),
+					...sorting,
 				});
 			}
 
@@ -110,6 +136,7 @@ export function TransactionForm({
 				status: planned ? "planned" : "settled",
 				notes: notes.trim() === "" ? null : notes.trim(),
 				installments: canSplit ? Number(installments) : 1,
+				...sorting,
 			});
 		},
 		onSuccess: () => {
@@ -126,6 +153,21 @@ export function TransactionForm({
 	}
 
 	const accountOptions = usable.map((account) => ({ value: account.id, label: account.name }));
+
+	// The list reads as the tree it is: a category, then the ones under it, set in from
+	// the margin by a couple of spaces rather than by a decoration.
+	const side = kind === "income" ? "income" : "expense";
+	const sorted = (categories.data ?? []).filter((category) => category.kind === side);
+	const categoryOptions = sorted
+		.filter((category) => category.parentId === null)
+		.flatMap((parent: Category) => [
+			{ value: parent.id, label: parent.name },
+			...sorted
+				.filter((child) => child.parentId === parent.id)
+				.map((child) => ({ value: child.id, label: `  ${child.name}` })),
+		]);
+
+	const chosenCategory = sorted.find((category) => category.id === categoryId);
 
 	return (
 		<Dialog
@@ -221,6 +263,39 @@ export function TransactionForm({
 						/>
 					) : null}
 				</div>
+
+				{kind === "transfer" ? null : (
+					<div className="grid gap-4 md:grid-cols-2">
+						<Select
+							label={t("transactions.category")}
+							value={categoryId}
+							onChange={(event) => setCategoryId(event.target.value)}
+							options={[{ value: "", label: t("transactions.noCategory") }, ...categoryOptions]}
+							hint={categoryOptions.length === 0 ? t("transactions.noCategoriesYet") : undefined}
+						/>
+						{/* Priority is about spending, so money coming in is not asked about. */}
+						{kind === "expense" ? (
+							<Select
+								label={t("transactions.priority")}
+								value={priority}
+								onChange={(event) => setPriority(event.target.value)}
+								hint={
+									chosenCategory
+										? t("transactions.priorityFromCategory", {
+												priority: t(`priority.${chosenCategory.priority}`),
+											})
+										: t("transactions.priorityHint")
+								}
+								options={[
+									{ value: "", label: t("transactions.priorityInherited") },
+									...(["essential", "important", "desirable", "superfluous"] as const).map(
+										(level) => ({ value: level, label: t(`priority.${level}`) }),
+									),
+								]}
+							/>
+						) : null}
+					</div>
+				)}
 
 				<label className="flex items-start gap-3 text-sm">
 					<input

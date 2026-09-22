@@ -30,7 +30,7 @@ function localAddress(name: string): string {
 }
 
 export function OnboardingPage() {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const { driver, adoptUser } = useCofre();
 	const { choice, setChoice } = useTheme();
 	const isDark =
@@ -69,6 +69,13 @@ export function OnboardingPage() {
 				name: spaceName.trim() === "" ? t("onboarding.personalDefault") : spaceName.trim(),
 				kind: "personal",
 				baseCurrency: currency,
+			});
+
+			// The starting set of categories, in the language the screen is in. Anybody
+			// who wants none of it can throw it away in one screen.
+			await session.categories.installDefaults({
+				spaceId: personal.id,
+				language: i18n.resolvedLanguage === "en" ? "en" : "pt",
 			});
 
 			if (withDemo) await seedDemo(driver, session, personal.id);

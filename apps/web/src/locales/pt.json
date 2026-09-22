@@ -88,7 +88,8 @@
 		"spaces": "Espaços",
 		"members": "Membros",
 		"transactions": "Lançamentos",
-		"invoices": "Faturas"
+		"invoices": "Faturas",
+		"categories": "Categorias"
 	},
 	"shell": {
 		"opening": "Abrindo o seu banco de dados neste dispositivo.",
@@ -178,6 +179,10 @@
 		"transferNeedsDestination": "Escolha a conta de destino.",
 		"transferNeedsTwoAccounts": "A transferência precisa de duas contas diferentes.",
 		"reconciledIsFrozen": "Esse lançamento foi conferido com o banco. Desfaça a conferência antes de mudar.",
+		"categoryDepthIsTwo": "Uma categoria entra dentro de outra e para por aí. Escolha uma que esteja sozinha.",
+		"categoryHasChildren": "Essa categoria tem outras dentro dela. Mova ou apague as de dentro primeiro.",
+		"categoryIsNotItsOwnParent": "Uma categoria não pode ficar dentro dela mesma.",
+		"categoriesAlreadyThere": "Este espaço já tem categorias, então o conjunto inicial não foi escrito de novo.",
 		"unknown": "Não consegui concluir. Tente de novo."
 	},
 	"transactions": {
@@ -225,7 +230,45 @@
 		"pick": "Selecionar {{description}}",
 		"pickAll": "Selecionar tudo que está na tela",
 		"clearPicked": "Limpar seleção",
-		"moveTo": "Mover para"
+		"moveTo": "Mover para",
+		"sortInto": "Categoria",
+		"pickCategory": "Escolha a categoria",
+		"category": "Categoria",
+		"anyCategory": "Todas as categorias",
+		"noCategory": "Sem categoria",
+		"noCategoriesYet": "Nenhuma categoria criada ainda. Crie em Categorias.",
+		"priority": "Prioridade",
+		"priorityInherited": "A da categoria",
+		"priorityHint": "Escolha uma categoria e a prioridade vem dela.",
+		"priorityFromCategory": "A categoria diz {{priority}}. Mude só se este gasto for diferente."
+	},
+	"categories": {
+		"title": "Categorias de {{space}}",
+		"create": "Nova categoria",
+		"createDescription": "Categorias organizam o gasto. A prioridade diz o quanto ele era necessário.",
+		"edit": "Editar",
+		"actions": "Ações da categoria",
+		"archive": "Arquivar",
+		"unarchive": "Desarquivar",
+		"install": "Usar o conjunto inicial",
+		"name": "Nome",
+		"namePlaceholder": "Mercado",
+		"side": "Tipo",
+		"expense": "Gastos",
+		"income": "Entradas",
+		"priority": "Prioridade",
+		"priorityHint": "Um ponto de partida. Cada lançamento pode discordar quando fizer sentido.",
+		"parent": "Fica dentro de",
+		"parentHint": "Duas camadas no máximo, então uma subcategoria não recebe outras.",
+		"noParent": "Nenhuma, fica sozinha",
+		"emptyTitle": "Nenhuma categoria por aqui",
+		"emptyBody": "Comece pelo conjunto inicial, que cobre o gasto da maioria das pessoas, e ajuste à sua vida. Dá para renomear, apagar e criar quantas quiser."
+	},
+	"priority": {
+		"essential": "Essencial",
+		"important": "Importante",
+		"desirable": "Desejável",
+		"superfluous": "Supérfluo"
 	},
 	"quick": {
 		"label": "Lançamento rápido",

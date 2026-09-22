@@ -241,6 +241,87 @@ describe("the api", () => {
 		});
 	});
 
+	describe("categories", () => {
+		it("writes the starting set and lets one be added and picked", async () => {
+			const ana = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+
+			const space = await ana.json<{ id: string }>("/api/spaces", {
+				method: "POST",
+				body: JSON.stringify({ name: "Casa" }),
+			});
+			const written = await ana.json<Array<{ name: string }>>(
+				`/api/spaces/${space.id}/categories/defaults`,
+				{ method: "POST", body: JSON.stringify({}) },
+			);
+			expect(written.some((category) => category.name === "Mercado")).toBe(true);
+
+			const mine = await ana.json<{ id: string; name: string }>(
+				`/api/spaces/${space.id}/categories`,
+				{
+					method: "POST",
+					body: JSON.stringify({ name: "Padaria", kind: "expense", priority: "desirable" }),
+				},
+			);
+			expect(mine.name).toBe("Padaria");
+
+			const account = await ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+				method: "POST",
+				body: JSON.stringify({ kind: "checking", name: "Conta" }),
+			});
+			const [record] = await ana.json<Array<{ categoryId: string }>>(
+				`/api/spaces/${space.id}/transactions`,
+				{
+					method: "POST",
+					body: JSON.stringify({
+						kind: "expense",
+						amount: 1200,
+						happenedOn: "2026-09-10",
+						description: "Pao",
+						accountId: account.id,
+						categoryId: mine.id,
+					}),
+				},
+			);
+			expect(record?.categoryId).toBe(mine.id);
+
+			const sorted = await ana.json<Array<{ description: string }>>(
+				`/api/spaces/${space.id}/transactions?categoryIds=${mine.id}`,
+			);
+			expect(sorted.map((row) => row.description)).toEqual(["Pao"]);
+		});
+
+		it("lets a viewer read the list and refuses to let them change it", async () => {
+			const ana = createClient(app);
+			const joao = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			await joao.signUp({ name: "Joao", email: "joao@exemplo.com" });
+
+			const space = await ana.json<{ id: string }>("/api/spaces", {
+				method: "POST",
+				body: JSON.stringify({ name: "Casa" }),
+			});
+			const invitation = await ana.json<{ token: string }>(`/api/spaces/${space.id}/invitations`, {
+				method: "POST",
+				body: JSON.stringify({ role: "viewer" }),
+			});
+			await joao.request(`/api/invitations/${invitation.token}/accept`, { method: "POST" });
+			await ana.request(`/api/spaces/${space.id}/categories/defaults`, {
+				method: "POST",
+				body: JSON.stringify({}),
+			});
+
+			const read = await joao.json<unknown[]>(`/api/spaces/${space.id}/categories`);
+			expect(read.length).toBeGreaterThan(0);
+
+			const refused = await joao.request(`/api/spaces/${space.id}/categories`, {
+				method: "POST",
+				body: JSON.stringify({ name: "Minha", kind: "expense" }),
+			});
+			expect(refused.status).toBe(403);
+		});
+	});
+
 	describe("saved filters", () => {
 		it("keeps a filter for the person who wrote it, and for nobody else", async () => {
 			const ana = createClient(app);

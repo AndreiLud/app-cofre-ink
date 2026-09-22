@@ -88,7 +88,8 @@
 		"spaces": "Spaces",
 		"members": "Members",
 		"transactions": "Records",
-		"invoices": "Card invoices"
+		"invoices": "Card invoices",
+		"categories": "Categories"
 	},
 	"shell": {
 		"opening": "Opening your database on this device.",
@@ -178,6 +179,10 @@
 		"transferNeedsDestination": "Pick the account the money lands in.",
 		"transferNeedsTwoAccounts": "A transfer needs two different accounts.",
 		"reconciledIsFrozen": "That record was checked against the bank. Undo the check before changing it.",
+		"categoryDepthIsTwo": "A category goes inside another one and stops there. Pick one that stands on its own.",
+		"categoryHasChildren": "That category has others inside it. Move or delete those first.",
+		"categoryIsNotItsOwnParent": "A category cannot sit inside itself.",
+		"categoriesAlreadyThere": "This space already has categories, so the starting set was not written again.",
 		"unknown": "I could not finish that. Try again."
 	},
 	"transactions": {
@@ -225,7 +230,45 @@
 		"pick": "Select {{description}}",
 		"pickAll": "Select everything on screen",
 		"clearPicked": "Clear the selection",
-		"moveTo": "Move to"
+		"moveTo": "Move to",
+		"sortInto": "Category",
+		"pickCategory": "Pick a category",
+		"category": "Category",
+		"anyCategory": "Every category",
+		"noCategory": "No category",
+		"noCategoriesYet": "No categories yet. Create them in Categories.",
+		"priority": "Priority",
+		"priorityInherited": "The one of the category",
+		"priorityHint": "Pick a category and the priority comes from it.",
+		"priorityFromCategory": "The category says {{priority}}. Change it only when this one is different."
+	},
+	"categories": {
+		"title": "Categories of {{space}}",
+		"create": "New category",
+		"createDescription": "Categories sort the spending. The priority says how much it was needed.",
+		"edit": "Edit",
+		"actions": "Category actions",
+		"archive": "Archive",
+		"unarchive": "Bring back",
+		"install": "Use the starting set",
+		"name": "Name",
+		"namePlaceholder": "Groceries",
+		"side": "Side",
+		"expense": "Spending",
+		"income": "Income",
+		"priority": "Priority",
+		"priorityHint": "A starting point. Any record can disagree when it makes sense.",
+		"parent": "Sits inside",
+		"parentHint": "Two levels at most, so a subcategory takes none of its own.",
+		"noParent": "None, it stands on its own",
+		"emptyTitle": "No categories here",
+		"emptyBody": "Start from the set that covers what most people spend on, then make it yours. Rename, delete and add as many as you like."
+	},
+	"priority": {
+		"essential": "Essential",
+		"important": "Important",
+		"desirable": "Desirable",
+		"superfluous": "Superfluous"
 	},
 	"quick": {
 		"label": "Quick record",

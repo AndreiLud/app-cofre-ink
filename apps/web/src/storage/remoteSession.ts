@@ -8,7 +8,9 @@
 import type {
 	Account,
 	AccountBalance,
+	Category,
 	Change,
+	CreateCategoryInput,
 	CreateSavedFilterInput,
 	CreateTransactionInput,
 	Invitation,
@@ -17,6 +19,7 @@ import type {
 	SpaceMember,
 	Transaction,
 	TransactionFilter,
+	UpdateCategoryInput,
 	UpdateSavedFilterInput,
 	UpdateTransactionInput,
 	User,
@@ -205,13 +208,34 @@ export function createRemoteSession(
 			remove: (id: string) => send<void>(`/api/accounts/${id}`, "DELETE"),
 		},
 
+		categories: {
+			list: (spaceId: string, options: { includeArchived?: boolean } = {}) =>
+				get<Category[]>(
+					`/api/spaces/${spaceId}/categories${options.includeArchived ? "?archived=true" : ""}`,
+				),
+			create: (input: CreateCategoryInput) => {
+				const { spaceId, ...rest } = input;
+				return send<Category>(`/api/spaces/${spaceId}/categories`, "POST", rest);
+			},
+			update: (id: string, input: UpdateCategoryInput) =>
+				send<Category>(`/api/categories/${id}`, "PATCH", input),
+			archive: (id: string) => send<Category>(`/api/categories/${id}/archive`, "POST", {}),
+			unarchive: (id: string) => send<Category>(`/api/categories/${id}/unarchive`, "POST", {}),
+			remove: (id: string) => send<void>(`/api/categories/${id}`, "DELETE"),
+			installDefaults: (input: { spaceId: string; language?: "pt" | "en" }) =>
+				send<Category[]>(`/api/spaces/${input.spaceId}/categories/defaults`, "POST", {
+					language: input.language,
+				}),
+		},
+
 		transactions: {
 			list: (filter: TransactionFilter = {}) => {
-				const { spaceId, limit, ...rest } = filter;
+				const { spaceId, limit, categoryIds, ...rest } = filter;
 				const query = new URLSearchParams();
 				for (const [name, value] of Object.entries(rest)) {
 					if (value !== undefined && value !== "") query.set(name, String(value));
 				}
+				if (categoryIds && categoryIds.length > 0) query.set("categoryIds", categoryIds.join(","));
 				if (limit !== undefined) query.set("limit", String(limit));
 				const search = query.toString();
 				// Without a space the server would have to walk every space of the person,

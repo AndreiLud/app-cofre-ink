@@ -4,6 +4,7 @@
 // account to another, and keeping it as one row is what stops a transfer from being
 // counted as income on one side and expense on the other in every report.
 
+import { PRIORITIES } from "./categoryTables.ts";
 import { defineTable } from "./types.ts";
 
 export const TRANSACTION_KINDS = ["income", "expense", "transfer"] as const;
@@ -18,6 +19,21 @@ export const CARD_COLUMNS = [
 	{ name: "closing_day", type: "integer" as const },
 	{ name: "due_day", type: "integer" as const },
 	{ name: "credit_limit", type: "bigint" as const },
+];
+
+/** Added to the transactions table by migration 0005, and declared below as well. */
+export const TRANSACTION_CATEGORY_COLUMNS = [
+	{
+		name: "category_id",
+		type: "text" as const,
+		references: { table: "categories", column: "id", onDelete: "setNull" as const },
+	},
+	/**
+	 * Empty means the priority of the category. A pharmacy is essential on the day
+	 * somebody is ill and superfluous on the day it was a second bottle of shampoo, so
+	 * one record can say something different from the category it belongs to.
+	 */
+	{ name: "priority", type: "text" as const, check: inList("priority", PRIORITIES) },
 ];
 
 export const transactions = defineTable({
@@ -62,6 +78,7 @@ export const transactions = defineTable({
 		 * changing the closing day later does not move a purchase that already closed.
 		 */
 		{ name: "invoice_month", type: "text" },
+		...TRANSACTION_CATEGORY_COLUMNS,
 		{
 			name: "created_by",
 			type: "text",
@@ -70,6 +87,7 @@ export const transactions = defineTable({
 		},
 	],
 	indexes: [
+		{ name: "transactions_by_category", columns: ["category_id"] },
 		{ name: "transactions_by_space_and_date", columns: ["space_id", "happened_on"] },
 		{ name: "transactions_by_account", columns: ["account_id", "happened_on"] },
 		{ name: "transactions_by_invoice", columns: ["account_id", "invoice_month"] },

@@ -9,6 +9,8 @@ export type AccountKind = "checking" | "savings" | "cash" | "credit" | "voucher"
 export type ChangeOperation = "insert" | "update" | "delete";
 export type TransactionKind = "income" | "expense" | "transfer";
 export type TransactionStatus = "planned" | "settled";
+export type CategoryKind = "expense" | "income";
+export type SpendingPriority = "essential" | "important" | "desirable" | "superfluous";
 
 export type User = {
 	id: string;
@@ -62,6 +64,23 @@ export type Account = {
 	updatedAt: number;
 };
 
+/** Where the money went, and how much it was needed. Two levels, never three. */
+export type Category = {
+	id: string;
+	spaceId: string;
+	name: string;
+	kind: CategoryKind;
+	priority: SpendingPriority;
+	parentId: string | null;
+	colour: string | null;
+	icon: string | null;
+	position: number;
+	archivedAt: number | null;
+	createdBy: string;
+	createdAt: number;
+	updatedAt: number;
+};
+
 export type Transaction = {
 	id: string;
 	spaceId: string;
@@ -82,6 +101,9 @@ export type Transaction = {
 	installmentNumber: number | null;
 	installmentCount: number | null;
 	invoiceMonth: string | null;
+	categoryId: string | null;
+	/** Empty means the priority of its category, which is the usual case. */
+	priority: SpendingPriority | null;
 	createdBy: string;
 	createdAt: number;
 	updatedAt: number;
@@ -183,6 +205,24 @@ export function toAccount(row: Row): Account {
 	};
 }
 
+export function toCategory(row: Row): Category {
+	return {
+		id: asText(row.id),
+		spaceId: asText(row.space_id),
+		name: asText(row.name),
+		kind: asText(row.kind) as CategoryKind,
+		priority: asText(row.priority) as SpendingPriority,
+		parentId: asOptionalText(row.parent_id),
+		colour: asOptionalText(row.colour),
+		icon: asOptionalText(row.icon),
+		position: asNumber(row.position),
+		archivedAt: asOptionalNumber(row.archived_at),
+		createdBy: asText(row.created_by),
+		createdAt: asNumber(row.created_at),
+		updatedAt: asNumber(row.updated_at),
+	};
+}
+
 export function toTransaction(row: Row): Transaction {
 	return {
 		id: asText(row.id),
@@ -203,6 +243,8 @@ export function toTransaction(row: Row): Transaction {
 		installmentNumber: asOptionalNumber(row.installment_number),
 		installmentCount: asOptionalNumber(row.installment_count),
 		invoiceMonth: asOptionalText(row.invoice_month),
+		categoryId: asOptionalText(row.category_id),
+		priority: asOptionalText(row.priority) as SpendingPriority | null,
 		createdBy: asText(row.created_by),
 		createdAt: asNumber(row.created_at),
 		updatedAt: asNumber(row.updated_at),

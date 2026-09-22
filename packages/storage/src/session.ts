@@ -5,6 +5,7 @@ import { createHybridClock, type HybridClock } from "@cofre/core";
 import { type Actor, can, type Membership, type Permission } from "./actor.ts";
 import type { Driver } from "./driver.ts";
 import { createAccountsRepository } from "./repositories/accounts.ts";
+import { createCategoriesRepository } from "./repositories/categories.ts";
 import { createChangesRepository } from "./repositories/changes.ts";
 import type { RepositoryContext } from "./repositories/context.ts";
 import { createInvitationsRepository } from "./repositories/invitations.ts";
@@ -32,6 +33,7 @@ export type Session = {
 	members: ReturnType<typeof createMembersRepository>;
 	invitations: ReturnType<typeof createInvitationsRepository>;
 	accounts: ReturnType<typeof createAccountsRepository>;
+	categories: ReturnType<typeof createCategoriesRepository>;
 	transactions: ReturnType<typeof createTransactionsRepository>;
 	savedFilters: ReturnType<typeof createSavedFiltersRepository>;
 	changes: ReturnType<typeof createChangesRepository>;
@@ -98,6 +100,7 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 		members: createMembersRepository(context),
 		invitations: createInvitationsRepository(context),
 		accounts: createAccountsRepository(context),
+		categories: createCategoriesRepository(context),
 		transactions: createTransactionsRepository(context),
 		savedFilters: createSavedFiltersRepository(context),
 		changes: createChangesRepository(context),

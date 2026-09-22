@@ -11,10 +11,16 @@
 // That is what the context is for. It says what the database already has, so a
 // migration can add only what is missing.
 
-import { addColumnSql, createSchemaSql, type Dialect } from "./ddl.ts";
+import { addColumnSql, createIndexSql, createSchemaSql, type Dialect } from "./ddl.ts";
 import { AUTH_TABLES } from "./schema/authTables.ts";
+import { CATEGORY_TABLES } from "./schema/categoryTables.ts";
 import { SCHEMA } from "./schema/tables.ts";
-import { CARD_COLUMNS, TRANSACTION_TABLES } from "./schema/transactionTables.ts";
+import {
+	CARD_COLUMNS,
+	TRANSACTION_CATEGORY_COLUMNS,
+	TRANSACTION_TABLES,
+	transactions,
+} from "./schema/transactionTables.ts";
 import { VIEW_TABLES } from "./schema/viewTables.ts";
 
 export type MigrationContext = {
@@ -49,6 +55,18 @@ export const MIGRATIONS: readonly Migration[] = [
 	{
 		id: "0004_saved_filters",
 		statements: (context) => createSchemaSql([...VIEW_TABLES], context.dialect),
+	},
+	{
+		id: "0005_categories_and_priority",
+		statements: (context) => [
+			...createSchemaSql([...CATEGORY_TABLES], context.dialect),
+			...TRANSACTION_CATEGORY_COLUMNS.filter(
+				(column) => !context.hasColumn("transactions", column.name),
+			).map((column) => addColumnSql("transactions", column, context.dialect)),
+			// A database from before this migration never saw the index over the column
+			// that was just added. Creating them all again costs nothing.
+			...createIndexSql(transactions, context.dialect),
+		],
 	},
 ];
 

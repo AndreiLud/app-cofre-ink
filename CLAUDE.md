@@ -37,10 +37,11 @@ settle up flow. The app works offline and syncs when it can reach a server.
    or to join words, in any text written for people: documents, interface copy, error
    messages, code comments, commit messages, pull requests, changelog. Use a comma, a
    colon, a period, parentheses, or rewrite. Lists are numbered or become prose. File
-   names, folders and routes avoid the character too (underscore or camelCase). The
-   exception is syntax that requires it, such as command line flags and third party
-   package names. `node scripts/checkWriting.mjs` enforces this in CI and before every
-   commit.
+   names, folders and routes avoid the character too (underscore or camelCase), as a
+   preference and not as a rule: the rule is about writing, so a name that identifies
+   something may carry it, as the repository `AndreiLud/open-cofre` does, and syntax
+   that requires it (command line flags, third party package names) always may.
+   `node scripts/checkWriting.mjs` enforces this in CI and before every commit.
 2. **Money is always an integer number of cents.** Never a floating point number.
    Amounts carry a currency. A record in another currency stores the rate used at the
    time. Default currency is BRL.
