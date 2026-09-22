@@ -20,6 +20,35 @@ test.describe("accounts", () => {
 		await expect(total(page)).toContainText("1.234,56");
 	});
 
+	test("makes the card of a credit account without asking twice", async ({ page }) => {
+		await openCofre(page);
+
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+
+		const dialog = page.getByRole("dialog");
+		await dialog.getByLabel("Nome").fill("Cartão da loja");
+		await dialog.getByLabel("Tipo").selectOption("credit");
+		await dialog.getByLabel("Quatro últimos dígitos").fill("5566");
+		// One plastic that works both ways, said once, while the account is described.
+		await dialog.getByRole("checkbox").check();
+		await dialog.getByRole("button", { name: "Salvar" }).click();
+
+		// It is a card already, with no second form to fill in.
+		await expect(page.getByText("Final 5566")).toBeVisible();
+		await expect(page.getByText("Múltiplo: Fatura de Cartão da loja")).toBeVisible();
+
+		// And it is looked after from the account it belongs to, not from the list.
+		await page
+			.getByRole("row")
+			.filter({ hasText: "Cartão da loja" })
+			.getByRole("button", { name: "Ações da conta" })
+			.click();
+		await expect(
+			page.getByRole("menuitem", { name: "Editar cartão Cartão da loja" }),
+		).toBeVisible();
+	});
+
 	test("adds a card and lets one purchase choose where it lands", async ({ page }) => {
 		await openCofre(page);
 

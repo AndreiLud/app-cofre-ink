@@ -158,6 +158,28 @@ export function CardDialog({ target, spaceId, accounts, onClose }: CardDialogPro
 		},
 	});
 
+	/**
+	 * Archiving and removing live in this dialog rather than in the list of cards,
+	 * because one place to look after a card is the whole point of the change that
+	 * brought them here. Removing one takes the card and nothing else: the records it
+	 * was on keep their account, their amount and the invoice they were charged to.
+	 */
+	const change = useMutation({
+		mutationFn: async (what: "archive" | "remove") => {
+			if (!session || target?.mode !== "edit") throw new Error("nothing to change");
+			if (what === "remove") return session.cards.remove(target.card.id);
+			return target.card.archivedAt === null
+				? session.cards.archive(target.card.id)
+				: session.cards.unarchive(target.card.id);
+		},
+		onSuccess: () => {
+			void queries.invalidateQueries({ queryKey: ["cards"] });
+			void queries.invalidateQueries({ queryKey: ["transactions"] });
+			onClose();
+		},
+		onError: (error: unknown) => setProblem(error instanceof Error ? error.message : String(error)),
+	});
+
 	function submit(event: FormEvent) {
 		event.preventDefault();
 		save.mutate();
@@ -272,6 +294,28 @@ export function CardDialog({ target, spaceId, accounts, onClose }: CardDialogPro
 				/>
 
 				{problem ? <Callout tone="problem">{problem}</Callout> : null}
+
+				{target?.mode === "edit" ? (
+					<div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
+						<Button
+							variant="secondary"
+							size="small"
+							disabled={change.isPending}
+							onClick={() => change.mutate("archive")}
+						>
+							{target.card.archivedAt === null ? t("cards.archive") : t("cards.unarchive")}
+						</Button>
+						<Button
+							variant="destructive"
+							size="small"
+							disabled={change.isPending}
+							onClick={() => change.mutate("remove")}
+						>
+							{t("cards.removeAction")}
+						</Button>
+						<span className="text-xs text-quiet">{t("cards.removeKeeps")}</span>
+					</div>
+				) : null}
 			</form>
 		</Dialog>
 	);

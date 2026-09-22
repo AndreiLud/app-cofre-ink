@@ -418,7 +418,10 @@
 		"emptyTitle": "No accounts here yet",
 		"emptyBody": "Start with the account your salary lands in. Cards, cash and investments can come later.",
 		"benefit": "Which benefit",
-		"benefitHint": "VR buys a meal already made, VA buys the shopping, VT pays for transport. A shop that takes one may refuse the other."
+		"benefitHint": "VR buys a meal already made, VA buys the shopping, VT pays for transport. A shop that takes one may refuse the other.",
+		"cardComesWithIt": "The card of this account is made with it. You can leave it empty.",
+		"alsoDebit": "This card also works as debit",
+		"alsoDebitHint": "A multiple card: on credit it lands on the invoice, on debit it leaves the balance of the account you choose."
 	},
 	"rules": {
 		"emailTaken": "There is already a profile with that email on this device. Use another one.",
@@ -1037,7 +1040,11 @@
 		"addAction": "Add a card",
 		"editDescription": "The name, the digits and the accounts can be corrected. The kind does not change: a card of another kind is another card.",
 		"kindIs": "Kind: {{kind}}.",
-		"fromAccounts": "Cards are added from the account they use. Open the menu of an account up there and choose Add a card."
+		"fromAccounts": "Cards are added from the account they use. Open the menu of an account up there and choose Add a card.",
+		"editNamed": "Edit card {{name}}",
+		"managedFromAccounts": "To change or remove a card, use the menu of its account up there.",
+		"removeAction": "Remove card",
+		"removeKeeps": "The records stay. Only the name of the card leaves them."
 	},
 	"transaction": {
 		"card": "Card",

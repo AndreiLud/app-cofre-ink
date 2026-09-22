@@ -418,7 +418,10 @@
 		"emptyTitle": "Nenhuma conta por aqui ainda",
 		"emptyBody": "Comece pela conta onde cai o seu salário. Dá para adicionar cartão, dinheiro e investimento depois.",
 		"benefit": "Qual benefício",
-		"benefitHint": "VR compra refeição pronta, VA compra mercado, VT paga transporte. Loja que aceita um pode recusar o outro."
+		"benefitHint": "VR compra refeição pronta, VA compra mercado, VT paga transporte. Loja que aceita um pode recusar o outro.",
+		"cardComesWithIt": "O cartão desta conta é criado junto. Pode deixar em branco.",
+		"alsoDebit": "Esse cartão também funciona no débito",
+		"alsoDebitHint": "Um cartão múltiplo: no crédito cai na fatura, no débito sai do saldo da conta que você escolher."
 	},
 	"rules": {
 		"emailTaken": "Já existe um perfil com esse email neste dispositivo. Use outro email.",
@@ -1037,7 +1040,11 @@
 		"addAction": "Adicionar cartão",
 		"editDescription": "Dá para corrigir o nome, os dígitos e as contas. O tipo não muda: um cartão de outro tipo é outro cartão.",
 		"kindIs": "Tipo: {{kind}}.",
-		"fromAccounts": "Os cartões são cadastrados a partir da conta que eles usam. Abra o menu de uma conta ali em cima e escolha Adicionar cartão."
+		"fromAccounts": "Os cartões são cadastrados a partir da conta que eles usam. Abra o menu de uma conta ali em cima e escolha Adicionar cartão.",
+		"editNamed": "Editar cartão {{name}}",
+		"managedFromAccounts": "Para mudar ou apagar um cartão, use o menu da conta dele ali em cima.",
+		"removeAction": "Apagar cartão",
+		"removeKeeps": "Os lançamentos ficam. Só o nome do cartão sai deles."
 	},
 	"transaction": {
 		"card": "Cartão",
