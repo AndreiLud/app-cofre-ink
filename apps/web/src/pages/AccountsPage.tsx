@@ -1,7 +1,7 @@
 // Accounts of the current space: what exists, and how to add one.
 
 import { parseMoney } from "@cofre/core";
-import type { AccountKind, BenefitKind } from "@cofre/storage";
+import type { AccountKind, BenefitKind, CardKind } from "@cofre/storage";
 import {
 	Button,
 	Callout,
@@ -14,6 +14,7 @@ import {
 	MenuSeparator,
 	Panel,
 	SectionTitle,
+	Segmented,
 	Select,
 	Skeleton,
 	Table,
@@ -49,7 +50,7 @@ export function AccountsPage() {
 	const [benefit, setBenefit] = useState<BenefitKind>("meal");
 	// The card that comes with the account, for the two kinds that are a card.
 	const [lastFour, setLastFour] = useState("");
-	const [alsoDebit, setAlsoDebit] = useState(false);
+	const [works, setWorks] = useState<CardKind>("credit");
 	const [debitAccountId, setDebitAccountId] = useState("");
 	const [cardTarget, setCardTarget] = useState<CardTarget>(null);
 	const [problem, setProblem] = useState<string | null>(null);
@@ -86,6 +87,25 @@ export function AccountsPage() {
 	const create = useMutation({
 		mutationFn: async () => {
 			if (!session) throw new Error("no session");
+			const digits = lastFour.trim() === "" ? null : lastFour.trim();
+
+			/**
+			 * A debit card is the one case here that is not an account at all. It spends
+			 * the balance of an account that already exists, so what gets made is a card
+			 * and nothing else. Saying that out loud on the form beats a screen where
+			 * somebody adds a card and no row appears in the table.
+			 */
+			if (kind === "credit" && works === "debit") {
+				await session.cards.create({
+					spaceId,
+					kind: "debit",
+					name,
+					lastFour: digits,
+					debitAccountId,
+				});
+				return null;
+			}
+
 			const amount =
 				balance.trim() === ""
 					? 0
@@ -111,12 +131,16 @@ export function AccountsPage() {
 			if (kind === "credit" || kind === "voucher") {
 				await session.cards.create({
 					spaceId,
-					kind: kind === "voucher" ? "benefit" : alsoDebit ? "multiple" : "credit",
+					kind: kind === "voucher" ? "benefit" : works,
 					name: account.name,
-					lastFour: lastFour.trim() === "" ? null : lastFour.trim(),
+					lastFour: digits,
 					creditAccountId: kind === "credit" ? account.id : null,
 					debitAccountId:
-						kind === "voucher" ? account.id : alsoDebit && debitAccountId ? debitAccountId : null,
+						kind === "voucher"
+							? account.id
+							: works === "multiple" && debitAccountId
+								? debitAccountId
+								: null,
 				});
 			}
 			return account;
@@ -127,7 +151,7 @@ export function AccountsPage() {
 			setBalance("");
 			setInstitution("");
 			setLastFour("");
-			setAlsoDebit(false);
+			setWorks("credit");
 			setProblem(null);
 			invalidate();
 		},
@@ -176,6 +200,13 @@ export function AccountsPage() {
 	const balances = rows.filter(
 		(account) => account.kind !== "credit" && account.archivedAt === null,
 	);
+
+	/**
+	 * A debit card spends a balance that already exists, so it is the one thing this
+	 * form can make that is not an account. Everything about an account is hidden then,
+	 * because there is no account to describe.
+	 */
+	const makesAnAccount = !(kind === "credit" && works === "debit");
 
 	/** The cards that reach one account, which is what its menu looks after. */
 	const cardsOf = (accountId: string) =>
@@ -337,13 +368,52 @@ export function AccountsPage() {
 						onChange={(event) => setKind(event.target.value as AccountKind)}
 						options={KINDS.map((value) => ({ value, label: t(`accountKind.${value}`) }))}
 					/>
-					<Field
-						label={t("accounts.institution")}
-						value={institution}
-						onChange={(event) => setInstitution(event.target.value)}
-						placeholder={t("accounts.institutionPlaceholder")}
-					/>
+					{/* What the card does comes before everything else about it, because it
+					    is what decides whether there is an invoice to describe at all. */}
 					{kind === "credit" ? (
+						<Segmented
+							label={t("accounts.cardWorks")}
+							value={works}
+							onChange={(next) => {
+								setWorks(next);
+								if (next !== "credit" && debitAccountId === "") {
+									const likely = balances.find((one) => one.kind === "checking") ?? balances[0];
+									setDebitAccountId(likely?.id ?? "");
+								}
+							}}
+							options={[
+								{ value: "credit", label: t("cardKind.credit") },
+								{ value: "debit", label: t("cardKind.debit") },
+								{ value: "multiple", label: t("cardKind.multiple") },
+							]}
+						/>
+					) : null}
+					{kind === "credit" && works === "debit" ? (
+						balances.length > 0 ? (
+							<Callout tone="neutral">{t("accounts.debitMakesNoAccount")}</Callout>
+						) : (
+							<Callout tone="attention">{t("cards.needsDebitAccount")}</Callout>
+						)
+					) : null}
+					{kind === "credit" && works !== "credit" && balances.length > 0 ? (
+						<Select
+							label={t("cards.debitAccount")}
+							hint={t("cards.debitAccountHint")}
+							value={debitAccountId}
+							onChange={(event) => setDebitAccountId(event.target.value)}
+							options={balances.map((account) => ({ value: account.id, label: account.name }))}
+						/>
+					) : null}
+
+					{makesAnAccount ? (
+						<Field
+							label={t("accounts.institution")}
+							value={institution}
+							onChange={(event) => setInstitution(event.target.value)}
+							placeholder={t("accounts.institutionPlaceholder")}
+						/>
+					) : null}
+					{kind === "credit" && makesAnAccount ? (
 						<div className="grid gap-4 md:grid-cols-2">
 							<Select
 								label={t("accounts.closingDay")}
@@ -383,7 +453,7 @@ export function AccountsPage() {
 					{kind === "credit" || kind === "voucher" ? (
 						<Field
 							label={t("cards.lastFour")}
-							hint={t("accounts.cardComesWithIt")}
+							hint={makesAnAccount ? t("accounts.cardComesWithIt") : t("cards.lastFourHint")}
 							value={lastFour}
 							onChange={(event) =>
 								setLastFour(event.target.value.replace(/[^0-9]/g, "").slice(0, 4))
@@ -392,44 +462,17 @@ export function AccountsPage() {
 							placeholder="1234"
 						/>
 					) : null}
-					{kind === "credit" && balances.length > 0 ? (
-						<label className="flex items-start gap-3 text-sm">
-							<input
-								type="checkbox"
-								checked={alsoDebit}
-								onChange={(event) => {
-									setAlsoDebit(event.target.checked);
-									if (event.target.checked && debitAccountId === "") {
-										const likely = balances.find((one) => one.kind === "checking") ?? balances[0];
-										setDebitAccountId(likely?.id ?? "");
-									}
-								}}
-								className="mt-1 size-4 accent-[var(--ink)]"
-							/>
-							<span>
-								<span className="font-medium text-ink">{t("accounts.alsoDebit")}</span>
-								<span className="block text-quiet">{t("accounts.alsoDebitHint")}</span>
-							</span>
-						</label>
-					) : null}
-					{kind === "credit" && alsoDebit && balances.length > 0 ? (
-						<Select
-							label={t("cards.debitAccount")}
-							hint={t("cards.debitAccountHint")}
-							value={debitAccountId}
-							onChange={(event) => setDebitAccountId(event.target.value)}
-							options={balances.map((account) => ({ value: account.id, label: account.name }))}
+					{makesAnAccount ? (
+						<Field
+							label={t("accounts.balance")}
+							hint={t("accounts.balanceHint")}
+							value={balance}
+							onChange={(event) => setBalance(event.target.value)}
+							numeric={true}
+							inputMode="decimal"
+							placeholder="0,00"
 						/>
 					) : null}
-					<Field
-						label={t("accounts.balance")}
-						hint={t("accounts.balanceHint")}
-						value={balance}
-						onChange={(event) => setBalance(event.target.value)}
-						numeric={true}
-						inputMode="decimal"
-						placeholder="0,00"
-					/>
 					{problem ? <Callout tone="problem">{problem}</Callout> : null}
 				</form>
 			</Dialog>

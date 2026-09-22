@@ -355,6 +355,64 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		it("takes the cards with it when the account they reach is removed", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				const checking = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta corrente",
+				});
+				const invoice = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "credit",
+					name: "Cartao",
+					closingDay: 3,
+					dueDay: 10,
+				});
+				const onBoth = await fixture.asAna.cards.create({
+					spaceId: space.id,
+					kind: "multiple",
+					name: "Do banco",
+					creditAccountId: invoice.id,
+					debitAccountId: checking.id,
+				});
+				const onlyDebit = await fixture.asAna.cards.create({
+					spaceId: space.id,
+					kind: "debit",
+					name: "Da conta",
+					debitAccountId: checking.id,
+				});
+				const [record] = await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 2_000,
+					happenedOn: "2026-09-10",
+					description: "Feira",
+					accountId: checking.id,
+					cardId: onlyDebit.id,
+				});
+
+				await fixture.asAna.accounts.remove(checking.id);
+
+				// Both cards reached that account, so neither is a card any more. A card
+				// left naming an account that is gone would still be offered on a record
+				// it could never be saved with.
+				expect(await fixture.asAna.cards.list(space.id)).toEqual([]);
+				await expect(fixture.asAna.cards.get(onBoth.id)).rejects.toBeInstanceOf(NotFoundError);
+				await expect(fixture.asAna.cards.get(onlyDebit.id)).rejects.toBeInstanceOf(NotFoundError);
+
+				// The other account is untouched, and so is the record.
+				expect((await fixture.asAna.accounts.list(space.id)).map((one) => one.name)).toEqual([
+					"Cartao",
+				]);
+				expect((await fixture.asAna.transactions.get(record?.id ?? "")).amount).toBe(-2_000);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		it("lets only a voucher account say which benefit it holds", async () => {
 			const fixture = await prepare(adapter);
 			try {

@@ -420,8 +420,8 @@
 		"benefit": "Qual benefício",
 		"benefitHint": "VR compra refeição pronta, VA compra mercado, VT paga transporte. Loja que aceita um pode recusar o outro.",
 		"cardComesWithIt": "O cartão desta conta é criado junto. Pode deixar em branco.",
-		"alsoDebit": "Esse cartão também funciona no débito",
-		"alsoDebitHint": "Um cartão múltiplo: no crédito cai na fatura, no débito sai do saldo da conta que você escolher."
+		"cardWorks": "Como ele funciona",
+		"debitMakesNoAccount": "O cartão de débito gasta o saldo de uma conta que já existe, então ele não cria conta nova. Só o cartão é cadastrado."
 	},
 	"rules": {
 		"emailTaken": "Já existe um perfil com esse email neste dispositivo. Use outro email.",
@@ -671,7 +671,7 @@
 		"checking": "Conta corrente",
 		"savings": "Poupança",
 		"cash": "Dinheiro",
-		"credit": "Cartão de crédito",
+		"credit": "Cartão",
 		"voucher": "Vale ou benefício",
 		"investment": "Investimento"
 	},

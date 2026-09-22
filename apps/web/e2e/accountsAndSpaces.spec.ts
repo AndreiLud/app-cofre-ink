@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { go, openCofre, openSetting, total } from "./support.ts";
+import { go, openCofre, openSetting, record, total } from "./support.ts";
 
 test.describe("accounts", () => {
 	test("creates one and shows it with the amount that was typed", async ({ page }) => {
@@ -29,9 +29,10 @@ test.describe("accounts", () => {
 		const dialog = page.getByRole("dialog");
 		await dialog.getByLabel("Nome").fill("Cartão da loja");
 		await dialog.getByLabel("Tipo").selectOption("credit");
-		await dialog.getByLabel("Quatro últimos dígitos").fill("5566");
 		// One plastic that works both ways, said once, while the account is described.
-		await dialog.getByRole("checkbox").check();
+		// The radio itself is only for the screen reader, so a person clicks the label.
+		await dialog.getByText("Múltiplo", { exact: true }).click();
+		await dialog.getByLabel("Quatro últimos dígitos").fill("5566");
 		await dialog.getByRole("button", { name: "Salvar" }).click();
 
 		// It is a card already, with no second form to fill in.
@@ -47,6 +48,69 @@ test.describe("accounts", () => {
 		await expect(
 			page.getByRole("menuitem", { name: "Editar cartão Cartão da loja" }),
 		).toBeVisible();
+	});
+
+	test("adds a debit card without adding an account nobody asked for", async ({ page }) => {
+		await openCofre(page);
+
+		await go(page, "Contas");
+		const before = await page.getByRole("row").count();
+
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByLabel("Nome").fill("Débito do banco");
+		await dialog.getByLabel("Tipo").selectOption("credit");
+		await dialog.getByText("Débito", { exact: true }).click();
+
+		// A debit card spends an account that already exists, so there is no invoice to
+		// describe and no balance to open, and the form says so.
+		await expect(dialog.getByText("não cria conta nova", { exact: false })).toBeVisible();
+		await expect(dialog.getByLabel("Dia do fechamento")).toHaveCount(0);
+		await expect(dialog.getByLabel("Saldo de abertura")).toHaveCount(0);
+		await dialog.getByLabel("Saldo que ele gasta").selectOption({ label: "Conta corrente" });
+		await dialog.getByRole("button", { name: "Salvar" }).click();
+
+		await expect(page.getByText("Débito: Saldo de Conta corrente")).toBeVisible();
+		expect(await page.getByRole("row").count()).toBe(before);
+	});
+
+	test("takes the card away with the account it reached", async ({ page }) => {
+		await openCofre(page);
+
+		await go(page, "Contas");
+		// The card of the demonstration space reaches the current account and the
+		// invoice, so removing either one leaves it reaching half of nothing.
+		await expect(page.getByText("Cartão do banco")).toBeVisible();
+
+		await page
+			.getByRole("row")
+			.filter({ hasText: "Conta corrente" })
+			.getByRole("button", { name: "Ações da conta" })
+			.click();
+		await page.getByRole("menuitem", { name: "Apagar" }).click();
+
+		await expect(page.getByText("Cartão do banco")).toHaveCount(0);
+		// The meal voucher card is not on that account, so it stays.
+		await expect(page.getByText("Final 8302")).toBeVisible();
+	});
+
+	test("removes a card from the account it belongs to", async ({ page }) => {
+		await openCofre(page);
+
+		await go(page, "Contas");
+		await page
+			.getByRole("row")
+			.filter({ hasText: "Vale refeição" })
+			.getByRole("button", { name: "Ações da conta" })
+			.click();
+		await page.getByRole("menuitem", { name: "Editar cartão Vale refeição" }).click();
+		await page.getByRole("dialog").getByRole("button", { name: "Apagar cartão" }).click();
+
+		await expect(page.getByText("Final 8302")).toHaveCount(0);
+		// The account it spent is still there, and so is what was spent on it.
+		await expect(page.getByRole("cell", { name: "Vale refeição", exact: true })).toBeVisible();
+		await go(page, "Lista");
+		await expect(record(page, "Almoço perto do trabalho")).toBeVisible();
 	});
 
 	test("adds a card and lets one purchase choose where it lands", async ({ page }) => {

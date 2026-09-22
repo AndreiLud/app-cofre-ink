@@ -1,4 +1,4 @@
-import { accounts } from "@cofre/db";
+import { accounts, cards } from "@cofre/db";
 import { assertCan, readableSpaceIds } from "../actor.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { type Account, type AccountKind, type BenefitKind, toAccount } from "../models.ts";
@@ -186,9 +186,41 @@ export function createAccountsRepository(context: RepositoryContext) {
 			return reachable(id);
 		},
 
+		/**
+		 * Removing an account takes the cards that reached it with it.
+		 *
+		 * A card is a way to reach an account, so a card whose account is gone is not a
+		 * card any more: a credit card with no invoice charges nothing, and a debit card
+		 * with no balance spends nothing. Left behind, it would sit in the list naming an
+		 * account that is not there, and would still be offered on a record it could
+		 * never be saved with.
+		 *
+		 * A cartao multiplo goes too, even though one of its two sides may still exist.
+		 * Half a multiple card is not a kind this project has, and a kind never changes
+		 * under somebody, so the honest move is to let it go and let them add the card
+		 * they actually have.
+		 *
+		 * The records are untouched, as they are when a card is removed on its own: what
+		 * they were charged to is the account, and they keep saying so.
+		 */
 		async remove(id: string): Promise<void> {
 			const account = await reachable(id);
 			assertCan(context.actor(), account.spaceId, "account.delete");
+
+			const reaching = await context.driver.all(
+				`SELECT "id" FROM "cards"
+				 WHERE "space_id" = ? AND "deleted_at" IS NULL
+				   AND ("credit_account_id" = ? OR "debit_account_id" = ?)`,
+				[account.spaceId, id, id],
+			);
+			for (const row of reaching) {
+				await softDeleteRow(context.write(), {
+					table: cards,
+					spaceId: account.spaceId,
+					id: String(row.id),
+				});
+			}
+
 			await softDeleteRow(context.write(), {
 				table: accounts,
 				spaceId: account.spaceId,
