@@ -54,7 +54,9 @@ pnpm dev
 ```
 
 That is the browser mode: the database is a SQLite file inside your browser, there is no
-account and nothing leaves the machine.
+account and nothing leaves the machine. There is no password either, so whoever opens
+your browser sees your data. A public address exposes none of it: everybody who opens it
+gets an empty Cofre, inside their own browser.
 
 For a server, with people and shared spaces:
 

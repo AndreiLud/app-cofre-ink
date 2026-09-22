@@ -42,6 +42,27 @@ SQLite guardado no armazenamento do site. Não existe servidor, não existe cont
 sai do aparelho. É também o jeito de publicar uma demonstração: são arquivos estáticos,
 qualquer hospedagem serve, inclusive as gratuitas.
 
+### Aqui não tem senha, e por quê
+
+Neste modo não existe login. Duas consequências, e as duas importam.
+
+A primeira é boa: **o endereço pode ser público sem expor nada seu**. Cada pessoa que
+abrir recebe um Cofre vazio, dentro do navegador dela. Não existe banco de dados
+compartilhado para alguém entrar, porque não existe banco de dados nenhum no servidor.
+O que está publicado são arquivos estáticos, os mesmos para todo mundo.
+
+A segunda é o preço disso: **quem abrir o seu navegador vê os seus dados**, porque não
+há senha para pedir. Quem protege é o que já protege a máquina: a senha do computador,
+o perfil do navegador, o bloqueio do celular.
+
+Uma senha aqui seria cadeado em porta de vidro. O arquivo do banco está no
+armazenamento do site, e qualquer pessoa com o aparelho na mão e o console do navegador
+aberto lê ele de qualquer jeito. Proteger de verdade seria cifrar o arquivo com uma
+chave derivada de uma frase, e é uma coisa que o Cofre ainda não faz. Enquanto não
+fizer, o guia prefere dizer a verdade a vender uma tranca que não tranca.
+
+Se você quer senha de verdade, é o modo [Servidor seu](#servidor-seu).
+
 ```bash
 pnpm build
 ```

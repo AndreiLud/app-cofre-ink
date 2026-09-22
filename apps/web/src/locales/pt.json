@@ -17,7 +17,7 @@
 		"subtitle": "Dá para trocar depois, exportando e importando. As duas respostas são boas, só servem para coisas diferentes.",
 		"browserTitle": "Neste dispositivo",
 		"browserBody": "O banco de dados fica dentro deste navegador. Nada sai daqui, não precisa de conta e funciona sem internet.",
-		"browserCaveat": "Só você, neste aparelho. Limpar os dados do site apaga tudo.",
+		"browserCaveat": "Não tem conta nem senha: quem abrir este navegador vê o que está aqui. Limpar os dados do site apaga tudo.",
 		"browserAction": "Usar este dispositivo",
 		"serverTitle": "Um servidor meu",
 		"serverBody": "Os dados ficam no servidor que você mantém, em casa ou numa VPS. Entra com email e senha, de qualquer aparelho.",

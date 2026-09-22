@@ -17,7 +17,7 @@
 		"subtitle": "You can change later, by exporting and importing. Both answers are good, they are good for different things.",
 		"browserTitle": "On this device",
 		"browserBody": "The database sits inside this browser. Nothing leaves it, no account is needed, and it works with no internet.",
-		"browserCaveat": "Only you, only here. Clearing site data erases everything.",
+		"browserCaveat": "No account and no password: whoever opens this browser sees what is here. Clearing the site data erases all of it.",
 		"browserAction": "Use this device",
 		"serverTitle": "A server of mine",
 		"serverBody": "The data lives on the server you keep, at home or on a rented machine. You sign in with email and password, from any device.",
