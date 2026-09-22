@@ -16,6 +16,7 @@ import {
 	applyPeople,
 	changesSince,
 	changesToPush,
+	compactChanges,
 	isReplicated,
 	latestStampOf,
 	peopleInSpace,
@@ -301,6 +302,161 @@ export function runSyncConformance(adapter: AdapterUnderTest): void {
 				expect((await store.read(space.id)).bundle?.spaceId).toBe(space.id);
 			} finally {
 				await one.close();
+			}
+		});
+
+		it("folds a settled history into one entry and leaves the money alone", async () => {
+			const one = await prepare(adapter);
+			try {
+				const space = await one.asAna.spaces.create({ name: "Casa" });
+				const account = await one.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+				});
+				const [record] = await one.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 4290,
+					happenedOn: "2026-09-10",
+					description: "Mercado",
+					accountId: account.id,
+				});
+
+				// A record written, corrected twice and settled is four entries saying, in
+				// the end, one thing.
+				await one.asAna.transactions.update(record?.id ?? "", { description: "Mercado do bairro" });
+				await one.asAna.transactions.update(record?.id ?? "", { amount: 4390 });
+
+				const before = await changesSince(one.driver, space.id, null);
+				const cut = await latestStampOf(one.driver, space.id);
+
+				const folded = await compactChanges(one.driver, space.id, { before: cut ?? "" });
+				expect(folded.removed).toBeGreaterThan(0);
+
+				const after = await changesSince(one.driver, space.id, null);
+				expect(after.length).toBe(before.length - folded.removed);
+
+				// One entry per row, and the row says what it said.
+				const rows = after.filter((change) => change.entity === "transactions");
+				expect(rows).toHaveLength(1);
+				expect(rows[0]?.payload.description).toBe("Mercado do bairro");
+				expect(rows[0]?.payload.amount).toBe(-4390);
+
+				const here = await one.asAna.transactions.list({ spaceId: space.id });
+				expect(here[0]).toMatchObject({ description: "Mercado do bairro", amount: -4390 });
+			} finally {
+				await one.close();
+			}
+		});
+
+		it("carries a folded log to a device that has never seen the space", async () => {
+			const one = await prepare(adapter);
+			const two = await otherDevice(one.ana, "deviceTwo");
+			try {
+				const space = await one.asAna.spaces.create({ name: "Casa" });
+				const account = await one.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+					initialBalance: 100_000,
+				});
+				await one.asAna.accounts.update(account.id, { name: "Conta conjunta" });
+				await one.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 4290,
+					happenedOn: "2026-09-10",
+					description: "Mercado",
+					accountId: account.id,
+				});
+
+				await compactChanges(one.driver, space.id, {
+					before: (await latestStampOf(one.driver, space.id)) ?? "",
+				});
+
+				await carry(one.driver, two.driver, space.id);
+
+				const accounts = await two.driver.all(
+					`SELECT "name", "initial_balance" FROM "accounts" WHERE "space_id" = ?`,
+					[space.id],
+				);
+				expect(String(accounts[0]?.name)).toBe("Conta conjunta");
+				expect(Number(accounts[0]?.initial_balance)).toBe(100_000);
+
+				const records = await two.driver.all(
+					`SELECT "description" FROM "transactions" WHERE "space_id" = ?`,
+					[space.id],
+				);
+				expect(records.map((row) => String(row.description))).toEqual(["Mercado"]);
+			} finally {
+				await one.close();
+				await two.close();
+			}
+		});
+
+		it("does not let a device that has not folded put the old entries back", async () => {
+			const one = await prepare(adapter);
+			const two = await otherDevice(one.ana, "deviceTwo");
+			try {
+				const space = await one.asAna.spaces.create({ name: "Casa" });
+				const account = await one.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "cash",
+					name: "Dinheiro",
+				});
+				await one.asAna.accounts.update(account.id, { name: "Carteira" });
+
+				// The second device takes a copy while the log is still long.
+				await carry(one.driver, two.driver, space.id);
+				const theirs = await changesToPush(two.driver, space.id, null);
+
+				await compactChanges(one.driver, space.id, {
+					before: (await latestStampOf(one.driver, space.id)) ?? "",
+				});
+				const folded = (await changesSince(one.driver, space.id, null)).length;
+
+				// And then sends everything back, as an unfolded device would.
+				const answer = await applyChanges(one.driver, theirs, { spaceId: space.id });
+				expect(answer.applied).toBe(0);
+				expect((await changesSince(one.driver, space.id, null)).length).toBe(folded);
+
+				// The row is still what it was.
+				const rows = await one.asAna.accounts.list(space.id);
+				expect(rows.map((row) => row.name)).toEqual(["Carteira"]);
+			} finally {
+				await one.close();
+				await two.close();
+			}
+		});
+
+		it("still takes an old entry about a row it has never seen", async () => {
+			const one = await prepare(adapter);
+			const two = await otherDevice(one.ana, "deviceTwo");
+			try {
+				const space = await one.asAna.spaces.create({ name: "Casa" });
+				await carry(one.driver, two.driver, space.id);
+				await two.session.spaces.adopt(space.id);
+				await two.session.refresh();
+
+				// The second device writes something while the first one folds its log.
+				await two.session.accounts.create({
+					spaceId: space.id,
+					kind: "cash",
+					name: "Dinheiro do aparelho",
+				});
+
+				await compactChanges(one.driver, space.id, {
+					before: (await latestStampOf(two.driver, space.id)) ?? "",
+				});
+
+				await carry(two.driver, one.driver, space.id);
+				expect((await one.asAna.accounts.list(space.id)).map((row) => row.name)).toEqual([
+					"Dinheiro do aparelho",
+				]);
+			} finally {
+				await one.close();
+				await two.close();
 			}
 		});
 

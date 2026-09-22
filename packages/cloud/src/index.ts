@@ -29,6 +29,15 @@ export {
 	refreshOAuth,
 	startOAuth,
 } from "./oauth.ts";
+export {
+	BUNDLE_MEDIA_TYPE,
+	base64Of,
+	isPacked,
+	packBundle,
+	storedFileName,
+	unpackBundle,
+	unpackText,
+} from "./pack.ts";
 export { createWebdavStore, fileNameFor, type WebdavOptions } from "./webdav.ts";
 
 export type DestinationKind = "file" | "server" | "webdav" | "dropbox" | "googleDrive";

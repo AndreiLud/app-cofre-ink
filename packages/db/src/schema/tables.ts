@@ -40,6 +40,13 @@ export const users = defineTable({
 	],
 });
 
+/**
+ * Added by migration 0009. The stamp up to which the log of this space has been folded
+ * into one entry per row. Everything before it is settled, and an entry from before it
+ * about a row that is already here is an entry that has already been counted.
+ */
+export const SPACE_COMPACTION_COLUMNS = [{ name: "compacted_before", type: "text" as const }];
+
 /** A slice of money life. The personal one is private and cannot be shared. */
 export const spaces = defineTable({
 	name: "spaces",
@@ -51,6 +58,7 @@ export const spaces = defineTable({
 		{ name: "icon", type: "text", notNull: true, defaultTo: "'wallet'" },
 		{ name: "base_currency", type: "text", notNull: true, defaultTo: "'BRL'" },
 		{ name: "timezone", type: "text", notNull: true, defaultTo: "'America/Sao_Paulo'" },
+		...SPACE_COMPACTION_COLUMNS,
 		{
 			name: "created_by",
 			type: "text",

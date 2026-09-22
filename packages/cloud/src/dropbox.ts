@@ -8,14 +8,13 @@
 // The token belongs to the person. Nothing in this repository ever holds one.
 
 import {
-	isBundle,
 	StoreConflictError,
 	type StoredBundle,
 	type SyncBundle,
 	type SyncStore,
 } from "@cofre/storage";
 import { call, callJson, type Fetcher } from "./http.ts";
-import { fileNameFor } from "./webdav.ts";
+import { packBundle, storedFileName, unpackBundle } from "./pack.ts";
 
 export type DropboxOptions = {
 	/** An access token the person generated for their own application. */
@@ -30,7 +29,7 @@ type Uploaded = { rev?: string };
 
 function pathOf(options: DropboxOptions, spaceId: string): string {
 	const folder = (options.folder ?? "").replace(/\/+$/, "");
-	return `${folder}/${fileNameFor(spaceId)}`;
+	return `${folder}/${storedFileName(spaceId)}`;
 }
 
 export function createDropboxStore(options: DropboxOptions): SyncStore {
@@ -54,14 +53,13 @@ export function createDropboxStore(options: DropboxOptions): SyncStore {
 
 			if (response.status === 409) return { bundle: null, revision: null };
 
-			const text = await response.text();
-			const parsed = text === "" ? null : (JSON.parse(text) as unknown);
+			const bytes = new Uint8Array(await response.arrayBuffer());
 
 			// The revision travels in a header beside the content.
 			const result = response.headers.get("dropbox-api-result");
 			const revision = result ? ((JSON.parse(result) as Uploaded).rev ?? null) : null;
 
-			return { bundle: isBundle(parsed) ? parsed : null, revision };
+			return { bundle: unpackBundle(bytes), revision };
 		},
 
 		async write(spaceId: string, bundle: SyncBundle, revision: string | null) {
@@ -81,7 +79,7 @@ export function createDropboxStore(options: DropboxOptions): SyncStore {
 						mute: true,
 					}),
 				},
-				body: JSON.stringify(bundle),
+				body: packBundle(bundle),
 				allow: [409],
 			});
 

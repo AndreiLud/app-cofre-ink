@@ -10,14 +10,13 @@
 // a narrower window, not a closed one, and registry 0017 says so out loud.
 
 import {
-	isBundle,
 	StoreConflictError,
 	type StoredBundle,
 	type SyncBundle,
 	type SyncStore,
 } from "@cofre/storage";
 import { call, callJson, type Fetcher } from "./http.ts";
-import { fileNameFor } from "./webdav.ts";
+import { BUNDLE_MEDIA_TYPE, base64Of, packBundle, storedFileName, unpackBundle } from "./pack.ts";
 
 export type GoogleDriveOptions = {
 	/** A token with the drive.appdata or drive.file scope. */
@@ -40,7 +39,7 @@ export function createGoogleDriveStore(options: GoogleDriveOptions): SyncStore {
 
 	const find = async (spaceId: string): Promise<DriveFile | null> => {
 		const query = new URLSearchParams({
-			q: `name = '${fileNameFor(spaceId)}' and trashed = false`,
+			q: `name = '${storedFileName(spaceId)}' and trashed = false`,
 			fields: "files(id, name, modifiedTime)",
 			pageSize: "10",
 		});
@@ -71,12 +70,8 @@ export function createGoogleDriveStore(options: GoogleDriveOptions): SyncStore {
 			});
 			if (response.status === 404) return { bundle: null, revision: null };
 
-			const text = await response.text();
-			const parsed = text === "" ? null : (JSON.parse(text) as unknown);
-			return {
-				bundle: isBundle(parsed) ? parsed : null,
-				revision: file.modifiedTime ?? null,
-			};
+			const bytes = new Uint8Array(await response.arrayBuffer());
+			return { bundle: unpackBundle(bytes), revision: file.modifiedTime ?? null };
 		},
 
 		async write(spaceId: string, bundle: SyncBundle, revision: string | null) {
@@ -89,7 +84,7 @@ export function createGoogleDriveStore(options: GoogleDriveOptions): SyncStore {
 			}
 			if (file === null && revision !== null) throw new StoreConflictError();
 
-			const body = JSON.stringify(bundle);
+			const packed = packBundle(bundle);
 
 			if (file) {
 				const written = await callJson<DriveFile>(
@@ -98,17 +93,19 @@ export function createGoogleDriveStore(options: GoogleDriveOptions): SyncStore {
 						where: "Google Drive",
 						method: "PATCH",
 						fetcher: options.fetcher,
-						headers: { ...authorisation, "Content-Type": "application/json" },
-						body,
+						headers: { ...authorisation, "Content-Type": BUNDLE_MEDIA_TYPE },
+						body: packed,
 					},
 				);
 				return { revision: written.modifiedTime ?? null };
 			}
 
-			// Creating takes the name and the content in one request, in two parts.
+			// Creating takes the name and the content in one request, in two parts. The
+			// content is packed, so it travels through that request as base64, which is
+			// what the second part declares about itself.
 			const boundary = "cofre";
 			const metadata = {
-				name: fileNameFor(spaceId),
+				name: storedFileName(spaceId),
 				...(space === "appDataFolder" ? { parents: ["appDataFolder"] } : {}),
 			};
 			const multipart = [
@@ -117,9 +114,10 @@ export function createGoogleDriveStore(options: GoogleDriveOptions): SyncStore {
 				"",
 				JSON.stringify(metadata),
 				`--${boundary}`,
-				"Content-Type: application/json",
+				`Content-Type: ${BUNDLE_MEDIA_TYPE}`,
+				"Content-Transfer-Encoding: base64",
 				"",
-				body,
+				base64Of(packed),
 				`--${boundary}--`,
 				"",
 			].join("\r\n");

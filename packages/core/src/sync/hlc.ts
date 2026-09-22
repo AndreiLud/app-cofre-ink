@@ -62,6 +62,17 @@ export function decodeHybridTime(stamp: string): HybridTime {
 	return { millis, counter, deviceId };
 }
 
+/**
+ * A stamp that sorts at the very start of an instant.
+ *
+ * It is not a stamp anybody wrote: it is a line drawn across the log, for saying
+ * "everything before this moment". The device it names is the lowest one there is, so
+ * nothing real ever ties with it.
+ */
+export function stampAt(millis: number): string {
+	return encodeHybridTime({ millis: Math.max(0, Math.floor(millis)), counter: 0, deviceId: "0" });
+}
+
 /** Total order over stamps. Text comparison gives the same result. */
 export function compareHybridTime(left: HybridTime, right: HybridTime): number {
 	if (left.millis !== right.millis) return left.millis < right.millis ? -1 : 1;

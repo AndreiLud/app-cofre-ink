@@ -511,6 +511,16 @@ export function createRemoteSession(
 				get<Change[]>(
 					`/api/spaces/${input.spaceId}/changes${input.after ? `?after=${encodeURIComponent(input.after)}` : ""}`,
 				),
+			size: (spaceId: string) =>
+				get<{ entries: number; foldedBefore: string | null }>(
+					`/api/spaces/${spaceId}/changes/size`,
+				),
+			compact: (input: { spaceId: string; before: string }) =>
+				send<{ removed: number; rows: number; stamp: string | null }>(
+					`/api/spaces/${input.spaceId}/changes/compact`,
+					"POST",
+					{ before: input.before },
+				),
 		},
 
 		refresh: async () => {

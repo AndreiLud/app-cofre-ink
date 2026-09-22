@@ -31,11 +31,4 @@ export function createFileStore(options: FileStoreOptions): SyncStore {
 	};
 }
 
-export function bundleFileName(spaceId: string, when = new Date()): string {
-	const day = [
-		when.getFullYear(),
-		String(when.getMonth() + 1).padStart(2, "0"),
-		String(when.getDate()).padStart(2, "0"),
-	].join("");
-	return `cofre_sync_${spaceId.slice(0, 8)}_${day}.json`;
-}
+export { bundleFileName } from "./pack.ts";

@@ -57,7 +57,8 @@ test.describe("a copy somewhere else", () => {
 
 		const carried = join(folder, file.suggestedFilename());
 		await file.saveAs(carried);
-		expect(file.suggestedFilename()).toMatch(/^cofre_sync_.+\.json$/);
+		// Packed, which is what makes a year of records a file worth carrying.
+		expect(file.suggestedFilename()).toMatch(/^cofre_sync_.+\.json\.gz$/);
 
 		// The second device: another browser, nothing shared with the first.
 		const second = await browser.newContext({ acceptDownloads: true });

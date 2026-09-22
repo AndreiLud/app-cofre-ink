@@ -16,7 +16,7 @@ import { AUTH_TABLES } from "./schema/authTables.ts";
 import { CATEGORY_TABLES } from "./schema/categoryTables.ts";
 import { MEMBER_INCOME_COLUMNS, PLAN_TABLES } from "./schema/planTables.ts";
 import { RULE_TABLES } from "./schema/ruleTables.ts";
-import { SCHEMA } from "./schema/tables.ts";
+import { SCHEMA, SPACE_COMPACTION_COLUMNS } from "./schema/tables.ts";
 import {
 	CARD_COLUMNS,
 	TRANSACTION_CATEGORY_COLUMNS,
@@ -103,6 +103,13 @@ export const MIGRATIONS: readonly Migration[] = [
 			).map((column) => addColumnSql("transactions", column, context.dialect)),
 			...createIndexSql(transactions, context.dialect),
 		],
+	},
+	{
+		id: "0009_compacted_log",
+		statements: (context) =>
+			SPACE_COMPACTION_COLUMNS.filter((column) => !context.hasColumn("spaces", column.name)).map(
+				(column) => addColumnSql("spaces", column, context.dialect),
+			),
 	},
 ];
 

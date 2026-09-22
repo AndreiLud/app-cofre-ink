@@ -10,13 +10,13 @@
 // unless we say what it means, which the screen does.
 
 import {
-	isBundle,
 	StoreConflictError,
 	type StoredBundle,
 	type SyncBundle,
 	type SyncStore,
 } from "@cofre/storage";
 import { call, type Fetcher } from "./http.ts";
+import { BUNDLE_MEDIA_TYPE, packBundle, storedFileName, unpackBundle } from "./pack.ts";
 
 export type WebdavOptions = {
 	/** The address of the folder, such as https://nuvem.exemplo.com/remote.php/dav/files/ana/cofre */
@@ -34,8 +34,9 @@ function authorisation(options: WebdavOptions): string {
 	return `Basic ${btoa(unescape(encodeURIComponent(pair)))}`;
 }
 
+/** The file a space keeps, for the callers that name it. */
 export function fileNameFor(spaceId: string): string {
-	return `cofre_${spaceId}.json`;
+	return storedFileName(spaceId);
 }
 
 export function createWebdavStore(options: WebdavOptions): SyncStore {
@@ -56,12 +57,8 @@ export function createWebdavStore(options: WebdavOptions): SyncStore {
 
 			if (response.status === 404) return { bundle: null, revision: null };
 
-			const text = await response.text();
-			const parsed = text === "" ? null : (JSON.parse(text) as unknown);
-			return {
-				bundle: isBundle(parsed) ? parsed : null,
-				revision: response.headers.get("etag"),
-			};
+			const bytes = new Uint8Array(await response.arrayBuffer());
+			return { bundle: unpackBundle(bytes), revision: response.headers.get("etag") };
 		},
 
 		async write(spaceId: string, bundle: SyncBundle, revision: string | null) {
@@ -71,12 +68,12 @@ export function createWebdavStore(options: WebdavOptions): SyncStore {
 				fetcher: options.fetcher,
 				headers: {
 					...headers,
-					"Content-Type": "application/json",
+					"Content-Type": BUNDLE_MEDIA_TYPE,
 					// Only write over the version we read, or create the file if it is not
 					// there. Either way, never over somebody else's write.
 					...(revision === null ? { "If-None-Match": "*" } : { "If-Match": revision }),
 				},
-				body: JSON.stringify(bundle),
+				body: packBundle(bundle),
 				allow: [412, 409],
 			});
 

@@ -246,6 +246,13 @@ export type CofreSession = {
 	};
 	changes: {
 		list: (input: { spaceId: string; after?: string }) => Promise<Change[]>;
+		/** How long the log is, and how much of it is already folded. */
+		size: (spaceId: string) => Promise<{ entries: number; foldedBefore: string | null }>;
+		/** Folds everything settled before a stamp into one entry per row. */
+		compact: (input: {
+			spaceId: string;
+			before: string;
+		}) => Promise<{ removed: number; rows: number; stamp: string | null }>;
 	};
 	refresh: () => Promise<void>;
 };

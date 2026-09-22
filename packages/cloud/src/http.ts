@@ -23,7 +23,11 @@ export type Fetcher = typeof globalThis.fetch;
 export type CallOptions = {
 	method?: string;
 	headers?: Record<string, string>;
-	body?: BodyInit | null;
+	/**
+	 * Text or bytes. Bytes are what every file this package writes is, and the type the
+	 * browser declares for a body is narrower than the one it accepts.
+	 */
+	body?: BodyInit | Uint8Array | null;
 	fetcher?: Fetcher;
 	/** The name of the place, for the message when it goes wrong. */
 	where: string;
@@ -36,7 +40,7 @@ export async function call(url: string, options: CallOptions): Promise<Response>
 	const response = await fetcher(url, {
 		method: options.method ?? "GET",
 		headers: options.headers,
-		body: options.body ?? undefined,
+		body: (options.body ?? undefined) as BodyInit | undefined,
 	});
 
 	if (response.ok || (options.allow ?? []).includes(response.status)) return response;

@@ -195,12 +195,32 @@ export async function applyChanges(
 			}
 		}
 
+		// How far each space has been folded. An entry from before that mark about a row
+		// this database already has is an entry that has already been counted.
+		const marks = new Map<string, string | null>();
+		for (const spaceId of knownSpaces) {
+			marks.set(spaceId, await compactedBefore(tx, spaceId));
+		}
+
 		const fresh: Change[] = [];
 		for (const change of inOrder(accepted)) {
 			if (!knownSpaces.has(change.spaceId)) {
 				deferred += 1;
 				continue;
 			}
+
+			const mark = marks.get(change.spaceId) ?? null;
+			if (mark !== null && change.hlc <= mark) {
+				const known = await tx.all(
+					`SELECT "id" FROM "changes" WHERE "entity" = ? AND "entity_id" = ? LIMIT 1`,
+					[change.entity, change.entityId],
+				);
+				if (known.length > 0) {
+					skipped += 1;
+					continue;
+				}
+			}
+
 			const already = await tx.all(`SELECT "id" FROM "changes" WHERE "id" = ?`, [change.id]);
 			if (already.length > 0) skipped += 1;
 			else fresh.push(change);
@@ -420,4 +440,106 @@ export async function syncSpace(
 export async function rowOf(driver: Driver, entity: string, id: string): Promise<Row | null> {
 	const rows = await driver.all(`SELECT * FROM ${quoted(entity)} WHERE "id" = ?`, [id]);
 	return rows[0] ?? null;
+}
+
+export type Compaction = {
+	/** How many entries were folded away. */
+	removed: number;
+	/** How many rows they were about. */
+	rows: number;
+	/** The stamp everything is settled up to, after this. */
+	stamp: string | null;
+};
+
+/**
+ * Folds the settled part of the log into one entry per row.
+ *
+ * A record that was written, corrected twice and reconciled is four entries saying, in
+ * the end, one thing. Once nobody is going to argue about it any more, those four can
+ * become the one thing they add up to: the same row, at the same stamp, written once.
+ *
+ * What makes it safe is that folding is how the log is read in the first place. The
+ * entry that replaces a history carries the state that history produced, at the stamp
+ * of its newest entry, so anything that arrives later still wins on the fields it
+ * names, exactly as before.
+ *
+ * The space remembers how far it has been folded. An entry from before that mark about
+ * a row this database already knows has already been counted, and is dropped rather
+ * than added back, which is what stops a device that has not folded from undoing this.
+ */
+export async function compactChanges(
+	driver: Driver,
+	spaceId: string,
+	options: { before: string },
+): Promise<Compaction> {
+	let removed = 0;
+	let rows = 0;
+
+	await driver.transaction(async (tx) => {
+		const all = (
+			await tx.all(
+				`${SELECT_CHANGES} WHERE "space_id" = ? AND "hlc" <= ? ORDER BY "hlc", "device_id"`,
+				[spaceId, options.before],
+			)
+		).map(toChange);
+
+		const groups = new Map<string, Change[]>();
+		for (const change of all) {
+			const key = `${change.entity}:${change.entityId}`;
+			groups.set(key, [...(groups.get(key) ?? []), change]);
+		}
+
+		for (const history of groups.values()) {
+			// One entry is already the smallest a row can be.
+			if (history.length < 2) continue;
+
+			const ordered = inOrder(history);
+			const newest = ordered[ordered.length - 1];
+			if (!newest) continue;
+
+			const folded = fold(ordered);
+			// The identifier of the newest entry is kept, so a peer that already has it
+			// does not take the folded entry as something new.
+			await tx.run(
+				`DELETE FROM "changes" WHERE "entity" = ? AND "entity_id" = ? AND "space_id" = ? AND "hlc" <= ?`,
+				[newest.entity, newest.entityId, spaceId, options.before],
+			);
+
+			await tx.run(
+				`INSERT INTO "changes" (${CHANGE_COLUMNS.map(quoted).join(", ")})
+				 VALUES (${CHANGE_COLUMNS.map(() => "?").join(", ")})`,
+				[
+					newest.id,
+					spaceId,
+					newest.entity,
+					newest.entityId,
+					"insert",
+					JSON.stringify({ id: newest.entityId, ...folded }),
+					newest.hlc,
+					newest.deviceId,
+					newest.actorId,
+					newest.createdAt,
+				],
+			);
+
+			removed += history.length - 1;
+			rows += 1;
+		}
+
+		await tx.run(`UPDATE "spaces" SET "compacted_before" = ? WHERE "id" = ?`, [
+			options.before,
+			spaceId,
+		]);
+	});
+
+	return { removed, rows, stamp: options.before };
+}
+
+/** How far the log of a space has been folded, as the space itself records it. */
+export async function compactedBefore(driver: Driver, spaceId: string): Promise<string | null> {
+	const rows = await driver.all(`SELECT "compacted_before" FROM "spaces" WHERE "id" = ?`, [
+		spaceId,
+	]);
+	const mark = rows[0]?.compacted_before;
+	return mark === null || mark === undefined ? null : String(mark);
 }

@@ -6,10 +6,11 @@
 // nothing on it happens until one is pressed.
 
 import { mirrorToSheet } from "@cofre/cloud";
+import { stampAt } from "@cofre/core";
 import { writeAmount, writeCsv } from "@cofre/importers";
 import type { Backup, RecordForExport, RestoreResult } from "@cofre/storage";
 import { Button, Callout, Field, SectionTitle } from "@cofre/ui";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -79,6 +80,7 @@ export function DataPage() {
 	const [restored, setRestored] = useState<RestoreResult | null>(null);
 	const [sheet, setSheet] = useState(storedSheet);
 	const [mirrored, setMirrored] = useState<string | null>(null);
+	const [folded, setFolded] = useState<{ removed: number; rows: number } | null>(null);
 
 	function failed(error: unknown) {
 		setProblem(error instanceof Error ? error.message : String(error));
@@ -184,6 +186,30 @@ export function DataPage() {
 			setProblem(null);
 			setMirrored(result.url);
 			rememberSheet({ ...sheet, spreadsheetId: result.spreadsheetId });
+		},
+		onError: failed,
+	});
+
+	const size = useQuery({
+		queryKey: ["changeLogSize", spaceId],
+		enabled: Boolean(session && spaceId !== ""),
+		queryFn: () => session?.changes.size(spaceId) ?? { entries: 0, foldedBefore: null },
+	});
+
+	const compact = useMutation({
+		mutationFn: async () => {
+			if (!session) throw new Error("no session");
+			// A month is long enough that nothing anybody is still arguing about is
+			// folded, and short enough that the log of a year is mostly folded.
+			return session.changes.compact({
+				spaceId,
+				before: stampAt(Date.now() - 30 * 24 * 60 * 60 * 1000),
+			});
+		},
+		onSuccess: async (result) => {
+			setProblem(null);
+			setFolded(result);
+			await size.refetch();
 		},
 		onError: failed,
 	});
@@ -297,6 +323,26 @@ export function DataPage() {
 
 			<Section title={t("data.syncTitle")} description={t("data.syncBody")}>
 				<Destinations />
+			</Section>
+
+			<Section title={t("data.compactTitle")} description={t("data.compactBody")}>
+				<div className="space-y-2">
+					<p className="text-sm text-graphite">
+						{t("data.compactSize", { count: size.data?.entries ?? 0 })}
+					</p>
+					<Button
+						variant="secondary"
+						disabled={spaceId === "" || compact.isPending || (size.data?.entries ?? 0) < 2}
+						onClick={() => compact.mutate()}
+					>
+						{t("data.compactAction")}
+					</Button>
+					{folded ? (
+						<p className="text-sm text-graphite">
+							{t("data.compactDone", { count: folded.removed, rows: folded.rows })}
+						</p>
+					) : null}
+				</div>
 			</Section>
 		</div>
 	);

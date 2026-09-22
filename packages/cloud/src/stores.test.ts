@@ -12,6 +12,7 @@ import { createGoogleDriveStore } from "./googleDrive.ts";
 import { mirrorToSheet } from "./googleSheets.ts";
 import { CloudError } from "./http.ts";
 import { challengeOf, finishOAuth, startOAuth } from "./oauth.ts";
+import { isPacked, packBundle, unpackBundle } from "./pack.ts";
 import { createWebdavStore } from "./webdav.ts";
 
 const bundle: SyncBundle = {
@@ -23,11 +24,26 @@ const bundle: SyncBundle = {
 	writtenAt: 1,
 };
 
-type Call = { url: string; method: string; headers: Record<string, string>; body: string };
+/** The bundle as it travels: packed, because that is what every store writes. */
+const packed = () => packBundle(bundle);
+
+type Call = {
+	url: string;
+	method: string;
+	headers: Record<string, string>;
+	body: string;
+	/** What was sent when it was not text, which is every file this package writes. */
+	sent: Uint8Array | null;
+};
 
 /** A service that records what it was asked and answers what it is told to. */
 function fakeService(
-	answers: (call: Call) => { status?: number; body?: string; headers?: Record<string, string> },
+	answers: (call: Call) => {
+		status?: number;
+		body?: string;
+		bytes?: Uint8Array;
+		headers?: Record<string, string>;
+	},
 ) {
 	const calls: Call[] = [];
 
@@ -41,11 +57,12 @@ function fakeService(
 			method: init?.method ?? "GET",
 			headers,
 			body: typeof init?.body === "string" ? init.body : "",
+			sent: init?.body instanceof Uint8Array ? init.body : null,
 		};
 		calls.push(call);
 
 		const answer = answers(call);
-		return new Response(answer.body ?? "", {
+		return new Response((answer.bytes ?? answer.body ?? "") as BodyInit, {
 			status: answer.status ?? 200,
 			headers: answer.headers,
 		});
@@ -57,7 +74,7 @@ function fakeService(
 describe("a folder over WebDAV", () => {
 	it("reads the file and the version it was given", async () => {
 		const service = fakeService(() => ({
-			body: JSON.stringify(bundle),
+			bytes: packed(),
 			headers: { ETag: '"v1"' },
 		}));
 
@@ -72,7 +89,7 @@ describe("a folder over WebDAV", () => {
 		expect(read.bundle?.spaceId).toBe("espaco1");
 		expect(read.revision).toBe('"v1"');
 
-		expect(service.calls[0]?.url).toBe("https://nuvem.exemplo.com/cofre/cofre_espaco1.json");
+		expect(service.calls[0]?.url).toBe("https://nuvem.exemplo.com/cofre/cofre_espaco1.json.gz");
 		expect(service.calls[0]?.headers.authorization).toBe(`Basic ${btoa("ana:segredo")}`);
 	});
 
@@ -134,7 +151,7 @@ describe("a folder over WebDAV", () => {
 describe("a folder in Dropbox", () => {
 	it("reads the file and the revision beside it", async () => {
 		const service = fakeService(() => ({
-			body: JSON.stringify(bundle),
+			bytes: packed(),
 			headers: { "Dropbox-API-Result": JSON.stringify({ rev: "abc" }) },
 		}));
 
@@ -144,7 +161,7 @@ describe("a folder in Dropbox", () => {
 		expect(read.bundle?.spaceId).toBe("espaco1");
 		expect(read.revision).toBe("abc");
 		expect(JSON.parse(service.calls[0]?.headers["dropbox-api-arg"] ?? "{}")).toEqual({
-			path: "/cofre_espaco1.json",
+			path: "/cofre_espaco1.json.gz",
 		});
 	});
 
@@ -156,7 +173,7 @@ describe("a folder in Dropbox", () => {
 		expect(written.revision).toBe("def");
 
 		const argument = JSON.parse(service.calls[0]?.headers["dropbox-api-arg"] ?? "{}");
-		expect(argument.path).toBe("/Cofre/cofre_espaco1.json");
+		expect(argument.path).toBe("/Cofre/cofre_espaco1.json.gz");
 		expect(argument.mode).toEqual({ ".tag": "update", update: "abc" });
 	});
 
@@ -174,7 +191,7 @@ describe("a folder in Google Drive", () => {
 	it("looks in the corner that belongs to this application", async () => {
 		const service = fakeService((call) =>
 			call.url.includes("alt=media")
-				? { body: JSON.stringify(bundle) }
+				? { bytes: packed() }
 				: { body: JSON.stringify({ files: [{ id: "1", name: "x", modifiedTime: "2026-09-22" }] }) },
 		);
 
@@ -184,7 +201,7 @@ describe("a folder in Google Drive", () => {
 		expect(read.bundle?.spaceId).toBe("espaco1");
 		expect(read.revision).toBe("2026-09-22");
 		expect(service.calls[0]?.url).toContain("spaces=appDataFolder");
-		expect(service.calls[0]?.url).toContain("cofre_espaco1.json");
+		expect(service.calls[0]?.url).toContain("cofre_espaco1.json.gz");
 	});
 
 	it("creates the file the first time, in two parts", async () => {
@@ -198,7 +215,7 @@ describe("a folder in Google Drive", () => {
 		const written = await store.write("espaco1", bundle, null);
 
 		expect(written.revision).toBe("2026-09-22");
-		expect(service.calls[1]?.body).toContain("cofre_espaco1.json");
+		expect(service.calls[1]?.body).toContain("cofre_espaco1.json.gz");
 		expect(service.calls[1]?.body).toContain("appDataFolder");
 	});
 
@@ -211,6 +228,67 @@ describe("a folder in Google Drive", () => {
 		await expect(store.write("espaco1", bundle, "2026-09-22")).rejects.toThrow(
 			/changed while this device/,
 		);
+	});
+});
+
+describe("packing the file", () => {
+	const wordy: SyncBundle = {
+		...bundle,
+		changes: Array.from({ length: 200 }, (_unused, index) => ({
+			id: `0199${String(index).padStart(28, "0")}`,
+			spaceId: "espaco1",
+			entity: "transactions",
+			entityId: `0199${String(index).padStart(28, "1")}`,
+			operation: "insert" as const,
+			payload: {
+				kind: "expense",
+				status: "settled",
+				amount: -4290,
+				currency: "BRL",
+				happened_on: "2026-09-10",
+				description: "Mercado do bairro",
+				account_id: "0199aaaa",
+				created_by: "0199bbbb",
+			},
+			hlc: `000000000${index}`,
+			deviceId: "aparelho",
+			actorId: "0199bbbb",
+			createdAt: 1,
+		})),
+	};
+
+	it("makes a log a fraction of the size it was", () => {
+		const plain = new TextEncoder().encode(JSON.stringify(wordy)).length;
+		const small = packBundle(wordy).length;
+
+		// A log is the same twenty words over and over, so it packs hard. The check is
+		// deliberately loose: what matters is that it is a fraction, not which one.
+		expect(small).toBeLessThan(plain / 4);
+		expect(unpackBundle(packBundle(wordy))?.changes).toHaveLength(200);
+	});
+
+	it("writes the file packed", async () => {
+		const service = fakeService(() => ({ status: 201 }));
+		const store = createWebdavStore({
+			url: "https://nuvem.exemplo.com/cofre",
+			user: "ana",
+			password: "segredo",
+			fetcher: service.fetcher,
+		});
+
+		await store.write("espaco1", wordy, null);
+		const sent = service.calls[0]?.sent;
+
+		expect(sent).not.toBeNull();
+		expect(isPacked(sent ?? new Uint8Array())).toBe(true);
+		expect(unpackBundle(sent ?? new Uint8Array())?.changes).toHaveLength(200);
+	});
+
+	it("still reads a file that was written before any of this", async () => {
+		const plain = new TextEncoder().encode(JSON.stringify(bundle));
+		expect(unpackBundle(plain)?.spaceId).toBe("espaco1");
+		expect(unpackBundle(new TextEncoder().encode("nao e um arquivo"))).toBe(null);
+		expect(unpackBundle(new Uint8Array())).toBe(null);
 	});
 });
 

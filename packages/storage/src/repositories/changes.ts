@@ -4,6 +4,7 @@
 
 import { assertCan } from "../actor.ts";
 import { type Change, toChange } from "../models.ts";
+import { type Compaction, compactChanges, compactedBefore } from "../sync.ts";
 import type { RepositoryContext } from "./context.ts";
 
 const SELECT = `SELECT "id", "space_id", "entity", "entity_id", "operation", "payload", "hlc",
@@ -47,6 +48,30 @@ export function createChangesRepository(context: RepositoryContext) {
 			);
 			const first = rows[0];
 			return first ? String(first.hlc) : null;
+		},
+
+		/** How long the log is, and how much of it is already folded. */
+		async size(spaceId: string): Promise<{ entries: number; foldedBefore: string | null }> {
+			assertCan(context.actor(), spaceId, "activity.read");
+			const rows = await context.driver.all(
+				`SELECT COUNT(*) AS entries FROM "changes" WHERE "space_id" = ?`,
+				[spaceId],
+			);
+			return {
+				entries: Number(rows[0]?.entries ?? 0),
+				foldedBefore: await compactedBefore(context.driver, spaceId),
+			};
+		},
+
+		/**
+		 * Folds the settled part of the log into one entry per row.
+		 *
+		 * It changes the history rather than the money, so it takes the permission that
+		 * decides what a space is, not the one that reads it.
+		 */
+		async compact(input: { spaceId: string; before: string }): Promise<Compaction> {
+			assertCan(context.actor(), input.spaceId, "space.update");
+			return compactChanges(context.driver, input.spaceId, { before: input.before });
 		},
 	};
 }

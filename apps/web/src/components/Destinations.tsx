@@ -7,6 +7,7 @@
 // this project.
 
 import {
+	BUNDLE_MEDIA_TYPE,
 	bundleFileName,
 	createDropboxStore,
 	createFileStore,
@@ -16,14 +17,16 @@ import {
 	type DestinationKind,
 	finishOAuth,
 	type OAuthService,
+	packBundle,
 	startOAuth,
+	unpackBundle,
 } from "@cofre/cloud";
 import { type StoredBundle, type SyncBundle, type SyncStore, syncWithStore } from "@cofre/storage";
 import { Button, Callout, Field, Select } from "@cofre/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { downloadJson, readPickedFile } from "../lib/download.ts";
+import { downloadBytes, readPickedFile } from "../lib/download.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import {
 	type DestinationSettings,
@@ -142,7 +145,10 @@ export function Destinations() {
 				bundle: incoming?.bundle ?? null,
 				revision: null,
 			}),
-			write: (bundle) => downloadJson(bundleFileName(bundle.spaceId), bundle),
+			// Packed, because a log is the same twenty words over and over and a file a
+			// fifth of the size is a sync that finishes on a real connection.
+			write: (bundle) =>
+				downloadBytes(bundleFileName(bundle.spaceId), packBundle(bundle), BUNDLE_MEDIA_TYPE),
 		});
 	}
 
@@ -296,14 +302,19 @@ export function Destinations() {
 					<input
 						id="bundleFile"
 						type="file"
-						accept=".json,application/json"
+						accept=".json,.gz,application/json,application/gzip"
 						onChange={(event) => {
 							const file = event.target.files?.[0];
 							event.target.value = "";
 							if (!file) return;
 							void readPickedFile(file)
 								.then((bytes) => {
-									const bundle = JSON.parse(new TextDecoder().decode(bytes)) as SyncBundle;
+									// Packed or not: a file written by an older version still reads.
+									const bundle = unpackBundle(bytes);
+									if (bundle === null) {
+										setProblem(t("destination.notABundle"));
+										return;
+									}
 									setIncoming({ bundle, name: file.name });
 									setProblem(null);
 								})

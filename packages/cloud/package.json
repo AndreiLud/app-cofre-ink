@@ -13,7 +13,8 @@
 	},
 	"dependencies": {
 		"@cofre/core": "workspace:*",
-		"@cofre/storage": "workspace:*"
+		"@cofre/storage": "workspace:*",
+		"fflate": "^0.8.2"
 	},
 	"devDependencies": {
 		"typescript": "^7.0.2",
