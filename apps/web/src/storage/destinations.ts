@@ -41,11 +41,19 @@ function write(key: string, value: string): void {
 	}
 }
 
+/** The ones that exist now. A browser can be holding the name of one that does not. */
+const KINDS = new Set<DestinationKind>(["file", "server", "webdav", "database"]);
+
 export function storedDestination(): DestinationSettings {
 	const raw = read(KEY);
 	if (raw === null) return { ...EMPTY_SETTINGS };
 	try {
-		return { ...EMPTY_SETTINGS, ...(JSON.parse(raw) as Partial<DestinationSettings>) };
+		const kept = { ...EMPTY_SETTINGS, ...(JSON.parse(raw) as Partial<DestinationSettings>) };
+		// Somebody who had chosen Dropbox or Drive before those were taken out is still
+		// carrying the word in this browser. Reading it back as a destination that no
+		// longer exists is a screen that cannot be drawn at all, so it falls back to the
+		// one that always works and they choose again.
+		return KINDS.has(kept.kind) ? kept : { ...kept, kind: "file" };
 	} catch {
 		return { ...EMPTY_SETTINGS };
 	}

@@ -254,7 +254,8 @@
 		"busyTitle": "O Cofre já está aberto em outra aba",
 		"busyBody": "O banco de dados neste modo fica reservado para uma aba só, para nenhuma escrita se perder. Use a aba que já está aberta, ou feche ela e tente de novo aqui.",
 		"tryAgain": "Tentar de novo",
-		"skipToContent": "Ir para o conteúdo"
+		"skipToContent": "Ir para o conteúdo",
+		"chooseAgain": "Escolher de novo onde ficam os dados"
 	},
 	"palette": {
 		"title": "O que você quer fazer?",

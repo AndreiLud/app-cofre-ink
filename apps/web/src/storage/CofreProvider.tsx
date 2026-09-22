@@ -68,6 +68,8 @@ export type CofreValue = {
 	/** Called after signing in or signing up, in server mode. */
 	adoptServerSession: () => Promise<void>;
 	signOut: () => Promise<void>;
+	/** Back to the first question, from any screen that can be reached by accident. */
+	chooseAgain: () => void;
 	/** Browser mode: read this database as another profile that is already in it. */
 	switchProfile: (userId: string) => Promise<void>;
 	/** Browser mode: make room for somebody else on this device. */
@@ -193,13 +195,18 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 			setPersistent(true);
 			try {
 				await startRemoteSession(address);
-			} catch (problem) {
-				// Not signed in yet, or the session expired. Either way, ask.
-				if (problem instanceof Error && problem.name === "ServerError") {
-					setStatus("needsSignIn");
-					return;
-				}
-				throw problem;
+			} catch {
+				// Not signed in yet, the session expired, the address is wrong, or the
+				// machine at home is switched off. All of them mean one thing here: there
+				// is no session with that server, and the screen that can do something
+				// about it is the sign in, which says what went wrong when it tries and
+				// offers to keep the data on this device instead.
+				//
+				// This used to tell the difference and send everything that was not a
+				// refusal to the failure screen, which is a dead end with no button on
+				// it. A server being off is not a reason to be unable to open your own
+				// application.
+				setStatus("needsSignIn");
 			}
 		},
 		[startRemoteSession],
@@ -343,6 +350,25 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 		[driver, startLocalSession],
 	);
 
+	/**
+	 * Back to the first question, from wherever things went wrong.
+	 *
+	 * Every screen that can be reached by accident needs one of these. Without it a
+	 * person whose server moved, or whose browser refused to store anything, is looking
+	 * at a paragraph with no button under it.
+	 */
+	const chooseAgain = useCallback(() => {
+		forgetMode();
+		setSession(null);
+		setClient(null);
+		setUser(null);
+		setSpaces([]);
+		setMode(null);
+		setServer(null);
+		setError(null);
+		setStatus("needsMode");
+	}, []);
+
 	/** Somebody else on this device, who does not have a profile here yet. */
 	const addProfile = useCallback(() => {
 		forgetProfile();
@@ -393,6 +419,7 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 			adoptUser,
 			adoptServerSession,
 			signOut,
+			chooseAgain,
 			switchProfile,
 			addProfile,
 			reload,
@@ -418,6 +445,7 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 			adoptUser,
 			adoptServerSession,
 			signOut,
+			chooseAgain,
 			switchProfile,
 			addProfile,
 			reload,

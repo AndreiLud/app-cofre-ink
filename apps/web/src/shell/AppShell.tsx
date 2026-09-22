@@ -200,11 +200,27 @@ function Loading() {
 	);
 }
 
+/**
+ * Something went wrong before there was an application to be in.
+ *
+ * With a way out on it, because this is a screen reached by accident and a paragraph
+ * with no button under it is how somebody ends up unable to open their own money.
+ */
 function Failure({ message }: { message: string | null }) {
 	const { t } = useTranslation();
+	const { chooseAgain } = useCofre();
+
 	return (
 		<div className="mx-auto max-w-2xl px-4 py-16">
-			<Callout tone="problem" title={t("shell.failedTitle")}>
+			<Callout
+				tone="problem"
+				title={t("shell.failedTitle")}
+				action={
+					<Button variant="secondary" onClick={chooseAgain}>
+						{t("shell.chooseAgain")}
+					</Button>
+				}
+			>
 				<p>{t("shell.failedBody")}</p>
 				{message ? <p className="mt-2 font-mono text-xs">{message}</p> : null}
 			</Callout>

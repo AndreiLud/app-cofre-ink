@@ -254,7 +254,8 @@
 		"busyTitle": "Cofre is already open in another tab",
 		"busyBody": "In this mode the database is held by one tab at a time, so that no write is lost. Use the tab that is already open, or close it and try again here.",
 		"tryAgain": "Try again",
-		"skipToContent": "Skip to the content"
+		"skipToContent": "Skip to the content",
+		"chooseAgain": "Choose again where the data lives"
 	},
 	"palette": {
 		"title": "What do you want to do?",
