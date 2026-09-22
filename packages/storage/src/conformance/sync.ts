@@ -21,6 +21,12 @@ import {
 	peopleInSpace,
 	rowOf,
 } from "../sync.ts";
+import {
+	createMemoryStore,
+	StoreConflictError,
+	type SyncStore,
+	syncWithStore,
+} from "../syncStore.ts";
 import { type AdapterUnderTest, prepare } from "./setup.ts";
 
 type Device = { driver: Driver; session: Session; close: () => Promise<void> };
@@ -170,6 +176,145 @@ export function runSyncConformance(adapter: AdapterUnderTest): void {
 			} finally {
 				await one.close();
 				await two.close();
+			}
+		});
+
+		it("carries a space through a file, with no server in the middle", async () => {
+			const one = await prepare(adapter);
+			const two = await otherDevice(one.ana, "deviceTwo");
+			const store = createMemoryStore("uma pasta");
+			try {
+				const space = await one.asAna.spaces.create({ name: "Casa" });
+				const account = await one.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+				});
+				await one.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 4290,
+					happenedOn: "2026-09-10",
+					description: "Mercado",
+					accountId: account.id,
+				});
+
+				// The first device puts everything in the file.
+				const sent = await syncWithStore(one.driver, store, { spaceId: space.id });
+				expect(sent.pushed).toBeGreaterThan(0);
+				expect(sent.unchanged).toBe(false);
+
+				// The second one reads it and ends up with the same money.
+				const received = await syncWithStore(two.driver, store, { spaceId: space.id });
+				expect(received.pulled).toBeGreaterThan(0);
+
+				await two.session.spaces.adopt(space.id);
+				await two.session.refresh();
+
+				const records = await two.session.transactions.list({ spaceId: space.id });
+				expect(records.map((row) => row.amount)).toEqual([-4290]);
+
+				// And doing it again says there is nothing to say.
+				expect((await syncWithStore(two.driver, store, { spaceId: space.id })).unchanged).toBe(
+					true,
+				);
+			} finally {
+				await one.close();
+				await two.close();
+			}
+		});
+
+		it("brings two devices together when each one wrote while apart", async () => {
+			const one = await prepare(adapter);
+			const two = await otherDevice(one.ana, "deviceTwo");
+			const store = createMemoryStore("uma pasta");
+			try {
+				const space = await one.asAna.spaces.create({ name: "Casa" });
+				const account = await one.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "cash",
+					name: "Dinheiro",
+				});
+
+				await syncWithStore(one.driver, store, { spaceId: space.id });
+				await syncWithStore(two.driver, store, { spaceId: space.id });
+				await two.session.spaces.adopt(space.id);
+				await two.session.refresh();
+
+				// Each device writes something the other has never seen.
+				await one.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 1000,
+					happenedOn: "2026-09-10",
+					description: "Cafe",
+					accountId: account.id,
+				});
+				await two.session.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 2000,
+					happenedOn: "2026-09-11",
+					description: "Padaria",
+					accountId: account.id,
+				});
+
+				// Both sync, one after the other, and then the first one reads again.
+				await syncWithStore(one.driver, store, { spaceId: space.id });
+				await syncWithStore(two.driver, store, { spaceId: space.id });
+				await syncWithStore(one.driver, store, { spaceId: space.id });
+
+				const here = await one.asAna.transactions.list({ spaceId: space.id });
+				const there = await two.session.transactions.list({ spaceId: space.id });
+
+				expect(here.map((row) => row.description).sort()).toEqual(["Cafe", "Padaria"]);
+				expect(there.map((row) => row.description).sort()).toEqual(["Cafe", "Padaria"]);
+			} finally {
+				await one.close();
+				await two.close();
+			}
+		});
+
+		it("tries again when somebody else wrote the file first", async () => {
+			const one = await prepare(adapter);
+			const store = createMemoryStore("uma pasta");
+			try {
+				const space = await one.asAna.spaces.create({ name: "Casa" });
+
+				// A store that lets the first write through and then says the file moved,
+				// which is what two devices saving at the same moment looks like.
+				let refusals = 1;
+				const contested: SyncStore = {
+					name: store.name,
+					read: (spaceId) => store.read(spaceId),
+					write: async (spaceId, bundle, revision) => {
+						if (refusals > 0) {
+							refusals -= 1;
+							throw new StoreConflictError();
+						}
+						return store.write(spaceId, bundle, revision);
+					},
+				};
+
+				const done = await syncWithStore(one.driver, contested, { spaceId: space.id });
+				expect(done.pushed).toBeGreaterThan(0);
+				expect((await store.read(space.id)).bundle?.spaceId).toBe(space.id);
+			} finally {
+				await one.close();
+			}
+		});
+
+		it("refuses a file that holds another space", async () => {
+			const one = await prepare(adapter);
+			const store = createMemoryStore("uma pasta");
+			try {
+				const mine = await one.asAna.spaces.create({ name: "Casa" });
+				const other = await one.asAna.spaces.create({ name: "Viagem" });
+
+				await syncWithStore(one.driver, store, { spaceId: other.id });
+				await expect(syncWithStore(one.driver, store, { spaceId: mine.id })).rejects.toThrow();
+			} finally {
+				await one.close();
 			}
 		});
 

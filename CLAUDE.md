@@ -66,7 +66,8 @@ packages/
   core/       business rules, pure TypeScript, no framework
   db/         schema described once, generated for SQLite and PostgreSQL, migrations
   storage/    repository layer and adapters, one permission model
-  importers/  CSV, OFX, QIF, XLSX, JSON readers and the statement pipeline
+  importers/  CSV, OFX, QIF, XLSX, JSON and PDF readers, and the statement pipeline
+  cloud/      where a copy can live: a file, WebDAV, Dropbox, Drive, a spreadsheet
   ui/         design tokens, components, charts drawn as SVG
 docs/
   produto.md  product brief in Portuguese
@@ -137,8 +138,10 @@ nothing.
 | 6 block A. Replication engine, one round trip over the server | done |
 | 6 block B. Readers for CSV, OFX, QIF, XLSX and JSON, the import path and its screen | done |
 | 6 block C. Export, backup, restore, sync in the browser, the report on paper | done |
-| 7. Statement and receipt recognition | next |
-| 8. Projections, scenarios, investments, simulators | planned |
+| 6 block D. Destinations: a file, WebDAV, Dropbox, Drive, a spreadsheet as a mirror | done |
+| 7. Statement and receipt recognition: the PDF reader, the recogniser, the review | done |
+| 7 pending. Hints per institution, once real statements are in hand | waiting on samples |
+| 8. Projections, scenarios, investments, simulators | next |
 | 9. Desktop, PWA, demo deploy, deployment guides | planned |
 | 10. Accessibility audit, copy review, performance, README | planned |
 
@@ -161,3 +164,5 @@ nothing.
 | [0013](docs/adr/0013_budget_goals_and_splitting.md) | limits, goals and the division between people |
 | [0014](docs/adr/0014_charts_and_sizes.md) | charts drawn by hand, and screens that survive a resize |
 | [0015](docs/adr/0015_import_export_and_sync.md) | reading files in, taking everything out, and meeting a server |
+| [0016](docs/adr/0016_reading_a_document.md) | reading a card invoice and a receipt out of a PDF |
+| [0017](docs/adr/0017_where_a_copy_lives.md) | where a copy of a space can live, and what each place costs |

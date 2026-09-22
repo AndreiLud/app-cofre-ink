@@ -230,6 +230,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@cofre/cloud':
+        specifier: workspace:*
+        version: link:../../packages/cloud
       '@cofre/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -297,6 +300,22 @@ importers:
       vite:
         specifier: ^8.3.0
         version: 8.3.0(@types/node@26.6.2)(jiti@2.7.0)
+
+  packages/cloud:
+    dependencies:
+      '@cofre/core':
+        specifier: workspace:*
+        version: link:../core
+      '@cofre/storage':
+        specifier: workspace:*
+        version: link:../storage
+    devDependencies:
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^5.0.1
+        version: 5.0.1(@types/node@26.6.2)(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0))
 
   packages/core:
     devDependencies:

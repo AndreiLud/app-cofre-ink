@@ -196,6 +196,7 @@ export function createRemoteSession(
 			update: (id: string, input: { name?: string; colour?: string }) =>
 				send<Space>(`/api/spaces/${id}`, "PATCH", input),
 			remove: (id: string) => send<void>(`/api/spaces/${id}`, "DELETE"),
+			adopt: (id: string) => send<Space>(`/api/spaces/${id}/adopt`, "POST", {}),
 		},
 
 		members: {

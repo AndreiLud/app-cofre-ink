@@ -22,3 +22,5 @@ new one.
 | [0013](0013_budget_goals_and_splitting.md) | limits, goals, saving first and dividing an expense | accepted |
 | [0014](0014_charts_and_sizes.md) | charts drawn by hand, and screens that survive a resize | accepted |
 | [0015](0015_import_export_and_sync.md) | reading files in, taking everything out, and meeting a server | accepted |
+| [0016](0016_reading_a_document.md) | reading a card invoice and a receipt out of a PDF | accepted |
+| [0017](0017_where_a_copy_lives.md) | where a copy of a space can live, and what each place costs | accepted |

@@ -12,6 +12,7 @@
 		"test:e2e": "playwright test"
 	},
 	"dependencies": {
+		"@cofre/cloud": "workspace:*",
 		"@cofre/core": "workspace:*",
 		"@cofre/db": "workspace:*",
 		"@cofre/importers": "workspace:*",

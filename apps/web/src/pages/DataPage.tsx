@@ -1,23 +1,22 @@
 // The data, and what the person can do with it.
 //
-// Taking everything out in one file, putting it back somewhere else, and, in browser
-// mode, meeting a server of theirs so two devices agree. This screen is the proof of
-// the promise the project makes: nothing here talks to anybody until a button is
-// pressed, and each button says exactly where the data goes.
+// Taking everything out in one file, putting it back somewhere else, keeping a copy
+// somewhere the person chooses, and mirroring the records into a spreadsheet for
+// whoever prefers one. Every button on this screen says where the data goes, and
+// nothing on it happens until one is pressed.
 
+import { mirrorToSheet } from "@cofre/cloud";
 import { writeAmount, writeCsv } from "@cofre/importers";
-import type { Backup, RestoreResult } from "@cofre/storage";
+import type { Backup, RecordForExport, RestoreResult } from "@cofre/storage";
 import { Button, Callout, Field, SectionTitle } from "@cofre/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Destinations } from "../components/Destinations.tsx";
 import { downloadCsv, downloadJson, fileNameFor, readPickedFile } from "../lib/download.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
-import { normaliseServer } from "../storage/mode.ts";
-import { createServerClient } from "../storage/remoteSession.ts";
-import { lastSyncAt, SyncError, type SyncOutcome, syncWithServer } from "../storage/syncClient.ts";
 
 function Section({
 	title,
@@ -57,27 +56,77 @@ function RestoreSummary({ result }: { result: RestoreResult }) {
 	);
 }
 
+const SHEET_KEY = "cofreSheet";
+
+function storedSheet(): { token: string; spreadsheetId: string } {
+	try {
+		const raw = localStorage.getItem(SHEET_KEY);
+		if (raw) return JSON.parse(raw) as { token: string; spreadsheetId: string };
+	} catch {
+		// Without storage the fields start empty, which still works.
+	}
+	return { token: "", spreadsheetId: "" };
+}
+
 export function DataPage() {
-	const { t, i18n } = useTranslation();
+	const { t } = useTranslation();
 	const navigate = useNavigate();
-	const { session, driver, mode, server, user, currentSpace, spaces, reload } = useCofre();
+	const { session, currentSpace, spaces, reload } = useCofre();
 	const queries = useQueryClient();
 
 	const spaceId = currentSpace?.id ?? "";
 	const [problem, setProblem] = useState<string | null>(null);
 	const [restored, setRestored] = useState<RestoreResult | null>(null);
-
-	const [address, setAddress] = useState(server ?? "");
-	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
-	const [synced, setSynced] = useState<SyncOutcome | null>(null);
-	const [signedIn, setSignedIn] = useState(false);
-
-	const seen =
-		spaceId === "" || address === "" ? null : lastSyncAt(spaceId, normaliseServer(address));
+	const [sheet, setSheet] = useState(storedSheet);
+	const [mirrored, setMirrored] = useState<string | null>(null);
 
 	function failed(error: unknown) {
 		setProblem(error instanceof Error ? error.message : String(error));
+	}
+
+	function rememberSheet(next: { token: string; spreadsheetId: string }) {
+		setSheet(next);
+		try {
+			localStorage.setItem(SHEET_KEY, JSON.stringify(next));
+		} catch {
+			// The fields last for this tab, which is enough to press the button.
+		}
+	}
+
+	/** The records as a table, which is what both the spreadsheet and the file want. */
+	function asTable(records: readonly RecordForExport[]) {
+		return {
+			header: [
+				t("table.date"),
+				t("table.description"),
+				t("table.amount"),
+				t("data.column.currency"),
+				t("data.column.kind"),
+				t("data.column.status"),
+				t("data.column.account"),
+				t("data.column.counterAccount"),
+				t("table.category"),
+				t("data.column.priority"),
+				t("data.column.notes"),
+				t("data.column.invoice"),
+				t("data.column.installment"),
+			],
+			rows: records.map((record) => [
+				record.happenedOn,
+				record.description,
+				writeAmount(record.amount),
+				record.currency,
+				t(`transactionKind.${record.kind}`),
+				t(`transactionStatus.${record.status}`),
+				record.account,
+				record.counterAccount,
+				record.category,
+				record.priority === null ? null : t(`priority.${record.priority}`),
+				record.notes,
+				record.invoiceMonth,
+				record.installment,
+			]),
+		};
 	}
 
 	const exportSpace = useMutation({
@@ -111,39 +160,30 @@ export function DataPage() {
 		},
 		onSuccess: (records) => {
 			setProblem(null);
-			const text = writeCsv(
-				[
-					t("table.date"),
-					t("table.description"),
-					t("table.amount"),
-					t("data.column.currency"),
-					t("data.column.kind"),
-					t("data.column.status"),
-					t("data.column.account"),
-					t("data.column.counterAccount"),
-					t("table.category"),
-					t("data.column.priority"),
-					t("data.column.notes"),
-					t("data.column.invoice"),
-					t("data.column.installment"),
-				],
-				records.map((record) => [
-					record.happenedOn,
-					record.description,
-					writeAmount(record.amount),
-					record.currency,
-					t(`transactionKind.${record.kind}`),
-					t(`transactionStatus.${record.status}`),
-					record.account,
-					record.counterAccount,
-					record.category,
-					record.priority === null ? null : t(`priority.${record.priority}`),
-					record.notes,
-					record.invoiceMonth,
-					record.installment,
-				]),
+			const table = asTable(records);
+			downloadCsv(fileNameFor("cofre_lancamentos", "csv"), writeCsv(table.header, table.rows));
+		},
+		onError: failed,
+	});
+
+	const mirror = useMutation({
+		mutationFn: async () => {
+			if (!session) throw new Error("no session");
+			const table = asTable(await session.backup.recordsForExport(spaceId));
+			return mirrorToSheet(
+				{
+					token: sheet.token,
+					spreadsheetId: sheet.spreadsheetId === "" ? null : sheet.spreadsheetId,
+					title: `Cofre: ${currentSpace?.name ?? ""}`,
+				},
+				table.header,
+				table.rows,
 			);
-			downloadCsv(fileNameFor("cofre_lancamentos", "csv"), text);
+		},
+		onSuccess: (result) => {
+			setProblem(null);
+			setMirrored(result.url);
+			rememberSheet({ ...sheet, spreadsheetId: result.spreadsheetId });
 		},
 		onError: failed,
 	});
@@ -161,53 +201,6 @@ export function DataPage() {
 			void queries.invalidateQueries();
 		},
 		onError: failed,
-	});
-
-	const signIn = useMutation({
-		mutationFn: async () => {
-			const client = createServerClient(normaliseServer(address));
-			await client.signIn({ email: email.trim(), password });
-			return client.me();
-		},
-		onSuccess: () => {
-			setProblem(null);
-			setSignedIn(true);
-			setPassword("");
-		},
-		onError: failed,
-	});
-
-	const sync = useMutation({
-		mutationFn: async () => {
-			if (!driver) throw new Error("no database");
-			// The records of this browser are written in the name of the profile made on
-			// this device, so the server is told who that is before it is asked to keep
-			// anything written by them.
-			return syncWithServer(
-				driver,
-				normaliseServer(address),
-				spaceId,
-				user ? { id: user.id, email: user.email, name: user.name, image: user.image } : undefined,
-			);
-		},
-		onSuccess: async (outcome) => {
-			setProblem(null);
-			setSynced(outcome);
-			await reload();
-			void queries.invalidateQueries();
-		},
-		onError: (error: unknown) => {
-			// A refusal from the other end has a reason, and the reason is worth saying.
-			if (error instanceof SyncError && error.status === 404) {
-				setProblem(t("data.syncNotYours"));
-				return;
-			}
-			if (error instanceof SyncError && error.status === 403) {
-				setProblem(t("data.syncProfileTaken"));
-				return;
-			}
-			failed(error);
-		},
 	});
 
 	return (
@@ -251,6 +244,39 @@ export function DataPage() {
 				</div>
 			</Section>
 
+			<Section title={t("data.sheetTitle")} description={t("data.sheetBody")}>
+				<div className="max-w-md space-y-3">
+					<Field
+						label={t("data.sheetToken")}
+						type="password"
+						value={sheet.token}
+						onChange={(event) => rememberSheet({ ...sheet, token: event.target.value })}
+						hint={t("destination.secretStaysHere")}
+					/>
+					<Field
+						label={t("data.sheetId")}
+						value={sheet.spreadsheetId}
+						onChange={(event) => rememberSheet({ ...sheet, spreadsheetId: event.target.value })}
+						hint={t("data.sheetIdHint")}
+					/>
+					<Button
+						variant="secondary"
+						disabled={sheet.token === "" || spaceId === "" || mirror.isPending}
+						onClick={() => mirror.mutate()}
+					>
+						{t("data.sheetAction")}
+					</Button>
+					{mirrored ? (
+						<p className="text-sm text-graphite">
+							{t("data.sheetDone")}{" "}
+							<a className="underline" href={mirrored} target="_blank" rel="noreferrer">
+								{mirrored}
+							</a>
+						</p>
+					) : null}
+				</div>
+			</Section>
+
 			<Section title={t("data.restoreTitle")} description={t("data.restoreBody")}>
 				<label htmlFor="backupFile" className="block text-sm font-medium text-ink">
 					{t("data.restorePick")}
@@ -269,73 +295,9 @@ export function DataPage() {
 				{restored ? <RestoreSummary result={restored} /> : null}
 			</Section>
 
-			{mode === "browser" ? (
-				<Section title={t("data.syncTitle")} description={t("data.syncBody")}>
-					<div className="max-w-md space-y-3">
-						<Field
-							label={t("data.server")}
-							value={address}
-							onChange={(event) => setAddress(event.target.value)}
-							placeholder="https://cofre.seudominio.com"
-							hint={t("data.serverHint")}
-						/>
-
-						{signedIn ? null : (
-							<>
-								<Field
-									label={t("onboarding.email")}
-									type="email"
-									autoComplete="email"
-									value={email}
-									onChange={(event) => setEmail(event.target.value)}
-								/>
-								<Field
-									label={t("signIn.password")}
-									type="password"
-									autoComplete="current-password"
-									value={password}
-									onChange={(event) => setPassword(event.target.value)}
-								/>
-								<Button
-									variant="secondary"
-									disabled={address === "" || email === "" || password === "" || signIn.isPending}
-									onClick={() => signIn.mutate()}
-								>
-									{t("data.connect")}
-								</Button>
-							</>
-						)}
-
-						{signedIn ? (
-							<div className="space-y-2">
-								<Button
-									variant="primary"
-									disabled={spaceId === "" || sync.isPending}
-									onClick={() => sync.mutate()}
-								>
-									{t("data.syncNow", { name: currentSpace?.name ?? "" })}
-								</Button>
-								{synced ? (
-									<p className="text-sm text-graphite">
-										{t("data.syncDone", { sent: synced.pushed, received: synced.pulled })}
-										{synced.refused > 0
-											? ` ${t("data.syncRefused", { count: synced.refused })}`
-											: ""}
-									</p>
-								) : null}
-							</div>
-						) : null}
-
-						{seen === null ? null : (
-							<p className="text-xs text-graphite">
-								{t("data.lastSync", {
-									when: new Date(seen).toLocaleString(i18n.resolvedLanguage ?? "pt-BR"),
-								})}
-							</p>
-						)}
-					</div>
-				</Section>
-			) : null}
+			<Section title={t("data.syncTitle")} description={t("data.syncBody")}>
+				<Destinations />
+			</Section>
 		</div>
 	);
 }

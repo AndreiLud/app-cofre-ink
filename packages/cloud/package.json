@@ -1,0 +1,22 @@
+{
+	"name": "@cofre/cloud",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Places a space can be kept: a drive, a WebDAV share, a spreadsheet, a file",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@cofre/core": "workspace:*",
+		"@cofre/storage": "workspace:*"
+	},
+	"devDependencies": {
+		"typescript": "^7.0.2",
+		"vitest": "^5.0.1"
+	}
+}

@@ -323,6 +323,14 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		return context.json(space);
 	});
 
+	/**
+	 * Takes a space that arrived from a device and has nobody in it. The rule that makes
+	 * it safe lives in the repository: a space with any member at all is never adopted.
+	 */
+	app.post("/api/spaces/:id/adopt", async (context) =>
+		context.json(await context.get("session").spaces.adopt(context.req.param("id"))),
+	);
+
 	app.delete("/api/spaces/:id", async (context) => {
 		await context.get("session").spaces.remove(context.req.param("id"));
 		return context.body(null, 204);

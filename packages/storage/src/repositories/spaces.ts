@@ -136,9 +136,13 @@ export function createSpacesRepository(context: RepositoryContext) {
 				[context.actor().userId],
 			);
 			if (String(space.kind) === "personal" && mine.length > 0) {
+				// Two personal spaces cannot both be the personal space, and changing the
+				// kind of this one would travel back to the device it came from and change
+				// it there too. Moving a personal life between devices is what a backup is
+				// for: restoring one merges it into the personal space that is already here.
 				throw new RuleError(
 					"onePersonalSpace",
-					"this person already has a personal space, so this one arrives as a shared space",
+					"this is the personal space of another device, and this person already has one, so bring it in with a backup instead",
 				);
 			}
 

@@ -143,10 +143,16 @@ economia, divisão de despesas, acerto de contas e alertas.
 líquido, mapa de calor, comparações e relatórios.
 
 **Fase 6.** Importação de CSV, OFX, QIF, XLSX e JSON, exportação e backup, migração
-entre modos e o motor de sincronização entre membros.
+entre modos e o motor de sincronização entre membros. Além do servidor próprio, a
+cópia pode viver num arquivo que a pessoa move, numa pasta WebDAV, no Dropbox ou no
+Google Drive, e os lançamentos podem ser espelhados numa planilha do Google. Cada lugar
+diz na tela o que custa. O registro 0017 explica o porquê de cada escolha.
 
 **Fase 7.** Reconhecimento de fatura e comprovante, em camadas, do texto do PDF ao
-modelo de linguagem opcional com chave do próprio usuário.
+modelo de linguagem opcional com chave do próprio usuário. As duas primeiras camadas
+estão prontas e são as que resolvem a maioria dos documentos: o leitor de PDF e o
+reconhecedor com grau de confiança por linha. O modelo de linguagem continua opcional e
+não entrou: nenhum dado sai do aparelho sem que a pessoa mande.
 
 **Fase 8.** Projeções de 1 a 36 meses, cenários, simulador de hipóteses, carteira de
 investimentos, comparação com CDI, Selic e IPCA, juros compostos e independência
@@ -172,4 +178,4 @@ README, LEIAME, screenshots e o GIF de abertura.
 ## Registros de decisão
 
 Os detalhes técnicos e as alternativas descartadas estão em `docs/adr`, do 0001 ao
-0015.
+0017.
