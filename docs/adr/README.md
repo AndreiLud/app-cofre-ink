@@ -17,3 +17,8 @@ new one.
 | [0008](0008_storage_implementation.md) | how the storage layer is actually built, replacing two tool choices in 0002 | accepted |
 | [0009](0009_authentication_and_identity.md) | authentication on the server, identity mirroring and invitations | accepted |
 | [0010](0010_shape_of_a_transaction.md) | transfers, signs, invoices and installments | accepted |
+| [0011](0011_reading_one_line_of_text.md) | reading a record from one line somebody typed | accepted |
+| [0012](0012_rules_and_recurrences.md) | categories, rules that sort, and what repeats | accepted |
+| [0013](0013_budget_goals_and_splitting.md) | limits, goals, saving first and dividing an expense | accepted |
+| [0014](0014_charts_and_sizes.md) | charts drawn by hand, and screens that survive a resize | accepted |
+| [0015](0015_import_export_and_sync.md) | reading files in, taking everything out, and meeting a server | accepted |

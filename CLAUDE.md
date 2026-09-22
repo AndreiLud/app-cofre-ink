@@ -134,8 +134,10 @@ nothing.
 | 3 block B. Rules that sort on their own, recurrences, the calendar | done |
 | 4. Budget, savings rule, goals, expense splitting, alerts | done |
 | 5. Dashboard, consolidated view, reports and charts | done |
-| 6. Import, export, backup, migration, sync engine | next |
-| 7. Statement and receipt recognition | planned |
+| 6 block A. Replication engine, one round trip over the server | done |
+| 6 block B. Readers for CSV, OFX, QIF, XLSX and JSON, the import path and its screen | done |
+| 6 block C. Export, backup, restore, sync in the browser, the report on paper | done |
+| 7. Statement and receipt recognition | next |
 | 8. Projections, scenarios, investments, simulators | planned |
 | 9. Desktop, PWA, demo deploy, deployment guides | planned |
 | 10. Accessibility audit, copy review, performance, README | planned |
@@ -158,3 +160,4 @@ nothing.
 | [0012](docs/adr/0012_rules_and_recurrences.md) | rules that sort, and series that write |
 | [0013](docs/adr/0013_budget_goals_and_splitting.md) | limits, goals and the division between people |
 | [0014](docs/adr/0014_charts_and_sizes.md) | charts drawn by hand, and screens that survive a resize |
+| [0015](docs/adr/0015_import_export_and_sync.md) | reading files in, taking everything out, and meeting a server |

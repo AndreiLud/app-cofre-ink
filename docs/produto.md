@@ -172,4 +172,4 @@ README, LEIAME, screenshots e o GIF de abertura.
 ## Registros de decisão
 
 Os detalhes técnicos e as alternativas descartadas estão em `docs/adr`, do 0001 ao
-0007.
+0015.
