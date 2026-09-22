@@ -118,20 +118,12 @@ test.describe("accounts", () => {
 
 		await go(page, "Contas");
 
-		// A card is added from the account it reaches, and from nowhere else.
-		await page
-			.getByRole("row")
-			.filter({ hasText: "Cartão de crédito" })
-			.getByRole("button", { name: "Ações da conta" })
-			.click();
-		await page.getByRole("menuitem", { name: "Adicionar cartão" }).click();
-
-		// Opened from the invoice, so only the other side is asked about, and the kinds
-		// offered are the two a credit account can be part of.
+		// A card is added where an account is added, and nowhere else.
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
 		const adding = page.getByRole("dialog");
-		await adding.getByLabel("Tipo").selectOption("multiple");
-		await expect(adding.getByLabel("Saldo que ele gasta")).toBeVisible();
 		await adding.getByLabel("Nome").fill("Cartão novo");
+		await adding.getByLabel("Tipo").selectOption("credit");
+		await adding.getByText("Múltiplo", { exact: true }).click();
 		await adding.getByLabel("Quatro últimos dígitos").fill("7788");
 		await adding.getByRole("button", { name: "Salvar" }).click();
 
@@ -151,6 +143,8 @@ test.describe("accounts", () => {
 		await dialog.getByRole("button", { name: "Salvar" }).click();
 
 		await go(page, "Faturas");
+		// Two invoices exist now, so the screen asks which one before it can show it.
+		await page.getByLabel("Cartão", { exact: true }).selectOption({ label: "Cartão novo" });
 		await expect(page.getByText("Cartão novo (Final 7788)")).toBeVisible();
 		await expect(page.getByRole("cell", { name: "Compra com o cartão novo" })).toBeVisible();
 	});

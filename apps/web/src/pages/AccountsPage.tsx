@@ -1,7 +1,7 @@
 // Accounts of the current space: what exists, and how to add one.
 
 import { parseMoney } from "@cofre/core";
-import type { AccountKind, BenefitKind, CardKind } from "@cofre/storage";
+import type { AccountKind, BenefitKind, Card, CardKind } from "@cofre/storage";
 import {
 	Button,
 	Callout,
@@ -27,7 +27,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CardDialog, type CardTarget } from "../components/CardDialog.tsx";
+import { CardDialog } from "../components/CardDialog.tsx";
 import { CardsSection } from "../components/CardsSection.tsx";
 import { Value } from "../components/Value.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -52,7 +52,7 @@ export function AccountsPage() {
 	const [lastFour, setLastFour] = useState("");
 	const [works, setWorks] = useState<CardKind>("credit");
 	const [debitAccountId, setDebitAccountId] = useState("");
-	const [cardTarget, setCardTarget] = useState<CardTarget>(null);
+	const [cardTarget, setCardTarget] = useState<Card | null>(null);
 	const [problem, setProblem] = useState<string | null>(null);
 
 	const spaceId = currentSpace?.id ?? "";
@@ -96,9 +96,13 @@ export function AccountsPage() {
 			 * somebody adds a card and no row appears in the table.
 			 */
 			if (kind === "credit" && works === "debit") {
+				// A card that spends a voucher is a benefit card, whatever the form calls
+				// the function: the kind of a card that only spends follows the money it
+				// spends, and calling it debit would say less than the truth.
+				const spends = balances.find((one) => one.id === debitAccountId);
 				await session.cards.create({
 					spaceId,
-					kind: "debit",
+					kind: spends?.kind === "voucher" ? "benefit" : "debit",
 					name,
 					lastFour: digits,
 					debitAccountId,
@@ -291,22 +295,16 @@ export function AccountsPage() {
 												</Button>
 											}
 										>
-											{/* The one place a card is added and looked after, because a
-											    card is a way to reach this account and nothing else. */}
-											{account.archivedAt ? null : (
-												<MenuItem onSelect={() => setCardTarget({ mode: "add", account })}>
-													{t("cards.addAction")}
-												</MenuItem>
-											)}
+											{/* Only the cards that already reach this account. Adding one is
+											    "Nova conta", where a card is one of the things you can add,
+											    and a second door onto the same form is a second door to keep
+											    in step. */}
 											{cardsOf(account.id).map((card) => (
-												<MenuItem
-													key={card.id}
-													onSelect={() => setCardTarget({ mode: "edit", card })}
-												>
+												<MenuItem key={card.id} onSelect={() => setCardTarget(card)}>
 													{t("cards.editNamed", { name: card.name })}
 												</MenuItem>
 											))}
-											<MenuSeparator />
+											{cardsOf(account.id).length > 0 ? <MenuSeparator /> : null}
 											{account.archivedAt ? (
 												<MenuItem onSelect={() => unarchive.mutate(account.id)}>
 													{t("accounts.unarchive")}
@@ -330,12 +328,7 @@ export function AccountsPage() {
 
 			<CardsSection accounts={rows} cards={plastic} loading={cards.isPending} />
 
-			<CardDialog
-				target={cardTarget}
-				spaceId={spaceId}
-				accounts={rows}
-				onClose={() => setCardTarget(null)}
-			/>
+			<CardDialog card={cardTarget} accounts={rows} onClose={() => setCardTarget(null)} />
 
 			<Dialog
 				open={isOpen}
