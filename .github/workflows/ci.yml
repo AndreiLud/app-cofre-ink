@@ -35,6 +35,9 @@ jobs:
       - name: writing rule
         run: pnpm run check:writing
 
+      - name: translations
+        run: pnpm run check:translations
+
       - name: lint and format
         run: pnpm run lint
 

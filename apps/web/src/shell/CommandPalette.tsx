@@ -8,7 +8,7 @@ import { Dialog, Icon, type SpaceColour, SpaceMark } from "@cofre/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { type Language, rememberLanguage } from "../i18n/index.ts";
+import { applyLanguage, type Language } from "../i18n/index.ts";
 import { useTheme } from "../lib/theme.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -215,8 +215,7 @@ export function CommandPalette({ state }: { state: PaletteState }) {
 				label: i18n.resolvedLanguage === "pt" ? t("language.english") : t("language.portuguese"),
 				run: () => {
 					const next: Language = i18n.resolvedLanguage === "pt" ? "en" : "pt";
-					void i18n.changeLanguage(next);
-					rememberLanguage(next);
+					void applyLanguage(next);
 					state.close();
 				},
 			},
@@ -284,7 +283,7 @@ export function CommandPalette({ state }: { state: PaletteState }) {
 					placeholder={t("palette.placeholder")}
 					aria-label={t("palette.placeholder")}
 					aria-controls="paletteResults"
-					className="h-11 w-full border border-rule bg-raised px-3 text-base text-ink placeholder:text-graphite/70"
+					className="h-11 w-full border border-rule bg-raised px-3 text-base text-ink placeholder:text-graphite"
 				/>
 
 				<ul id="paletteResults" className="mt-3 max-h-80 overflow-y-auto">

@@ -18,6 +18,7 @@ import { Fragment, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { LanguageToggle, PrivacyToggle, ThemeToggle } from "../components/Controls.tsx";
 import { useTheme } from "../lib/theme.ts";
+import { useDocumentTitle } from "../lib/title.ts";
 import { ModeChooserPage } from "../pages/ModeChooserPage.tsx";
 import { OnboardingPage } from "../pages/OnboardingPage.tsx";
 import { SignInPage } from "../pages/SignInPage.tsx";
@@ -215,6 +216,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 	const { choice, setChoice } = useTheme();
 	const palette = useCommandPalette();
 
+	useDocumentTitle(cofre.currentSpace?.name ?? null);
+
 	const isDark =
 		choice === "dark" ||
 		(choice === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
@@ -232,6 +235,16 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 	return (
 		<div className="min-h-dvh bg-paper text-ink">
+			{/* The first thing a keyboard reaches, and the only way past a header with a
+			    space switcher, a search, three toggles and two rows of links. It is out
+			    of sight until it has focus, which is the whole of the pattern. */}
+			<a
+				href="#conteudo"
+				className="sr-only rounded-sm bg-ink px-4 py-2 text-paper focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50"
+			>
+				{t("shell.skipToContent")}
+			</a>
+
 			<header className="sticky top-0 z-20 bg-paper print:hidden">
 				<div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3">
 					<div className="flex min-w-0 items-center gap-2 sm:gap-3">
@@ -262,7 +275,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 				<SpaceRule colour={colour} />
 			</header>
 
-			<main className="mx-auto max-w-5xl px-4 py-8 print:max-w-none print:px-0 print:py-0">
+			<main
+				id="conteudo"
+				tabIndex={-1}
+				className="mx-auto max-w-5xl px-4 py-8 print:max-w-none print:px-0 print:py-0"
+			>
 				{cofre.persistent ? null : (
 					<Callout
 						tone="attention"

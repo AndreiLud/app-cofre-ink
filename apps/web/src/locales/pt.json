@@ -248,7 +248,8 @@
 		"notPersistentBody": "Este navegador não deixou gravar em disco, então tudo some ao fechar a aba. Funciona para experimentar, não para usar de verdade.",
 		"busyTitle": "O Cofre já está aberto em outra aba",
 		"busyBody": "O banco de dados neste modo fica reservado para uma aba só, para nenhuma escrita se perder. Use a aba que já está aberta, ou feche ela e tente de novo aqui.",
-		"tryAgain": "Tentar de novo"
+		"tryAgain": "Tentar de novo",
+		"skipToContent": "Ir para o conteúdo"
 	},
 	"palette": {
 		"title": "O que você quer fazer?",
@@ -366,8 +367,8 @@
 		"stateOver": "Passou {{amount}} do limite.",
 		"stateTight": "Nesse ritmo o mês fecha em {{amount}}.",
 		"stateComfortable": "Sobram {{amount}} para o resto do mês.",
-		"emptyTitle": "Nenhum limite ainda",
-		"emptyBody": "Comece pelo que costuma fugir do controle, como delivery ou lazer. Um limite por categoria já muda o mês."
+		"emptyTitle": "Comece por um",
+		"emptyBody": "Escolha o que costuma fugir do controle, como delivery ou lazer. Um limite por categoria já muda o mês."
 	},
 	"sharing": {
 		"title": "Quem deve para quem",

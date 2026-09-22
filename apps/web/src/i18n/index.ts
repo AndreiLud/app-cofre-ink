@@ -1,6 +1,12 @@
+// The interface in two languages, with one of them in the first download.
+//
+// Both files together are about a fifth of what a browser has to fetch before the first
+// screen, and almost everybody reads one of the two. So the one being used is bundled
+// and the other arrives when somebody asks for it, which is a click that already
+// expects the screen to change.
+
 import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
-import en from "../locales/en.json";
 import pt from "../locales/pt.json";
 
 export const LANGUAGES = ["pt", "en"] as const;
@@ -33,13 +39,32 @@ export function rememberLanguage(language: Language): void {
 }
 
 void i18next.use(initReactI18next).init({
-	resources: {
-		pt: { translation: pt },
-		en: { translation: en },
-	},
-	lng: storedLanguage(),
+	resources: { pt: { translation: pt } },
+	lng: "pt",
 	fallbackLng: "pt",
 	interpolation: { escapeValue: false },
 });
+
+/**
+ * Brings a language in and switches to it.
+ *
+ * Portuguese is already here. English is fetched once, kept by the browser and by the
+ * worker, and never fetched again. Somebody with no connection who has never asked for
+ * English stays in Portuguese, which is the language they were already reading.
+ */
+export async function applyLanguage(language: Language): Promise<void> {
+	if (!i18next.hasResourceBundle(language, "translation")) {
+		const { default: strings } = await import("../locales/en.json");
+		i18next.addResourceBundle(language, "translation", strings);
+	}
+	await i18next.changeLanguage(language);
+	rememberLanguage(language);
+}
+
+// The language chosen last time, applied once the first screen is up rather than before
+// it: a person who reads Portuguese waits for nothing, and a person who chose English
+// sees one repaint instead of a blank page.
+const chosen = storedLanguage();
+if (chosen !== "pt") void applyLanguage(chosen);
 
 export default i18next;

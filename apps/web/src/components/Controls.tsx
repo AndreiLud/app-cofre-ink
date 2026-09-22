@@ -1,6 +1,6 @@
 import { Button, Icon } from "@cofre/ui";
 import { useTranslation } from "react-i18next";
-import { LANGUAGES, type Language, rememberLanguage } from "../i18n/index.ts";
+import { applyLanguage, LANGUAGES, type Language } from "../i18n/index.ts";
 import type { ThemeChoice } from "../lib/theme.ts";
 
 export type ThemeToggleProps = {
@@ -33,12 +33,11 @@ export function LanguageToggle() {
 			variant="quiet"
 			aria-label={t("language.label")}
 			onClick={() => {
-				void i18n.changeLanguage(next);
-				rememberLanguage(next);
+				void applyLanguage(next);
 			}}
 		>
 			{LANGUAGES.map((language) => (
-				<span key={language} className={language === current ? "text-ink" : "text-graphite/60"}>
+				<span key={language} className={language === current ? "text-ink" : "text-graphite"}>
 					{language.toUpperCase()}
 				</span>
 			))}

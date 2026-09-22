@@ -44,7 +44,7 @@ export function Field({
 					aria-invalid={error ? true : undefined}
 					className={cn(
 						"h-11 rounded-sm border bg-raised px-3 text-base text-ink md:h-10 md:text-sm",
-						"placeholder:text-graphite/70",
+						"placeholder:text-graphite",
 						error ? "border-seal" : "border-rule",
 						numeric ? "text-right font-mono tabular-nums" : "",
 						action ? "min-w-0 grow" : "",

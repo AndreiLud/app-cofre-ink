@@ -248,7 +248,8 @@
 		"notPersistentBody": "This browser would not let anything be written to disk, so everything goes away when the tab closes. Fine for a look around, not for real use.",
 		"busyTitle": "Cofre is already open in another tab",
 		"busyBody": "In this mode the database is held by one tab at a time, so that no write is lost. Use the tab that is already open, or close it and try again here.",
-		"tryAgain": "Try again"
+		"tryAgain": "Try again",
+		"skipToContent": "Skip to the content"
 	},
 	"palette": {
 		"title": "What do you want to do?",
@@ -366,8 +367,8 @@
 		"stateOver": "{{amount}} over the limit.",
 		"stateTight": "At this rate the month closes at {{amount}}.",
 		"stateComfortable": "{{amount}} left for the rest of the month.",
-		"emptyTitle": "No limits yet",
-		"emptyBody": "Start with what usually gets away from you, such as delivery or going out. One limit on one category already changes a month."
+		"emptyTitle": "Start with one",
+		"emptyBody": "Pick what usually gets away from you, takeaway or going out. One limit on one category already changes the month."
 	},
 	"sharing": {
 		"title": "Who owes whom",

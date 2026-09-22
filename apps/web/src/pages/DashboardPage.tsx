@@ -200,16 +200,17 @@ export function DashboardPage() {
 				{/* Under the number it belongs to, not floating beside the heading: it
 				    changes what that number counts. */}
 				{spaces.length > 1 ? (
-					<Segmented
-						className="sm:w-auto"
-						label={t("dashboard.across")}
-						value={across}
-						onChange={setAcross}
-						options={[
-							{ value: "space", label: t("reports.thisSpace") },
-							{ value: "everything", label: t("reports.everySpace") },
-						]}
-					/>
+					<div className="max-w-xs">
+						<Segmented
+							label={t("dashboard.across")}
+							value={across}
+							onChange={setAcross}
+							options={[
+								{ value: "space", label: t("reports.thisSpace") },
+								{ value: "everything", label: t("reports.everySpace") },
+							]}
+						/>
+					</div>
 				) : null}
 
 				{projected !== settled ? (
