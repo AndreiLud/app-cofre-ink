@@ -32,6 +32,19 @@ function pathOf(options: DropboxOptions, spaceId: string): string {
 	return `${folder}/${storedFileName(spaceId)}`;
 }
 
+/**
+ * The arguments, as a header can carry them.
+ *
+ * Dropbox takes them in a header rather than in a body, and a header is bytes: a folder
+ * called "Orçamento" would make one the browser refuses to send. Dropbox asks for the
+ * escape the JSON syntax already has, so that is what this writes.
+ */
+function asHeader(argument: unknown): string {
+	return JSON.stringify(argument).replace(/[-￿]/g, (character) => {
+		return `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`;
+	});
+}
+
 export function createDropboxStore(options: DropboxOptions): SyncStore {
 	const authorisation = { Authorization: `Bearer ${options.token}` };
 
@@ -45,7 +58,7 @@ export function createDropboxStore(options: DropboxOptions): SyncStore {
 				fetcher: options.fetcher,
 				headers: {
 					...authorisation,
-					"Dropbox-API-Arg": JSON.stringify({ path: pathOf(options, spaceId) }),
+					"Dropbox-API-Arg": asHeader({ path: pathOf(options, spaceId) }),
 				},
 				// A file that is not there yet answers with a conflict, which is an answer.
 				allow: [409],
@@ -72,7 +85,7 @@ export function createDropboxStore(options: DropboxOptions): SyncStore {
 				headers: {
 					...authorisation,
 					"Content-Type": "application/octet-stream",
-					"Dropbox-API-Arg": JSON.stringify({
+					"Dropbox-API-Arg": asHeader({
 						path: pathOf(options, spaceId),
 						mode,
 						autorename: false,

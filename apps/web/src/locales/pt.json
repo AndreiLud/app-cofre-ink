@@ -855,7 +855,9 @@
 		"alreadyAgreed": "Já estava tudo igual em {{where}}.",
 		"unreachable": "Não consegui falar com {{where}}. Veja se você está conectado e se o endereço está certo.",
 		"refused": "O {{where}} recusou o acesso. O token pode ter expirado: entre no serviço de novo.",
-		"answered": "O {{where}} respondeu {{status}} e não completou. Tente de novo em alguns minutos."
+		"answered": "O {{where}} respondeu {{status}} e não completou. Tente de novo em alguns minutos.",
+		"clientSecret": "Segredo do aplicativo",
+		"clientSecretHint": "Só o Google pede isto. A regra diz que um aplicativo que roda no navegador não deveria precisar, mas o endereço de token do Google recusa sem ele. É o segredo do aplicativo que você criou na sua própria conta, fica guardado só neste navegador, e o Dropbox não pede nenhum."
 	},
 	"importing": {
 		"title": "Importar extrato",
@@ -938,7 +940,12 @@
 		"doneBody_other": "Estão no espaço aberto, já passados pelas suas regras de categoria.",
 		"seeRecords": "Ver os lançamentos",
 		"noAccountTitle": "Você ainda não tem uma conta",
-		"noAccountBody": "Um extrato precisa de uma conta para entrar. Crie uma em Contas e volte aqui."
+		"noAccountBody": "Um extrato precisa de uma conta para entrar. Crie uma em Contas e volte aqui.",
+		"signTitle": "Valores positivos neste arquivo",
+		"signExpense": "São gastos",
+		"signAsWritten": "O sinal é do banco",
+		"signGuessedExpense": "Nenhum valor deste arquivo é negativo, então ele parece uma fatura de cartão, onde toda linha é uma compra. Se for um extrato, troque aqui.",
+		"signHint": "O arquivo tem valores dos dois lados, então o sinal dele é que manda."
 	},
 	"demo": {
 		"notice": "Dados fictícios, só para demonstração."

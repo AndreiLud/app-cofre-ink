@@ -127,7 +127,12 @@ export function Destinations() {
 		if (!service) return;
 
 		void finishOAuth(
-			{ service, clientId: pending.clientId, redirectUri: pending.redirectUri },
+			{
+				service,
+				clientId: pending.clientId,
+				clientSecret: pending.clientSecret,
+				redirectUri: pending.redirectUri,
+			},
 			{ code, verifier: pending.verifier },
 		)
 			.then((token) => {
@@ -181,13 +186,19 @@ export function Destinations() {
 			if (!service || settings.clientId === "") throw new Error(t("destination.needsClientId"));
 
 			const redirectUri = `${window.location.origin}${window.location.pathname}`;
-			const started = await startOAuth({ service, clientId: settings.clientId, redirectUri });
+			const started = await startOAuth({
+				service,
+				clientId: settings.clientId,
+				clientSecret: settings.clientSecret,
+				redirectUri,
+			});
 
 			rememberPending({
 				kind,
 				verifier: started.verifier,
 				state: started.state,
 				clientId: settings.clientId,
+				clientSecret: settings.clientSecret,
 				redirectUri,
 			});
 			window.location.assign(started.url);
@@ -421,6 +432,18 @@ export function Destinations() {
 						onChange={(event) => change({ clientId: event.target.value })}
 						hint={t("destination.clientIdHint")}
 					/>
+					{/* Google, and only Google. Its token endpoint refuses a web client
+					    that sends only the proof, however much the specification says a
+					    public client should not need a secret. */}
+					{kind === "googleDrive" ? (
+						<Field
+							label={t("destination.clientSecret")}
+							type="password"
+							value={settings.clientSecret}
+							onChange={(event) => change({ clientSecret: event.target.value })}
+							hint={t("destination.clientSecretHint")}
+						/>
+					) : null}
 					<Field
 						label={t("destination.token")}
 						type="password"

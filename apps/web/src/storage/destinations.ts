@@ -18,6 +18,15 @@ export type DestinationSettings = {
 	folder: string;
 	/** The identifier of the application the owner made in their own account. */
 	clientId: string;
+	/**
+	 * The secret of that same application, which only Google asks for.
+	 *
+	 * Its token endpoint refuses a web application client that sends only the proof and
+	 * answers that the secret is missing. This one belongs to the person, was made in
+	 * their own account, and stays here beside the token it buys. Dropbox never sees
+	 * one.
+	 */
+	clientSecret: string;
 };
 
 export const EMPTY_SETTINGS: DestinationSettings = {
@@ -27,6 +36,7 @@ export const EMPTY_SETTINGS: DestinationSettings = {
 	secret: "",
 	folder: "",
 	clientId: "",
+	clientSecret: "",
 };
 
 const KEY = "cofreDestination";
@@ -67,6 +77,7 @@ export type PendingOAuth = {
 	verifier: string;
 	state: string;
 	clientId: string;
+	clientSecret?: string;
 	redirectUri: string;
 };
 

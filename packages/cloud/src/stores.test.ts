@@ -292,6 +292,30 @@ describe("packing the file", () => {
 	});
 });
 
+describe("a folder with an accent in its name", () => {
+	it("goes into the header as an escape, because a header is bytes", async () => {
+		const service = fakeService(() => ({
+			bytes: packed(),
+			headers: { "Dropbox-API-Result": "{}" },
+		}));
+
+		const store = createDropboxStore({
+			token: "t",
+			folder: "/Orçamento",
+			fetcher: service.fetcher,
+		});
+		await store.read("espaco1");
+
+		const argument = service.calls[0]?.headers["dropbox-api-arg"] ?? "";
+		// Nothing above the ASCII range, and still the folder it was given.
+		const highest = Math.max(...[...argument].map((character) => character.charCodeAt(0)));
+		expect(highest).toBeLessThan(128);
+		expect((JSON.parse(argument) as { path: string }).path).toBe(
+			"/Orçamento/cofre_espaco1.json.gz",
+		);
+	});
+});
+
 describe("a service that does not answer at all", () => {
 	it("is a failure with a name and a place, not the words a browser uses", async () => {
 		// What a browser throws when there is no connection, no such host, or a

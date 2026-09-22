@@ -855,7 +855,9 @@
 		"alreadyAgreed": "Everything already agreed in {{where}}.",
 		"unreachable": "I could not reach {{where}}. Check that you are online and that the address is right.",
 		"refused": "{{where}} refused the access. The token may have expired: sign in to the service again.",
-		"answered": "{{where}} answered {{status}} and did not finish. Try again in a few minutes."
+		"answered": "{{where}} answered {{status}} and did not finish. Try again in a few minutes.",
+		"clientSecret": "Secret of the application",
+		"clientSecretHint": "Only Google asks for this. The rule says an application running in a browser should not need one, and the token endpoint of Google refuses without it. It is the secret of the application you made in your own account, it is kept in this browser only, and Dropbox never asks for one."
 	},
 	"importing": {
 		"title": "Import a statement",
@@ -938,7 +940,12 @@
 		"doneBody_other": "They are in the space that is open, already sorted by your category rules.",
 		"seeRecords": "See the records",
 		"noAccountTitle": "You have no account yet",
-		"noAccountBody": "A statement needs an account to go into. Create one under Accounts and come back."
+		"noAccountBody": "A statement needs an account to go into. Create one under Accounts and come back.",
+		"signTitle": "Positive amounts in this file",
+		"signExpense": "Are money leaving",
+		"signAsWritten": "Carry the sign the bank wrote",
+		"signGuessedExpense": "Nothing in this file is negative, so it looks like a card invoice, where every line is a purchase. If it is a statement, change it here.",
+		"signHint": "The file has amounts on both sides, so its sign is what counts."
 	},
 	"demo": {
 		"notice": "Made up data, for demonstration only."

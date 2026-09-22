@@ -18,6 +18,15 @@ export type OAuthSetup = {
 	clientId: string;
 	/** Where the service sends the person back, which they registered with it. */
 	redirectUri: string;
+	/**
+	 * The secret of that same application, for the one service that insists on it.
+	 *
+	 * Google's token endpoint refuses a web application client that sends only the
+	 * proof, and answers that the secret is missing. It is not a secret of this
+	 * project: it belongs to the person, it was made in their own account, it stays in
+	 * their browser beside the token it buys, and Dropbox never sees one.
+	 */
+	clientSecret?: string;
 };
 
 export type OAuthStart = {
@@ -113,6 +122,10 @@ async function askForToken(
 	body: URLSearchParams,
 	fetcher: typeof globalThis.fetch = globalThis.fetch,
 ): Promise<OAuthToken> {
+	// Sent only when there is one. The proof is what makes the code worth anything;
+	// this is here because one service will not take the code without it.
+	if (setup.clientSecret) body.set("client_secret", setup.clientSecret);
+
 	const response = await fetcher(TOKEN[setup.service], {
 		method: "POST",
 		headers: { "Content-Type": "application/x-www-form-urlencoded" },
