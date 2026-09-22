@@ -163,6 +163,14 @@ describe("what is left becomes the description", () => {
 		expect(read("mercado R$89,90").amount).toBe(8990);
 		expect(read("mercado 50 reais").description).toBe("mercado");
 	});
+
+	it("treats a zero as somebody who has not said how much yet", () => {
+		const entry = read("mercado 0");
+		expect(entry.amount).toBe(null);
+		expect(entry.problems).toContain("amountMissing");
+		// And the zero stays on screen, because it is what the person typed.
+		expect(entry.description).toBe("mercado 0");
+	});
 });
 
 describe("whatever is typed", () => {

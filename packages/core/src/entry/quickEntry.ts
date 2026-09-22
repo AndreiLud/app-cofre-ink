@@ -304,11 +304,16 @@ export function readQuickEntry(text: string, options: QuickEntryOptions): QuickE
 
 			if (AMOUNT.test(bare) && /\d/.test(bare)) {
 				try {
-					const read = parseMoney(bare, { currency });
-					amount = Math.abs(read.amount);
-					if (sign === 1) kind = "income";
-					if (sign === -1) kind = "expense";
-					roles[index] = "amount";
+					const read = Math.abs(parseMoney(bare, { currency }).amount);
+					// Zero is not an amount. Somebody who types "0" has not said how much
+					// yet, so the token stays part of what they wrote and the reading says
+					// the amount is missing, which is the truth.
+					if (read > 0) {
+						amount = read;
+						if (sign === 1) kind = "income";
+						if (sign === -1) kind = "expense";
+						roles[index] = "amount";
+					}
 				} catch (error) {
 					// Not a number after all, so it stays part of what was written.
 					if (!(error instanceof MoneyError)) throw error;
