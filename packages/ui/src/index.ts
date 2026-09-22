@@ -13,6 +13,12 @@ export {
 } from "./components/charts/ColumnChart.tsx";
 export { FlowChart, type FlowChartProps, type FlowSide } from "./components/charts/FlowChart.tsx";
 export { type HeatDay, HeatMap, type HeatMapProps } from "./components/charts/HeatMap.tsx";
+export {
+	LineChart,
+	type LineChartProps,
+	type LineSeries,
+	type LineTone,
+} from "./components/charts/LineChart.tsx";
 export { Dialog, type DialogProps } from "./components/Dialog.tsx";
 export {
 	Callout,

@@ -5,6 +5,7 @@
 // rules about who may do what live in the repository layer, not here, which is what
 // keeps the server and the browser honest about the same model.
 
+import { fetchSeries } from "@cofre/cloud";
 import type { Session } from "@cofre/storage";
 import {
 	applyChanges,
@@ -189,6 +190,27 @@ const transactionPatch = z.object({
 
 /** A selection, kept small enough that one request cannot lock the database. */
 const selection = z.array(z.string().min(1)).min(1).max(500);
+
+const holdingInput = z.object({
+	accountId: z.string().min(1),
+	name: z.string().trim().min(1).max(120),
+	kind: z.enum(["fixedIncome", "fund", "stock", "realEstate", "crypto", "pension", "other"]),
+	/** Scaled by ten to the eighth, so a fund can have fractions of a unit. */
+	quantity: z.number().int().nonnegative(),
+	unitPrice: z.number().int().nonnegative(),
+	ticker: z.string().trim().max(20).nullable().optional(),
+	currency: z.string().trim().length(3).optional(),
+	cost: z.number().int().nonnegative().optional(),
+	boughtOn: calendarDate.nullable().optional(),
+	notes: z.string().trim().max(2000).nullable().optional(),
+});
+
+const scenarioInput = z.object({
+	name: z.string().trim().min(1).max(60),
+	// Whatever the screen puts in it, as a saved filter is.
+	adjustments: z.array(z.record(z.string(), z.unknown())).max(20),
+	position: z.number().int().min(0).max(999).optional(),
+});
 
 /**
  * One line of a file. The amount is signed here, unlike everywhere else, because that
@@ -981,6 +1003,144 @@ export function createApp({ config, database, auth }: AppDependencies) {
 				after: after === undefined ? undefined : after,
 			}),
 		);
+	});
+
+	app.get("/api/spaces/:id/projection", async (context) => {
+		const query = z
+			.object({
+				from: z.string().regex(/^\d{4}-\d{2}$/),
+				months: z.coerce.number().int().min(1).max(36).optional(),
+				window: z.coerce.number().int().min(1).max(24).optional(),
+			})
+			.parse(context.req.query());
+
+		return context.json(
+			await context.get("session").projections.monthsAhead({
+				spaceId: context.req.param("id"),
+				from: query.from,
+				months: query.months ?? 12,
+				window: query.window,
+			}),
+		);
+	});
+
+	app.get("/api/spaces/:id/scenarios", async (context) =>
+		context.json(await context.get("session").scenarios.list(context.req.param("id"))),
+	);
+
+	app.post("/api/spaces/:id/scenarios", async (context) => {
+		const input = scenarioInput.parse(await context.req.json());
+		const created = await context
+			.get("session")
+			.scenarios.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(created, 201);
+	});
+
+	app.patch("/api/scenarios/:id", async (context) => {
+		const input = scenarioInput.partial().parse(await context.req.json());
+		return context.json(
+			await context.get("session").scenarios.update(context.req.param("id"), input),
+		);
+	});
+
+	app.delete("/api/scenarios/:id", async (context) => {
+		await context.get("session").scenarios.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/holdings", async (context) =>
+		context.json(await context.get("session").investments.list(context.req.param("id"))),
+	);
+
+	app.get("/api/spaces/:id/holdings/total", async (context) =>
+		context.json(await context.get("session").investments.total(context.req.param("id"))),
+	);
+
+	app.post("/api/spaces/:id/holdings", async (context) => {
+		const input = holdingInput.parse(await context.req.json());
+		const created = await context
+			.get("session")
+			.investments.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(created, 201);
+	});
+
+	app.patch("/api/holdings/:id", async (context) => {
+		const input = holdingInput
+			.partial()
+			.omit({ accountId: true, kind: true, unitPrice: true })
+			.parse(await context.req.json());
+		return context.json(
+			await context.get("session").investments.update(context.req.param("id"), input),
+		);
+	});
+
+	app.post("/api/holdings/:id/price", async (context) => {
+		const input = z
+			.object({ unitPrice: z.number().int().nonnegative(), onDay: calendarDate.optional() })
+			.parse(await context.req.json());
+		return context.json(
+			await context.get("session").investments.price({ id: context.req.param("id"), ...input }),
+		);
+	});
+
+	app.get("/api/holdings/:id/prices", async (context) =>
+		context.json(await context.get("session").investments.prices(context.req.param("id"))),
+	);
+
+	app.delete("/api/holdings/:id", async (context) => {
+		await context.get("session").investments.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/indices", async (context) => {
+		const query = z
+			.object({
+				series: z.enum(["cdi", "selic", "ipca"]),
+				from: z
+					.string()
+					.regex(/^\d{4}-\d{2}$/)
+					.optional(),
+				to: z
+					.string()
+					.regex(/^\d{4}-\d{2}$/)
+					.optional(),
+			})
+			.parse(context.req.query());
+
+		return context.json(await context.get("session").indices.list(query.series, query));
+	});
+
+	app.get("/api/indices/latest", async (context) =>
+		context.json(await context.get("session").indices.latest()),
+	);
+
+	/**
+	 * Asks the Banco Central for the months this installation does not have.
+	 *
+	 * The server does it rather than the browser, which is better in every way: one
+	 * fetch serves everybody who uses this server, the numbers are the same for all of
+	 * them, and a browser never has to be allowed to call somebody else's address.
+	 */
+	app.post("/api/indices/refresh", async (context) => {
+		const input = z
+			.object({
+				series: z
+					.array(z.enum(["cdi", "selic", "ipca"]))
+					.min(1)
+					.max(3),
+				from: z.string().regex(/^\d{4}-\d{2}$/),
+			})
+			.parse(await context.req.json());
+
+		const session = context.get("session");
+		const written: Record<string, number> = {};
+
+		for (const series of input.series) {
+			const points = await fetchSeries(series, { from: input.from });
+			written[series] = await session.indices.save(series, points);
+		}
+
+		return context.json({ written });
 	});
 
 	app.get("/api/spaces/:id/changes/size", async (context) =>

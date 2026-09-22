@@ -18,21 +18,28 @@ import type {
 	CreateBudgetInput,
 	CreateCategoryInput,
 	CreateGoalInput,
+	CreateHoldingInput,
 	CreateRecurrenceInput,
 	CreateRuleInput,
 	CreateSavedFilterInput,
+	CreateScenarioInput,
 	CreateTransactionInput,
 	DayTotal,
 	ExpenseSplit,
 	Goal,
 	GoalProgress,
+	HoldingPrice,
+	HoldingValue,
 	ImportedRecord,
 	ImportResult,
+	IndexRate,
+	IndexSeries,
 	KnownRecord,
 	MonthTotal,
 	PeriodTotals,
 	PersonBalance,
 	PriorityTotal,
+	Projection,
 	RecordForExport,
 	Recurrence,
 	ReportRange,
@@ -41,6 +48,7 @@ import type {
 	SavedFilter,
 	SavingsProgress,
 	SavingsRule,
+	Scenario,
 	Settlement,
 	SettleSuggestion,
 	Space,
@@ -52,9 +60,11 @@ import type {
 	TransactionKind,
 	UpdateCategoryInput,
 	UpdateGoalInput,
+	UpdateHoldingInput,
 	UpdateRecurrenceInput,
 	UpdateRuleInput,
 	UpdateSavedFilterInput,
+	UpdateScenarioInput,
 	UpdateTransactionInput,
 	User,
 } from "@cofre/storage";
@@ -221,6 +231,36 @@ export type CofreSession = {
 		create: (input: CreateSavedFilterInput) => Promise<SavedFilter>;
 		update: (id: string, input: UpdateSavedFilterInput) => Promise<SavedFilter>;
 		remove: (id: string) => Promise<void>;
+	};
+	projections: {
+		monthsAhead: (input: {
+			spaceId: string;
+			from: string;
+			months: number;
+			window?: number;
+		}) => Promise<Projection>;
+	};
+	scenarios: {
+		list: (spaceId: string) => Promise<Scenario[]>;
+		create: (input: CreateScenarioInput) => Promise<Scenario>;
+		update: (id: string, input: UpdateScenarioInput) => Promise<Scenario>;
+		remove: (id: string) => Promise<void>;
+	};
+	investments: {
+		list: (spaceId: string) => Promise<HoldingValue[]>;
+		total: (spaceId: string) => Promise<{ value: number; cost: number; gain: number }>;
+		create: (input: CreateHoldingInput) => Promise<HoldingValue>;
+		update: (id: string, input: UpdateHoldingInput) => Promise<HoldingValue>;
+		/** A new price on a day. The old one is kept, so a portfolio has a line. */
+		price: (input: { id: string; unitPrice: number; onDay?: string }) => Promise<HoldingValue>;
+		prices: (id: string) => Promise<HoldingPrice[]>;
+		remove: (id: string) => Promise<void>;
+	};
+	indices: {
+		list: (series: IndexSeries, range?: { from?: string; to?: string }) => Promise<IndexRate[]>;
+		latest: () => Promise<Record<string, IndexRate | null>>;
+		/** Asks the Banco Central for what this installation does not have. */
+		refresh: (input: { series: IndexSeries[]; from: string }) => Promise<Record<string, number>>;
 	};
 	imports: {
 		/** What the space already has around those days, so a repeat can be marked. */

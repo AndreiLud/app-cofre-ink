@@ -20,6 +20,7 @@ import { migrate } from "../migrate.ts";
 import { createUser } from "../repositories/users.ts";
 import type { Session } from "../session.ts";
 import { runCategoryConformance } from "./categories.ts";
+import { runFutureConformance } from "./future.ts";
 import { runPlanConformance } from "./plan.ts";
 import { runPortabilityConformance } from "./portability.ts";
 import { runReportConformance } from "./reports.ts";
@@ -182,6 +183,22 @@ const PROBES: Probe[] = [
 	{
 		permission: "backup.export",
 		run: (session, where) => session.backup.exportSpace(where.spaceId),
+	},
+	{
+		permission: "investment.read",
+		run: (session, where) => session.investments.list(where.spaceId),
+	},
+	{
+		permission: "investment.write",
+		run: (session, where) =>
+			session.investments.create({
+				spaceId: where.spaceId,
+				accountId: where.accountId,
+				name: "Fundo",
+				kind: "fund",
+				quantity: 100_000_000,
+				unitPrice: 10_000,
+			}),
 	},
 ];
 
@@ -580,6 +597,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 		runPlanConformance(adapter);
 		runReportConformance(adapter);
 		runSavedFilterConformance(adapter);
+		runFutureConformance(adapter);
 		runPortabilityConformance(adapter);
 		runSyncConformance(adapter);
 

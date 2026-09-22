@@ -6,6 +6,14 @@
 // written down beside each of them and in registry 0017.
 
 export {
+	type FetchSeriesOptions,
+	fetchSeries,
+	SERIES_CODE,
+	type Series,
+	type SeriesPoint,
+	seriesUrl,
+} from "./bancoCentral.ts";
+export {
 	createDropboxStore,
 	type DropboxOptions,
 	dropboxAccountName,

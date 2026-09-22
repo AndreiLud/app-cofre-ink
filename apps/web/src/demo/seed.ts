@@ -147,6 +147,81 @@ export async function seedDemo(
 		installments: 3,
 	});
 
+	// Three months behind, so that the screens that look backwards have something to
+	// look at: the twelve months of the reports, and the usual month a projection is
+	// built on. The amounts wobble, because a month that is identical to the last one
+	// is not a month anybody has ever had.
+	const wobble = [0, -1800, 2400];
+	for (let back = 1; back <= 3; back += 1) {
+		const shift = 30 * back;
+		const change = wobble[back - 1] ?? 0;
+
+		await session.transactions.create({
+			spaceId,
+			kind: "income",
+			amount: 612_000,
+			happenedOn: day(shift + 16),
+			description: "Salário",
+			accountId: checking.id,
+			categoryId: find("Salário"),
+		});
+		await session.transactions.create({
+			spaceId,
+			kind: "expense",
+			amount: 148_000 + change,
+			happenedOn: day(shift + 14),
+			description: "Aluguel",
+			accountId: checking.id,
+			categoryId: find("Aluguel"),
+		});
+		await session.transactions.create({
+			spaceId,
+			kind: "expense",
+			amount: 89_400 + change,
+			happenedOn: day(shift + 11),
+			description: "Mercado do mês",
+			accountId: checking.id,
+			categoryId: find("Mercado"),
+		});
+		await session.transactions.create({
+			spaceId,
+			kind: "expense",
+			amount: 21_300 - change,
+			happenedOn: day(shift + 6),
+			description: "Contas de casa",
+			accountId: checking.id,
+			categoryId: find("Luz"),
+		});
+	}
+
+	// And something put aside, so the investments screen is not an empty page either.
+	const broker = await session.accounts.create({
+		spaceId,
+		kind: "investment",
+		name: "Corretora",
+		institution: "Banco fictício",
+		initialBalance: 0,
+	});
+
+	await session.investments.create({
+		spaceId,
+		accountId: broker.id,
+		name: "Tesouro Selic 2029",
+		kind: "fixedIncome",
+		quantity: 3 * 100_000_000,
+		unitPrice: 152_340,
+		cost: 450_000,
+	});
+	await session.investments.create({
+		spaceId,
+		accountId: broker.id,
+		name: "Fundo de índice",
+		kind: "fund",
+		quantity: 12 * 100_000_000,
+		unitPrice: 9_870,
+		cost: 110_000,
+	});
+
 	// A second person, so the shared space is a real shared space. The same browser can
 	// go through the onboarding more than once, keeping the database, so this reuses
 	// the example person instead of failing on an address that is already taken.

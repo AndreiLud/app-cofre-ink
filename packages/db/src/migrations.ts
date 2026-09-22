@@ -14,6 +14,7 @@
 import { addColumnSql, createIndexSql, createSchemaSql, type Dialect } from "./ddl.ts";
 import { AUTH_TABLES } from "./schema/authTables.ts";
 import { CATEGORY_TABLES } from "./schema/categoryTables.ts";
+import { INVESTMENT_TABLES } from "./schema/investmentTables.ts";
 import { MEMBER_INCOME_COLUMNS, PLAN_TABLES } from "./schema/planTables.ts";
 import { RULE_TABLES } from "./schema/ruleTables.ts";
 import { SCHEMA, SPACE_COMPACTION_COLUMNS } from "./schema/tables.ts";
@@ -110,6 +111,10 @@ export const MIGRATIONS: readonly Migration[] = [
 			SPACE_COMPACTION_COLUMNS.filter((column) => !context.hasColumn("spaces", column.name)).map(
 				(column) => addColumnSql("spaces", column, context.dialect),
 			),
+	},
+	{
+		id: "0010_investments_and_scenarios",
+		statements: (context) => createSchemaSql([...INVESTMENT_TABLES], context.dialect),
 	},
 ];
 

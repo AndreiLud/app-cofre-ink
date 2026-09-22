@@ -12,12 +12,16 @@ import { createChangesRepository } from "./repositories/changes.ts";
 import type { RepositoryContext } from "./repositories/context.ts";
 import { createGoalsRepository } from "./repositories/goals.ts";
 import { createImportsRepository } from "./repositories/imports.ts";
+import { createIndicesRepository } from "./repositories/indices.ts";
+import { createInvestmentsRepository } from "./repositories/investments.ts";
 import { createInvitationsRepository } from "./repositories/invitations.ts";
 import { createMembersRepository } from "./repositories/members.ts";
+import { createProjectionsRepository } from "./repositories/projections.ts";
 import { createRecurrencesRepository } from "./repositories/recurrences.ts";
 import { createReportsRepository } from "./repositories/reports.ts";
 import { createRulesRepository } from "./repositories/rules.ts";
 import { createSavedFiltersRepository } from "./repositories/savedFilters.ts";
+import { createScenariosRepository } from "./repositories/scenarios.ts";
 import { createSharingRepository } from "./repositories/sharing.ts";
 import { createSpacesRepository } from "./repositories/spaces.ts";
 import { createTransactionsRepository } from "./repositories/transactions.ts";
@@ -51,6 +55,10 @@ export type Session = {
 	sharing: ReturnType<typeof createSharingRepository>;
 	savedFilters: ReturnType<typeof createSavedFiltersRepository>;
 	imports: ReturnType<typeof createImportsRepository>;
+	investments: ReturnType<typeof createInvestmentsRepository>;
+	projections: ReturnType<typeof createProjectionsRepository>;
+	scenarios: ReturnType<typeof createScenariosRepository>;
+	indices: ReturnType<typeof createIndicesRepository>;
 	backup: ReturnType<typeof createBackupRepository>;
 	changes: ReturnType<typeof createChangesRepository>;
 	users: ReturnType<typeof createUsersRepository>;
@@ -126,6 +134,10 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 		sharing: createSharingRepository(context),
 		savedFilters: createSavedFiltersRepository(context),
 		imports: createImportsRepository(context),
+		investments: createInvestmentsRepository(context),
+		projections: createProjectionsRepository(context),
+		scenarios: createScenariosRepository(context),
+		indices: createIndicesRepository(context),
 		backup: createBackupRepository(context),
 		changes: createChangesRepository(context),
 		users: createUsersRepository(context),

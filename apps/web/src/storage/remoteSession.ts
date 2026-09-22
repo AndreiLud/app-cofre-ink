@@ -19,22 +19,29 @@ import type {
 	CreateBudgetInput,
 	CreateCategoryInput,
 	CreateGoalInput,
+	CreateHoldingInput,
 	CreateRecurrenceInput,
 	CreateRuleInput,
 	CreateSavedFilterInput,
+	CreateScenarioInput,
 	CreateTransactionInput,
 	DayTotal,
 	ExpenseSplit,
 	Goal,
 	GoalProgress,
+	HoldingPrice,
+	HoldingValue,
 	ImportedRecord,
 	ImportResult,
+	IndexRate,
+	IndexSeries,
 	Invitation,
 	KnownRecord,
 	MonthTotal,
 	PeriodTotals,
 	PersonBalance,
 	PriorityTotal,
+	Projection,
 	RecordForExport,
 	Recurrence,
 	ReportRange,
@@ -42,6 +49,7 @@ import type {
 	SavedFilter,
 	SavingsProgress,
 	SavingsRule,
+	Scenario,
 	Settlement,
 	SettleSuggestion,
 	Space,
@@ -52,9 +60,11 @@ import type {
 	TransactionKind,
 	UpdateCategoryInput,
 	UpdateGoalInput,
+	UpdateHoldingInput,
 	UpdateRecurrenceInput,
 	UpdateRuleInput,
 	UpdateSavedFilterInput,
+	UpdateScenarioInput,
 	UpdateTransactionInput,
 	User,
 } from "@cofre/storage";
@@ -468,6 +478,58 @@ export function createRemoteSession(
 			update: (id: string, input: UpdateSavedFilterInput) =>
 				send<SavedFilter>(`/api/filters/${id}`, "PATCH", input),
 			remove: (id: string) => send<void>(`/api/filters/${id}`, "DELETE"),
+		},
+
+		projections: {
+			monthsAhead: (input: { spaceId: string; from: string; months: number; window?: number }) => {
+				const query = new URLSearchParams({ from: input.from, months: String(input.months) });
+				if (input.window !== undefined) query.set("window", String(input.window));
+				return get<Projection>(`/api/spaces/${input.spaceId}/projection?${query.toString()}`);
+			},
+		},
+
+		scenarios: {
+			list: (spaceId: string) => get<Scenario[]>(`/api/spaces/${spaceId}/scenarios`),
+			create: (input: CreateScenarioInput) => {
+				const { spaceId, ...rest } = input;
+				return send<Scenario>(`/api/spaces/${spaceId}/scenarios`, "POST", rest);
+			},
+			update: (id: string, input: UpdateScenarioInput) =>
+				send<Scenario>(`/api/scenarios/${id}`, "PATCH", input),
+			remove: (id: string) => send<void>(`/api/scenarios/${id}`, "DELETE"),
+		},
+
+		investments: {
+			list: (spaceId: string) => get<HoldingValue[]>(`/api/spaces/${spaceId}/holdings`),
+			total: (spaceId: string) =>
+				get<{ value: number; cost: number; gain: number }>(`/api/spaces/${spaceId}/holdings/total`),
+			create: (input: CreateHoldingInput) => {
+				const { spaceId, ...rest } = input;
+				return send<HoldingValue>(`/api/spaces/${spaceId}/holdings`, "POST", rest);
+			},
+			update: (id: string, input: UpdateHoldingInput) =>
+				send<HoldingValue>(`/api/holdings/${id}`, "PATCH", input),
+			price: (input: { id: string; unitPrice: number; onDay?: string }) => {
+				const { id, ...rest } = input;
+				return send<HoldingValue>(`/api/holdings/${id}/price`, "POST", rest);
+			},
+			prices: (id: string) => get<HoldingPrice[]>(`/api/holdings/${id}/prices`),
+			remove: (id: string) => send<void>(`/api/holdings/${id}`, "DELETE"),
+		},
+
+		indices: {
+			list: (series: IndexSeries, range: { from?: string; to?: string } = {}) => {
+				const query = new URLSearchParams({ series });
+				if (range.from) query.set("from", range.from);
+				if (range.to) query.set("to", range.to);
+				return get<IndexRate[]>(`/api/indices?${query.toString()}`);
+			},
+			latest: () => get<Record<string, IndexRate | null>>("/api/indices/latest"),
+			// The server asks the Banco Central, which is better than the browser doing
+			// it: one fetch serves everybody who uses that server.
+			refresh: async (input: { series: IndexSeries[]; from: string }) =>
+				(await send<{ written: Record<string, number> }>("/api/indices/refresh", "POST", input))
+					.written,
 		},
 
 		imports: {

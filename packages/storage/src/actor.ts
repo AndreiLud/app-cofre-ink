@@ -70,6 +70,10 @@ export const PERMISSIONS = {
 	// it a screen at a time, and taking a copy of all of it away is a decision of the
 	// people who run the space.
 	"backup.export": ["owner", "admin"],
+	// What somebody owns is part of what the space is worth, so everybody in it sees
+	// the total. Typing in a price is for the people who keep the space.
+	"investment.read": ["owner", "admin", "editor", "viewer", "logger"],
+	"investment.write": ["owner", "admin", "editor"],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof PERMISSIONS;

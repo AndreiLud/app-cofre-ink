@@ -1,6 +1,9 @@
 {
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
+		// The server calls the same outside services the browser does, through the same
+		// package, so it is checked against the same fetch the browser has.
+		"lib": ["ES2023", "DOM"],
 		"types": ["node"]
 	},
 	"include": ["src/**/*.ts", "vitest.config.ts"]

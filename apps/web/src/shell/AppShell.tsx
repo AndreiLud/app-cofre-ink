@@ -27,9 +27,10 @@ import { CommandPalette, useCommandPalette } from "./CommandPalette.tsx";
 import { SpaceSwitcher } from "./SpaceSwitcher.tsx";
 
 /**
- * Nine sections do not fit on a phone, and a row that scrolls sideways hides half of
- * them behind a gesture nobody performs. So the same list is a row of links where
- * there is room and a menu where there is not, inside one landmark either way.
+ * Eleven sections do not fit on a phone, and by now they do not fit on a laptop either.
+ * A row that scrolls sideways hides half of them behind a gesture nobody performs, so
+ * the same list is a row of links where there is room and a menu where there is not,
+ * inside one landmark either way.
  */
 function Navigation() {
 	const { t } = useTranslation();
@@ -43,6 +44,8 @@ function Navigation() {
 		{ to: ROUTES.budget, label: t("nav.budget") },
 		{ to: ROUTES.calendar, label: t("nav.calendar") },
 		{ to: ROUTES.invoices, label: t("nav.invoices") },
+		{ to: ROUTES.projection, label: t("nav.projection") },
+		{ to: ROUTES.investments, label: t("nav.investments") },
 		{ to: ROUTES.categories, label: t("nav.categories") },
 		{ to: ROUTES.accounts, label: t("nav.accounts") },
 		{ to: ROUTES.data, label: t("nav.data") },

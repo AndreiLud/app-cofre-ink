@@ -3,6 +3,7 @@
 
 import { AUTH_TABLES } from "./authTables.ts";
 import { CATEGORY_TABLES } from "./categoryTables.ts";
+import { INVESTMENT_TABLES } from "./investmentTables.ts";
 import { PLAN_TABLES } from "./planTables.ts";
 import { RULE_TABLES } from "./ruleTables.ts";
 import { TRANSACTION_TABLES } from "./transactionTables.ts";
@@ -161,6 +162,8 @@ export const SCHEMA: readonly Table[] = [
 	// These point at transactions, so they come after them.
 	...PLAN_TABLES,
 	...VIEW_TABLES,
+	// And these point at accounts.
+	...INVESTMENT_TABLES,
 ];
 
 export function tableByName(name: string): Table {

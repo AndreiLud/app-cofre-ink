@@ -22,6 +22,7 @@ import {
 	storedSpaceId,
 	storedUserId,
 } from "./localProfile.ts";
+import { asCofreSession } from "./localSession.ts";
 import { forgetMode, rememberMode, type StorageMode, storedMode, storedServer } from "./mode.ts";
 import {
 	createRemoteSession,
@@ -95,7 +96,7 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 	const startLocalSession = useCallback(async (database: Driver, userId: string) => {
 		const opened = await openSession({ driver: database, userId, deviceId: deviceId() });
 		const [me, list] = await Promise.all([opened.users.me(), opened.spaces.list()]);
-		setSession(opened);
+		setSession(asCofreSession(opened));
 		setLinkInvitations(null);
 		setUser(me);
 		setSpaces(list);

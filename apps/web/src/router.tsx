@@ -10,9 +10,11 @@ import { DashboardPage } from "./pages/DashboardPage.tsx";
 import { DataPage } from "./pages/DataPage.tsx";
 import { DesignSystemPage } from "./pages/DesignSystemPage.tsx";
 import { ImportPage } from "./pages/ImportPage.tsx";
+import { InvestmentsPage } from "./pages/InvestmentsPage.tsx";
 import { InvitationPage } from "./pages/InvitationPage.tsx";
 import { InvoicePage } from "./pages/InvoicePage.tsx";
 import { MembersPage } from "./pages/MembersPage.tsx";
+import { ProjectionPage } from "./pages/ProjectionPage.tsx";
 import { ReportsPage } from "./pages/ReportsPage.tsx";
 import { SpacesPage } from "./pages/SpacesPage.tsx";
 import { TransactionsPage } from "./pages/TransactionsPage.tsx";
@@ -86,6 +88,18 @@ const invoicesRoute = createRoute({
 	component: InvoicePage,
 });
 
+const projectionRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/projecao",
+	component: ProjectionPage,
+});
+
+const investmentsRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/investimentos",
+	component: InvestmentsPage,
+});
+
 const dataRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/dados",
@@ -121,6 +135,8 @@ const routeTree = rootRoute.addChildren([
 	spacesRoute,
 	membersRoute,
 	accountsRoute,
+	projectionRoute,
+	investmentsRoute,
 	dataRoute,
 	importRoute,
 	invitationRoute,
@@ -146,6 +162,8 @@ export const ROUTES = {
 	spaces: "/espacos",
 	members: "/membros",
 	accounts: "/contas",
+	projection: "/projecao",
+	investments: "/investimentos",
 	data: "/dados",
 	import: "/importar",
 	designSystem: "/designSystem",

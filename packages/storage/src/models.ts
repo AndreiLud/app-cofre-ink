@@ -510,6 +510,127 @@ export function toSettlement(row: Row): Settlement {
 	};
 }
 
+export type HoldingKind =
+	| "fixedIncome"
+	| "fund"
+	| "stock"
+	| "realEstate"
+	| "crypto"
+	| "pension"
+	| "other";
+
+export type Holding = {
+	id: string;
+	spaceId: string;
+	accountId: string;
+	name: string;
+	kind: HoldingKind;
+	ticker: string | null;
+	/** Scaled by ten to the eighth, because a fund has fractional quantities. */
+	quantity: number;
+	/** Minor units for one unit of it. */
+	unitPrice: number;
+	currency: string;
+	/** What was paid in total, which is what a gain is measured against. */
+	cost: number;
+	boughtOn: string | null;
+	/** The day the price was last typed in, so a stale number can say it is stale. */
+	pricedOn: string | null;
+	notes: string | null;
+	createdBy: string;
+	createdAt: number;
+	updatedAt: number;
+};
+
+export type HoldingPrice = {
+	id: string;
+	spaceId: string;
+	holdingId: string;
+	onDay: string;
+	unitPrice: number;
+	createdBy: string;
+	createdAt: number;
+	updatedAt: number;
+};
+
+export type IndexSeries = "cdi" | "selic" | "ipca";
+
+/** What an index did in one month, as published, in hundredths of a percent. */
+export type IndexRate = {
+	series: IndexSeries;
+	month: string;
+	rate: number;
+	fetchedAt: number;
+};
+
+export type Scenario = {
+	id: string;
+	spaceId: string;
+	name: string;
+	/** Whatever the screen put there, as the saved filters do. */
+	adjustments: Record<string, unknown>[];
+	position: number;
+	createdBy: string;
+	createdAt: number;
+	updatedAt: number;
+};
+
+export function toHolding(row: Row): Holding {
+	return {
+		id: asText(row.id),
+		spaceId: asText(row.space_id),
+		accountId: asText(row.account_id),
+		name: asText(row.name),
+		kind: asText(row.kind) as HoldingKind,
+		ticker: asOptionalText(row.ticker),
+		quantity: asNumber(row.quantity),
+		unitPrice: asNumber(row.unit_price),
+		currency: asText(row.currency),
+		cost: asNumber(row.cost),
+		boughtOn: asOptionalText(row.bought_on),
+		pricedOn: asOptionalText(row.priced_on),
+		notes: asOptionalText(row.notes),
+		createdBy: asText(row.created_by),
+		createdAt: asNumber(row.created_at),
+		updatedAt: asNumber(row.updated_at),
+	};
+}
+
+export function toHoldingPrice(row: Row): HoldingPrice {
+	return {
+		id: asText(row.id),
+		spaceId: asText(row.space_id),
+		holdingId: asText(row.holding_id),
+		onDay: asText(row.on_day),
+		unitPrice: asNumber(row.unit_price),
+		createdBy: asText(row.created_by),
+		createdAt: asNumber(row.created_at),
+		updatedAt: asNumber(row.updated_at),
+	};
+}
+
+export function toIndexRate(row: Row): IndexRate {
+	return {
+		series: asText(row.series) as IndexSeries,
+		month: asText(row.month),
+		rate: asNumber(row.rate),
+		fetchedAt: asNumber(row.fetched_at),
+	};
+}
+
+export function toScenario(row: Row): Scenario {
+	return {
+		id: asText(row.id),
+		spaceId: asText(row.space_id),
+		name: asText(row.name),
+		adjustments: asJson<Record<string, unknown>[]>(row.adjustments),
+		position: asNumber(row.position),
+		createdBy: asText(row.created_by),
+		createdAt: asNumber(row.created_at),
+		updatedAt: asNumber(row.updated_at),
+	};
+}
+
 export function toChange(row: Row): Change {
 	return {
 		id: asText(row.id),

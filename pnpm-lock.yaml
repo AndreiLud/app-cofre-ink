@@ -190,6 +190,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@cofre/cloud':
+        specifier: workspace:*
+        version: link:../../packages/cloud
       '@cofre/core':
         specifier: workspace:*
         version: link:../../packages/core
