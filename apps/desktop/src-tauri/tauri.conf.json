@@ -1,0 +1,57 @@
+{
+	"$schema": "https://schema.tauri.app/config/2",
+	"productName": "Cofre",
+	"version": "0.1.0",
+	"identifier": "io.github.andreilud.cofre",
+	"build": {
+		"frontendDist": "../../web/dist",
+		"devUrl": "http://localhost:5173",
+		"beforeDevCommand": "pnpm --filter @cofre/web dev",
+		"beforeBuildCommand": "pnpm --filter @cofre/web build"
+	},
+	"app": {
+		"withGlobalTauri": false,
+		"windows": [
+			{
+				"label": "main",
+				"title": "Cofre",
+				"width": 1120,
+				"height": 780,
+				"minWidth": 360,
+				"minHeight": 540,
+				"center": true,
+				"resizable": true,
+				"dragDropEnabled": false
+			}
+		],
+		"security": {
+			"csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src *; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'none'"
+		}
+	},
+	"bundle": {
+		"active": true,
+		"targets": "all",
+		"category": "Finance",
+		"shortDescription": "Suas contas, no seu computador",
+		"longDescription": "O Cofre guarda o dinheiro de uma pessoa, de um casal ou de um grupo em espaços separados. O banco de dados fica na sua máquina e só sai dela quando você manda.",
+		"copyright": "Andrei Ludescher",
+		"licenseFile": "../../../LICENSE",
+		"icon": [
+			"icons/32x32.png",
+			"icons/128x128.png",
+			"icons/128x128@2x.png",
+			"icons/icon.icns",
+			"icons/icon.ico"
+		],
+		"windows": {
+			"nsis": {
+				"installMode": "currentUser"
+			}
+		},
+		"linux": {
+			"deb": {
+				"depends": []
+			}
+		}
+	}
+}

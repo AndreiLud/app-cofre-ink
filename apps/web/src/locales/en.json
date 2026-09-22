@@ -855,6 +855,7 @@
 		"token": "Token",
 		"secretStaysHere": "Kept in this browser only. None of it passes through any server of this project.",
 		"connect": "Sign in with the service",
+		"needsBrowser": "Dropbox and Drive only send a person back to an address that starts with http, and the installed application has an address of its own. Connect the service once in a browser, or use a file, a WebDAV or a server of yours, which all work here exactly as they do there.",
 		"needsClientId": "Fill in the application identifier before signing in with the service.",
 		"didNotComeFromHere": "The answer from the service does not match the request that left here. Start again.",
 		"personalFromAnotherDevice": "This file carries the personal space of another device, and you already have one. Syncing joins the same space in two places, not two different personal spaces. To bring that money life here, export a backup there and use Restore here: it merges with yours.",

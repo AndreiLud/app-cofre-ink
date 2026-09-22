@@ -27,6 +27,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { downloadBytes, readPickedFile } from "../lib/download.ts";
+import { insideShell } from "../lib/install.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import {
 	type DestinationSettings,
@@ -151,6 +152,11 @@ export function Destinations() {
 				downloadBytes(bundleFileName(bundle.spaceId), packBundle(bundle), BUNDLE_MEDIA_TYPE),
 		});
 	}
+
+	// Inside the shell the page has an address of its own, which Dropbox and Drive will
+	// not send anybody back to. The screen says so rather than letting the person
+	// discover it after making an application in their own account.
+	const inShell = insideShell();
 
 	/** The space this exchange is about: the one that is open, or the one in the file. */
 	const target = incoming?.bundle.spaceId ?? spaceId;
@@ -396,6 +402,7 @@ export function Destinations() {
 
 			{kind === "dropbox" || kind === "googleDrive" ? (
 				<div className="max-w-md space-y-3">
+					{inShell ? <Callout tone="neutral">{t("destination.needsBrowser")}</Callout> : null}
 					<Field
 						label={t("destination.clientId")}
 						value={settings.clientId}
@@ -419,7 +426,7 @@ export function Destinations() {
 					) : null}
 					<Button
 						variant="secondary"
-						disabled={settings.clientId === "" || connect.isPending}
+						disabled={inShell || settings.clientId === "" || connect.isPending}
 						onClick={() => connect.mutate()}
 					>
 						{t("destination.connect")}

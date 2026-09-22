@@ -855,6 +855,7 @@
 		"token": "Token",
 		"secretStaysHere": "Fica guardado só neste navegador. Nada disso passa por nenhum servidor deste projeto.",
 		"connect": "Entrar no serviço",
+		"needsBrowser": "O Dropbox e o Drive só devolvem a pessoa para um endereço que começa com http, e o aplicativo instalado tem um endereço próprio. Conecte o serviço uma vez no navegador, ou use um arquivo, um WebDAV ou um servidor seu, que funcionam aqui do mesmo jeito.",
 		"needsClientId": "Preencha o identificador do aplicativo antes de entrar no serviço.",
 		"didNotComeFromHere": "A resposta do serviço não bate com o pedido que saiu daqui. Comece de novo.",
 		"personalFromAnotherDevice": "Este arquivo traz o espaço pessoal de outro aparelho, e você já tem um. Sincronizar junta o mesmo espaço em dois lugares, não dois espaços pessoais diferentes. Para trazer essa vida financeira para cá, exporte um backup lá e use Restaurar aqui: ele junta com o seu.",

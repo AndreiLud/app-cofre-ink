@@ -18,6 +18,9 @@ import { deflateSync } from "node:zlib";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const out = join(here, "..", "apps", "web", "public", "icons");
+// The shell that wraps the same build into a window and into a telephone wants the
+// same mark in the two formats the two desktops insist on.
+const shell = join(here, "..", "apps", "desktop", "src-tauri", "icons");
 
 const PAPER = [0xf4, 0xef, 0xe4, 0xff];
 const INK = [0x16, 0x15, 0x0f, 0xff];
@@ -96,7 +99,7 @@ function encodePng(width, height, pixels) {
  * `bleed` is what a maskable icon needs: the drawing fills the square with ink and the
  * mark sits well inside it, so that a launcher cropping it to a circle cuts nothing.
  */
-function drawSafe(size, { bleed = false } = {}) {
+function paint(size, { bleed = false } = {}) {
 	const pixels = new Uint8Array(size * size * 4);
 	const put = (x, y, colour) => {
 		const at = (y * size + x) * 4;
@@ -135,10 +138,109 @@ function drawSafe(size, { bleed = false } = {}) {
 		}
 	}
 
-	return encodePng(size, size, pixels);
+	return pixels;
+}
+
+function drawSafe(size, options = {}) {
+	return encodePng(size, size, paint(size, options));
+}
+
+/**
+ * A drawing as the bitmap an icon file carries.
+ *
+ * Bottom up, blue before red, and with a header that lies about the height because the
+ * format expects a mask underneath the picture. The mask is all zeroes, which means
+ * every pixel is opaque, and the alpha in the picture says the same thing.
+ */
+function encodeDib(size, pixels) {
+	const mask = ((size + 31) >> 5) * 4 * size;
+	const file = new Uint8Array(40 + size * size * 4 + mask);
+	const view = new DataView(file.buffer);
+	view.setUint32(0, 40, true);
+	view.setInt32(4, size, true);
+	view.setInt32(8, size * 2, true);
+	view.setUint16(12, 1, true);
+	view.setUint16(14, 32, true);
+	view.setUint32(20, size * size * 4 + mask, true);
+
+	for (let y = 0; y < size; y += 1) {
+		const from = (size - 1 - y) * size * 4;
+		let to = 40 + y * size * 4;
+		for (let x = 0; x < size; x += 1) {
+			file[to] = pixels[from + x * 4 + 2];
+			file[to + 1] = pixels[from + x * 4 + 1];
+			file[to + 2] = pixels[from + x * 4];
+			file[to + 3] = pixels[from + x * 4 + 3];
+			to += 4;
+		}
+	}
+
+	return file;
+}
+
+/**
+ * What Windows asks for: a small table of sizes, each one a whole picture.
+ *
+ * The format allows a bitmap and allows a PNG. The sizes a window and a taskbar use are
+ * written as bitmaps, which every Windows that ever existed reads, and the largest one
+ * is written as a PNG, which is the form that size was introduced with.
+ */
+function encodeIco(images) {
+	const header = new Uint8Array(6 + images.length * 16);
+	const view = new DataView(header.buffer);
+	// Nothing, then one meaning icon, then how many.
+	view.setUint16(2, 1, true);
+	view.setUint16(4, images.length, true);
+
+	let at = header.length;
+	for (const [index, image] of images.entries()) {
+		const entry = 6 + index * 16;
+		// Two hundred and fifty six is written as a zero, which is the whole of the
+		// format's cleverness.
+		header[entry] = image.size % 256;
+		header[entry + 1] = image.size % 256;
+		view.setUint16(entry + 4, 1, true);
+		view.setUint16(entry + 6, 32, true);
+		view.setUint32(entry + 8, image.bytes.length, true);
+		view.setUint32(entry + 12, at, true);
+		at += image.bytes.length;
+	}
+
+	const file = new Uint8Array(at);
+	file.set(header, 0);
+	let cursor = header.length;
+	for (const image of images) {
+		file.set(image.bytes, cursor);
+		cursor += image.bytes.length;
+	}
+	return file;
+}
+
+/** What macOS asks for: the same PNGs, each one under the name of its size. */
+function encodeIcns(images) {
+	const parts = [];
+	let total = 8;
+	for (const image of images) {
+		const head = new Uint8Array(8);
+		head.set(new TextEncoder().encode(image.type), 0);
+		new DataView(head.buffer).setUint32(4, 8 + image.bytes.length);
+		parts.push(head, image.bytes);
+		total += 8 + image.bytes.length;
+	}
+
+	const file = new Uint8Array(total);
+	file.set(new TextEncoder().encode("icns"), 0);
+	new DataView(file.buffer).setUint32(4, total);
+	let at = 8;
+	for (const part of parts) {
+		file.set(part, at);
+		at += part.length;
+	}
+	return file;
 }
 
 mkdirSync(out, { recursive: true });
+mkdirSync(shell, { recursive: true });
 
 const written = [
 	["icon192.png", drawSafe(192)],
@@ -155,3 +257,42 @@ for (const [name, bytes] of written) {
 }
 
 console.log(`Icons written to ${out}: ${written.map(([name]) => name).join(", ")}`);
+
+// The same mark again, at the sizes and under the names the shell's bundler looks for.
+const sizes = new Map([16, 32, 48, 64, 128, 256, 512, 1024].map((size) => [size, drawSafe(size)]));
+const bitmap = (size) => ({ size, bytes: encodeDib(size, paint(size)) });
+
+const forShell = [
+	["32x32.png", sizes.get(32)],
+	["128x128.png", sizes.get(128)],
+	["128x128@2x.png", sizes.get(256)],
+	["icon.png", sizes.get(512)],
+	[
+		"icon.ico",
+		encodeIco([
+			bitmap(16),
+			bitmap(32),
+			bitmap(48),
+			bitmap(64),
+			bitmap(128),
+			{ size: 256, bytes: sizes.get(256) },
+		]),
+	],
+	[
+		"icon.icns",
+		encodeIcns([
+			{ type: "ic11", bytes: sizes.get(32) },
+			{ type: "ic12", bytes: sizes.get(64) },
+			{ type: "ic07", bytes: sizes.get(128) },
+			{ type: "ic08", bytes: sizes.get(256) },
+			{ type: "ic09", bytes: sizes.get(512) },
+			{ type: "ic10", bytes: sizes.get(1024) },
+		]),
+	],
+];
+
+for (const [name, bytes] of forShell) {
+	writeFileSync(join(shell, name), bytes);
+}
+
+console.log(`Icons written to ${shell}: ${forShell.map(([name]) => name).join(", ")}`);

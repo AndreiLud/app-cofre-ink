@@ -1,0 +1,4 @@
+# What the Rust build and the mobile templates write. Both are generated from the
+# files that are in the repository, and both are large.
+src-tauri/target/
+src-tauri/gen/

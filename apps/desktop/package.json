@@ -1,0 +1,21 @@
+{
+	"name": "@cofre/desktop",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Cofre in a window of its own, on a computer and on a telephone",
+	"scripts": {
+		"app": "tauri dev",
+		"app:build": "tauri build",
+		"android:start": "tauri android init",
+		"android": "tauri android dev",
+		"android:build": "tauri android build",
+		"ios:start": "tauri ios init",
+		"ios": "tauri ios dev",
+		"ios:build": "tauri ios build",
+		"tauri": "tauri"
+	},
+	"devDependencies": {
+		"@tauri-apps/cli": "^2.9.2"
+	}
+}

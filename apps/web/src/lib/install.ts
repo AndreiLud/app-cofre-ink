@@ -55,6 +55,18 @@ function isStandalone(): boolean {
 	return (navigator as { standalone?: boolean }).standalone === true;
 }
 
+/**
+ * True when the page is running inside the shell rather than inside a browser.
+ *
+ * The shell is the same build in a window of its own, on a computer or on a telephone.
+ * Two things follow from it and both show on a screen: there is nothing left to
+ * install, and a drive that signs people in will not send anybody back to an address
+ * that is not a web address, so those destinations have to be connected in a browser.
+ */
+export function insideShell(): boolean {
+	return "__TAURI_INTERNALS__" in window || "__TAURI__" in window;
+}
+
 function isApple(): boolean {
 	const agent = navigator.userAgent;
 	// An iPad says it is a Mac, and a Mac with a touch screen does not exist.
@@ -64,7 +76,7 @@ function isApple(): boolean {
 }
 
 export function installOffer(): InstallOffer {
-	const installed = isStandalone();
+	const installed = isStandalone() || insideShell();
 
 	return {
 		installed,
@@ -94,7 +106,9 @@ export function keepWorkingOffline(): void {
 	if (!import.meta.env.PROD) return;
 
 	window.addEventListener("load", () => {
-		void navigator.serviceWorker.register("/sw.js").catch(() => {
+		// Against the base of the build, so that a copy served from a folder registers
+		// the worker of that folder and claims only the pages inside it.
+		void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {
 			// A browser that refuses the worker still works, online.
 		});
 	});
