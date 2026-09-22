@@ -37,7 +37,7 @@ export function LanguageToggle() {
 			}}
 		>
 			{LANGUAGES.map((language) => (
-				<span key={language} className={language === current ? "text-ink" : "text-graphite"}>
+				<span key={language} className={language === current ? "text-ink" : "text-quiet"}>
 					{language.toUpperCase()}
 				</span>
 			))}

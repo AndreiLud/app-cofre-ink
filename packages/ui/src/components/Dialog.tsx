@@ -43,11 +43,11 @@ export function Dialog({
 	return (
 		<Primitive.Root open={open} onOpenChange={onOpenChange}>
 			<Primitive.Portal>
-				<Primitive.Overlay className="fixed inset-0 z-40 bg-ink/40" />
+				<Primitive.Overlay className="fixed inset-0 z-40 bg-ink/50" />
 				<Primitive.Content
 					className={cn(
 						"fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2",
-						"border border-ink bg-paper p-5 text-ink",
+						"rounded-md border border-line bg-panel p-5 text-ink shadow-lifted",
 						// A long form on a short window scrolls inside the dialog instead of
 						// running off the bottom of the screen with its buttons.
 						"flex max-h-[calc(100dvh-2rem)] flex-col overflow-y-auto overscroll-contain",
@@ -55,13 +55,13 @@ export function Dialog({
 						className,
 					)}
 				>
-					<div className="mb-4 flex items-start justify-between gap-4 border-b border-rule pb-3">
+					<div className="mb-4 flex items-start justify-between gap-4 border-b border-line pb-3">
 						<div className="space-y-1">
 							<Primitive.Title className="font-serif text-xl leading-tight">
 								{title}
 							</Primitive.Title>
 							{showDescription ? (
-								<Primitive.Description className="text-sm text-graphite">
+								<Primitive.Description className="text-sm text-quiet">
 									{description}
 								</Primitive.Description>
 							) : (
@@ -70,7 +70,7 @@ export function Dialog({
 						</div>
 						<Primitive.Close
 							aria-label={closeLabel}
-							className="rounded-sm p-1 text-graphite hover:text-ink"
+							className="rounded-sm p-1 text-quiet hover:text-ink"
 						>
 							<Icon name="close" />
 						</Primitive.Close>

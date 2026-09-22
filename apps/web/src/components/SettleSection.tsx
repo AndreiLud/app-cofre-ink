@@ -6,7 +6,7 @@
 
 import { todayIn } from "@cofre/core";
 import type { User } from "@cofre/storage";
-import { Button, Callout, SectionTitle, Skeleton } from "@cofre/ui";
+import { Button, Callout, Panel, Skeleton } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -71,27 +71,25 @@ export function SettleSection({ spaceId, people, currency, timezone }: SettleSec
 	const past = history.data ?? [];
 
 	return (
-		<section className="space-y-4">
-			<SectionTitle>{t("sharing.title")}</SectionTitle>
-
-			<p className="max-w-[60ch] text-sm text-graphite">{t("sharing.explain")}</p>
+		<Panel title={t("sharing.title")}>
+			<p className="max-w-[60ch] text-sm text-quiet">{t("sharing.explain")}</p>
 
 			{problem ? <Callout tone="problem">{problem}</Callout> : null}
 
 			{balances.isPending ? <Skeleton lines={2} /> : null}
 
 			{!balances.isPending && rows.length === 0 ? (
-				<p className="text-sm text-graphite">{t("sharing.even")}</p>
+				<p className="text-sm text-quiet">{t("sharing.even")}</p>
 			) : null}
 
-			<ul className="divide-y divide-rule">
+			<ul className="divide-y divide-line">
 				{rows.map((balance) => (
 					<li
 						key={balance.userId}
 						className="flex items-baseline justify-between gap-4 py-2 text-sm"
 					>
 						<span className="text-ink">{nameOf(balance.userId)}</span>
-						<span className="text-graphite">
+						<span className="text-quiet">
 							{balance.amount > 0 ? t("sharing.isOwed") : t("sharing.owes")}{" "}
 							<Value amount={Math.abs(balance.amount)} currency={currency} tone="neutral" />
 						</span>
@@ -108,7 +106,7 @@ export function SettleSection({ spaceId, people, currency, timezone }: SettleSec
 								key={`${payment.fromUserId}${payment.toUserId}`}
 								className="flex flex-wrap items-center justify-between gap-3 text-sm"
 							>
-								<span className="text-graphite">
+								<span className="text-quiet">
 									{t("sharing.payment", {
 										from: nameOf(payment.fromUserId),
 										to: nameOf(payment.toUserId),
@@ -130,12 +128,12 @@ export function SettleSection({ spaceId, people, currency, timezone }: SettleSec
 			) : null}
 
 			{past.length > 0 ? (
-				<div className="space-y-1 border-t border-rule pt-3">
+				<div className="space-y-1 border-t border-line pt-3">
 					<p className="text-sm font-medium text-ink">{t("sharing.already")}</p>
-					<ul className="divide-y divide-rule">
+					<ul className="divide-y divide-line">
 						{past.map((one) => (
 							<li key={one.id} className="flex items-baseline justify-between gap-4 py-2 text-sm">
-								<span className="text-graphite">
+								<span className="text-quiet">
 									<span className="font-mono text-xs">
 										{one.happenedOn.slice(8)}/{one.happenedOn.slice(5, 7)}
 									</span>{" "}
@@ -153,6 +151,6 @@ export function SettleSection({ spaceId, people, currency, timezone }: SettleSec
 					</ul>
 				</div>
 			) : null}
-		</section>
+		</Panel>
 	);
 }

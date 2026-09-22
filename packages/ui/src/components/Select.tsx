@@ -33,8 +33,9 @@ export function Select({ label, options, hint, error, className, ...rest }: Sele
 				aria-describedby={describedBy === "" ? undefined : describedBy}
 				aria-invalid={error ? true : undefined}
 				className={cn(
-					"h-11 rounded-sm border bg-raised px-3 text-base text-ink md:h-10 md:text-sm",
-					error ? "border-seal" : "border-rule",
+					"h-11 rounded-sm border bg-sunken px-3 text-base text-ink",
+					"transition-colors duration-150 focus:border-accent focus:bg-panel",
+					error ? "border-seal" : "border-lineStrong",
 					className,
 				)}
 				{...rest}
@@ -46,7 +47,7 @@ export function Select({ label, options, hint, error, className, ...rest }: Sele
 				))}
 			</select>
 			{hint ? (
-				<p id={hintId} className="text-xs text-graphite">
+				<p id={hintId} className="text-xs text-quiet">
 					{hint}
 				</p>
 			) : null}

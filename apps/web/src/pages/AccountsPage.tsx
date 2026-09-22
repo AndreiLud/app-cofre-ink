@@ -168,12 +168,12 @@ export function AccountsPage() {
 						{rows.map((account) => (
 							<TableRow key={account.id}>
 								<TableCell>
-									<span className={account.archivedAt ? "text-graphite line-through" : ""}>
+									<span className={account.archivedAt ? "text-quiet line-through" : ""}>
 										{account.name}
 									</span>
 								</TableCell>
-								<TableCell className="text-graphite">{t(`accountKind.${account.kind}`)}</TableCell>
-								<TableCell className="text-graphite">{account.institution ?? ""}</TableCell>
+								<TableCell className="text-quiet">{t(`accountKind.${account.kind}`)}</TableCell>
+								<TableCell className="text-quiet">{account.institution ?? ""}</TableCell>
 								<TableCell numeric={true}>
 									<Value amount={account.initialBalance} currency={account.currency} tone="auto" />
 								</TableCell>

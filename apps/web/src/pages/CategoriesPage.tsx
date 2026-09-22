@@ -15,6 +15,7 @@ import {
 	Menu,
 	MenuItem,
 	MenuSeparator,
+	Panel,
 	SectionTitle,
 	Segmented,
 	Select,
@@ -31,7 +32,7 @@ const PRIORITIES: SpendingPriority[] = ["essential", "important", "desirable", "
 /** The colour says how much it was needed, from the one that pays itself to the one that does not. */
 const PRIORITY_TONE: Record<SpendingPriority, string> = {
 	essential: "text-ink",
-	important: "text-graphite",
+	important: "text-quiet",
 	desirable: "text-ochre",
 	superfluous: "text-seal",
 };
@@ -157,7 +158,7 @@ export function CategoriesPage() {
 				className={`flex items-baseline justify-between gap-4 py-2 ${isChild ? "pl-6" : ""}`}
 			>
 				<span className="flex min-w-0 items-baseline gap-3">
-					<span className={isChild ? "text-sm text-graphite" : "text-sm font-medium text-ink"}>
+					<span className={isChild ? "text-sm text-quiet" : "text-sm font-medium text-ink"}>
 						{category.name}
 					</span>
 					{category.kind === "expense" ? (
@@ -196,15 +197,14 @@ export function CategoriesPage() {
 		const list = parents.filter((category) => category.kind === which);
 		if (list.length === 0) return null;
 		return (
-			<section className="space-y-3">
-				<SectionTitle>{t(`categories.${which}`)}</SectionTitle>
-				<ul className="divide-y divide-rule">
+			<Panel title={t(`categories.${which}`)}>
+				<ul className="divide-y divide-line">
 					{list.flatMap((parent) => [
 						line(parent, false),
 						...childrenOf(parent.id).map((child) => line(child, true)),
 					])}
 				</ul>
-			</section>
+			</Panel>
 		);
 	};
 

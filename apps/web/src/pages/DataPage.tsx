@@ -35,9 +35,9 @@ function Section({
 	children: ReactNode;
 }) {
 	return (
-		<section className="space-y-3 border-t border-rule pt-5">
+		<section className="space-y-3 border-t border-line pt-5">
 			<h2 className="font-serif text-lg">{title}</h2>
-			<p className="max-w-[60ch] text-sm text-graphite">{description}</p>
+			<p className="max-w-[60ch] text-sm text-quiet">{description}</p>
 			{children}
 		</section>
 	);
@@ -217,7 +217,7 @@ export function DataPage() {
 	return (
 		<div className="space-y-6">
 			<SectionTitle level="h1">{t("data.title")}</SectionTitle>
-			<p className="max-w-[60ch] text-sm text-graphite">{t("data.explain")}</p>
+			<p className="max-w-[60ch] text-sm text-quiet">{t("data.explain")}</p>
 
 			{problem ? <Callout tone="problem">{problem}</Callout> : null}
 
@@ -278,7 +278,7 @@ export function DataPage() {
 						{t("data.sheetAction")}
 					</Button>
 					{mirrored ? (
-						<p className="text-sm text-graphite">
+						<p className="text-sm text-quiet">
 							{t("data.sheetDone")}{" "}
 							<a className="underline" href={mirrored} target="_blank" rel="noreferrer">
 								{mirrored}
@@ -301,7 +301,7 @@ export function DataPage() {
 						if (file) restore.mutate(file);
 						event.target.value = "";
 					}}
-					className="block w-full max-w-md text-sm text-ink file:mr-3 file:rounded-sm file:border file:border-rule file:bg-raised file:px-3 file:py-2 file:text-sm file:text-ink"
+					className="block w-full max-w-md text-sm text-ink file:mr-3 file:rounded-sm file:border file:border-line file:bg-panel file:px-3 file:py-2 file:text-sm file:text-ink"
 				/>
 				{restored ? <RestoreSummary result={restored} /> : null}
 			</Section>

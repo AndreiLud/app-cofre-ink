@@ -25,7 +25,7 @@ import {
 	Field,
 	InsightTitle,
 	LineChart,
-	SectionTitle,
+	Panel,
 	Select,
 	Skeleton,
 	Table,
@@ -245,25 +245,22 @@ export function ProjectionPage() {
 								}).format(value / 100)
 							}
 						/>
-						<p className="text-xs text-graphite">
+						<p className="text-xs text-quiet">
 							{chosen
 								? t("projection.chartLegendWith", { name: chosen.name })
 								: t("projection.chartLegend")}
 						</p>
 					</section>
 
-					<section className="space-y-3">
-						<SectionTitle
-							action={
-								<Button size="small" variant="secondary" onClick={() => setOpen(true)}>
-									{t("projection.addScenario")}
-								</Button>
-							}
-						>
-							{t("projection.scenarios")}
-						</SectionTitle>
-
-						<p className="max-w-[60ch] text-sm text-graphite">{t("projection.scenariosBody")}</p>
+					<Panel
+						title={t("projection.scenarios")}
+						action={
+							<Button size="small" variant="secondary" onClick={() => setOpen(true)}>
+								{t("projection.addScenario")}
+							</Button>
+						}
+					>
+						<p className="max-w-[60ch] text-sm text-quiet">{t("projection.scenariosBody")}</p>
 
 						<div className="flex flex-wrap gap-2">
 							<Button
@@ -293,11 +290,10 @@ export function ProjectionPage() {
 								</span>
 							))}
 						</div>
-					</section>
+					</Panel>
 
-					<section className="space-y-3">
-						<SectionTitle>{t("projection.monthByMonth")}</SectionTitle>
-						<p className="max-w-[60ch] text-sm text-graphite">{t("projection.madeOf")}</p>
+					<Panel title={t("projection.monthByMonth")}>
+						<p className="max-w-[60ch] text-sm text-quiet">{t("projection.madeOf")}</p>
 
 						<Table caption={t("projection.caption")}>
 							<TableHead>
@@ -332,7 +328,7 @@ export function ProjectionPage() {
 												tone={month.balance < 0 ? "negative" : "neutral"}
 											/>
 										</TableCell>
-										<TableCell className="hidden text-xs text-graphite sm:table-cell">
+										<TableCell className="hidden text-xs text-quiet sm:table-cell">
 											{t("projection.parts", {
 												written: money(month.expenseFrom.written),
 												recurring: money(month.expenseFrom.recurring),
@@ -343,7 +339,7 @@ export function ProjectionPage() {
 								))}
 							</TableBody>
 						</Table>
-					</section>
+					</Panel>
 
 					{ahead.data && ahead.data.history.length < 3 ? (
 						<Callout tone="attention" title={t("projection.thinHistoryTitle")}>

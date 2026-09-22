@@ -62,12 +62,7 @@ function Drawing({ groups, description, className, size }: ColumnChartProps & { 
 								height={Math.max(expense, 1)}
 								className="fill-seal"
 							/>
-							<text
-								x={middle}
-								y={PLOT + 16}
-								textAnchor="middle"
-								className="fill-graphite text-[12px]"
-							>
+							<text x={middle} y={PLOT + 16} textAnchor="middle" className="fill-quiet text-[12px]">
 								{group.label}
 							</text>
 						</g>
@@ -78,7 +73,7 @@ function Drawing({ groups, description, className, size }: ColumnChartProps & { 
 					y1={PLOT}
 					x2={WIDTH}
 					y2={PLOT}
-					className="stroke-rule"
+					className="stroke-line"
 					strokeWidth={1}
 					vectorEffect="non-scaling-stroke"
 				/>

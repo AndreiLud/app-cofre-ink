@@ -102,14 +102,14 @@ export function OnboardingPage() {
 	return (
 		<div className="mx-auto min-h-dvh max-w-xl px-4 py-10">
 			<div className="flex items-center justify-between gap-4">
-				<p className="font-serif text-lg text-graphite">{t("app.name")}</p>
+				<p className="font-serif text-lg text-quiet">{t("app.name")}</p>
 				<div className="flex items-center gap-1">
 					<LanguageToggle />
 					<ThemeToggle choice={choice} isDark={isDark} onChange={setChoice} />
 				</div>
 			</div>
 			<h1 className="mt-6 text-3xl">{t("onboarding.title")}</h1>
-			<p className="mt-2 max-w-[55ch] text-graphite">{t("onboarding.subtitle")}</p>
+			<p className="mt-2 max-w-[55ch] text-quiet">{t("onboarding.subtitle")}</p>
 
 			<form onSubmit={submit} className="mt-8 space-y-5">
 				<Field
@@ -156,7 +156,7 @@ export function OnboardingPage() {
 					/>
 					<span>
 						<span className="font-medium text-ink">{t("onboarding.demo")}</span>
-						<span className="block text-graphite">{t("onboarding.demoHint")}</span>
+						<span className="block text-quiet">{t("onboarding.demoHint")}</span>
 					</span>
 				</label>
 
@@ -170,7 +170,7 @@ export function OnboardingPage() {
 					<Button type="submit" variant="primary" disabled={busy}>
 						{busy ? t("onboarding.working") : t("onboarding.start")}
 					</Button>
-					<p className="text-xs text-graphite">{t("onboarding.privacy")}</p>
+					<p className="text-xs text-quiet">{t("onboarding.privacy")}</p>
 				</div>
 			</form>
 		</div>

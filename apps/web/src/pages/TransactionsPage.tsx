@@ -13,6 +13,7 @@ import {
 	Menu,
 	MenuItem,
 	MenuSeparator,
+	Panel,
 	SectionTitle,
 	Select,
 	Skeleton,
@@ -77,6 +78,7 @@ export function TransactionsPage() {
 	const [problem, setProblem] = useState<string | null>(null);
 	const [taught, setTaught] = useState<string | null>(null);
 	const [dividing, setDividing] = useState<Transaction | null>(null);
+	const [showFilters, setShowFilters] = useState(false);
 
 	const spaceId = currentSpace?.id ?? "";
 
@@ -219,6 +221,16 @@ export function TransactionsPage() {
 		onSuccess: invalidate,
 	});
 
+	/** How many of the filters behind the button are doing something. */
+	const narrowed = [filters.kind, filters.status, filters.accountId, filters.categoryId].filter(
+		(value) => value !== "",
+	).length;
+
+	const clearFilters = () => {
+		setFilters({ ...filters, kind: "", status: "", accountId: "", categoryId: "" });
+		setPicked([]);
+	};
+
 	if (!currentSpace) return null;
 
 	const rows = records.data ?? [];
@@ -254,81 +266,46 @@ export function TransactionsPage() {
 					</Button>
 				}
 			>
-				{t("transactions.title", { space: currentSpace.name })}
+				{t("transactions.title")}
 			</SectionTitle>
 
-			<QuickEntry spaceId={spaceId} accounts={accounts.data ?? []} today={today} />
+			<Panel>
+				<QuickEntry spaceId={spaceId} accounts={accounts.data ?? []} today={today} />
+			</Panel>
 
-			{/* The filters and the ones that were kept are one thing: a set of answers,
-			    and the shortcuts to a set of answers. Apart, the shortcuts read as a
-			    stray button floating above the screen. */}
-			<section className="space-y-3 border-t border-rule pt-4">
-				{/* One column on a phone, two on a tablet, three on a screen, which is two
-				    rows of three. Six in a row fits only by cutting every label in half,
-				    and a select narrower than its own text is a select nobody can read. */}
-				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+			{/* Six filters open at all times took a third of the screen before a single
+			    record appeared. The month is the one everybody changes, and searching is
+			    the one everybody does, so those two stay out. The rest are behind a
+			    button that says how many of them are doing something. */}
+			<Panel
+				title={t("transactions.listTitle")}
+				action={
+					<>
+						<Button
+							size="small"
+							variant={showFilters ? "primary" : "secondary"}
+							icon={<Icon name="filter" />}
+							onClick={() => setShowFilters(!showFilters)}
+							aria-expanded={showFilters}
+						>
+							{narrowed === 0
+								? t("transactions.filters")
+								: t("transactions.filtersOn", { count: narrowed })}
+						</Button>
+						{narrowed > 0 ? (
+							<Button size="small" variant="quiet" onClick={clearFilters}>
+								{t("transactions.clearFilters")}
+							</Button>
+						) : null}
+					</>
+				}
+			>
+				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
 					<Field
 						label={t("transactions.month")}
 						type="month"
 						value={filters.month}
 						onChange={(event) => setFilters({ ...filters, month: event.target.value })}
-					/>
-					<Select
-						label={t("transactions.kind")}
-						value={filters.kind}
-						onChange={(event) =>
-							setFilters({ ...filters, kind: event.target.value as TransactionKind | "" })
-						}
-						options={[
-							{ value: "", label: t("transactions.anyKind") },
-							{ value: "expense", label: t("transactionKind.expense") },
-							{ value: "income", label: t("transactionKind.income") },
-							{ value: "transfer", label: t("transactionKind.transfer") },
-						]}
-					/>
-					<Select
-						label={t("transactions.status")}
-						value={filters.status}
-						onChange={(event) =>
-							setFilters({ ...filters, status: event.target.value as TransactionStatus | "" })
-						}
-						options={[
-							{ value: "", label: t("transactions.anyStatus") },
-							{ value: "settled", label: t("transactionStatus.settled") },
-							{ value: "planned", label: t("transactionStatus.planned") },
-						]}
-					/>
-					<Select
-						label={t("transactions.account")}
-						value={filters.accountId}
-						onChange={(event) => setFilters({ ...filters, accountId: event.target.value })}
-						options={[
-							{ value: "", label: t("transactions.anyAccount") },
-							...(accounts.data ?? []).map((account) => ({
-								value: account.id,
-								label: account.name,
-							})),
-						]}
-					/>
-					<Select
-						label={t("transactions.category")}
-						value={filters.categoryId}
-						onChange={(event) => setFilters({ ...filters, categoryId: event.target.value })}
-						options={[
-							{ value: "", label: t("transactions.anyCategory") },
-							{ value: "none", label: t("transactions.noCategory") },
-							...(categories.data ?? [])
-								.filter((category) => category.parentId === null)
-								.flatMap((parent) => [
-									{ value: parent.id, label: parent.name },
-									...(categories.data ?? [])
-										.filter((child) => child.parentId === parent.id)
-										.map((child) => ({
-											value: child.id,
-											label: `  ${child.name}`,
-										})),
-								]),
-						]}
 					/>
 					<Field
 						label={t("transactions.search")}
@@ -339,15 +316,79 @@ export function TransactionsPage() {
 					/>
 				</div>
 
-				<SavedFilters
-					spaceId={spaceId}
-					current={filters as unknown as FilterQuery}
-					onApply={(query) => {
-						setFilters(filtersFrom(query, monthOf(today)));
-						setPicked([]);
-					}}
-				/>
-			</section>
+				{showFilters ? (
+					<div className="mt-3 grid grid-cols-1 gap-3 border-t border-line pt-3 sm:grid-cols-2 lg:grid-cols-4">
+						<Select
+							label={t("transactions.kind")}
+							value={filters.kind}
+							onChange={(event) =>
+								setFilters({ ...filters, kind: event.target.value as TransactionKind | "" })
+							}
+							options={[
+								{ value: "", label: t("transactions.anyKind") },
+								{ value: "expense", label: t("transactionKind.expense") },
+								{ value: "income", label: t("transactionKind.income") },
+								{ value: "transfer", label: t("transactionKind.transfer") },
+							]}
+						/>
+						<Select
+							label={t("transactions.status")}
+							value={filters.status}
+							onChange={(event) =>
+								setFilters({ ...filters, status: event.target.value as TransactionStatus | "" })
+							}
+							options={[
+								{ value: "", label: t("transactions.anyStatus") },
+								{ value: "settled", label: t("transactionStatus.settled") },
+								{ value: "planned", label: t("transactionStatus.planned") },
+							]}
+						/>
+						<Select
+							label={t("transactions.account")}
+							value={filters.accountId}
+							onChange={(event) => setFilters({ ...filters, accountId: event.target.value })}
+							options={[
+								{ value: "", label: t("transactions.anyAccount") },
+								...(accounts.data ?? []).map((account) => ({
+									value: account.id,
+									label: account.name,
+								})),
+							]}
+						/>
+						<Select
+							label={t("transactions.category")}
+							value={filters.categoryId}
+							onChange={(event) => setFilters({ ...filters, categoryId: event.target.value })}
+							options={[
+								{ value: "", label: t("transactions.anyCategory") },
+								{ value: "none", label: t("transactions.noCategory") },
+								...(categories.data ?? [])
+									.filter((category) => category.parentId === null)
+									.flatMap((parent) => [
+										{ value: parent.id, label: parent.name },
+										...(categories.data ?? [])
+											.filter((child) => child.parentId === parent.id)
+											.map((child) => ({
+												value: child.id,
+												label: `  ${child.name}`,
+											})),
+									]),
+							]}
+						/>
+					</div>
+				) : null}
+
+				<div className="mt-3">
+					<SavedFilters
+						spaceId={spaceId}
+						current={filters as unknown as FilterQuery}
+						onApply={(query) => {
+							setFilters(filtersFrom(query, monthOf(today)));
+							setPicked([]);
+						}}
+					/>
+				</div>
+			</Panel>
 
 			{records.isPending ? <Skeleton lines={5} /> : null}
 
@@ -377,8 +418,10 @@ export function TransactionsPage() {
 			) : null}
 
 			{picked.length > 0 ? (
-				<div className="flex flex-wrap items-center gap-3 border-y border-ink py-2 text-sm">
-					<span className="text-ink">{t("transactions.picked", { count: picked.length })}</span>
+				<div className="flex flex-wrap items-center gap-3 rounded-md border border-accent bg-accentSoft px-4 py-3 text-sm">
+					<span className="font-medium text-ink">
+						{t("transactions.picked", { count: picked.length })}
+					</span>
 					<Button
 						size="small"
 						variant="secondary"
@@ -387,7 +430,7 @@ export function TransactionsPage() {
 					>
 						{t("transactions.settle")}
 					</Button>
-					<label className="flex items-center gap-2 text-graphite">
+					<label className="flex items-center gap-2 text-quiet">
 						{t("transactions.moveTo")}
 						<select
 							value={moveTo}
@@ -398,7 +441,7 @@ export function TransactionsPage() {
 									changeMany.mutate({ accountId: event.target.value });
 								}
 							}}
-							className="h-8 rounded-sm border border-rule bg-raised px-2 text-sm text-ink"
+							className="h-8 rounded-sm border border-line bg-panel px-2 text-sm text-ink"
 						>
 							<option value="">{t("transactions.pickAccount")}</option>
 							{(accounts.data ?? [])
@@ -410,7 +453,7 @@ export function TransactionsPage() {
 								))}
 						</select>
 					</label>
-					<label className="flex items-center gap-2 text-graphite">
+					<label className="flex items-center gap-2 text-quiet">
 						{t("transactions.sortInto")}
 						<select
 							value=""
@@ -420,7 +463,7 @@ export function TransactionsPage() {
 									changeMany.mutate({ categoryId: event.target.value });
 								}
 							}}
-							className="h-8 rounded-sm border border-rule bg-raised px-2 text-sm text-ink"
+							className="h-8 rounded-sm border border-line bg-panel px-2 text-sm text-ink"
 						>
 							<option value="">{t("transactions.pickCategory")}</option>
 							{(categories.data ?? [])
@@ -454,8 +497,8 @@ export function TransactionsPage() {
 			) : null}
 
 			{rows.length > 0 ? (
-				<>
-					<Table caption={t("transactions.caption", { space: currentSpace.name })}>
+				<Panel flush>
+					<Table caption={t("transactions.caption")}>
 						<TableHead>
 							<TableRow>
 								<TableHeader>
@@ -492,15 +535,15 @@ export function TransactionsPage() {
 											className="size-4 accent-[var(--ink)]"
 										/>
 									</TableCell>
-									<TableCell className="whitespace-nowrap font-mono text-graphite">
+									<TableCell className="whitespace-nowrap font-mono text-quiet">
 										{row.happenedOn.slice(8)}/{row.happenedOn.slice(5, 7)}
 									</TableCell>
 									<TableCell>
-										<span className={row.status === "planned" ? "text-graphite" : ""}>
+										<span className={row.status === "planned" ? "text-quiet" : ""}>
 											{row.description}
 										</span>
 										{row.categoryId ? (
-											<span className="ml-2 text-xs text-graphite">
+											<span className="ml-2 text-xs text-quiet">
 												{nameOfCategory(row.categoryId)}
 											</span>
 										) : null}
@@ -515,7 +558,7 @@ export function TransactionsPage() {
 											</span>
 										) : null}
 									</TableCell>
-									<TableCell className="hidden text-graphite sm:table-cell">
+									<TableCell className="hidden text-quiet sm:table-cell">
 										{nameOf(row.accountId)}
 										{row.counterAccountId ? ` → ${nameOf(row.counterAccountId)}` : ""}
 									</TableCell>
@@ -581,13 +624,13 @@ export function TransactionsPage() {
 						</TableBody>
 					</Table>
 
-					<p className="flex items-baseline justify-between border-t border-ink pt-2 text-sm">
-						<span className="text-graphite">
+					<p className="flex items-baseline justify-between border-t border-line bg-sunken px-4 py-3 text-sm">
+						<span className="text-quiet">
 							{t("transactions.countedIn", { count: rows.length })}
 						</span>
 						<Value amount={total} currency={currentSpace.baseCurrency} tone="auto" />
 					</p>
-				</>
+				</Panel>
 			) : null}
 
 			<SplitDialog

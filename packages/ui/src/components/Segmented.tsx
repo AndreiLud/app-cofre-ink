@@ -31,17 +31,19 @@ export function Segmented<T extends string>({
 	return (
 		<fieldset className={cn("flex flex-col gap-1.5", className)}>
 			<legend className="mb-1.5 text-sm font-medium text-ink">{label}</legend>
-			<div className="flex w-full">
-				{options.map((option, index) => (
+			{/* A track with the chosen one raised out of it, which is what a switch looks
+			    like everywhere else, so nobody has to learn this one. */}
+			<div className="flex w-full gap-1 rounded-sm border border-lineStrong bg-sunken p-1">
+				{options.map((option) => (
 					<label
 						key={option.value}
 						className={cn(
-							"flex flex-1 cursor-pointer items-center justify-center border border-rule px-3 py-2 text-sm",
-							"has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ink",
-							index > 0 ? "border-l-0" : "",
+							"flex flex-1 cursor-pointer items-center justify-center rounded-sm px-3 py-1.5 text-sm",
+							"transition-colors duration-150",
+							"has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent",
 							option.value === value
-								? "bg-ink font-medium text-paper"
-								: "bg-raised text-graphite hover:text-ink",
+								? "bg-panel font-medium text-ink shadow-sm"
+								: "text-quiet hover:text-ink",
 						)}
 					>
 						<input

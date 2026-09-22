@@ -29,7 +29,7 @@ export function Table({
 		<div className="relative w-full overflow-x-auto">
 			<table className={cn("w-full min-w-0 border-collapse text-sm", className)} {...rest}>
 				<caption
-					className={cn("text-left text-sm text-graphite", visibleCaption ? "pb-2" : "sr-only")}
+					className={cn("text-left text-sm text-quiet", visibleCaption ? "pb-2" : "sr-only")}
 				>
 					{caption}
 				</caption>
@@ -45,7 +45,9 @@ export function TableHead({
 	...rest
 }: HTMLAttributes<HTMLTableSectionElement>) {
 	return (
-		<thead className={cn("border-b border-ink", className)} {...rest}>
+		// Sunken, so the head of a table reads as a label for the rows under it rather
+		// than as the first row of them.
+		<thead className={cn("bg-sunken", className)} {...rest}>
 			{children}
 		</thead>
 	);
@@ -57,7 +59,7 @@ export function TableBody({
 	...rest
 }: HTMLAttributes<HTMLTableSectionElement>) {
 	return (
-		<tbody className={cn("divide-y divide-rule", className)} {...rest}>
+		<tbody className={cn("divide-y divide-line", className)} {...rest}>
 			{children}
 		</tbody>
 	);
@@ -65,7 +67,7 @@ export function TableBody({
 
 export function TableRow({ className, children, ...rest }: HTMLAttributes<HTMLTableRowElement>) {
 	return (
-		<tr className={cn("hover:bg-ink/[0.03]", className)} {...rest}>
+		<tr className={cn("transition-colors hover:bg-sunken/60", className)} {...rest}>
 			{children}
 		</tr>
 	);
@@ -89,7 +91,7 @@ export function TableHeader({
 				// The gap between columns is what keeps two short headings from reading as
 				// one word. The last column keeps its edge, so a column of amounts still
 				// lines up with the right of the table.
-				"py-2 pr-4 text-xs font-medium text-graphite last:pr-0",
+				"px-2 py-2.5 text-xs font-medium tracking-wide text-quiet first:pl-3 last:pr-3 sm:px-4 sm:first:pl-5 sm:last:pr-5",
 				numeric ? "text-right" : "text-left",
 				className,
 			)}
@@ -109,7 +111,7 @@ export function TableCell({
 	return (
 		<td
 			className={cn(
-				"py-2 pr-4 align-baseline last:pr-0",
+				"px-2 py-3 align-baseline first:pl-3 last:pr-3 sm:px-4 sm:first:pl-5 sm:last:pr-5",
 				numeric ? "text-right" : "text-left",
 				className,
 			)}

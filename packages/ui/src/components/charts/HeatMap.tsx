@@ -76,17 +76,15 @@ export function HeatMap({
 								y={y}
 								width={CELL}
 								height={CELL}
-								className="fill-ink stroke-rule"
+								className="fill-accent stroke-line"
 								fillOpacity={weight}
 								strokeWidth={1}
+								rx={4}
 							/>
 							<text
 								x={x + 5}
 								y={y + 14}
-								className={cn(
-									"font-mono text-[11px]",
-									weight > 0.5 ? "fill-paper" : "fill-graphite",
-								)}
+								className={cn("font-mono text-[11px]", weight > 0.5 ? "fill-panel" : "fill-quiet")}
 							>
 								{cell.day}
 							</text>

@@ -211,8 +211,8 @@ export function MembersPage() {
 						{rows.map((member) => (
 							<TableRow key={member.id}>
 								<TableCell>{nameOf(member.userId)}</TableCell>
-								<TableCell className="text-graphite">{t(`role.${member.role}`)}</TableCell>
-								<TableCell className="text-graphite">{t(`memberState.${member.state}`)}</TableCell>
+								<TableCell className="text-quiet">{t(`role.${member.role}`)}</TableCell>
+								<TableCell className="text-quiet">{t(`memberState.${member.state}`)}</TableCell>
 								{isPersonal ? null : (
 									<TableCell numeric={true}>
 										{/* Only the division that follows income reads this, and only the
@@ -238,7 +238,7 @@ export function MembersPage() {
 														}).format(member.monthlyIncome / 100)}
 											</Button>
 										) : (
-											<span className="text-graphite">{t("members.incomeHidden")}</span>
+											<span className="text-quiet">{t("members.incomeHidden")}</span>
 										)}
 									</TableCell>
 								)}
@@ -357,13 +357,13 @@ export function MembersPage() {
 			>
 				{link ? (
 					<div className="space-y-3">
-						<p className="text-sm text-graphite">{t("members.linkReady")}</p>
-						<p className="break-all border border-rule bg-raised p-3 font-mono text-xs">{link}</p>
+						<p className="text-sm text-quiet">{t("members.linkReady")}</p>
+						<p className="break-all border border-line bg-panel p-3 font-mono text-xs">{link}</p>
 						<div className="flex items-center gap-3">
 							<Button variant="secondary" size="small" onClick={() => void copyLink()}>
 								{copied ? t("members.linkCopied") : t("members.copyLink")}
 							</Button>
-							<span className="text-xs text-graphite">{t("members.linkRules")}</span>
+							<span className="text-xs text-quiet">{t("members.linkRules")}</span>
 						</div>
 					</div>
 				) : (

@@ -103,9 +103,12 @@ export function FlowChart({
 			preserveAspectRatio="xMidYMid meet"
 		>
 			{/* The drawing speaks through the label on the svg above, so nothing inside it needs a name of its own. */}
-			<g className="text-ink">
+			<g className="text-accent">
+				{/* The ribbons carry the shape of the answer, so they are a tint of the
+				    one colour this interface uses rather than a shade of the text. At
+				    twelve per cent of ink they all but vanished on a lighter surface. */}
 				{ribbons.map((one) => (
-					<path key={one.key} d={one.path} fill="currentColor" opacity={0.12} />
+					<path key={one.key} d={one.path} fill="currentColor" opacity={0.22} />
 				))}
 
 				{left.map((one) => (
@@ -127,7 +130,7 @@ export function FlowChart({
 								x={16}
 								y={one.top + one.height / 2 + 9}
 								dominantBaseline="middle"
-								className="fill-graphite font-mono text-[11px]"
+								className="fill-quiet font-mono text-[11px]"
 							>
 								{format(one.amount)}
 							</text>
@@ -156,7 +159,7 @@ export function FlowChart({
 								y={one.top + one.height / 2 + 9}
 								textAnchor="end"
 								dominantBaseline="middle"
-								className="fill-graphite font-mono text-[11px]"
+								className="fill-quiet font-mono text-[11px]"
 							>
 								{format(one.amount)}
 							</text>

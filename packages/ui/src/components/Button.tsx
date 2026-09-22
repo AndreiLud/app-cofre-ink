@@ -1,3 +1,10 @@
+// A button that looks like a button.
+//
+// The old ones were an outline in the same colour and weight as every rule and every
+// input border on the page, so nothing on a screen announced itself as the thing to
+// press. These have three clearly different weights, and a screen is allowed one of
+// the first kind.
+
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "../lib/cn.ts";
 
@@ -12,15 +19,20 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const VARIANTS: Record<ButtonVariant, string> = {
-	primary: "bg-ink text-paper border border-ink hover:opacity-90",
-	secondary: "bg-transparent text-ink border border-ink hover:bg-ink/5",
-	quiet: "bg-transparent text-graphite border border-transparent hover:text-ink",
-	destructive: "bg-transparent text-seal border border-seal hover:bg-seal/10",
+	/** Filled, in the one colour that means "you can act on this". One per screen. */
+	primary:
+		"bg-accent text-accentInk border border-accent hover:brightness-110 active:brightness-95",
+	/** Raised off the panel, with an edge strong enough to read as an edge. */
+	secondary: "bg-sunken text-ink border border-lineStrong hover:bg-accentSoft hover:border-accent",
+	/** A word you can press. For anything that undoes, cancels or leaves. */
+	quiet: "bg-transparent text-quiet border border-transparent hover:bg-sunken hover:text-ink",
+	destructive: "bg-transparent text-seal border border-seal/50 hover:bg-seal/10 hover:border-seal",
 };
 
 const SIZES: Record<ButtonSize, string> = {
-	small: "h-8 px-3 text-sm gap-1.5",
-	medium: "h-11 px-4 text-sm gap-2 md:h-10",
+	small: "h-9 px-3 text-sm gap-1.5",
+	/** Forty four pixels is what a thumb needs, and a mouse does not mind it. */
+	medium: "h-11 px-4 text-sm gap-2",
 };
 
 export function Button({
@@ -36,9 +48,9 @@ export function Button({
 		<button
 			type={type}
 			className={cn(
-				"inline-flex items-center justify-center rounded-sm font-medium",
-				"transition-opacity duration-150",
-				"disabled:cursor-not-allowed disabled:opacity-40",
+				"inline-flex shrink-0 items-center justify-center rounded-sm font-medium whitespace-nowrap",
+				"transition-[background-color,border-color,filter] duration-150",
+				"disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-sunken",
 				VARIANTS[variant],
 				SIZES[size],
 				className,

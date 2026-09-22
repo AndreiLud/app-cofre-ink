@@ -20,7 +20,7 @@ import {
 	InsightTitle,
 	Menu,
 	MenuItem,
-	SectionTitle,
+	Panel,
 	Segmented,
 	Select,
 	Skeleton,
@@ -219,7 +219,7 @@ export function BudgetPage() {
 	}).format(new Date(`${month}-01T00:00:00Z`));
 
 	return (
-		<div className="space-y-10">
+		<div className="space-y-5">
 			<InsightTitle
 				level="h1"
 				detail={rows.length === 0 ? t("budget.noneYet") : t("budget.detail", { month: monthName })}
@@ -233,26 +233,23 @@ export function BudgetPage() {
 
 			{problem ? <Callout tone="problem">{problem}</Callout> : null}
 
-			<section className="space-y-4">
-				<SectionTitle
-					action={
-						<Button size="small" variant="secondary" onClick={() => setSavingOpen(true)}>
-							{savings.data?.rule ? t("budget.changeRule") : t("budget.setRule")}
-						</Button>
-					}
-				>
-					{t("budget.savingsTitle")}
-				</SectionTitle>
-
+			<Panel
+				title={t("budget.savingsTitle")}
+				action={
+					<Button size="small" variant="secondary" onClick={() => setSavingOpen(true)}>
+						{savings.data?.rule ? t("budget.changeRule") : t("budget.setRule")}
+					</Button>
+				}
+			>
 				{savings.isPending ? <Skeleton lines={2} /> : null}
 
 				{!savings.isPending && !savings.data?.rule ? (
-					<p className="max-w-[60ch] text-sm text-graphite">{t("budget.savingsExplain")}</p>
+					<p className="max-w-[60ch] text-sm text-quiet">{t("budget.savingsExplain")}</p>
 				) : null}
 
 				{savings.data?.rule ? (
 					<div className="space-y-2">
-						<p className="text-sm text-graphite">
+						<p className="text-sm text-quiet">
 							{savings.data.rule.mode === "percent"
 								? t("budget.ruleIsPercent", { percent: savings.data.rule.value / 100 })
 								: t("budget.ruleIsFixed")}{" "}
@@ -262,12 +259,12 @@ export function BudgetPage() {
 						</p>
 						<p className="font-mono text-2xl tabular-nums">
 							<Value amount={savings.data.put} currency={currency} tone="neutral" />
-							<span className="ml-2 text-sm text-graphite">
+							<span className="ml-2 text-sm text-quiet">
 								{t("budget.ofExpected")}{" "}
 								<Value amount={savings.data.expected} currency={currency} tone="neutral" />
 							</span>
 						</p>
-						<p className="text-sm text-graphite">
+						<p className="text-sm text-quiet">
 							{savings.data.put >= savings.data.expected
 								? t("budget.savingsDone")
 								: t("budget.savingsBehind")}
@@ -277,30 +274,27 @@ export function BudgetPage() {
 						</Button>
 					</div>
 				) : null}
-			</section>
+			</Panel>
 
-			<section className="space-y-4">
-				<SectionTitle
-					action={
-						<Button
-							size="small"
-							variant="secondary"
-							onClick={() => {
-								setGoalAccount(usable[0]?.id ?? "");
-								setGoalOpen(true);
-							}}
-						>
-							{t("budget.newGoal")}
-						</Button>
-					}
-				>
-					{t("budget.goalsTitle")}
-				</SectionTitle>
-
+			<Panel
+				title={t("budget.goalsTitle")}
+				action={
+					<Button
+						size="small"
+						variant="secondary"
+						onClick={() => {
+							setGoalAccount(usable[0]?.id ?? "");
+							setGoalOpen(true);
+						}}
+					>
+						{t("budget.newGoal")}
+					</Button>
+				}
+			>
 				{goals.isPending ? <Skeleton lines={2} /> : null}
 
 				{!goals.isPending && (goals.data ?? []).length === 0 ? (
-					<p className="max-w-[60ch] text-sm text-graphite">{t("budget.goalsExplain")}</p>
+					<p className="max-w-[60ch] text-sm text-quiet">{t("budget.goalsExplain")}</p>
 				) : null}
 
 				<ul className="divide-y divide-rule">
@@ -309,7 +303,7 @@ export function BudgetPage() {
 							<div className="flex items-baseline justify-between gap-4">
 								<span className="text-sm text-ink">{goal.name}</span>
 								<span className="flex items-center gap-3 text-sm">
-									<span className="text-graphite">
+									<span className="text-quiet">
 										<Value amount={goal.saved} currency={currency} tone="neutral" />
 										{" / "}
 										<Value amount={goal.targetAmount} currency={currency} tone="neutral" />
@@ -334,7 +328,7 @@ export function BudgetPage() {
 									style={{ width: `${Math.min(100, Math.round(goal.share * 100))}%` }}
 								/>
 							</div>
-							<p className="text-xs text-graphite">
+							<p className="text-xs text-quiet">
 								{goal.left === 0
 									? t("budget.goalReached")
 									: goal.monthlyNeeded
@@ -354,27 +348,24 @@ export function BudgetPage() {
 						</li>
 					))}
 				</ul>
-			</section>
+			</Panel>
 
-			<section className="space-y-4">
-				<SectionTitle
-					action={
-						<Button
-							size="small"
-							variant="primary"
-							icon={<Icon name="plus" />}
-							onClick={() => {
-								setCategoryId(sorted[0]?.id ?? "");
-								setOpen(true);
-							}}
-						>
-							{t("budget.newLimit")}
-						</Button>
-					}
-				>
-					{t("budget.limitsTitle")}
-				</SectionTitle>
-
+			<Panel
+				title={t("budget.limitsTitle")}
+				action={
+					<Button
+						size="small"
+						variant="primary"
+						icon={<Icon name="plus" />}
+						onClick={() => {
+							setCategoryId(sorted[0]?.id ?? "");
+							setOpen(true);
+						}}
+					>
+						{t("budget.newLimit")}
+					</Button>
+				}
+			>
 				{limits.isPending ? <Skeleton lines={4} /> : null}
 
 				{!limits.isPending && rows.length === 0 ? (
@@ -402,7 +393,7 @@ export function BudgetPage() {
 							<div className="flex items-baseline justify-between gap-4">
 								<span className="text-sm text-ink">{nameOfLimit(limit)}</span>
 								<span className="flex items-center gap-3 text-sm">
-									<span className="text-graphite">
+									<span className="text-quiet">
 										<Value amount={limit.progress.spent} currency={currency} tone="neutral" />
 										{" / "}
 										<Value amount={limit.progress.limit} currency={currency} tone="neutral" />
@@ -427,7 +418,7 @@ export function BudgetPage() {
 									style={{ width: `${Math.min(100, Math.round(limit.progress.share * 100))}%` }}
 								/>
 							</div>
-							<p className="text-xs text-graphite">
+							<p className="text-xs text-quiet">
 								{limit.progress.state === "over"
 									? t("budget.stateOver", {
 											amount: new Intl.NumberFormat(
@@ -452,7 +443,7 @@ export function BudgetPage() {
 						</li>
 					))}
 				</ul>
-			</section>
+			</Panel>
 
 			<Dialog
 				open={isOpen}

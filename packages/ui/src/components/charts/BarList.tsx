@@ -39,9 +39,9 @@ export function BarList({ items, className }: BarListProps) {
 				<li key={item.key} className="space-y-1">
 					<div className="flex items-baseline justify-between gap-4 text-sm">
 						<span className="min-w-0 truncate text-ink">{item.label}</span>
-						<span className="shrink-0 text-graphite">{item.value}</span>
+						<span className="shrink-0 text-quiet">{item.value}</span>
 					</div>
-					<div className="h-1.5 w-full bg-rule/60">
+					<div className="h-1.5 w-full bg-line/60">
 						<div
 							className={cn("h-full", TONES[item.tone ?? "ink"])}
 							style={{ width: `${Math.max(1, Math.round((item.amount / most) * 100))}%` }}

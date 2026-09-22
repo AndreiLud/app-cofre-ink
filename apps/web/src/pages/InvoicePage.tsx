@@ -206,12 +206,12 @@ export function InvoicePage() {
 						/>
 					</p>
 				)}
-				<p className="text-sm text-graphite">
+				<p className="text-sm text-quiet">
 					{total > 0 ? t("invoice.inCredit") : t("invoice.toPay")}
 					{dueOn ? ` ${t("invoice.dueOn", { day: dayAndMonth(dueOn) })}` : ""}
 				</p>
 				{card?.creditLimit ? (
-					<p className="text-sm text-graphite">
+					<p className="text-sm text-quiet">
 						{t("invoice.limit")}{" "}
 						<Value amount={card.creditLimit} currency={card.currency} tone="neutral" />
 					</p>
@@ -221,7 +221,7 @@ export function InvoicePage() {
 			{records.isPending ? <Skeleton lines={4} /> : null}
 
 			{!records.isPending && rows.length === 0 ? (
-				<p className="text-sm text-graphite">{t("invoice.empty")}</p>
+				<p className="text-sm text-quiet">{t("invoice.empty")}</p>
 			) : null}
 
 			{rows.length > 0 ? (
@@ -236,7 +236,7 @@ export function InvoicePage() {
 					<TableBody>
 						{rows.map((row) => (
 							<TableRow key={row.id}>
-								<TableCell className="whitespace-nowrap font-mono text-graphite">
+								<TableCell className="whitespace-nowrap font-mono text-quiet">
 									{dayAndMonth(row.happenedOn)}
 								</TableCell>
 								<TableCell>{row.description}</TableCell>

@@ -14,18 +14,20 @@ export type EmptyStateProps = {
 
 export function EmptyState({ title, description, action, icon, className }: EmptyStateProps) {
 	return (
+		// Centred, because an empty state is the whole of what is on the screen and a
+		// paragraph pinned to the left of a wide panel reads as something missing.
 		<div
 			className={cn(
-				"flex flex-col items-start gap-3 border border-dashed border-rule px-5 py-8",
+				"flex flex-col items-center gap-3 rounded-md bg-sunken px-5 py-10 text-center",
 				className,
 			)}
 		>
-			{icon ? <Icon name={icon} size="medium" className="text-graphite" /> : null}
+			{icon ? <Icon name={icon} size="medium" className="text-quiet" /> : null}
 			<div className="space-y-1">
 				<p className="font-serif text-lg text-ink">{title}</p>
-				<p className="max-w-[55ch] text-sm text-graphite">{description}</p>
+				<p className="mx-auto max-w-[46ch] text-sm leading-relaxed text-quiet">{description}</p>
 			</div>
-			{action}
+			{action ? <div className="pt-1">{action}</div> : null}
 		</div>
 	);
 }
@@ -40,19 +42,21 @@ export type CalloutProps = {
 	className?: string;
 };
 
+// A tint and an edge in the same family, so the three tell each other apart at a
+// glance rather than by reading the words.
 const TONES: Record<CalloutTone, string> = {
-	neutral: "border-rule",
-	attention: "border-ochre",
-	problem: "border-seal",
+	neutral: "border-line bg-sunken",
+	attention: "border-ochre/40 bg-amber/10",
+	problem: "border-seal/40 bg-seal/10",
 };
 
 /** A short message about the state of things, never decorative. */
 export function Callout({ tone = "neutral", title, children, action, className }: CalloutProps) {
 	return (
-		<div className={cn("border-l-2 bg-raised px-4 py-3", TONES[tone], className)}>
+		<div className={cn("rounded-md border px-4 py-3", TONES[tone], className)}>
 			{title ? <p className="text-sm font-semibold text-ink">{title}</p> : null}
-			<div className="text-sm text-graphite">{children}</div>
-			{action ? <div className="mt-2">{action}</div> : null}
+			<div className="text-sm leading-relaxed text-quiet">{children}</div>
+			{action ? <div className="mt-3">{action}</div> : null}
 		</div>
 	);
 }

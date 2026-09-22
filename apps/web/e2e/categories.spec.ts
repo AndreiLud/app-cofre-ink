@@ -48,7 +48,10 @@ test.describe("categories", () => {
 		const row = record(page, "Pão e café");
 		await expect(row).toContainText("Padaria da rua");
 
-		// And the filter finds it by that category.
+		// And the filter finds it by that category. The ones that narrow a list live
+		// behind a button now, because six of them open at all times took a third of
+		// the screen before a single record appeared.
+		await page.getByRole("button", { name: "Mais filtros" }).click();
 		await page.getByLabel("Categoria", { exact: true }).selectOption({ label: "  Padaria da rua" });
 		await expect(record(page, "Pão e café")).toBeVisible();
 		await expect(record(page, "Salário")).toHaveCount(0);
@@ -59,6 +62,7 @@ test.describe("categories", () => {
 		await go(page, "Lançamentos");
 
 		// Alimentação has Mercado under it, and the demonstration data buys at one.
+		await page.getByRole("button", { name: "Mais filtros" }).click();
 		await page.getByLabel("Categoria", { exact: true }).selectOption({ label: "Alimentação" });
 		await expect(record(page, "Feira da semana")).toBeVisible();
 	});

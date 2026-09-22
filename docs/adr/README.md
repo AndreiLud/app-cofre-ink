@@ -12,7 +12,7 @@ new one.
 | [0003](0003_sync_strategy.md) | offline sync for shared spaces, change log and clocks | accepted |
 | [0004](0004_money_time_and_identifiers.md) | integer cents, calendar dates, instants, UUID version 7 | accepted |
 | [0005](0005_spaces_and_permissions.md) | spaces, roles, scoping and the permission matrix | accepted |
-| [0006](0006_visual_direction.md) | visual direction, tokens, typography and motion | accepted |
+| [0006](0006_visual_direction.md) | visual direction, tokens, typography and motion | superseded by 0023 |
 | [0007](0007_language_and_writing_rule.md) | language per artifact and the writing rule | accepted |
 | [0008](0008_storage_implementation.md) | how the storage layer is actually built, replacing two tool choices in 0002 | accepted |
 | [0009](0009_authentication_and_identity.md) | authentication on the server, identity mirroring and invitations | accepted |
@@ -29,3 +29,4 @@ new one.
 | [0020](0020_an_application_in_a_window.md) | installed on a telephone, wrapped for a desktop, served from anywhere | partly superseded by 0021 |
 | [0021](0021_a_web_application_that_tidies_itself.md) | no shell, and housekeeping that nobody is asked about | accepted |
 | [0022](0022_reading_the_figures_back.md) | findings over a household's own records, and five ways in | accepted |
+| [0023](0023_surfaces_weight_and_one_colour.md) | three surfaces, two weights of line, and one interactive colour | accepted |

@@ -114,7 +114,7 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 			/>
 
 			{text.trim() !== "" ? (
-				<p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-graphite">
+				<p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-quiet">
 					{reading.problems.includes("amountMissing") ? (
 						<span className="text-ochre">{t("quick.amountMissing")}</span>
 					) : null}
@@ -148,7 +148,7 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 
 			{written && text.trim() === "" ? (
 				<p className="flex items-baseline gap-3 text-sm">
-					<span className="text-graphite">
+					<span className="text-quiet">
 						{written.ids.length > 1
 							? t("quick.writtenInParts", {
 									description: written.description,

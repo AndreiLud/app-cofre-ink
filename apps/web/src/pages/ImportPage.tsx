@@ -316,7 +316,7 @@ export function ImportPage() {
 				{t("importing.title")}
 			</SectionTitle>
 
-			<p className="max-w-[60ch] text-sm text-graphite">{t("importing.explain")}</p>
+			<p className="max-w-[60ch] text-sm text-quiet">{t("importing.explain")}</p>
 
 			{written !== null ? (
 				<Callout
@@ -336,7 +336,7 @@ export function ImportPage() {
 				</Callout>
 			) : null}
 
-			<div className="space-y-3 border-y border-rule py-4">
+			<div className="space-y-3 border-y border-line py-4">
 				<label htmlFor="statementFile" className="block text-sm font-medium text-ink">
 					{t("importing.pick")}
 				</label>
@@ -345,9 +345,9 @@ export function ImportPage() {
 					type="file"
 					accept=".csv,.txt,.ofx,.qfx,.qif,.xlsx,.json,.pdf"
 					onChange={(event) => void pick(event)}
-					className="block w-full max-w-md text-sm text-ink file:mr-3 file:rounded-sm file:border file:border-rule file:bg-raised file:px-3 file:py-2 file:text-sm file:text-ink"
+					className="block w-full max-w-md text-sm text-ink file:mr-3 file:rounded-sm file:border file:border-line file:bg-panel file:px-3 file:py-2 file:text-sm file:text-ink"
 				/>
-				<p className="text-xs text-graphite">{t("importing.pickHint")}</p>
+				<p className="text-xs text-quiet">{t("importing.pickHint")}</p>
 			</div>
 
 			{usable.length === 0 && accounts.isFetched ? (
@@ -374,7 +374,7 @@ export function ImportPage() {
 								}
 							/>
 						</div>
-						<p className="text-sm text-graphite">
+						<p className="text-sm text-quiet">
 							{t("importing.found", {
 								count: read.records.length,
 								format: read.format.toUpperCase(),
@@ -389,7 +389,7 @@ export function ImportPage() {
 					{read.mapping && read.header.length > 0 ? (
 						<section className="space-y-2">
 							<h2 className="font-serif text-lg">{t("importing.columnsTitle")}</h2>
-							<p className="max-w-[60ch] text-sm text-graphite">{t("importing.columnsHint")}</p>
+							<p className="max-w-[60ch] text-sm text-quiet">{t("importing.columnsHint")}</p>
 							<div className="flex flex-wrap gap-3">
 								{read.header.map((name, index) => (
 									// biome-ignore lint/suspicious/noArrayIndexKey: a column of a file is its position, and two columns can carry the same name
@@ -428,7 +428,7 @@ export function ImportPage() {
 											{ value: "asWritten", label: t("importing.signAsWritten") },
 										]}
 									/>
-									<p className="pt-1 text-xs text-graphite">
+									<p className="pt-1 text-xs text-quiet">
 										{read.mapping.positiveMeans === "expense"
 											? t("importing.signGuessedExpense")
 											: t("importing.signHint")}
@@ -509,12 +509,12 @@ export function ImportPage() {
 											<TableCell>
 												{record.description}
 												{sortedInto[index] ? (
-													<span className="block text-xs text-graphite sm:hidden">
+													<span className="block text-xs text-quiet sm:hidden">
 														{sortedInto[index]}
 													</span>
 												) : null}
 												{record.duplicateOf === null ? null : (
-													<span className="block text-xs text-graphite sm:hidden">
+													<span className="block text-xs text-quiet sm:hidden">
 														{certain ? t("importing.sameEntry") : t("importing.looksTheSame")}
 													</span>
 												)}
@@ -524,7 +524,7 @@ export function ImportPage() {
 													<span className="block text-xs text-ochre">
 														{t("importing.checkThisOne")}
 														{record.source ? (
-															<span className="block font-mono text-graphite">{record.source}</span>
+															<span className="block font-mono text-quiet">{record.source}</span>
 														) : null}
 													</span>
 												) : null}
@@ -536,10 +536,10 @@ export function ImportPage() {
 													tone={record.amount < 0 ? "negative" : "positive"}
 												/>
 											</TableCell>
-											<TableCell className="hidden text-xs text-graphite sm:table-cell">
+											<TableCell className="hidden text-xs text-quiet sm:table-cell">
 												{sortedInto[index] ?? ""}
 											</TableCell>
-											<TableCell className="hidden whitespace-nowrap text-xs text-graphite sm:table-cell">
+											<TableCell className="hidden whitespace-nowrap text-xs text-quiet sm:table-cell">
 												{record.duplicateOf === null
 													? ""
 													: certain
@@ -556,7 +556,7 @@ export function ImportPage() {
 					{read.skipped.length > 0 &&
 					read.skipped[0]?.reason !== "unreadable" &&
 					read.skipped[0]?.reason !== "noText" ? (
-						<details className="text-sm text-graphite">
+						<details className="text-sm text-quiet">
 							<summary className="cursor-pointer">
 								{t("importing.skippedTitle", { count: read.skipped.length })}
 							</summary>

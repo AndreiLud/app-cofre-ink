@@ -169,7 +169,7 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 	return (
 		<div className="space-y-3">
 			<div className="flex items-center justify-between gap-4">
-				<p className="max-w-[60ch] text-sm text-graphite">{t("recurrences.explain")}</p>
+				<p className="max-w-[60ch] text-sm text-quiet">{t("recurrences.explain")}</p>
 				<Button size="small" variant="secondary" onClick={() => open(null)}>
 					{t("recurrences.create")}
 				</Button>
@@ -180,10 +180,10 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 			{series.isPending ? <Skeleton lines={2} /> : null}
 
 			{!series.isPending && rows.length === 0 ? (
-				<p className="text-sm text-graphite">{t("recurrences.empty")}</p>
+				<p className="text-sm text-quiet">{t("recurrences.empty")}</p>
 			) : null}
 
-			<ul className="divide-y divide-rule">
+			<ul className="divide-y divide-line">
 				{rows.map((one) => {
 					const next =
 						one.pausedAt === null
@@ -203,12 +203,10 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 					return (
 						<li key={one.id} className="flex items-baseline justify-between gap-4 py-2">
 							<span className="flex min-w-0 flex-col">
-								<span
-									className={one.pausedAt === null ? "text-sm text-ink" : "text-sm text-graphite"}
-								>
+								<span className={one.pausedAt === null ? "text-sm text-ink" : "text-sm text-quiet"}>
 									{one.description}
 								</span>
-								<span className="text-xs text-graphite">
+								<span className="text-xs text-quiet">
 									{t(`recurrences.every.${one.frequency}`)}
 									{", "}
 									{nameOfAccount(one.accountId)}

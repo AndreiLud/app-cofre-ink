@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 const EDGE: Record<Finding["weight"], string> = {
 	problem: "border-seal",
 	attention: "border-ochre",
-	good: "border-rule",
+	good: "border-line",
 };
 
 /** Plural forms are driven by this one number, when a finding has one. */
@@ -72,7 +72,7 @@ export function Findings({
 				<li
 					key={`${finding.code}${finding.subject ?? ""}`}
 					className={`border-l-2 pl-3 text-sm ${EDGE[finding.weight]} ${
-						finding.weight === "good" ? "text-graphite" : "text-ink"
+						finding.weight === "good" ? "text-quiet" : "text-ink"
 					}`}
 				>
 					{findingLine(finding, money, t, i18n.resolvedLanguage ?? "pt")}

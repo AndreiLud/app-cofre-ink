@@ -7,7 +7,7 @@
 
 import { addMonthsToMonth, monthOf, todayIn } from "@cofre/core";
 import type { Transaction } from "@cofre/storage";
-import { Button, InsightTitle, SectionTitle, Skeleton } from "@cofre/ui";
+import { Button, InsightTitle, Panel, Skeleton } from "@cofre/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -147,11 +147,11 @@ export function CalendarPage() {
 			</div>
 
 			<div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
-				<span className="text-graphite">
+				<span className="text-quiet">
 					{t("calendar.earned")}{" "}
 					<Value amount={earned} currency={currentSpace.baseCurrency} tone="auto" />
 				</span>
-				<span className="text-graphite">
+				<span className="text-quiet">
 					{t("calendar.spent")}{" "}
 					<Value amount={spent} currency={currentSpace.baseCurrency} tone="auto" />
 				</span>
@@ -163,9 +163,9 @@ export function CalendarPage() {
 				<div className="overflow-x-auto">
 					{/* A month needs a width of its own to stay a month. Below it the grid
 					    scrolls inside its box rather than pushing the whole page sideways. */}
-					<div className="grid min-w-[34rem] grid-cols-7 gap-px border border-rule bg-rule">
+					<div className="grid min-w-[34rem] grid-cols-7 gap-px border border-line bg-line">
 						{WEEKDAY_ORDER.map((weekday) => (
-							<div key={weekday} className="bg-paper px-2 py-1 text-xs text-graphite">
+							<div key={weekday} className="bg-canvas px-2 py-1 text-xs text-quiet">
 								{weekdayName.format(new Date(Date.UTC(2026, 1, 1 + weekday)))}
 							</div>
 						))}
@@ -173,7 +173,7 @@ export function CalendarPage() {
 						{/* The days of the week before the first of the month, left empty. */}
 						{Array.from({ length: blanks }, (_unused, index) => WEEKDAY_ORDER[index]).map(
 							(weekday) => (
-								<div key={`blank${weekday}`} className="min-h-24 bg-paper" />
+								<div key={`blank${weekday}`} className="min-h-24 bg-canvas" />
 							),
 						)}
 
@@ -186,13 +186,11 @@ export function CalendarPage() {
 							return (
 								<div
 									key={day}
-									className={`min-h-24 space-y-1 bg-paper p-2 ${
+									className={`min-h-24 space-y-1 bg-canvas p-2 ${
 										day === today ? "outline outline-2 outline-ink" : ""
 									}`}
 								>
-									<p
-										className={`font-mono text-xs ${day === today ? "text-ink" : "text-graphite"}`}
-									>
+									<p className={`font-mono text-xs ${day === today ? "text-ink" : "text-quiet"}`}>
 										{day.slice(8)}
 									</p>
 									{entries.slice(0, 3).map((row) => (
@@ -207,7 +205,7 @@ export function CalendarPage() {
 										</p>
 									))}
 									{entries.length > 3 ? (
-										<p className="text-xs text-graphite">
+										<p className="text-xs text-quiet">
 											{t("calendar.andMore", { count: entries.length - 3 })}
 										</p>
 									) : null}
@@ -228,12 +226,11 @@ export function CalendarPage() {
 				</div>
 			) : null}
 
-			<p className="text-xs text-graphite">{t("calendar.plannedLegend")}</p>
+			<p className="text-xs text-quiet">{t("calendar.plannedLegend")}</p>
 
-			<section className="space-y-3">
-				<SectionTitle>{t("recurrences.title")}</SectionTitle>
+			<Panel title={t("recurrences.title")}>
 				<RecurrencesSection spaceId={spaceId} today={today} />
-			</section>
+			</Panel>
 		</div>
 	);
 }

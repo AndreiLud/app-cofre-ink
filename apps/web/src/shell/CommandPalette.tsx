@@ -283,12 +283,12 @@ export function CommandPalette({ state }: { state: PaletteState }) {
 					placeholder={t("palette.placeholder")}
 					aria-label={t("palette.placeholder")}
 					aria-controls="paletteResults"
-					className="h-11 w-full border border-rule bg-raised px-3 text-base text-ink placeholder:text-graphite"
+					className="h-11 w-full border border-line bg-panel px-3 text-base text-ink placeholder:text-quiet"
 				/>
 
 				<ul id="paletteResults" className="mt-3 max-h-80 overflow-y-auto">
 					{matches.length === 0 ? (
-						<li className="px-1 py-6 text-sm text-graphite">{t("palette.nothing")}</li>
+						<li className="px-1 py-6 text-sm text-quiet">{t("palette.nothing")}</li>
 					) : null}
 					{matches.map((command, index) => {
 						const showGroup = command.group !== lastGroup;
@@ -296,7 +296,7 @@ export function CommandPalette({ state }: { state: PaletteState }) {
 						return (
 							<li key={command.id}>
 								{showGroup ? (
-									<p className="px-1 pb-1 pt-3 text-xs text-graphite">{command.group}</p>
+									<p className="px-1 pb-1 pt-3 text-xs text-quiet">{command.group}</p>
 								) : null}
 								<button
 									type="button"
@@ -304,7 +304,7 @@ export function CommandPalette({ state }: { state: PaletteState }) {
 									onClick={command.run}
 									aria-current={index === highlighted ? "true" : undefined}
 									className={`flex w-full items-center justify-between gap-3 px-2 py-2 text-left text-sm ${
-										index === highlighted ? "bg-ink text-paper" : "text-ink"
+										index === highlighted ? "bg-ink text-canvas" : "text-ink"
 									}`}
 								>
 									<span className="flex items-center gap-2">

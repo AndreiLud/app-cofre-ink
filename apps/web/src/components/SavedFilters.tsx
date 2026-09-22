@@ -83,7 +83,7 @@ export function SavedFilters({ spaceId, current, onApply }: SavedFiltersProps) {
 					<span
 						key={filter.id}
 						className={`flex items-center gap-1 rounded-sm border px-2 py-1 text-sm ${
-							active ? "border-ink text-ink" : "border-rule text-graphite"
+							active ? "border-ink text-ink" : "border-line text-quiet"
 						}`}
 					>
 						<button type="button" onClick={() => onApply(filter.query)} className="hover:text-ink">
@@ -93,7 +93,7 @@ export function SavedFilters({ spaceId, current, onApply }: SavedFiltersProps) {
 							type="button"
 							onClick={() => forget.mutate(filter.id)}
 							aria-label={t("savedFilters.forget", { name: filter.name })}
-							className="text-graphite hover:text-seal"
+							className="text-quiet hover:text-seal"
 						>
 							<Icon name="close" />
 						</button>

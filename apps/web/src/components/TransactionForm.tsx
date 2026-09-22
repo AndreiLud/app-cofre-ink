@@ -307,7 +307,7 @@ export function TransactionForm({
 					/>
 					<span>
 						<span className="font-medium text-ink">{t("transactions.planned")}</span>
-						<span className="block text-graphite">{t("transactions.plannedHint")}</span>
+						<span className="block text-quiet">{t("transactions.plannedHint")}</span>
 					</span>
 				</label>
 

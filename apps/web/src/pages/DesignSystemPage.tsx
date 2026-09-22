@@ -64,7 +64,7 @@ function Swatch({ entry, showLevel }: { entry: Measured; showLevel: boolean }) {
 	const { t } = useTranslation();
 	const level = contrastLevel(entry.ratio);
 	return (
-		<div className="flex items-center gap-3 border-b border-rule py-2">
+		<div className="flex items-center gap-3 border-b border-line py-2">
 			<span
 				aria-hidden="true"
 				className="size-8 shrink-0 rounded-sm border border-ink/10"
@@ -72,13 +72,13 @@ function Swatch({ entry, showLevel }: { entry: Measured; showLevel: boolean }) {
 			/>
 			<span className="flex-1">
 				<span className="block text-sm font-medium text-ink">{entry.name}</span>
-				<span className="block font-mono text-xs text-graphite">{entry.value}</span>
+				<span className="block font-mono text-xs text-quiet">{entry.value}</span>
 			</span>
 			<span className="text-right">
 				<span className="block font-mono text-sm tabular-nums text-ink">
 					{entry.ratio.toFixed(1)}
 				</span>
-				<span className="block text-xs text-graphite">
+				<span className="block text-xs text-quiet">
 					{showLevel ? level : t("designSystem.fillNote")}
 				</span>
 			</span>
@@ -102,25 +102,21 @@ export function DesignSystemPage() {
 			<div className="space-y-12">
 				<div className="space-y-2">
 					<h1 className="text-3xl">{t("designSystem.title")}</h1>
-					<p className="max-w-[60ch] text-graphite">{t("designSystem.subtitle")}</p>
+					<p className="max-w-[60ch] text-quiet">{t("designSystem.subtitle")}</p>
 				</div>
 
 				<section className="space-y-4">
 					<SectionTitle>{t("designSystem.colours")}</SectionTitle>
-					<p className="max-w-[70ch] text-sm text-graphite">{t("designSystem.colourNote")}</p>
+					<p className="max-w-[70ch] text-sm text-quiet">{t("designSystem.colourNote")}</p>
 					<div className="grid gap-x-10 gap-y-6 md:grid-cols-2">
 						<div>
-							<p className="pb-1 text-xs font-medium text-graphite">
-								{t("designSystem.textTokens")}
-							</p>
+							<p className="pb-1 text-xs font-medium text-quiet">{t("designSystem.textTokens")}</p>
 							{palette.text.map((entry) => (
 								<Swatch key={entry.name} entry={entry} showLevel={true} />
 							))}
 						</div>
 						<div>
-							<p className="pb-1 text-xs font-medium text-graphite">
-								{t("designSystem.fillTokens")}
-							</p>
+							<p className="pb-1 text-xs font-medium text-quiet">{t("designSystem.fillTokens")}</p>
 							{palette.fills.map((entry) => (
 								<Swatch key={entry.name} entry={entry} showLevel={false} />
 							))}
@@ -134,7 +130,7 @@ export function DesignSystemPage() {
 						<p className="font-serif text-3xl">{t("designSystem.specimenTitle")}</p>
 						<p className="font-serif text-xl">{t("insight.headline")}</p>
 						<p className="text-base">{t("designSystem.specimenBody")}</p>
-						<p className="text-sm text-graphite">{t("designSystem.specimenSupport")}</p>
+						<p className="text-sm text-quiet">{t("designSystem.specimenSupport")}</p>
 						<p className="font-mono text-base tabular-nums">1.234,56 7.890,12 0,05 999,00</p>
 					</div>
 				</section>
@@ -172,7 +168,7 @@ export function DesignSystemPage() {
 				</section>
 
 				<section className="space-y-4">
-					<SectionTitle action={<span className="text-xs text-graphite">{t("demo.notice")}</span>}>
+					<SectionTitle action={<span className="text-xs text-quiet">{t("demo.notice")}</span>}>
 						{t("designSystem.tableSample")}
 					</SectionTitle>
 					<Table caption={t("table.caption")}>
@@ -187,9 +183,9 @@ export function DesignSystemPage() {
 						<TableBody>
 							{UPCOMING.map((entry) => (
 								<TableRow key={entry.description}>
-									<TableCell className="font-mono text-graphite">{entry.day}</TableCell>
+									<TableCell className="font-mono text-quiet">{entry.day}</TableCell>
 									<TableCell>{entry.description}</TableCell>
-									<TableCell className="text-graphite">{entry.category}</TableCell>
+									<TableCell className="text-quiet">{entry.category}</TableCell>
 									<TableCell numeric={true}>
 										<Amount
 											value={entry.amount}

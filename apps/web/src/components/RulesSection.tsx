@@ -14,7 +14,7 @@ import {
 	Menu,
 	MenuItem,
 	MenuSeparator,
-	SectionTitle,
+	Panel,
 	Select,
 	Skeleton,
 } from "@cofre/ui";
@@ -128,30 +128,27 @@ export function RulesSection({ spaceId, categories }: RulesSectionProps) {
 	const rows = rules.data ?? [];
 
 	return (
-		<section className="space-y-3">
-			<SectionTitle
-				action={
-					<span className="flex items-center gap-2">
-						{rows.length > 0 ? (
-							<Button
-								size="small"
-								variant="quiet"
-								onClick={() => applyNow.mutate()}
-								disabled={applyNow.isPending}
-							>
-								{t("rulesSection.applyNow")}
-							</Button>
-						) : null}
-						<Button size="small" variant="secondary" onClick={() => open(null)}>
-							{t("rulesSection.create")}
+		<Panel
+			title={t("rulesSection.title")}
+			action={
+				<span className="flex items-center gap-2">
+					{rows.length > 0 ? (
+						<Button
+							size="small"
+							variant="quiet"
+							onClick={() => applyNow.mutate()}
+							disabled={applyNow.isPending}
+						>
+							{t("rulesSection.applyNow")}
 						</Button>
-					</span>
-				}
-			>
-				{t("rulesSection.title")}
-			</SectionTitle>
-
-			<p className="max-w-[60ch] text-sm text-graphite">{t("rulesSection.explain")}</p>
+					) : null}
+					<Button size="small" variant="secondary" onClick={() => open(null)}>
+						{t("rulesSection.create")}
+					</Button>
+				</span>
+			}
+		>
+			<p className="max-w-[60ch] text-sm text-quiet">{t("rulesSection.explain")}</p>
 
 			{sorted !== null ? (
 				<Callout tone="neutral">{t("rulesSection.sorted", { count: sorted })}</Callout>
@@ -161,13 +158,13 @@ export function RulesSection({ spaceId, categories }: RulesSectionProps) {
 			{rules.isPending ? <Skeleton lines={2} /> : null}
 
 			{!rules.isPending && rows.length === 0 ? (
-				<p className="text-sm text-graphite">{t("rulesSection.empty")}</p>
+				<p className="text-sm text-quiet">{t("rulesSection.empty")}</p>
 			) : null}
 
-			<ul className="divide-y divide-rule">
+			<ul className="divide-y divide-line">
 				{rows.map((rule) => (
 					<li key={rule.id} className="flex items-baseline justify-between gap-4 py-2 text-sm">
-						<span className={rule.disabledAt === null ? "text-ink" : "text-graphite line-through"}>
+						<span className={rule.disabledAt === null ? "text-ink" : "text-quiet line-through"}>
 							{t("rulesSection.sentence", {
 								text: rule.matchText,
 								category: nameOf(rule.categoryId),
@@ -227,6 +224,6 @@ export function RulesSection({ spaceId, categories }: RulesSectionProps) {
 					{problem ? <Callout tone="problem">{problem}</Callout> : null}
 				</form>
 			</Dialog>
-		</section>
+		</Panel>
 	);
 }

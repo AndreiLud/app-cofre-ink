@@ -18,7 +18,7 @@ export function Menu({ trigger, children, align = "start", className }: MenuProp
 					align={align}
 					sideOffset={6}
 					className={cn(
-						"z-50 min-w-56 border border-ink bg-paper p-1 text-ink",
+						"z-50 min-w-56 rounded-md border border-line bg-panel p-1.5 text-ink shadow-lifted",
 						"data-[state=open]:animate-none",
 						className,
 					)}
@@ -45,7 +45,7 @@ export function MenuItem({ onSelect, children, detail, selected, className }: Me
 			onSelect={onSelect}
 			className={cn(
 				"flex cursor-pointer items-center justify-between gap-3 px-2 py-1.5 text-sm outline-none",
-				"data-[highlighted]:bg-ink data-[highlighted]:text-paper",
+				"rounded-sm data-[highlighted]:bg-accentSoft data-[highlighted]:text-ink",
 				selected ? "font-medium" : "",
 				className,
 			)}
@@ -57,9 +57,9 @@ export function MenuItem({ onSelect, children, detail, selected, className }: Me
 }
 
 export function MenuSeparator() {
-	return <Primitive.Separator className="my-1 h-px bg-rule" />;
+	return <Primitive.Separator className="my-1 h-px bg-line" />;
 }
 
 export function MenuLabel({ children }: { children: ReactNode }) {
-	return <Primitive.Label className="px-2 py-1 text-xs text-graphite">{children}</Primitive.Label>;
+	return <Primitive.Label className="px-2 py-1 text-xs text-quiet">{children}</Primitive.Label>;
 }

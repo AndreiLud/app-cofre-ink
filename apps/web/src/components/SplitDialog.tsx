@@ -142,7 +142,7 @@ export function SplitDialog({ open, onOpenChange, record, people }: SplitDialogP
 
 				{method === "shares" ? (
 					<div className="space-y-3">
-						<p className="text-sm text-graphite">{t("sharing.sharesHint")}</p>
+						<p className="text-sm text-quiet">{t("sharing.sharesHint")}</p>
 						{people.map((person) => (
 							<Field
 								key={person.id}
@@ -157,15 +157,15 @@ export function SplitDialog({ open, onOpenChange, record, people }: SplitDialogP
 				) : null}
 
 				{method === "income" ? (
-					<p className="text-sm text-graphite">{t("sharing.incomeHint")}</p>
+					<p className="text-sm text-quiet">{t("sharing.incomeHint")}</p>
 				) : null}
 
 				{parts.length > 0 ? (
-					<div className="space-y-1 border-t border-rule pt-3">
+					<div className="space-y-1 border-t border-line pt-3">
 						<p className="text-sm font-medium text-ink">{t("sharing.currently")}</p>
 						<ul className="space-y-1">
 							{parts.map((part) => (
-								<li key={part.id} className="flex justify-between text-sm text-graphite">
+								<li key={part.id} className="flex justify-between text-sm text-quiet">
 									<span>{nameOf(part.userId)}</span>
 									<Value amount={part.amount} currency={record?.currency ?? "BRL"} tone="neutral" />
 								</li>

@@ -83,10 +83,10 @@ export function InvitationPage() {
 						space: invitation.spaceName,
 					})}
 				</p>
-				<p className="text-graphite">
+				<p className="text-quiet">
 					{t("invitation.asRole", { role: t(`role.${invitation.role}`) })}
 				</p>
-				<p className="text-sm text-graphite">{t(`roleHint.${invitation.role}`)}</p>
+				<p className="text-sm text-quiet">{t(`roleHint.${invitation.role}`)}</p>
 				<SpaceMark name={invitation.spaceName} colour={invitation.spaceColour as SpaceColour} />
 			</div>
 

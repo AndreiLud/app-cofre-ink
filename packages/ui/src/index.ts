@@ -39,6 +39,7 @@ export {
 	type MenuProps,
 	MenuSeparator,
 } from "./components/Menu.tsx";
+export { Panel, type PanelProps } from "./components/Panel.tsx";
 export {
 	Segmented,
 	type SegmentedOption,

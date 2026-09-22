@@ -450,8 +450,8 @@
 		"unknown": "Não consegui concluir. Tente de novo."
 	},
 	"transactions": {
-		"title": "Lançamentos de {{space}}",
-		"caption": "Lançamentos do espaço {{space}}, com dia, descrição, conta e valor",
+		"title": "Lançamentos",
+		"caption": "Lançamentos do período, com dia, descrição, conta e valor",
 		"create": "Novo lançamento",
 		"createDescription": "Diga o que aconteceu. O sinal vem do tipo, você digita sempre positivo.",
 		"edit": "Editar",
@@ -506,7 +506,12 @@
 		"priorityHint": "Escolha uma categoria e a prioridade vem dela.",
 		"priorityFromCategory": "A categoria diz {{priority}}. Mude só se este gasto for diferente.",
 		"alwaysSortLikeThis": "Sempre categorizar assim",
-		"taught": "Pronto. Todo lançamento com {{text}} na descrição vai para essa categoria."
+		"taught": "Pronto. Todo lançamento com {{text}} na descrição vai para essa categoria.",
+		"listTitle": "Lançamentos do mês",
+		"filters": "Mais filtros",
+		"filtersOn_one": "1 filtro ativo",
+		"filtersOn_other": "{{count}} filtros ativos",
+		"clearFilters": "Limpar"
 	},
 	"rulesSection": {
 		"title": "Regras que categorizam sozinhas",

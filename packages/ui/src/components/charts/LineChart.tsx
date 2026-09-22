@@ -42,7 +42,7 @@ const STROKE: Record<LineTone, string> = {
 	cedar: "stroke-cedar",
 	seal: "stroke-seal",
 	amber: "stroke-amber",
-	graphite: "stroke-graphite",
+	graphite: "stroke-quiet",
 };
 
 function Drawing({
@@ -81,19 +81,19 @@ function Drawing({
 			    numbers are read faster than a ladder of ticks. */}
 			{format ? (
 				<>
-					<text x={0} y={PADDING + 4} className="fill-graphite text-[10px]">
+					<text x={0} y={PADDING + 4} className="fill-quiet text-[10px]">
 						{format(highest)}
 					</text>
-					<text x={0} y={plot - 2} className="fill-graphite text-[10px]">
+					<text x={0} y={plot - 2} className="fill-quiet text-[10px]">
 						{format(lowest)}
 					</text>
 				</>
 			) : null}
 
-			<text x={0} y={HEIGHT - 4} className="fill-graphite text-[10px]">
+			<text x={0} y={HEIGHT - 4} className="fill-quiet text-[10px]">
 				{first}
 			</text>
-			<text x={WIDTH} y={HEIGHT - 4} textAnchor="end" className="fill-graphite text-[10px]">
+			<text x={WIDTH} y={HEIGHT - 4} textAnchor="end" className="fill-quiet text-[10px]">
 				{last}
 			</text>
 
@@ -132,7 +132,7 @@ function Drawing({
 								cx={PADDING + (one.points.length - 1) * step}
 								cy={yOf(one.points[one.points.length - 1] ?? 0)}
 								r={3}
-								className={cn(STROKE[one.tone], "fill-paper")}
+								className={cn(STROKE[one.tone], "fill-panel")}
 								strokeWidth={2}
 							/>
 						) : null}

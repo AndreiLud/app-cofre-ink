@@ -33,7 +33,7 @@ export function ModeChooserPage() {
 	return (
 		<div className="mx-auto min-h-dvh max-w-2xl px-4 py-10">
 			<div className="flex items-center justify-between gap-4">
-				<p className="font-serif text-lg text-graphite">{t("app.name")}</p>
+				<p className="font-serif text-lg text-quiet">{t("app.name")}</p>
 				<div className="flex items-center gap-1">
 					<LanguageToggle />
 					<ThemeToggle choice={choice} isDark={isDark} onChange={setChoice} />
@@ -41,7 +41,7 @@ export function ModeChooserPage() {
 			</div>
 
 			<h1 className="mt-6 text-3xl">{t("mode.title")}</h1>
-			<p className="mt-2 max-w-[60ch] text-graphite">{t("mode.subtitle")}</p>
+			<p className="mt-2 max-w-[60ch] text-quiet">{t("mode.subtitle")}</p>
 
 			{error ? (
 				<Callout tone="problem" className="mt-6" title={t("mode.failedTitle")}>
@@ -50,24 +50,24 @@ export function ModeChooserPage() {
 			) : null}
 
 			<div className="mt-8 grid gap-4 md:grid-cols-2">
-				<section className="flex flex-col justify-between gap-4 border border-rule p-5">
+				<section className="flex flex-col justify-between gap-4 border border-line p-5">
 					<div className="space-y-2">
-						<Icon name="wallet" size="medium" className="text-graphite" />
+						<Icon name="wallet" size="medium" className="text-quiet" />
 						<h2 className="font-serif text-xl">{t("mode.browserTitle")}</h2>
-						<p className="text-sm text-graphite">{t("mode.browserBody")}</p>
-						<p className="text-xs text-graphite">{t("mode.browserCaveat")}</p>
+						<p className="text-sm text-quiet">{t("mode.browserBody")}</p>
+						<p className="text-xs text-quiet">{t("mode.browserCaveat")}</p>
 					</div>
 					<Button variant="primary" onClick={() => void chooseMode("browser")}>
 						{t("mode.browserAction")}
 					</Button>
 				</section>
 
-				<section className="flex flex-col justify-between gap-4 border border-rule p-5">
+				<section className="flex flex-col justify-between gap-4 border border-line p-5">
 					<div className="space-y-2">
-						<Icon name="transfer" size="medium" className="text-graphite" />
+						<Icon name="transfer" size="medium" className="text-quiet" />
 						<h2 className="font-serif text-xl">{t("mode.serverTitle")}</h2>
-						<p className="text-sm text-graphite">{t("mode.serverBody")}</p>
-						<p className="text-xs text-graphite">{t("mode.serverCaveat")}</p>
+						<p className="text-sm text-quiet">{t("mode.serverBody")}</p>
+						<p className="text-xs text-quiet">{t("mode.serverCaveat")}</p>
 					</div>
 
 					{askingServer ? (
@@ -92,7 +92,7 @@ export function ModeChooserPage() {
 				</section>
 			</div>
 
-			<p className="mt-8 text-xs text-graphite">{t("mode.changeLater")}</p>
+			<p className="mt-8 text-xs text-quiet">{t("mode.changeLater")}</p>
 		</div>
 	);
 }

@@ -2,7 +2,7 @@
 // much there is, and what falls due in the next days.
 
 import { addDays, monthOf, noticesFor, todayIn } from "@cofre/core";
-import { Button, EmptyState, InsightTitle, SectionTitle, Segmented, Skeleton } from "@cofre/ui";
+import { Button, EmptyState, InsightTitle, Panel, Segmented, Skeleton } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
@@ -176,73 +176,71 @@ export function DashboardPage() {
 		}).format(Number(value) / 100);
 
 	return (
-		<div className="space-y-10">
-			<section className="space-y-3">
-				<InsightTitle
-					level="h1"
-					detail={
-						projected === settled ? t("dashboard.nothingPending") : t("dashboard.projectedDetail")
-					}
-				>
-					{consolidated
-						? t("dashboard.headlineEverywhere")
-						: t("dashboard.headline", { space: currentSpace.name })}
-				</InsightTitle>
+		<div className="space-y-5">
+			{/* The one number this screen exists for, on its own surface and at a size
+			    nothing else on the page comes near. Everything under it is detail. */}
+			<Panel className="border-accent/30 bg-gradient-to-b from-accentSoft/60 to-panel">
+				<div className="flex flex-wrap items-start justify-between gap-4">
+					<InsightTitle
+						level="h1"
+						detail={
+							projected === settled ? t("dashboard.nothingPending") : t("dashboard.projectedDetail")
+						}
+					>
+						{consolidated
+							? t("dashboard.headlineEverywhere")
+							: t("dashboard.headline", { space: currentSpace.name })}
+					</InsightTitle>
+
+					{/* At the top, with the sentence it changes, because it says what the
+					    number below is counting. */}
+					{spaces.length > 1 ? (
+						<div className="w-full max-w-60 sm:w-auto">
+							<Segmented
+								label={t("dashboard.across")}
+								value={across}
+								onChange={setAcross}
+								options={[
+									{ value: "space", label: t("reports.thisSpace") },
+									{ value: "everything", label: t("reports.everySpace") },
+								]}
+							/>
+						</div>
+					) : null}
+				</div>
 
 				{balances.isPending ? (
-					<Skeleton lines={2} />
+					<Skeleton lines={2} className="mt-4" />
 				) : (
-					<p className="font-mono text-3xl tabular-nums">
+					<p className="mt-4 font-mono text-4xl leading-none tabular-nums sm:text-[2.75rem]">
 						<Value amount={settled} currency={currentSpace.baseCurrency} tone="auto" />
 					</p>
 				)}
 
-				{/* Under the number it belongs to, not floating beside the heading: it
-				    changes what that number counts. */}
-				{spaces.length > 1 ? (
-					<div className="max-w-xs">
-						<Segmented
-							label={t("dashboard.across")}
-							value={across}
-							onChange={setAcross}
-							options={[
-								{ value: "space", label: t("reports.thisSpace") },
-								{ value: "everything", label: t("reports.everySpace") },
-							]}
-						/>
-					</div>
-				) : null}
-
-				{projected !== settled ? (
-					<p className="text-sm text-graphite">
-						{t("dashboard.afterPending")}{" "}
-						<Value amount={projected} currency={currentSpace.baseCurrency} tone="auto" />
-					</p>
-				) : null}
-
-				{spaces.length > 1 && !consolidated ? (
-					<p className="text-xs text-graphite">{t("dashboard.oneSpaceOnly")}</p>
-				) : null}
-			</section>
+				<div className="mt-3 space-y-1">
+					{projected !== settled ? (
+						<p className="text-sm text-quiet">
+							{t("dashboard.afterPending")}{" "}
+							<Value amount={projected} currency={currentSpace.baseCurrency} tone="auto" />
+						</p>
+					) : null}
+					{spaces.length > 1 && !consolidated ? (
+						<p className="text-xs text-quiet">{t("dashboard.oneSpaceOnly")}</p>
+					) : null}
+				</div>
+			</Panel>
 
 			{notices.length > 0 || found.length > 0 ? (
-				<section className="space-y-3">
-					<SectionTitle
-						action={
-							found.length > shown ? (
-								<button
-									type="button"
-									className="text-sm text-graphite hover:text-ink"
-									onClick={() => setAll(true)}
-								>
-									{t("dashboard.seeEverything", { count: found.length - shown })}
-								</button>
-							) : null
-						}
-					>
-						{t("dashboard.attention")}
-					</SectionTitle>
-
+				<Panel
+					title={t("dashboard.attention")}
+					action={
+						found.length > shown ? (
+							<Button size="small" variant="quiet" onClick={() => setAll(true)}>
+								{t("dashboard.seeEverything", { count: found.length - shown })}
+							</Button>
+						) : null
+					}
+				>
 					{/* Today first, because a bill due today is not a pattern, it is today. */}
 					<ul className="space-y-2">
 						{notices.slice(0, 5).map((notice) => (
@@ -253,7 +251,7 @@ export function DashboardPage() {
 										? "border-seal text-ink"
 										: notice.level === "attention"
 											? "border-ochre text-ink"
-											: "border-rule text-graphite"
+											: "border-line text-quiet"
 								}`}
 							>
 								{t(`notice.${notice.kind}`, {
@@ -269,37 +267,34 @@ export function DashboardPage() {
 					</ul>
 
 					<Findings findings={found} money={money} limit={shown} />
-				</section>
+				</Panel>
 			) : null}
 
-			<section className="space-y-4">
-				<SectionTitle
-					action={
-						<Link to={ROUTES.transactions} className="text-sm text-graphite hover:text-ink">
+			<Panel
+				title={t("dashboard.dueSoon")}
+				action={
+					<Link to={ROUTES.transactions}>
+						<Button size="small" variant="quiet">
 							{t("dashboard.seeTransactions")}
-						</Link>
-					}
-				>
-					{t("dashboard.dueSoon")}
-				</SectionTitle>
-
+						</Button>
+					</Link>
+				}
+			>
 				{upcoming.isPending ? <Skeleton lines={2} /> : null}
 
 				{!upcoming.isPending && falling.length === 0 ? (
-					<p className="text-sm text-graphite">{t("dashboard.nothingDue")}</p>
+					<p className="text-sm text-quiet">{t("dashboard.nothingDue")}</p>
 				) : null}
 
-				<ul className="divide-y divide-rule">
+				<ul className="divide-y divide-line">
 					{falling.map((row) => (
 						<li key={row.id} className="flex items-baseline justify-between gap-4 py-2">
 							<span className="flex min-w-0 items-baseline gap-3">
-								<span className="font-mono text-xs text-graphite">
+								<span className="font-mono text-xs text-quiet">
 									{row.happenedOn.slice(8)}/{row.happenedOn.slice(5, 7)}
 								</span>
 								<span className="truncate text-sm text-ink">{row.description}</span>
-								<span className="hidden text-xs text-graphite md:inline">
-									{nameOf(row.accountId)}
-								</span>
+								<span className="hidden text-xs text-quiet md:inline">{nameOf(row.accountId)}</span>
 							</span>
 							<span className="flex shrink-0 items-center gap-3">
 								<Value amount={row.amount} currency={row.currency} tone="auto" />
@@ -310,19 +305,18 @@ export function DashboardPage() {
 						</li>
 					))}
 				</ul>
-			</section>
+			</Panel>
 
-			<section className="space-y-4">
-				<SectionTitle
-					action={
-						<Link to={ROUTES.accounts} className="text-sm text-graphite hover:text-ink">
+			<Panel
+				title={t("dashboard.whereItIs")}
+				action={
+					<Link to={ROUTES.accounts}>
+						<Button size="small" variant="quiet">
 							{t("dashboard.seeAccounts")}
-						</Link>
-					}
-				>
-					{t("dashboard.whereItIs")}
-				</SectionTitle>
-
+						</Button>
+					</Link>
+				}
+			>
 				{accounts.isPending ? <Skeleton lines={3} /> : null}
 
 				{!accounts.isPending && shownAccounts.length === 0 ? (
@@ -338,7 +332,7 @@ export function DashboardPage() {
 					/>
 				) : null}
 
-				<ul className="divide-y divide-rule">
+				<ul className="divide-y divide-line">
 					{shownAccounts.map((account) => {
 						const balance = visible.find((entry) => entry.accountId === account.id);
 						return (
@@ -346,7 +340,7 @@ export function DashboardPage() {
 								<span>
 									<span className="text-sm text-ink">{account.name}</span>
 									{t(`accountKind.${account.kind}`) === account.name ? null : (
-										<span className="ml-2 text-xs text-graphite">
+										<span className="ml-2 text-xs text-quiet">
 											{t(`accountKind.${account.kind}`)}
 										</span>
 									)}
@@ -360,7 +354,7 @@ export function DashboardPage() {
 						);
 					})}
 				</ul>
-			</section>
+			</Panel>
 		</div>
 	);
 }

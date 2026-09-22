@@ -37,15 +37,19 @@ export function Field({
 			<label htmlFor={id} className="text-sm font-medium text-ink">
 				{label}
 			</label>
-			<div className={action ? "flex items-center gap-3" : "contents"}>
+			<div className={action ? "flex items-center gap-2" : "contents"}>
 				<input
 					id={id}
 					aria-describedby={describedBy === "" ? undefined : describedBy}
 					aria-invalid={error ? true : undefined}
 					className={cn(
-						"h-11 rounded-sm border bg-raised px-3 text-base text-ink md:h-10 md:text-sm",
-						"placeholder:text-graphite",
-						error ? "border-seal" : "border-rule",
+						// Sunken below the panel, with an edge strong enough to say that
+						// something goes in here. The old one shared a border with the
+						// rules between table rows, which is why nothing looked fillable.
+						"h-11 rounded-sm border bg-sunken px-3 text-base text-ink",
+						"transition-colors duration-150 placeholder:text-quiet",
+						"focus:border-accent focus:bg-panel",
+						error ? "border-seal" : "border-lineStrong",
 						numeric ? "text-right font-mono tabular-nums" : "",
 						action ? "min-w-0 grow" : "",
 						className,
@@ -55,7 +59,7 @@ export function Field({
 				{action}
 			</div>
 			{hint ? (
-				<p id={hintId} className="text-xs text-graphite">
+				<p id={hintId} className="text-xs leading-relaxed text-quiet">
 					{hint}
 				</p>
 			) : null}

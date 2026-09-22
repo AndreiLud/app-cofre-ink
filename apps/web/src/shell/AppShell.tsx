@@ -85,15 +85,17 @@ function Navigation() {
 
 	return (
 		<nav aria-label={t("nav.label")}>
-			<div className="hidden flex-wrap gap-1 lg:flex">
+			{/* The section you are in is filled, not underlined. An underline is the same
+			    weight as every other line on the page and disappears into it. */}
+			<div className="hidden flex-wrap gap-1 pb-2 lg:flex">
 				{sections.map((section) => (
 					<Link
 						key={section.label}
 						to={section.to}
-						className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm ${
+						className={`whitespace-nowrap rounded-sm px-3 py-1.5 text-sm transition-colors ${
 							section === here
-								? "border-ink font-medium text-ink"
-								: "border-transparent text-graphite hover:text-ink"
+								? "bg-accentSoft font-medium text-ink"
+								: "text-quiet hover:bg-sunken hover:text-ink"
 						}`}
 					>
 						{section.label}
@@ -104,15 +106,15 @@ function Navigation() {
 			{/* The screens inside the section you are in. It only appears where there is
 			    more than one, so a section with a single screen adds no furniture. */}
 			{inside.length > 1 ? (
-				<div className="hidden flex-wrap gap-4 pb-2 lg:flex">
+				<div className="hidden flex-wrap items-center gap-1 pb-2 lg:flex">
 					{inside.map((child) => (
 						<Link
 							key={child.to}
 							to={child.to}
-							className={`text-sm ${
+							className={`rounded-sm px-2.5 py-1 text-sm transition-colors ${
 								child.to === path
-									? "font-medium text-ink underline underline-offset-4"
-									: "text-graphite hover:text-ink"
+									? "font-medium text-accent"
+									: "text-quiet hover:bg-sunken hover:text-ink"
 							}`}
 						>
 							{child.label}
@@ -128,7 +130,7 @@ function Navigation() {
 					trigger={
 						<Button size="small" variant="quiet" className="font-medium text-ink">
 							{inside.find((child) => child.to === path)?.label ?? here?.label}
-							<Icon name="chevronDown" className="ml-1 text-graphite" />
+							<Icon name="chevronDown" className="ml-1 text-quiet" />
 						</Button>
 					}
 				>
@@ -168,7 +170,7 @@ function Loading() {
 	const { t } = useTranslation();
 	return (
 		<div className="mx-auto max-w-5xl px-4 py-16">
-			<p className="mb-6 text-sm text-graphite">{t("shell.opening")}</p>
+			<p className="mb-6 text-sm text-quiet">{t("shell.opening")}</p>
 			<Skeleton lines={4} />
 		</div>
 	);
@@ -234,18 +236,20 @@ export function AppShell({ children }: { children: ReactNode }) {
 	const colour = (cofre.currentSpace?.colour ?? "slate") as SpaceColour;
 
 	return (
-		<div className="min-h-dvh bg-paper text-ink">
+		<div className="min-h-dvh bg-canvas text-ink">
 			{/* The first thing a keyboard reaches, and the only way past a header with a
 			    space switcher, a search, three toggles and two rows of links. It is out
 			    of sight until it has focus, which is the whole of the pattern. */}
 			<a
 				href="#conteudo"
-				className="sr-only rounded-sm bg-ink px-4 py-2 text-paper focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50"
+				className="sr-only rounded-sm bg-accent px-4 py-2 text-accentInk focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50"
 			>
 				{t("shell.skipToContent")}
 			</a>
 
-			<header className="sticky top-0 z-20 bg-paper print:hidden">
+			{/* On the panel surface rather than the page, so the header is a thing the
+			    page scrolls under instead of a piece of the page that happens to stay. */}
+			<header className="sticky top-0 z-20 border-b border-line bg-panel print:hidden">
 				<div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3">
 					<div className="flex min-w-0 items-center gap-2 sm:gap-3">
 						<Link to={ROUTES.dashboard} className="shrink-0 font-serif text-lg font-semibold">

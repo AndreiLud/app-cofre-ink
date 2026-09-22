@@ -353,11 +353,11 @@ export function Destinations() {
 								})
 								.catch(() => setProblem(t("destination.notABundle")));
 						}}
-						className="block w-full max-w-md text-sm text-ink file:mr-3 file:rounded-sm file:border file:border-rule file:bg-raised file:px-3 file:py-2 file:text-sm file:text-ink"
+						className="block w-full max-w-md text-sm text-ink file:mr-3 file:rounded-sm file:border file:border-line file:bg-panel file:px-3 file:py-2 file:text-sm file:text-ink"
 					/>
-					<p className="text-xs text-graphite">{t("destination.pickFileHint")}</p>
+					<p className="text-xs text-quiet">{t("destination.pickFileHint")}</p>
 					{incoming ? (
-						<p className="text-sm text-graphite">
+						<p className="text-sm text-quiet">
 							{t("destination.fileHolds", {
 								name: incoming.name,
 								count: incoming.bundle.changes.length,
@@ -486,7 +486,7 @@ export function Destinations() {
 				</Button>
 
 				{outcome ? (
-					<p className="text-sm text-graphite">
+					<p className="text-sm text-quiet">
 						{outcome.broughtIn !== null
 							? t("destination.broughtIn", { name: outcome.broughtIn })
 							: outcome.unchanged
@@ -496,7 +496,7 @@ export function Destinations() {
 				) : null}
 
 				{seen === null ? null : (
-					<p className="text-xs text-graphite">
+					<p className="text-xs text-quiet">
 						{t("data.lastSync", {
 							when: new Date(seen).toLocaleString(i18n.resolvedLanguage ?? "pt-BR"),
 						})}

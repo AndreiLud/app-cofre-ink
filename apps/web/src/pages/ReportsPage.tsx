@@ -14,7 +14,7 @@ import {
 	FlowChart,
 	HeatMap,
 	InsightTitle,
-	SectionTitle,
+	Panel,
 	Segmented,
 	Skeleton,
 	Table,
@@ -154,7 +154,7 @@ export function ReportsPage() {
 		<div className="space-y-10">
 			{/* On paper the header of the application is gone, so the page says for itself
 			    which space and which month it is about. */}
-			<p className="hidden text-sm text-graphite print:block">
+			<p className="hidden text-sm text-quiet print:block">
 				{t("reports.printedFor", {
 					space: across === "space" ? currentSpace.name : t("reports.everySpace"),
 					month: monthName(month),
@@ -191,7 +191,7 @@ export function ReportsPage() {
 							type="month"
 							value={month}
 							onChange={(event) => setMonth(event.target.value)}
-							className="h-10 rounded-sm border border-rule bg-raised px-3 text-sm text-ink"
+							className="h-10 rounded-sm border border-line bg-panel px-3 text-sm text-ink"
 						/>
 					</label>
 					{spaces.length > 1 ? (
@@ -223,8 +223,7 @@ export function ReportsPage() {
 
 			{nothing ? null : (
 				<>
-					<section className="space-y-4">
-						<SectionTitle>{t("reports.flowTitle")}</SectionTitle>
+					<Panel title={t("reports.flowTitle")}>
 						<div className="hidden md:block">
 							<FlowChart
 								sources={flow.sources.map(named)}
@@ -265,12 +264,11 @@ export function ReportsPage() {
 								/>
 							</div>
 						</div>
-					</section>
+					</Panel>
 
-					<section className="space-y-4">
-						<SectionTitle>{t("reports.categoryTitle")}</SectionTitle>
+					<Panel title={t("reports.categoryTitle")}>
 						{biggest ? (
-							<p className="text-sm text-graphite">
+							<p className="text-sm text-quiet">
 								{t("reports.biggest", {
 									name: biggest.name ?? t("reports.noCategory"),
 									amount: money(biggest.total),
@@ -292,21 +290,20 @@ export function ReportsPage() {
 								{spending.map((one) => (
 									<TableRow key={one.categoryId ?? "none"}>
 										<TableCell>{one.name ?? t("reports.noCategory")}</TableCell>
-										<TableCell className="text-graphite">{one.parentName ?? ""}</TableCell>
+										<TableCell className="text-quiet">{one.parentName ?? ""}</TableCell>
 										<TableCell numeric={true}>
 											<Value amount={one.total} currency={currency} tone="neutral" />
 										</TableCell>
-										<TableCell numeric={true} className="text-graphite">
+										<TableCell numeric={true} className="text-quiet">
 											{Math.round((one.total / Math.max(1, period.expense)) * 100)}%
 										</TableCell>
 									</TableRow>
 								))}
 							</TableBody>
 						</Table>
-					</section>
+					</Panel>
 
-					<section className="space-y-4">
-						<SectionTitle>{t("reports.priorityTitle")}</SectionTitle>
+					<Panel title={t("reports.priorityTitle")}>
 						<BarList
 							items={(byPriority.data ?? []).map((one) => ({
 								key: one.priority ?? "none",
@@ -316,7 +313,7 @@ export function ReportsPage() {
 								tone: PRIORITY_TONE[one.priority ?? ""] ?? "ochre",
 							}))}
 						/>
-						<p className="text-sm text-graphite">
+						<p className="text-sm text-quiet">
 							{t("reports.priorityDetail", {
 								share: Math.round(
 									((byPriority.data ?? [])
@@ -327,10 +324,9 @@ export function ReportsPage() {
 								),
 							})}
 						</p>
-					</section>
+					</Panel>
 
-					<section className="space-y-4">
-						<SectionTitle>{t("reports.daysTitle")}</SectionTitle>
+					<Panel title={t("reports.daysTitle")}>
 						<HeatMap
 							days={(byDay.data ?? []).map((one) => ({
 								day: Number(one.day.slice(8)),
@@ -341,10 +337,9 @@ export function ReportsPage() {
 							description={t("reports.daysDescription", { month: monthName(month) })}
 							format={money}
 						/>
-					</section>
+					</Panel>
 
-					<section className="space-y-4">
-						<SectionTitle>{t("reports.monthsTitle")}</SectionTitle>
+					<Panel title={t("reports.monthsTitle")}>
 						<ColumnChart
 							groups={(byMonth.data ?? []).map((one) => ({
 								key: one.month,
@@ -354,7 +349,7 @@ export function ReportsPage() {
 							}))}
 							description={t("reports.monthsDescription")}
 						/>
-						<p className="flex flex-wrap gap-4 text-xs text-graphite">
+						<p className="flex flex-wrap gap-4 text-xs text-quiet">
 							<span className="flex items-center gap-2">
 								<span className="inline-block size-3 bg-cedar" />
 								{t("reports.income")}
@@ -391,7 +386,7 @@ export function ReportsPage() {
 								))}
 							</TableBody>
 						</Table>
-					</section>
+					</Panel>
 				</>
 			)}
 		</div>

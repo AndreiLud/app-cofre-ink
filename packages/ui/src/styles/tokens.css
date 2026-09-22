@@ -1,12 +1,25 @@
 /*
- * Design tokens of Cofre, direction "Papel e tinta".
- * Decisions and measured contrast ratios are in docs/adr/0006_visual_direction.md.
+ * Design tokens of Cofre.
  *
- * The palette is defined twice, once per theme, as plain custom properties. The
- * theme block below points Tailwind at those properties, so a utility such as
- * bg-paper follows the active theme with no duplicated class names.
- * Those property names use the framework namespace, the one place where the
- * writing rule yields to a tool requirement.
+ * The decisions, and the contrast ratios they were measured at, are in
+ * docs/adr/0023_surfaces_weight_and_one_colour.md, which supersedes 0006.
+ *
+ * Three ideas hold the whole thing up.
+ *
+ * 1. Three surfaces, not one. A page is the canvas, content sits on a panel that is
+ *    lighter than the canvas, and anything a person types into is sunken below it.
+ *    That is what makes a section an object instead of a stretch of text, and it is
+ *    the single change that does the most for finding your way around.
+ * 2. One colour means "you can act on this", and it is neither of the two colours
+ *    money already uses. Warm paper, a cool ink blue for anything interactive, and
+ *    green and red left alone to mean what they mean on a statement.
+ * 3. A border is not a border. A rule between rows is faint, the edge of a control is
+ *    strong, and telling them apart is what makes a button look pressable.
+ *
+ * The palette is written twice, once per theme, as plain custom properties. The theme
+ * block points the framework at them, so a utility such as bg-panel follows the active
+ * theme with no duplicated class names. Those property names use the framework
+ * namespace, the one place where the writing rule yields to a tool requirement.
  */
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
@@ -14,26 +27,49 @@
 :root {
 	color-scheme: light;
 
-	--paper: #f4efe4;
-	--raised: #faf7f0;
-	--ink: #16150f;
-	--graphite: #63605a;
-	--rule: #ddd5c6;
-	--cedar: #2e6b4f;
-	--seal: #a8321e;
-	--amber: #c9922b;
-	--ochre: #8a6210;
+	/* Surfaces, from the back of the page forward. */
+	--canvas: #efe9dc;
+	--panel: #fbf8f2;
+	--sunken: #e7e0d0;
+
+	/* Lines. The faint one separates, the strong one encloses. */
+	--line: #ddd5c4;
+	--lineStrong: #c0b5a0;
+
+	/* Ink, from loudest to quietest. */
+	--ink: #14130e;
+	--quiet: #5c5951;
+
+	/* The one interactive colour. */
+	--accent: #27406b;
+	--accentInk: #fbf8f2;
+	--accentSoft: #e2e7f0;
+
+	/* What money does. */
+	--cedar: #2a6348;
+	--seal: #9c2f1c;
+	--amber: #b5821f;
+	--ochre: #7d5810;
 }
 
 @media (prefers-color-scheme: dark) {
 	:root:not([data-theme="light"]) {
 		color-scheme: dark;
 
-		--paper: #1a1815;
-		--raised: #211e1a;
-		--ink: #e8e2d6;
-		--graphite: #a39d91;
-		--rule: #34302a;
+		--canvas: #131210;
+		--panel: #1e1c18;
+		--sunken: #0d0c0a;
+
+		--line: #302c25;
+		--lineStrong: #4a443a;
+
+		--ink: #ece6da;
+		--quiet: #a8a294;
+
+		--accent: #9db4dd;
+		--accentInk: #131210;
+		--accentSoft: #242b38;
+
 		--cedar: #6fbf95;
 		--seal: #e8775f;
 		--amber: #e0a94a;
@@ -44,11 +80,20 @@
 :root[data-theme="dark"] {
 	color-scheme: dark;
 
-	--paper: #1a1815;
-	--raised: #211e1a;
-	--ink: #e8e2d6;
-	--graphite: #a39d91;
-	--rule: #34302a;
+	--canvas: #131210;
+	--panel: #1e1c18;
+	--sunken: #0d0c0a;
+
+	--line: #302c25;
+	--lineStrong: #4a443a;
+
+	--ink: #ece6da;
+	--quiet: #a8a294;
+
+	--accent: #9db4dd;
+	--accentInk: #131210;
+	--accentSoft: #242b38;
+
 	--cedar: #6fbf95;
 	--seal: #e8775f;
 	--amber: #e0a94a;
@@ -56,11 +101,16 @@
 }
 
 @theme inline {
-	--color-paper: var(--paper);
-	--color-raised: var(--raised);
+	--color-canvas: var(--canvas);
+	--color-panel: var(--panel);
+	--color-sunken: var(--sunken);
+	--color-line: var(--line);
+	--color-lineStrong: var(--lineStrong);
 	--color-ink: var(--ink);
-	--color-graphite: var(--graphite);
-	--color-rule: var(--rule);
+	--color-quiet: var(--quiet);
+	--color-accent: var(--accent);
+	--color-accentInk: var(--accentInk);
+	--color-accentSoft: var(--accentSoft);
 	--color-cedar: var(--cedar);
 	--color-seal: var(--seal);
 	--color-amber: var(--amber);
@@ -77,20 +127,27 @@
 	--text-xl: 1.375rem;
 	--text-2xl: 1.75rem;
 	--text-3xl: 2.25rem;
+	/* The one number a screen exists to show. */
+	--text-display: 2.75rem;
 
-	--radius-sm: 2px;
-	--radius-md: 3px;
+	--radius-sm: 6px;
+	--radius-md: 8px;
+	--radius-lg: 12px;
+
+	/* Only things that float: a dialog, a menu. A panel earns its edge from the
+	   surface under it, which is what keeps the page looking like paper. */
+	--shadow-lifted: 0 10px 30px -12px rgb(20 19 14 / 0.28);
 }
 
 @layer base {
 	*,
 	*::before,
 	*::after {
-		border-color: var(--rule);
+		border-color: var(--line);
 	}
 
 	body {
-		background-color: var(--paper);
+		background-color: var(--canvas);
 		color: var(--ink);
 		font-family: var(--font-sans);
 		font-size: var(--text-base);
@@ -108,13 +165,14 @@
 	}
 
 	:focus-visible {
-		outline: 2px solid var(--ink);
+		outline: 2px solid var(--accent);
 		outline-offset: 2px;
+		border-radius: 2px;
 	}
 
 	::selection {
-		background-color: var(--ink);
-		color: var(--paper);
+		background-color: var(--accent);
+		color: var(--accentInk);
 	}
 }
 

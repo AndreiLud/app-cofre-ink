@@ -25,7 +25,7 @@ export function SpaceSwitcher() {
 						colour={currentSpace.colour as SpaceColour}
 						description={t("spaces.current", { name: currentSpace.name })}
 					/>
-					<Icon name="chevronDown" className="ml-1 text-graphite" />
+					<Icon name="chevronDown" className="ml-1 text-quiet" />
 				</Button>
 			}
 		>

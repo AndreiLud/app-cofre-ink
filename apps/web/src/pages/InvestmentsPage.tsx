@@ -21,6 +21,7 @@ import {
 	Field,
 	InsightTitle,
 	LineChart,
+	Panel,
 	SectionTitle,
 	Select,
 	Skeleton,
@@ -261,8 +262,7 @@ export function InvestmentsPage() {
 
 			{list.length === 0 ? null : (
 				<>
-					<section className="space-y-3">
-						<SectionTitle>{t("investments.whatYouHave")}</SectionTitle>
+					<Panel title={t("investments.whatYouHave")}>
 						<Table caption={t("investments.caption")}>
 							<TableHead>
 								<TableRow>
@@ -283,12 +283,12 @@ export function InvestmentsPage() {
 										<TableCell>
 											{holding.name}
 											{holding.pricedOn ? (
-												<span className="block text-xs text-graphite">
+												<span className="block text-xs text-quiet">
 													{t("investments.pricedOn", { day: holding.pricedOn })}
 												</span>
 											) : null}
 										</TableCell>
-										<TableCell className="hidden text-graphite sm:table-cell">
+										<TableCell className="hidden text-quiet sm:table-cell">
 											{t(`investments.kinds.${holding.kind}`)}
 										</TableCell>
 										<TableCell numeric={true} className="font-mono text-xs">
@@ -325,10 +325,9 @@ export function InvestmentsPage() {
 								))}
 							</TableBody>
 						</Table>
-					</section>
+					</Panel>
 
-					<section className="space-y-3">
-						<SectionTitle>{t("investments.byKind")}</SectionTitle>
+					<Panel title={t("investments.byKind")}>
 						<BarList
 							items={KINDS.map((one) => ({
 								key: one,
@@ -344,25 +343,22 @@ export function InvestmentsPage() {
 								tone: "cedar" as const,
 							})).filter((item) => item.amount > 0)}
 						/>
-					</section>
+					</Panel>
 
-					<section className="space-y-3">
-						<SectionTitle
-							action={
-								<Button
-									size="small"
-									variant="secondary"
-									disabled={refresh.isPending}
-									onClick={() => refresh.mutate()}
-								>
-									{t("investments.refreshIndices")}
-								</Button>
-							}
-						>
-							{t("investments.againstTheIndex")}
-						</SectionTitle>
-
-						<p className="max-w-[60ch] text-sm text-graphite">{t("investments.againstBody")}</p>
+					<Panel
+						title={t("investments.againstTheIndex")}
+						action={
+							<Button
+								size="small"
+								variant="secondary"
+								disabled={refresh.isPending}
+								onClick={() => refresh.mutate()}
+							>
+								{t("investments.refreshIndices")}
+							</Button>
+						}
+					>
+						<p className="max-w-[60ch] text-sm text-quiet">{t("investments.againstBody")}</p>
 
 						{rates.length === 0 ? (
 							<Callout tone="attention" title={t("investments.noIndicesTitle")}>
@@ -403,7 +399,7 @@ export function InvestmentsPage() {
 										}).format(value / 100)
 									}
 								/>
-								<p className="text-xs text-graphite">
+								<p className="text-xs text-quiet">
 									{t("investments.chartLegend", {
 										cdi: new Intl.NumberFormat(locale, { style: "currency", currency }).format(
 											(againstCdi[againstCdi.length - 1] ?? invested) / 100,
@@ -417,20 +413,20 @@ export function InvestmentsPage() {
 						)}
 
 						{latest.data?.cdi ? (
-							<p className="text-xs text-graphite">
+							<p className="text-xs text-quiet">
 								{t("investments.indicesAsOf", {
 									month: latest.data.cdi.month,
 									when: new Date(latest.data.cdi.fetchedAt).toLocaleDateString(locale),
 								})}
 							</p>
 						) : null}
-					</section>
+					</Panel>
 				</>
 			)}
 
-			<section className="space-y-3 border-t border-rule pt-5">
+			<section className="space-y-3 border-t border-line pt-5">
 				<SectionTitle>{t("investments.simulator")}</SectionTitle>
-				<p className="max-w-[60ch] text-sm text-graphite">{t("investments.simulatorBody")}</p>
+				<p className="max-w-[60ch] text-sm text-quiet">{t("investments.simulatorBody")}</p>
 
 				<div className="grid gap-3 sm:grid-cols-3">
 					<Field
@@ -487,7 +483,7 @@ export function InvestmentsPage() {
 					}
 				/>
 
-				<p className="text-sm text-graphite">
+				<p className="text-sm text-quiet">
 					{t("investments.simulatorResult", {
 						years,
 						total: new Intl.NumberFormat(locale, { style: "currency", currency }).format(
@@ -500,11 +496,11 @@ export function InvestmentsPage() {
 				</p>
 
 				{value > 0 && monthlyExpense > 0 ? (
-					<div className="space-y-1 border-t border-rule pt-4">
+					<div className="space-y-1 border-t border-line pt-4">
 						<p className="text-sm text-ink">
 							{t("investments.covers", { count: independent.monthsCovered })}
 						</p>
-						<p className="text-sm text-graphite">
+						<p className="text-sm text-quiet">
 							{t("investments.independence", {
 								target: new Intl.NumberFormat(locale, { style: "currency", currency }).format(
 									independent.target / 100,
@@ -513,9 +509,9 @@ export function InvestmentsPage() {
 							})}
 						</p>
 						{independent.months === null ? (
-							<p className="text-sm text-graphite">{t("investments.independenceNever")}</p>
+							<p className="text-sm text-quiet">{t("investments.independenceNever")}</p>
 						) : (
-							<p className="text-sm text-graphite">
+							<p className="text-sm text-quiet">
 								{t("investments.independenceWhen", {
 									years: Math.floor(independent.months / 12),
 									months: independent.months % 12,

@@ -76,14 +76,14 @@ export function SpacesPage() {
 				{t("spaces.title")}
 			</SectionTitle>
 
-			<p className="max-w-[60ch] text-sm text-graphite">{t("spaces.explain")}</p>
+			<p className="max-w-[60ch] text-sm text-quiet">{t("spaces.explain")}</p>
 
-			<ul className="divide-y divide-rule border-y border-rule">
+			<ul className="divide-y divide-line border-y border-line">
 				{spaces.map((space) => (
 					<li key={space.id} className="flex items-center justify-between gap-4 py-3">
 						<span className="flex flex-col gap-0.5">
 							<SpaceMark name={space.name} colour={space.colour as SpaceColour} />
-							<span className="pl-4 text-xs text-graphite">
+							<span className="pl-4 text-xs text-quiet">
 								{space.kind === "personal" ? t("spaces.personalKind") : t("spaces.sharedKind")}
 								{space.id === currentSpace?.id ? ` · ${t("spaces.open")}` : ""}
 							</span>

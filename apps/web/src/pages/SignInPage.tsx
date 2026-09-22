@@ -61,7 +61,7 @@ export function SignInPage() {
 	return (
 		<div className="mx-auto min-h-dvh max-w-md px-4 py-10">
 			<div className="flex items-center justify-between gap-4">
-				<p className="font-serif text-lg text-graphite">{t("app.name")}</p>
+				<p className="font-serif text-lg text-quiet">{t("app.name")}</p>
 				<div className="flex items-center gap-1">
 					<LanguageToggle />
 					<ThemeToggle choice={choice} isDark={isDark} onChange={setChoice} />
@@ -71,7 +71,7 @@ export function SignInPage() {
 			<h1 className="mt-6 text-3xl">
 				{intent === "signIn" ? t("signIn.title") : t("signIn.signUpTitle")}
 			</h1>
-			<p className="mt-2 text-sm text-graphite">{t("signIn.connectedTo", { server })}</p>
+			<p className="mt-2 text-sm text-quiet">{t("signIn.connectedTo", { server })}</p>
 
 			<form onSubmit={submit} className="mt-8 space-y-5">
 				{intent === "signUp" ? (

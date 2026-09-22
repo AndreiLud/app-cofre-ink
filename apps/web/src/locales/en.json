@@ -450,8 +450,8 @@
 		"unknown": "I could not finish that. Try again."
 	},
 	"transactions": {
-		"title": "Records in {{space}}",
-		"caption": "Records of the {{space}} space, with day, description, account and amount",
+		"title": "Records",
+		"caption": "Records of the period, with day, description, account and amount",
 		"create": "New record",
 		"createDescription": "Say what happened. The sign comes from the kind, so you always type a positive number.",
 		"edit": "Edit",
@@ -506,7 +506,12 @@
 		"priorityHint": "Pick a category and the priority comes from it.",
 		"priorityFromCategory": "The category says {{priority}}. Change it only when this one is different.",
 		"alwaysSortLikeThis": "Always sort like this",
-		"taught": "Done. Every record with {{text}} in the description goes to that category."
+		"taught": "Done. Every record with {{text}} in the description goes to that category.",
+		"listTitle": "Records of the month",
+		"filters": "More filters",
+		"filtersOn_one": "1 filter on",
+		"filtersOn_other": "{{count}} filters on",
+		"clearFilters": "Clear"
 	},
 	"rulesSection": {
 		"title": "Rules that sort on their own",

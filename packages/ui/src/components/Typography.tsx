@@ -14,20 +14,26 @@ export type SectionTitleProps = {
 };
 
 /**
- * The label that opens a block. In this direction a section is announced by a small
- * label over a rule, not by a card with a shadow.
+ * The title of a screen, and the action that belongs to the screen as a whole.
+ *
+ * Inside a screen a section is a panel and carries its own title, so this one is only
+ * ever used once: at the top, saying where you are. It used to be used for every block
+ * as well, which is how a screen ended up with five headings of the same weight and no
+ * way to tell which one was the screen.
  */
 export function SectionTitle({ children, action, level = "h2", className }: SectionTitleProps) {
 	const Heading = level;
 	return (
-		<div
-			className={cn(
-				"flex items-baseline justify-between gap-4 border-b border-rule pb-2",
-				className,
-			)}
-		>
-			<Heading className="font-sans text-sm font-semibold text-ink">{children}</Heading>
-			{action}
+		<div className={cn("flex flex-wrap items-center justify-between gap-3", className)}>
+			<Heading
+				className={cn(
+					"min-w-0 font-serif text-ink",
+					level === "h1" ? "text-2xl leading-tight" : "text-lg leading-tight",
+				)}
+			>
+				{children}
+			</Heading>
+			{action ? <div className="flex shrink-0 flex-wrap gap-2">{action}</div> : null}
 		</div>
 	);
 }
@@ -50,7 +56,7 @@ export function InsightTitle({ children, detail, level = "p", className }: Insig
 	return (
 		<div className={cn("space-y-1", className)}>
 			<Heading className="font-serif text-xl leading-tight text-ink">{children}</Heading>
-			{detail ? <p className="text-sm text-graphite">{detail}</p> : null}
+			{detail ? <p className="text-sm text-quiet">{detail}</p> : null}
 		</div>
 	);
 }
