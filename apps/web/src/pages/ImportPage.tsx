@@ -5,9 +5,9 @@
 // and what looks like something already here. An import that decides on its own is how
 // somebody ends up with two of every purchase in a month and no way to tell which.
 
-import { todayIn } from "@cofre/core";
+import { pickRule, todayIn } from "@cofre/core";
 import type { FieldName, MarkedRecord, RecognisedDocument } from "@cofre/importers";
-import { markDuplicates, readFile } from "@cofre/importers";
+import { guessAccount, markDuplicates, readFile, shapeOf } from "@cofre/importers";
 import type { ImportedRecord } from "@cofre/storage";
 import {
 	Button,
@@ -31,6 +31,12 @@ import { Value } from "../components/Value.tsx";
 import { readPickedFile } from "../lib/download.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import {
+	recallAccount,
+	recallColumns,
+	rememberAccount,
+	rememberColumns,
+} from "../storage/importMemory.ts";
 
 const FIELDS: FieldName[] = [
 	"happenedOn",
@@ -109,23 +115,59 @@ export function ImportPage() {
 		queryFn: () => session?.accounts.list(spaceId) ?? [],
 	});
 
-	const usable = (accounts.data ?? []).filter((account) => account.archivedAt === null);
-	const chosen = usable.find((account) => account.id === accountId) ?? usable[0];
-
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
 
 	// Reading the file again with a corrected mapping is cheap and keeps one path:
-	// whatever is on screen is exactly what the reader produced.
+	// whatever is on screen is exactly what the reader produced. The correction can
+	// come from this screen or from the last time a file of this shape was read.
 	const read = useMemo(() => {
 		if (!picked) return null;
 		const first = readFile(picked.bytes, { fileName: picked.name, today });
-		if (!fields || !first.mapping) return first;
+		if (!first.mapping) return first;
+
+		const corrected = fields ?? recallColumns(spaceId, shapeOf(first.header));
+		if (!corrected) return first;
+
 		return readFile(picked.bytes, {
 			fileName: picked.name,
 			today,
-			mapping: { ...first.mapping, fields },
+			mapping: { ...first.mapping, fields: corrected },
 		});
-	}, [picked, fields, today]);
+	}, [picked, fields, today, spaceId]);
+
+	const usable = (accounts.data ?? []).filter((account) => account.archivedAt === null);
+
+	/** What the file says about where it belongs, before anybody is asked. */
+	const guessed = useMemo(() => {
+		if (!read || usable.length === 0) return null;
+
+		const shape = shapeOf(read.header);
+		const bank = read.document?.institution ?? read.accountHint ?? "";
+		const remembered =
+			recallAccount(spaceId, shape) ?? (bank === "" ? null : recallAccount(spaceId, bank));
+		if (remembered && usable.some((account) => account.id === remembered)) {
+			return { id: remembered, why: "remembered" as const };
+		}
+
+		return guessAccount(
+			{
+				institution: read.document?.institution ?? null,
+				accountHint: read.accountHint,
+				kind: read.document?.kind ?? null,
+			},
+			usable.map((account) => ({
+				id: account.id,
+				name: account.name,
+				kind: account.kind,
+				institution: account.institution,
+			})),
+		);
+	}, [read, usable, spaceId]);
+
+	const chosen =
+		usable.find((account) => account.id === accountId) ??
+		usable.find((account) => account.id === guessed?.id) ??
+		usable[0];
 
 	const span = useMemo(() => {
 		const days = (read?.records ?? []).map((record) => record.happenedOn).sort();
@@ -147,6 +189,37 @@ export function ImportPage() {
 		if (!read) return [];
 		return markDuplicates(read.records, existing.data ?? []);
 	}, [read, existing.data]);
+
+	// The rules of the space run at the moment of writing, so what they will do is
+	// worked out here with the same function and shown before anything is written.
+	const rules = useQuery({
+		queryKey: ["rules", spaceId],
+		enabled: Boolean(session && spaceId !== ""),
+		queryFn: () => session?.rules.list(spaceId) ?? [],
+	});
+
+	const categories = useQuery({
+		queryKey: ["categories", spaceId],
+		enabled: Boolean(session && spaceId !== ""),
+		queryFn: () => session?.categories.list(spaceId) ?? [],
+	});
+
+	const sortedInto = useMemo(() => {
+		const usableRules = (rules.data ?? []).filter((rule) => rule.disabledAt === null);
+		const names = new Map((categories.data ?? []).map((category) => [category.id, category.name]));
+
+		return marked.map((record) => {
+			if (usableRules.length === 0 || !chosen) return null;
+			const found = pickRule(usableRules, {
+				description: record.description,
+				accountId: chosen.id,
+				kind: record.amount < 0 ? "expense" : "income",
+			});
+			return found?.categoryId ? (names.get(found.categoryId) ?? null) : null;
+		});
+	}, [marked, rules.data, categories.data, chosen]);
+
+	const willBeSorted = sortedInto.filter((name) => name !== null).length;
 
 	const keeping = marked.filter(
 		(record, index) => !left.has(index) && !(record.certain && record.duplicateOf !== null),
@@ -184,6 +257,15 @@ export function ImportPage() {
 			return session.imports.create({ spaceId, accountId: chosen.id, records });
 		},
 		onSuccess: (result) => {
+			// What this import took to get right is what the next one starts from.
+			if (read && chosen) {
+				const shape = shapeOf(read.header);
+				rememberAccount(spaceId, shape, chosen.id);
+				const bank = read.document?.institution ?? read.accountHint ?? "";
+				if (bank !== "") rememberAccount(spaceId, bank, chosen.id);
+				if (read.mapping) rememberColumns(spaceId, shape, read.mapping.fields);
+			}
+
 			setWritten(result.written);
 			setPicked(null);
 			setFields(null);
@@ -259,7 +341,11 @@ export function ImportPage() {
 								value={chosen?.id ?? ""}
 								onChange={(event) => setAccountId(event.target.value)}
 								options={usable.map((account) => ({ value: account.id, label: account.name }))}
-								hint={t("importing.accountHint")}
+								hint={
+									guessed && chosen?.id === guessed.id
+										? t(`importing.chose.${guessed.why}`)
+										: t("importing.accountHint")
+								}
 							/>
 						</div>
 						<p className="text-sm text-graphite">
@@ -270,6 +356,7 @@ export function ImportPage() {
 							{read.skipped.length > 0
 								? ` ${t("importing.skipped", { count: read.skipped.length })}`
 								: ""}
+							{willBeSorted > 0 ? ` ${t("importing.willSort", { count: willBeSorted })}` : ""}
 						</p>
 					</div>
 
@@ -314,6 +401,14 @@ export function ImportPage() {
 						</Callout>
 					) : null}
 
+					{/* Nothing to correct and nothing in doubt: say so, so the person presses
+					    the button instead of reading every line looking for a catch. */}
+					{unsure === 0 && duplicates === 0 && read.records.length > 0 && chosen ? (
+						<Callout tone="neutral">
+							{t("importing.allClear", { count: keeping.length, account: chosen.name })}
+						</Callout>
+					) : null}
+
 					{read.records.length === 0 ? (
 						<EmptyState
 							title={t("importing.emptyTitle")}
@@ -335,8 +430,9 @@ export function ImportPage() {
 									<TableHeader>{t("table.date")}</TableHeader>
 									<TableHeader>{t("table.description")}</TableHeader>
 									<TableHeader numeric={true}>{t("table.amount")}</TableHeader>
-									{/* On a phone this column would take a quarter of the width to say
-									    nothing on most rows, so there it sits under the description. */}
+									{/* These two columns would take half the width of a phone to say
+									    nothing on most rows, so there they sit under the description. */}
+									<TableHeader className="hidden sm:table-cell">{t("table.category")}</TableHeader>
 									<TableHeader className="hidden sm:table-cell">
 										{t("importing.already")}
 									</TableHeader>
@@ -363,6 +459,11 @@ export function ImportPage() {
 											</TableCell>
 											<TableCell>
 												{record.description}
+												{sortedInto[index] ? (
+													<span className="block text-xs text-graphite sm:hidden">
+														{sortedInto[index]}
+													</span>
+												) : null}
 												{record.duplicateOf === null ? null : (
 													<span className="block text-xs text-graphite sm:hidden">
 														{certain ? t("importing.sameEntry") : t("importing.looksTheSame")}
@@ -385,6 +486,9 @@ export function ImportPage() {
 													currency={chosen?.currency ?? "BRL"}
 													tone={record.amount < 0 ? "negative" : "positive"}
 												/>
+											</TableCell>
+											<TableCell className="hidden text-xs text-graphite sm:table-cell">
+												{sortedInto[index] ?? ""}
 											</TableCell>
 											<TableCell className="hidden whitespace-nowrap text-xs text-graphite sm:table-cell">
 												{record.duplicateOf === null

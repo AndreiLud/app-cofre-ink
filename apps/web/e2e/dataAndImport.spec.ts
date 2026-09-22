@@ -109,6 +109,10 @@ test.describe("reading a statement", () => {
 		await expect(page.getByText("Isto parece uma fatura de cartão")).toBeVisible();
 		await expect(page.getByText("Nubank · vence em 2026-02-10")).toBeVisible();
 
+		// And it picked the card by itself, saying why.
+		await expect(page.getByLabel("Em qual conta")).toHaveValue(/.+/);
+		await expect(page.getByText(/É uma fatura, e este é o seu único cartão/)).toBeVisible();
+
 		// A charge is money leaving, a payment received is money arriving.
 		await expect(page.getByRole("cell", { name: "-R$ 18,40" })).toBeVisible();
 		await expect(page.getByRole("cell", { name: "R$ 500,00", exact: true })).toBeVisible();
