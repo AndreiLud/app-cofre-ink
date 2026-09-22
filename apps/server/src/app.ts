@@ -521,6 +521,20 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		return context.body(null, 204);
 	});
 
+	/**
+	 * Everything inside one space, gone, and the space with it when it is a shared one.
+	 * A route of its own rather than a flag on the one that removes a space: the two do
+	 * different things, and a flag is how somebody does the wrong one by accident.
+	 */
+	app.delete("/api/spaces/:id/data", async (context) =>
+		context.json(await context.get("session").erasure.eraseSpace(context.req.param("id"))),
+	);
+
+	/** Every space this account owns. The ones it merely belongs to are left instead. */
+	app.post("/api/erase", async (context) =>
+		context.json(await context.get("session").erasure.eraseEverything()),
+	);
+
 	app.get("/api/spaces/:id/cards", async (context) => {
 		const includeArchived = context.req.query("archived") === "true";
 		return context.json(

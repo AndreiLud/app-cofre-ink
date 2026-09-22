@@ -1044,5 +1044,31 @@
 	"filters": {
 		"card": "Card",
 		"anyCard": "Any card"
+	},
+	"danger": {
+		"title": "Danger zone",
+		"explain": "This is where the data actually leaves, and it cannot be undone. Nothing happens until you type the name. If you want a copy, export one first, up there.",
+		"eraseSpace": "Erase the data",
+		"personalKeeps": "Erases everything inside. The personal space stays, empty.",
+		"sharedGoes": "Erases everything inside, and the space stops existing here.",
+		"everythingTitle": "Erase everything",
+		"everythingHereBody": "Erases the whole database of this browser: every space, your profile and the preferences. Cofre comes back as if it were the first time.",
+		"everythingServerBody": "Erases every space that is yours. A space of somebody else you only leave, because their records are not yours to erase.",
+		"eraseEverything": "Erase everything",
+		"confirmWord": "ERASE EVERYTHING",
+		"confirmSpaceTitle": "Erase the data of {{name}}",
+		"confirmEverythingTitle": "Erase everything",
+		"confirmPersonalBody": "The records, accounts, cards, categories, budgets, goals, rules, investments and the history of this space all go. The space itself stays, empty.",
+		"confirmSharedBody": "The records, accounts, cards, categories, budgets, goals, rules, investments and the history all go, and the space leaves your list. Whoever was in it on another device still has the copy they already have.",
+		"confirmEverythingHereBody": "The database file is erased from this browser. There is no copy anywhere else, other than the one you exported yourself.",
+		"confirmEverythingServerBody": "Every space that is yours goes from the server. You leave the spaces of other people without erasing anything of theirs. Your account stays.",
+		"noUndo": "There is no undoing this.",
+		"typeToConfirm": "Type {{word}} to confirm",
+		"eraseNow": "Erase now",
+		"erasing": "Erasing...",
+		"spaceGone_one": "{{name}} was erased, with 1 record.",
+		"spaceGone_other": "{{name}} was erased, with {{count}} records.",
+		"spaceEmptied_one": "{{name}} is empty now. 1 record was erased.",
+		"spaceEmptied_other": "{{name}} is empty now. {{count}} records were erased."
 	}
 }

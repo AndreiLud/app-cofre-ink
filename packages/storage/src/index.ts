@@ -16,6 +16,7 @@ export * from "./repositories/cards.ts";
 export * from "./repositories/categories.ts";
 export * from "./repositories/changes.ts";
 export * from "./repositories/context.ts";
+export * from "./repositories/erasure.ts";
 export * from "./repositories/goals.ts";
 export * from "./repositories/imports.ts";
 export * from "./repositories/indices.ts";

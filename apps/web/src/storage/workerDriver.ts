@@ -19,6 +19,11 @@ export type BrowserDatabase = {
 	driver: Driver;
 	/** How the database opened, which the screen has to be able to explain. */
 	outcome: OpenOutcome;
+	/**
+	 * Takes the file off the device. Everything above it is holding a database that no
+	 * longer exists once this returns, so the only thing to do next is reload the page.
+	 */
+	wipe: () => Promise<void>;
 };
 
 export async function openBrowserDatabase(): Promise<BrowserDatabase> {
@@ -111,6 +116,10 @@ export async function openBrowserDatabase(): Promise<BrowserDatabase> {
 	return {
 		driver: build(false),
 		outcome: opened.ok ? (opened.outcome ?? "memory") : "memory",
+		wipe: () =>
+			inOrder(async () => {
+				await send({ kind: "wipe" });
+			}),
 	};
 }
 

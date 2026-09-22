@@ -12,6 +12,7 @@ import { createCardsRepository } from "./repositories/cards.ts";
 import { createCategoriesRepository } from "./repositories/categories.ts";
 import { createChangesRepository } from "./repositories/changes.ts";
 import type { RepositoryContext } from "./repositories/context.ts";
+import { createErasureRepository } from "./repositories/erasure.ts";
 import { createGoalsRepository } from "./repositories/goals.ts";
 import { createImportsRepository } from "./repositories/imports.ts";
 import { createIndicesRepository } from "./repositories/indices.ts";
@@ -48,6 +49,7 @@ export type Session = {
 	invitations: ReturnType<typeof createInvitationsRepository>;
 	accounts: ReturnType<typeof createAccountsRepository>;
 	cards: ReturnType<typeof createCardsRepository>;
+	erasure: ReturnType<typeof createErasureRepository>;
 	categories: ReturnType<typeof createCategoriesRepository>;
 	transactions: ReturnType<typeof createTransactionsRepository>;
 	rules: ReturnType<typeof createRulesRepository>;
@@ -136,6 +138,7 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 		invitations: createInvitationsRepository(context),
 		accounts,
 		cards: createCardsRepository(context),
+		erasure: createErasureRepository(context),
 		categories: createCategoriesRepository(context),
 		transactions,
 		rules: createRulesRepository(context),

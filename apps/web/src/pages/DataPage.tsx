@@ -13,6 +13,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { DangerZone } from "../components/DangerZone.tsx";
 import { Destinations } from "../components/Destinations.tsx";
 import {
 	downloadCsv,
@@ -309,6 +310,10 @@ export function DataPage() {
 			<Section title={t("data.syncTitle")} description={t("data.syncBody")}>
 				<Destinations />
 			</Section>
+
+			{/* Last, and looking different, because it is the only thing on this screen
+			    that cannot be undone by opening a file again. */}
+			<DangerZone />
 		</div>
 	);
 }

@@ -28,6 +28,8 @@ import type {
 	CreateScenarioInput,
 	CreateTransactionInput,
 	DayTotal,
+	EraseEverythingResult,
+	EraseResult,
 	ExpenseSplit,
 	Finding,
 	Goal,
@@ -274,6 +276,11 @@ export function createRemoteSession(
 			archive: (id: string) => send<Account>(`/api/accounts/${id}/archive`, "POST", {}),
 			unarchive: (id: string) => send<Account>(`/api/accounts/${id}/unarchive`, "POST", {}),
 			remove: (id: string) => send<void>(`/api/accounts/${id}`, "DELETE"),
+		},
+
+		erasure: {
+			eraseSpace: (spaceId: string) => send<EraseResult>(`/api/spaces/${spaceId}/data`, "DELETE"),
+			eraseEverything: () => send<EraseEverythingResult>("/api/erase", "POST", {}),
 		},
 
 		cards: {

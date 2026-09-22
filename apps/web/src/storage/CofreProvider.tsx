@@ -67,6 +67,12 @@ export type CofreValue = {
 	adoptServerSession: () => Promise<void>;
 	signOut: () => Promise<void>;
 	reload: () => Promise<void>;
+	/**
+	 * Browser mode only: takes the database file off the device, forgets the profile and
+	 * reloads. The repository layer can empty a space row by row, which is what the
+	 * server mode has, but only this leaves nothing behind on a machine.
+	 */
+	eraseDevice: () => Promise<void>;
 };
 
 const CofreContext = createContext<CofreValue | null>(null);
@@ -278,6 +284,30 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 		setStatus("needsMode");
 	}, [client, mode]);
 
+	/**
+	 * Everything this browser holds, gone: the database file, the profile, the mode and
+	 * whatever the screens remembered along the way. The page reloads afterwards because
+	 * what is in memory is a session over a file that no longer exists, and because
+	 * landing on onboarding is the honest picture of what is left.
+	 */
+	const eraseDevice = useCallback(async () => {
+		const database = await connect();
+		await database.wipe();
+		forgetProfile();
+		forgetMode();
+		try {
+			// The keys the screens keep: the chosen space, the import memory, the
+			// destinations, the theme. Nothing here is money, and all of it is about the
+			// data that just went.
+			for (const key of Object.keys(localStorage)) {
+				if (key.startsWith("cofre")) localStorage.removeItem(key);
+			}
+		} catch {
+			// A browser that refuses storage had nothing to forget.
+		}
+		window.location.reload();
+	}, []);
+
 	const selectSpace = useCallback((spaceId: string) => {
 		setCurrentSpaceId(spaceId);
 		rememberSpace(spaceId);
@@ -318,6 +348,7 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 			adoptServerSession,
 			signOut,
 			reload,
+			eraseDevice,
 		}),
 		[
 			status,
@@ -339,6 +370,7 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 			adoptServerSession,
 			signOut,
 			reload,
+			eraseDevice,
 		],
 	);
 

@@ -14,11 +14,16 @@ export type WasmDatabase = {
 	close(): void;
 };
 
+/** The pool backend, and the one thing on it that is not about opening a database. */
+type SahPool = {
+	OpfsSAHPoolDb: new (filename: string) => WasmDatabase;
+	/** Empties every file the pool holds. There is no undoing it. */
+	wipeFiles: () => Promise<void>;
+};
+
 type Sqlite3Module = {
 	oo1: { DB: new (filename: string, flags?: string) => WasmDatabase };
-	installOpfsSAHPoolVfs?: (options: { name: string; initialCapacity?: number }) => Promise<{
-		OpfsSAHPoolDb: new (filename: string) => WasmDatabase;
-	}>;
+	installOpfsSAHPoolVfs?: (options: { name: string; initialCapacity?: number }) => Promise<SahPool>;
 };
 
 // The published types declare no options, while the build accepts them.
@@ -94,15 +99,34 @@ export type OpfsOptions = {
  * access handles, and those exist only there.
  */
 export async function openSqliteWasmOpfs(options: OpfsOptions = {}): Promise<Driver> {
-	const sqlite3 = await loadSqliteWasm();
-	if (!sqlite3.installOpfsSAHPoolVfs) {
-		throw new Error("this build of sqlite has no pool backend, so it cannot persist in OPFS");
-	}
-	const pool = await sqlite3.installOpfsSAHPoolVfs({
-		name: options.poolName ?? "cofre",
-		initialCapacity: 8,
-	});
+	const pool = await openPool(options.poolName ?? "cofre");
 	const database = new pool.OpfsSAHPoolDb(options.fileName ?? "/cofre.db");
 	prepare(database);
 	return wrapSqliteWasm(database);
+}
+
+/** Installed once per worker: installing it twice on the same name is an error. */
+let poolPromise: Promise<SahPool> | null = null;
+
+async function openPool(name: string): Promise<SahPool> {
+	if (!poolPromise) {
+		poolPromise = (async () => {
+			const sqlite3 = await loadSqliteWasm();
+			if (!sqlite3.installOpfsSAHPoolVfs) {
+				throw new Error("this build of sqlite has no pool backend, so it cannot persist in OPFS");
+			}
+			return sqlite3.installOpfsSAHPoolVfs({ name, initialCapacity: 8 });
+		})();
+	}
+	return poolPromise;
+}
+
+/**
+ * Empties the files the pool holds, which is the one way to take the data off a device
+ * rather than mark it deleted. The database has to be closed first, and the page has to
+ * be reloaded after: nothing above this knows that the file it was reading is gone.
+ */
+export async function wipeSqliteWasmOpfs(poolName = "cofre"): Promise<void> {
+	const pool = await openPool(poolName);
+	await pool.wipeFiles();
 }

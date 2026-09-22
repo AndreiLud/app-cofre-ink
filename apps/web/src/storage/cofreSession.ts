@@ -28,6 +28,8 @@ import type {
 	CreateScenarioInput,
 	CreateTransactionInput,
 	DayTotal,
+	EraseEverythingResult,
+	EraseResult,
 	ExpenseSplit,
 	Finding,
 	Goal,
@@ -151,6 +153,14 @@ export type CofreSession = {
 		archive: (id: string) => Promise<Account>;
 		unarchive: (id: string) => Promise<Account>;
 		remove: (id: string) => Promise<void>;
+	};
+	/**
+	 * The only door that deletes rather than hides. It is separate from everything else
+	 * on purpose, so that nothing reaches it without meaning to.
+	 */
+	erasure: {
+		eraseSpace: (spaceId: string) => Promise<EraseResult>;
+		eraseEverything: () => Promise<EraseEverythingResult>;
 	};
 	cards: {
 		list: (spaceId: string, options?: { includeArchived?: boolean }) => Promise<Card[]>;

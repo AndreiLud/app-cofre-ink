@@ -7,14 +7,20 @@
 
 import type { Driver } from "@cofre/storage";
 import { migrate } from "@cofre/storage";
-import { openSqliteWasmMemory, openSqliteWasmOpfs } from "@cofre/storage/sqliteWasm";
+import {
+	openSqliteWasmMemory,
+	openSqliteWasmOpfs,
+	wipeSqliteWasmOpfs,
+} from "@cofre/storage/sqliteWasm";
 
 export type OpenOutcome = "persistent" | "memory" | "busy";
 
 export type WorkerRequest =
 	| { id: number; kind: "open" }
 	| { id: number; kind: "all"; sql: string; params: unknown[] }
-	| { id: number; kind: "run"; sql: string; params: unknown[] };
+	| { id: number; kind: "run"; sql: string; params: unknown[] }
+	/** Takes the file off the device. The page has to reload straight afterwards. */
+	| { id: number; kind: "wipe" };
 
 export type WorkerResponse =
 	| { id: number; ok: true; rows?: unknown[]; outcome?: OpenOutcome }
@@ -69,6 +75,16 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 		if (request.kind === "open") {
 			await open();
 			reply({ id: request.id, ok: true, outcome });
+			return;
+		}
+
+		if (request.kind === "wipe") {
+			// Closed first, because the backend holds the file exclusively and cannot
+			// empty what it is still reading.
+			await driver?.close();
+			driver = null;
+			if (canPersist()) await wipeSqliteWasmOpfs("cofre");
+			reply({ id: request.id, ok: true });
 			return;
 		}
 

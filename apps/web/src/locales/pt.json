@@ -1044,5 +1044,31 @@
 	"filters": {
 		"card": "Cartão",
 		"anyCard": "Qualquer cartão"
+	},
+	"danger": {
+		"title": "Zona de risco",
+		"explain": "Aqui os dados saem de verdade, e não dá para desfazer. Nada acontece sem você escrever o nome antes. Se quiser guardar uma cópia, exporte primeiro, ali em cima.",
+		"eraseSpace": "Apagar os dados",
+		"personalKeeps": "Apaga tudo que está dentro. O espaço pessoal continua existindo, vazio.",
+		"sharedGoes": "Apaga tudo que está dentro, e o espaço deixa de existir aqui.",
+		"everythingTitle": "Apagar tudo",
+		"everythingHereBody": "Apaga o banco de dados inteiro deste navegador: todos os espaços, o seu perfil e as preferências. O Cofre volta como se fosse a primeira vez.",
+		"everythingServerBody": "Apaga todos os espaços que são seus. Espaços de outras pessoas você só deixa, porque os lançamentos deles não são seus para apagar.",
+		"eraseEverything": "Apagar tudo",
+		"confirmWord": "APAGAR TUDO",
+		"confirmSpaceTitle": "Apagar os dados de {{name}}",
+		"confirmEverythingTitle": "Apagar tudo",
+		"confirmPersonalBody": "Somem os lançamentos, contas, cartões, categorias, orçamentos, metas, regras, investimentos e o histórico deste espaço. O espaço em si continua, vazio.",
+		"confirmSharedBody": "Somem os lançamentos, contas, cartões, categorias, orçamentos, metas, regras, investimentos e o histórico, e o espaço sai da sua lista. Quem estava nele em outro aparelho continua com a cópia que já tem.",
+		"confirmEverythingHereBody": "O arquivo do banco de dados é apagado deste navegador. Não tem cópia em outro lugar, a não ser a que você mesmo exportou.",
+		"confirmEverythingServerBody": "Todos os espaços que são seus somem do servidor. Você sai dos espaços de outras pessoas sem apagar nada deles. Sua conta continua existindo.",
+		"noUndo": "Isso não tem como desfazer.",
+		"typeToConfirm": "Escreva {{word}} para confirmar",
+		"eraseNow": "Apagar agora",
+		"erasing": "Apagando...",
+		"spaceGone_one": "{{name}} foi apagado, com 1 registro.",
+		"spaceGone_other": "{{name}} foi apagado, com {{count}} registros.",
+		"spaceEmptied_one": "{{name}} ficou vazio. 1 registro foi apagado.",
+		"spaceEmptied_other": "{{name}} ficou vazio. {{count}} registros foram apagados."
 	}
 }

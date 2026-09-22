@@ -265,7 +265,15 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
-		it("keeps the record when the card it named is removed", async () => {
+		/**
+		 * Removing a card takes the card and nothing else.
+		 *
+		 * This is the test that has to keep passing. A card is a label on money that
+		 * already moved, and money that already moved is not undone by throwing away the
+		 * piece of plastic: the account, the balance, the invoice it was charged on and
+		 * the invoice month stamped on it all belong to the record, not to the card.
+		 */
+		it("takes only the card away, and leaves the invoice and the money behind", async () => {
 			const fixture = await prepare(adapter);
 			try {
 				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
@@ -274,13 +282,23 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 					kind: "checking",
 					name: "Conta corrente",
 				});
+				const invoice = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "credit",
+					name: "Cartao",
+					closingDay: 3,
+					dueDay: 10,
+				});
 				const card = await fixture.asAna.cards.create({
 					spaceId: space.id,
-					kind: "debit",
-					name: "Debito",
+					kind: "multiple",
+					name: "Do banco",
+					lastFour: "4417",
+					creditAccountId: invoice.id,
 					debitAccountId: checking.id,
 				});
-				const [record] = await fixture.asAna.transactions.create({
+
+				const [onDebit] = await fixture.asAna.transactions.create({
 					spaceId: space.id,
 					kind: "expense",
 					amount: 2_000,
@@ -289,16 +307,49 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 					accountId: checking.id,
 					cardId: card.id,
 				});
+				const parts = await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 90_000,
+					happenedOn: "2026-09-10",
+					description: "Fone",
+					accountId: invoice.id,
+					cardId: card.id,
+					installments: 3,
+				});
 
 				await fixture.asAna.cards.remove(card.id);
 				await expect(fixture.asAna.cards.get(card.id)).rejects.toBeInstanceOf(NotFoundError);
 
-				// The money is still charged to the account, which is what a balance is
-				// made of. Only the name of the plastic is gone.
-				const kept = await fixture.asAna.transactions.get(record?.id ?? "");
+				// The two accounts the card reached are untouched.
+				expect((await fixture.asAna.accounts.list(space.id)).map((one) => one.name).sort()).toEqual(
+					["Cartao", "Conta corrente"],
+				);
+
+				// The money is still charged where it was charged, which is what a balance
+				// is made of.
+				const kept = await fixture.asAna.transactions.get(onDebit?.id ?? "");
 				expect(kept.accountId).toBe(checking.id);
 				const balances = await fixture.asAna.transactions.balances(space.id);
 				expect(balances.find((one) => one.accountId === checking.id)?.settled).toBe(-2_000);
+
+				// And the invoice still has every part of the purchase, on the month it was
+				// stamped with when it was written.
+				const onInvoice = await fixture.asAna.transactions.list({
+					spaceId: space.id,
+					accountId: invoice.id,
+					invoiceMonth: "2026-10",
+				});
+				expect(onInvoice).toHaveLength(1);
+				expect(parts).toHaveLength(3);
+				expect(
+					(
+						await fixture.asAna.transactions.list({
+							spaceId: space.id,
+							accountId: invoice.id,
+						})
+					).reduce((sum, one) => sum + one.amount, 0),
+				).toBe(-90_000);
 			} finally {
 				await fixture.close();
 			}
