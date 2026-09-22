@@ -59,6 +59,9 @@ const precache = files.filter(
 	(path) =>
 		path === `${base}index.html` ||
 		path === `${base}manifest.webmanifest` ||
+		// The one script that is not in assets, because the page has to fetch it before
+		// the interface exists and the theme cannot wait for a hashed name.
+		path === `${base}tema.js` ||
 		path.startsWith(`${base}icons/`) ||
 		path.startsWith(`${base}assets/`),
 );
@@ -144,7 +147,8 @@ self.addEventListener("fetch", (event) => {
 	const mine =
 		url.pathname.startsWith(BASE + "assets/") ||
 		url.pathname.startsWith(BASE + "icons/") ||
-		url.pathname === BASE + "manifest.webmanifest";
+		url.pathname === BASE + "manifest.webmanifest" ||
+		url.pathname === BASE + "tema.js";
 	if (!mine) return;
 
 	event.respondWith(file(url.pathname, request));

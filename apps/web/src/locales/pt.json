@@ -818,7 +818,8 @@
 			"notes": "Observações",
 			"invoice": "Fatura",
 			"installment": "Parcela"
-		}
+		},
+		"tooLarge": "Esse arquivo passa de {{megabytes}} MB, que é o limite. Um extrato de um ano tem alguns kilobytes e um backup de dez anos tem poucos megabytes, então um arquivo desse tamanho quase sempre é outra coisa."
 	},
 	"destination": {
 		"where": "Onde guardar a cópia",

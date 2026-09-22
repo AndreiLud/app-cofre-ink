@@ -14,7 +14,14 @@ import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Destinations } from "../components/Destinations.tsx";
-import { downloadCsv, downloadJson, fileNameFor, readPickedFile } from "../lib/download.ts";
+import {
+	downloadCsv,
+	downloadJson,
+	FileTooLargeError,
+	fileNameFor,
+	LARGEST_FILE,
+	readPickedFile,
+} from "../lib/download.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 
@@ -81,6 +88,10 @@ export function DataPage() {
 	const [mirrored, setMirrored] = useState<string | null>(null);
 
 	function failed(error: unknown) {
+		if (error instanceof FileTooLargeError) {
+			setProblem(t("data.tooLarge", { megabytes: Math.round(LARGEST_FILE / 1024 / 1024) }));
+			return;
+		}
 		setProblem(error instanceof Error ? error.message : String(error));
 	}
 

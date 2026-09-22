@@ -29,7 +29,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { type ChangeEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
-import { readPickedFile } from "../lib/download.ts";
+import { FileTooLargeError, LARGEST_FILE, readPickedFile } from "../lib/download.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import {
@@ -242,7 +242,19 @@ export function ImportPage() {
 		setWritten(null);
 		setLeft(new Set());
 		setFields(null);
-		setPicked({ name: file.name, bytes: await readPickedFile(file) });
+
+		try {
+			setPicked({ name: file.name, bytes: await readPickedFile(file) });
+		} catch (error) {
+			setPicked(null);
+			setProblem(
+				error instanceof FileTooLargeError
+					? t("data.tooLarge", { megabytes: Math.round(LARGEST_FILE / 1024 / 1024) })
+					: error instanceof Error
+						? error.message
+						: String(error),
+			);
+		}
 	}
 
 	function toggle(index: number) {

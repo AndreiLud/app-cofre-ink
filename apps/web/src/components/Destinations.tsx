@@ -27,7 +27,7 @@ import { Button, Callout, Field, Select } from "@cofre/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { downloadBytes, readPickedFile } from "../lib/download.ts";
+import { downloadBytes, FileTooLargeError, LARGEST_FILE, readPickedFile } from "../lib/download.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import {
 	type DestinationSettings,
@@ -58,6 +58,9 @@ const SERVICE_OF: Partial<Record<DestinationKind, OAuthService>> = {
  * a reason of its own.
  */
 function saidWhy(error: unknown, t: (key: string, values?: Record<string, unknown>) => string) {
+	if (error instanceof FileTooLargeError) {
+		return t("data.tooLarge", { megabytes: Math.round(LARGEST_FILE / 1024 / 1024) });
+	}
 	if (error instanceof CloudError) {
 		if (error.status === 0) return t("destination.unreachable", { where: error.where });
 		if (error.status === 401 || error.status === 403) {

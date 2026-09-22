@@ -22,7 +22,10 @@ import {
 	upsertUserFromIdentity,
 } from "@cofre/storage";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
+import { HTTPException } from "hono/http-exception";
+import { secureHeaders } from "hono/secure-headers";
 import { z } from "zod";
 import type { Auth } from "./auth.ts";
 import type { Config } from "./config.ts";
@@ -119,16 +122,18 @@ const settlementInput = z.object({
 	note: z.string().trim().max(200).nullable().optional(),
 });
 
+// Every identifier here is a UUID, so the lengths are far above anything honest and
+// exist to stop a body of two thousand entries from carrying two thousand novels.
 const changeInput = z.object({
-	id: z.string().min(1),
-	spaceId: z.string().min(1),
+	id: z.string().min(1).max(80),
+	spaceId: z.string().min(1).max(80),
 	entity: z.string().min(1).max(60),
-	entityId: z.string().min(1),
+	entityId: z.string().min(1).max(80),
 	operation: z.enum(["insert", "update", "delete"]),
-	payload: z.record(z.string(), z.unknown()),
+	payload: z.record(z.string().max(80), z.unknown()),
 	hlc: z.string().min(1).max(80),
 	deviceId: z.string().min(1).max(80),
-	actorId: z.string().min(1).nullable(),
+	actorId: z.string().min(1).max(80).nullable(),
 	createdAt: z.number().int().nonnegative(),
 });
 
@@ -272,6 +277,41 @@ const savedFilterInput = z.object({
 
 export function createApp({ config, database, auth }: AppDependencies) {
 	const app = new Hono<{ Variables: Variables }>();
+
+	/**
+	 * The headers a browser reads before it does anything clever.
+	 *
+	 * Said out loud rather than taken from a default, because two of them would be
+	 * wrong here. Framing is refused outright: nothing in this product is meant to sit
+	 * inside somebody else's page, and a bank screen inside an iframe is how a person
+	 * is fooled into pressing the wrong button. And no referrer leaves, because the
+	 * address of a screen in this application says which space somebody is looking at.
+	 */
+	app.use(
+		"/*",
+		secureHeaders({
+			xFrameOptions: "DENY",
+			xContentTypeOptions: "nosniff",
+			referrerPolicy: "no-referrer",
+			// The interface and the API are often two origins, and this one would refuse
+			// the pair without adding anything that the cross origin rules do not.
+			crossOriginResourcePolicy: false,
+			crossOriginEmbedderPolicy: false,
+			// A browser ignores this over plain http, which is how a server at home is
+			// usually reached, and honours it the moment there is a certificate.
+			strictTransportSecurity: "max-age=15552000; includeSubDomains",
+		}),
+	);
+
+	/**
+	 * How much a request may weigh.
+	 *
+	 * The largest honest one is a backup of many years or a push of two thousand
+	 * entries, and both are a few megabytes. Without a limit, a signed in person can
+	 * hand the server a body as large as they like and watch it read the whole thing
+	 * into memory before a single validator runs.
+	 */
+	app.use("/api/*", bodyLimit({ maxSize: 25 * 1024 * 1024 }));
 
 	app.use(
 		"/api/*",
@@ -1206,6 +1246,12 @@ export function createApp({ config, database, auth }: AppDependencies) {
 
 	// One place turns a rule of the model into a status code, so no route repeats it.
 	app.onError((error, context) => {
+		// What the framework itself already decided, such as a body that was too large
+		// or a method nothing answers. Turning these into five hundred would say the
+		// server broke when it was the request that was wrong.
+		if (error instanceof HTTPException) {
+			return context.json({ error: "refused", status: error.status }, error.status);
+		}
 		if (error instanceof PermissionError) {
 			return context.json({ error: "notAllowed", permission: error.permission }, 403);
 		}

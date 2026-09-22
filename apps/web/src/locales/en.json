@@ -818,7 +818,8 @@
 			"notes": "Notes",
 			"invoice": "Invoice",
 			"installment": "Installment"
-		}
+		},
+		"tooLarge": "That file is over {{megabytes}} MB, which is the limit. A statement of a year is a few kilobytes and a backup of a decade is a few megabytes, so a file that size is almost always something else."
 	},
 	"destination": {
 		"where": "Where to keep the copy",

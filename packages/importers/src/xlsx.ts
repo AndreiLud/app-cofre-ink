@@ -81,9 +81,23 @@ export function dayFromSerial(serial: number): string | null {
 	return formatCalendarDate(moment.getUTCFullYear(), moment.getUTCMonth() + 1, moment.getUTCDate());
 }
 
+/**
+ * The largest any one part of a spreadsheet may unpack to.
+ *
+ * A spreadsheet is a zip, and a zip says how large each part will be before it is
+ * unpacked. A small file can be built whose parts unpack into gigabytes, which is not
+ * an attack on anybody's money but is an attack on the tab of whoever opened it. Fifty
+ * megabytes of XML is far more than a lifetime of statements.
+ */
+const LARGEST_PART = 50 * 1024 * 1024;
+
 /** Reads the first sheet of the file, or the one named. */
 export function readXlsx(bytes: Uint8Array, sheetName?: string): SheetTable {
-	const files = unzipSync(bytes);
+	// Skipped by what the file says about itself, before anything is unpacked. A part
+	// that is skipped reads as missing, which every reader below already handles.
+	const files = unzipSync(bytes, {
+		filter: (file) => file.originalSize === undefined || file.originalSize <= LARGEST_PART,
+	});
 	const decoder = new TextDecoder("utf-8");
 	const read = (path: string) => {
 		const found = files[path];

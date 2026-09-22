@@ -99,6 +99,29 @@ describe("the api", () => {
 		expect(response.status).toBe(401);
 	});
 
+	it("says the things a browser reads before it does anything clever", async () => {
+		const response = await app.request("http://localhost:4321/health");
+
+		// Nothing in this product is meant to sit inside somebody else's page.
+		expect(response.headers.get("x-frame-options")).toBe("DENY");
+		expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+		// The address of a screen says which space somebody is looking at.
+		expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+	});
+
+	it("refuses a body too large to be honest", async () => {
+		const ana = createClient(app);
+		await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+
+		// Thirty megabytes of nothing, which no real push or backup comes close to.
+		const response = await ana.request("/api/spaces", {
+			method: "POST",
+			body: JSON.stringify({ name: "x".repeat(30 * 1024 * 1024) }),
+		});
+
+		expect(response.status).toBe(413);
+	});
+
 	it("signs a person up and knows who they are afterwards", async () => {
 		const ana = createClient(app);
 		await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });

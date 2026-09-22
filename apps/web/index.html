@@ -10,6 +10,27 @@
 		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1815" />
 		<meta name="description" content="Cofre: as suas finanças, no seu dispositivo." />
 		<title>Cofre</title>
+		<!--
+			What this page is allowed to do, which is very little.
+
+			Script comes from here and nowhere else, and none of it is written into the
+			page: that is the rule that makes an injected line of script worth nothing,
+			and it matters here because the tokens of a drive live in this browser.
+			WebAssembly is allowed because the database is one.
+
+			Connecting is open on purpose and cannot be otherwise: the whole product is
+			a person typing the address of their own server, their own WebDAV folder or
+			their own drive, and a list of allowed addresses would be a list of the
+			services this project chose for them.
+
+			Framing is not here because a browser ignores that rule when it arrives in
+			the page rather than in a header. The server sends it as a header, and
+			docs/instalar.md says the one line to add to a static host.
+		-->
+		<meta
+			http-equiv="Content-Security-Policy"
+			content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src *; object-src 'none'; base-uri 'self'; form-action 'none'"
+		/>
 		<!-- Every address here is written against the base of the build, so the same files
 		     work at the root of a domain and inside a folder of one. -->
 		<link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
@@ -17,15 +38,7 @@
 		<link rel="apple-touch-icon" href="%BASE_URL%icons/apple180.png" />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-title" content="Cofre" />
-		<script>
-			// Applies the stored theme before the first paint, so the page never flashes.
-			try {
-				const stored = localStorage.getItem("cofreTheme");
-				if (stored === "light" || stored === "dark") {
-					document.documentElement.dataset.theme = stored;
-				}
-			} catch {}
-		</script>
+		<script src="%BASE_URL%tema.js"></script>
 	</head>
 	<body>
 		<div id="root"></div>

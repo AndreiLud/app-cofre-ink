@@ -73,12 +73,29 @@ node scripts/copyFallback.mjs
 Publique `apps/web/dist`. Com um domínio próprio apontado para o Pages, a pasta some do
 endereço e aí vale o `pnpm build` normal.
 
+### Um cabeçalho que vale a pena adicionar
+
+A página já traz as próprias regras de segurança dentro dela, e elas funcionam em
+qualquer hospedagem. Só uma não funciona vindo de dentro da página, e é a que impede o
+Cofre de ser aberto dentro de um quadro em outro site, que é como se engana alguém a
+clicar no lugar errado. Se a sua hospedagem deixa você adicionar um cabeçalho, adicione
+este:
+
+```
+X-Frame-Options: DENY
+```
+
+O servidor do Cofre já manda esse cabeçalho sozinho. Isto aqui é só para quando você
+publica a pasta de arquivos em outro lugar.
+
 ### Nginx
 
 ```nginx
 server {
     root /var/www/cofre;
     index index.html;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
 
     location / {
         try_files $uri $uri/ /index.html;
@@ -99,6 +116,10 @@ cofre.seudominio.com {
     root * /var/www/cofre
     try_files {path} /index.html
     file_server
+    header {
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+    }
 }
 ```
 
