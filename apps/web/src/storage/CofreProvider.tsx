@@ -3,7 +3,7 @@
 // lives in this browser or on a server, which is why no screen has to.
 
 import type { Driver, Space, User } from "@cofre/storage";
-import { findUserById, openSession } from "@cofre/storage";
+import { findUserById, openSession, tidyEverySpace } from "@cofre/storage";
 import {
 	createContext,
 	type ReactNode,
@@ -78,6 +78,26 @@ function connect() {
 	return connection;
 }
 
+// Once per tab as well, because two passes would find nothing and cost a pass.
+let tidied = false;
+function tidyLater(database: Driver) {
+	if (tidied) return;
+	tidied = true;
+
+	const run = () => {
+		void tidyEverySpace(database).catch(() => {
+			// A database that did not shrink today is a database that works.
+		});
+	};
+
+	// After the first screen has painted, and after whatever the first screen asks
+	// for. A person opening the application is waiting for their balance, not for
+	// housekeeping.
+	const idle = (window as { requestIdleCallback?: (work: () => void) => void }).requestIdleCallback;
+	if (idle) idle(run);
+	else window.setTimeout(run, 4000);
+}
+
 export function CofreProvider({ children }: { children: ReactNode }) {
 	const [status, setStatus] = useState<CofreStatus>("opening");
 	const [error, setError] = useState<string | null>(null);
@@ -101,6 +121,12 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 		setUser(me);
 		setSpaces(list);
 		setStatus("ready");
+
+		// The database looks after itself, after the screen is up and while nobody is
+		// waiting for anything. It folds at most once a day and it is not worth a
+		// message: no record changes, no amount moves, and a failure here is a database
+		// that is merely larger than it needs to be.
+		tidyLater(database);
 	}, []);
 
 	const startRemoteSession = useCallback(async (address: string) => {

@@ -1143,21 +1143,6 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		return context.json({ written });
 	});
 
-	app.get("/api/spaces/:id/changes/size", async (context) =>
-		context.json(await context.get("session").changes.size(context.req.param("id"))),
-	);
-
-	/**
-	 * Folds the settled part of the log. It is offered rather than done on a schedule,
-	 * because it rewrites history and the person should be the one who says when.
-	 */
-	app.post("/api/spaces/:id/changes/compact", async (context) => {
-		const input = z.object({ before: z.string().min(1).max(80) }).parse(await context.req.json());
-		return context.json(
-			await context.get("session").changes.compact({ spaceId: context.req.param("id"), ...input }),
-		);
-	});
-
 	/** What the space already has around the days a file covers, to spot a repeat. */
 	app.get("/api/spaces/:id/imports/existing", async (context) => {
 		const query = z

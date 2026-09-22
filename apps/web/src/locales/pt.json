@@ -97,13 +97,6 @@
 		"investments": "Investimentos",
 		"data": "Dados"
 	},
-	"install": {
-		"title": "Dá para instalar no seu aparelho",
-		"body": "Instalado, o Cofre abre pelo ícone, sem barra de endereço e sem internet. É o mesmo aplicativo e os mesmos dados, que continuam só neste aparelho.",
-		"byHand": "No iPhone e no iPad: toque em compartilhar e depois em adicionar à tela de início. O Cofre passa a abrir pelo ícone, sem internet.",
-		"action": "Instalar",
-		"later": "Agora não"
-	},
 	"projection": {
 		"headlineLasts": "Em {{month}} você teria {{amount}}",
 		"headlineShort": "O dinheiro acaba em {{month}}",
@@ -797,13 +790,6 @@
 		"sheetIdHint": "Deixe em branco para eu criar uma. Depois da primeira vez, esse campo se preenche sozinho.",
 		"sheetAction": "Espelhar agora",
 		"sheetDone": "Pronto:",
-		"compactTitle": "Compactar o histórico",
-		"compactBody": "Cada alteração vira uma linha num histórico que o Cofre usa para sincronizar. Um lançamento escrito, corrigido duas vezes e conciliado são quatro linhas que dizem, no fim, uma coisa só. Compactar junta essas quatro em uma para tudo que tem mais de trinta dias. Os seus lançamentos não mudam, só o histórico encolhe.",
-		"compactSize_one": "O histórico deste espaço tem 1 alteração.",
-		"compactSize_other": "O histórico deste espaço tem {{count}} alterações.",
-		"compactAction": "Compactar o que já passou",
-		"compactDone_one": "Juntei 1 linha, de {{rows}} registros.",
-		"compactDone_other": "Juntei {{count}} linhas, de {{rows}} registros.",
 		"syncTitle": "Sincronizar",
 		"syncBody": "Os dados continuam neste navegador. Quando você mandar, eles encontram o lugar que você escolher e os dois passam a concordar. Nada é enviado sozinho e nada passa por nenhum servidor deste projeto.",
 		"server": "Endereço do servidor",
@@ -855,7 +841,6 @@
 		"token": "Token",
 		"secretStaysHere": "Fica guardado só neste navegador. Nada disso passa por nenhum servidor deste projeto.",
 		"connect": "Entrar no serviço",
-		"needsBrowser": "O Dropbox e o Drive só devolvem a pessoa para um endereço que começa com http, e o aplicativo instalado tem um endereço próprio. Conecte o serviço uma vez no navegador, ou use um arquivo, um WebDAV ou um servidor seu, que funcionam aqui do mesmo jeito.",
 		"needsClientId": "Preencha o identificador do aplicativo antes de entrar no serviço.",
 		"didNotComeFromHere": "A resposta do serviço não bate com o pedido que saiu daqui. Comece de novo.",
 		"personalFromAnotherDevice": "Este arquivo traz o espaço pessoal de outro aparelho, e você já tem um. Sincronizar junta o mesmo espaço em dois lugares, não dois espaços pessoais diferentes. Para trazer essa vida financeira para cá, exporte um backup lá e use Restaurar aqui: ele junta com o seu.",

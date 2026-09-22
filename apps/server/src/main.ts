@@ -2,6 +2,7 @@
 // application can be built in a test with a database that lives in memory.
 
 import { existsSync } from "node:fs";
+import { tidyEverySpace } from "@cofre/storage";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { createApp } from "./app.ts";
@@ -33,7 +34,28 @@ async function main(): Promise<void> {
 		console.log(`storing data in ${config.COFRE_DATABASE}`);
 	});
 
+	// Housekeeping, on a schedule, because a server is the one place where nobody is
+	// sitting in front of the database. It folds the settled part of each change log at
+	// most once a day, so this timer is a check and almost never work. Nothing it does
+	// is visible: no record changes and no amount moves.
+	const housekeeping = setInterval(
+		() => {
+			void tidyEverySpace(database.driver).then(
+				(done) => {
+					const folded = done.reduce((total, one) => total + one.removed, 0);
+					if (folded > 0) console.log(`tidied ${done.length} spaces, ${folded} entries folded`);
+				},
+				() => {
+					// Next hour will do.
+				},
+			);
+		},
+		60 * 60 * 1000,
+	);
+	housekeeping.unref();
+
 	const stop = async () => {
+		clearInterval(housekeeping);
 		server.close();
 		await database.close();
 		process.exit(0);

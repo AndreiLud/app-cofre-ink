@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest";
 import type { Driver } from "../driver.ts";
 import { NotFoundError } from "../errors.ts";
+import { SETTLED_AFTER, tidyEverySpace, tidySpace } from "../housekeeping.ts";
 import { migrate } from "../migrate.ts";
 import type { User } from "../models.ts";
 import { openSession, type Session } from "../session.ts";
@@ -345,6 +346,58 @@ export function runSyncConformance(adapter: AdapterUnderTest): void {
 
 				const here = await one.asAna.transactions.list({ spaceId: space.id });
 				expect(here[0]).toMatchObject({ description: "Mercado do bairro", amount: -4390 });
+			} finally {
+				await one.close();
+			}
+		});
+
+		it("tidies itself, once a day, and never twice for the same month", async () => {
+			const one = await prepare(adapter);
+			try {
+				const space = await one.asAna.spaces.create({ name: "Casa" });
+				const account = await one.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+					initialBalance: 100_000,
+				});
+				await one.asAna.accounts.update(account.id, { name: "Conta conjunta" });
+				await one.asAna.accounts.update(account.id, { initialBalance: 120_000 });
+
+				// Nothing is old enough yet, so the pass runs and folds nothing.
+				const today = await tidySpace(one.driver, space.id);
+				expect(today?.removed).toBe(0);
+
+				// A month later the same entries are settled, and are folded.
+				const later = Date.now() + SETTLED_AFTER + 1000;
+				const folded = await tidySpace(one.driver, space.id, later);
+				expect(folded?.removed).toBeGreaterThan(0);
+
+				// The money is exactly where it was.
+				const kept = await one.asAna.accounts.list(space.id);
+				expect(kept[0]).toMatchObject({ name: "Conta conjunta", initialBalance: 120_000 });
+
+				// And an hour after that, there is nothing worth another pass.
+				expect(await tidySpace(one.driver, space.id, later + 60 * 60 * 1000)).toBeNull();
+			} finally {
+				await one.close();
+			}
+		});
+
+		it("tidies every space in the database and stops for none of them", async () => {
+			const one = await prepare(adapter);
+			try {
+				const home = await one.asAna.spaces.create({ name: "Casa" });
+				const trip = await one.asAna.spaces.create({ name: "Viagem" });
+
+				const later = Date.now() + SETTLED_AFTER + 1000;
+				const done = await tidyEverySpace(one.driver, later);
+
+				// The personal space of each person is in the database too, so the two
+				// made here are a floor and not the whole count.
+				const touched = done.map((result) => result.spaceId);
+				expect(touched).toContain(home.id);
+				expect(touched).toContain(trip.id);
 			} finally {
 				await one.close();
 			}
