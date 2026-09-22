@@ -132,8 +132,8 @@ nothing.
 | 2 block C. Card invoice screen, quick entry by free text, bulk edit, saved filters | done |
 | 3 block A. Categories with two levels, spending priority, the screens that use them | done |
 | 3 block B. Rules that sort on their own, recurrences, the calendar | done |
-| 4. Budget, savings rule, goals, expense splitting, alerts | next |
-| 5. Dashboard, consolidated view, reports and charts | planned |
+| 4. Budget, savings rule, goals, expense splitting, alerts | done |
+| 5. Dashboard, consolidated view, reports and charts | next |
 | 6. Import, export, backup, migration, sync engine | planned |
 | 7. Statement and receipt recognition | planned |
 | 8. Projections, scenarios, investments, simulators | planned |
@@ -156,3 +156,4 @@ nothing.
 | [0010](docs/adr/0010_shape_of_a_transaction.md) | the shape of a transaction |
 | [0011](docs/adr/0011_reading_one_line_of_text.md) | reading a record from one line of text |
 | [0012](docs/adr/0012_rules_and_recurrences.md) | rules that sort, and series that write |
+| [0013](docs/adr/0013_budget_goals_and_splitting.md) | limits, goals and the division between people |

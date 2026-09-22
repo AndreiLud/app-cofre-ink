@@ -93,6 +93,9 @@ test.describe("records", () => {
 		await page.getByRole("dialog").getByLabel("Descrição").fill("Farmácia");
 		await page.getByRole("button", { name: "Salvar" }).click();
 
+		// Typing into the screen behind a dialog that is still closing is a race, so
+		// this waits for the dialog to be gone before touching the filters.
+		await expect(page.getByRole("dialog")).toHaveCount(0);
 		await page.getByLabel("Buscar").fill("padaria");
 		await expect(record(page, "Padaria da esquina")).toBeVisible();
 		await expect(record(page, "Farmácia")).toHaveCount(0);
@@ -158,6 +161,7 @@ test.describe("records", () => {
 		await page.getByRole("dialog").getByLabel("Nome").fill("Lazer");
 		await page.getByRole("dialog").getByRole("button", { name: "Salvar" }).click();
 
+		await expect(page.getByRole("dialog")).toHaveCount(0);
 		await page.getByLabel("Buscar").fill("");
 		await expect(record(page, "Salário")).toBeVisible();
 

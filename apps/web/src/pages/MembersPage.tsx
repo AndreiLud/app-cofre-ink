@@ -9,6 +9,7 @@ import {
 	Callout,
 	Dialog,
 	EmptyState,
+	Field,
 	Icon,
 	Menu,
 	MenuItem,
@@ -23,8 +24,9 @@ import {
 	TableRow,
 } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SettleSection } from "../components/SettleSection.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import type { AssignableRole } from "../storage/cofreSession.ts";
 
@@ -37,6 +39,8 @@ export function MembersPage() {
 
 	const [isOpen, setOpen] = useState(false);
 	const [role, setRole] = useState<AssignableRole>("editor");
+	const [incomeFor, setIncomeFor] = useState<string | null>(null);
+	const [income, setIncome] = useState("");
 	const [link, setLink] = useState<string | null>(null);
 	const [copied, setCopied] = useState(false);
 	const [problem, setProblem] = useState<string | null>(null);
@@ -81,6 +85,23 @@ export function MembersPage() {
 		onSuccess: invalidate,
 	});
 
+	const saveIncome = useMutation({
+		mutationFn: async () => {
+			if (!session || incomeFor === null) return;
+			const cleaned = income
+				.replace(/[^\d,.]/g, "")
+				.replace(/\./g, "")
+				.replace(",", ".");
+			const amount = income.trim() === "" ? null : Math.round(Number(cleaned) * 100);
+			return session.members.setIncome(spaceId, incomeFor, amount);
+		},
+		onSuccess: () => {
+			setIncomeFor(null);
+			invalidate();
+		},
+		onError: (error: unknown) => setProblem(error instanceof Error ? error.message : String(error)),
+	});
+
 	const remove = useMutation({
 		mutationFn: async (userId: string) => session?.members.remove(spaceId, userId),
 		onSuccess: invalidate,
@@ -103,6 +124,8 @@ export function MembersPage() {
 
 	const rows = members.data ?? [];
 	const isPersonal = currentSpace.kind === "personal";
+	const myRole = rows.find((member) => member.userId === user?.id)?.role;
+	const canManage = myRole === "owner" || myRole === "admin";
 
 	async function copyLink() {
 		if (!link) return;
@@ -178,6 +201,7 @@ export function MembersPage() {
 							<TableHeader>{t("members.person")}</TableHeader>
 							<TableHeader>{t("members.role")}</TableHeader>
 							<TableHeader>{t("members.state")}</TableHeader>
+							{isPersonal ? null : <TableHeader numeric={true}>{t("members.income")}</TableHeader>}
 							<TableHeader numeric={true}>
 								<span className="sr-only">{t("accounts.actions")}</span>
 							</TableHeader>
@@ -189,6 +213,35 @@ export function MembersPage() {
 								<TableCell>{nameOf(member.userId)}</TableCell>
 								<TableCell className="text-graphite">{t(`role.${member.role}`)}</TableCell>
 								<TableCell className="text-graphite">{t(`memberState.${member.state}`)}</TableCell>
+								{isPersonal ? null : (
+									<TableCell numeric={true}>
+										{/* Only the division that follows income reads this, and only the
+										    person themselves or whoever runs the space may set it. */}
+										{member.userId === user?.id || canManage ? (
+											<Button
+												size="small"
+												variant="quiet"
+												onClick={() => {
+													setIncomeFor(member.userId);
+													setIncome(
+														member.monthlyIncome === null
+															? ""
+															: String(member.monthlyIncome / 100).replace(".", ","),
+													);
+												}}
+											>
+												{member.monthlyIncome === null
+													? t("members.sayIncome")
+													: new Intl.NumberFormat("pt-BR", {
+															style: "currency",
+															currency: currentSpace.baseCurrency,
+														}).format(member.monthlyIncome / 100)}
+											</Button>
+										) : (
+											<span className="text-graphite">{t("members.incomeHidden")}</span>
+										)}
+									</TableCell>
+								)}
 								<TableCell numeric={true}>
 									{member.role === "owner" || member.userId === user?.id ? null : (
 										<Menu
@@ -226,6 +279,54 @@ export function MembersPage() {
 					{t("members.leave")}
 				</Button>
 			) : null}
+
+			<Dialog
+				open={incomeFor !== null}
+				onOpenChange={(open) => {
+					if (!open) setIncomeFor(null);
+				}}
+				title={t("members.incomeTitle")}
+				description={t("members.incomeDescription")}
+				closeLabel={t("actions.cancel")}
+				size="small"
+				footer={
+					<>
+						<Button variant="quiet" onClick={() => setIncomeFor(null)}>
+							{t("actions.cancel")}
+						</Button>
+						<Button variant="primary" onClick={() => saveIncome.mutate()}>
+							{t("actions.save")}
+						</Button>
+					</>
+				}
+			>
+				<form
+					onSubmit={(event: FormEvent) => {
+						event.preventDefault();
+						saveIncome.mutate();
+					}}
+				>
+					<Field
+						label={t("members.income")}
+						hint={t("members.incomeHint")}
+						value={income}
+						onChange={(event) => setIncome(event.target.value)}
+						numeric={true}
+						inputMode="decimal"
+						placeholder="0,00"
+						autoFocus={true}
+					/>
+				</form>
+			</Dialog>
+
+			{isPersonal ? null : (
+				<SettleSection
+					spaceId={spaceId}
+					people={people.data ?? []}
+					currency={currentSpace.baseCurrency}
+					timezone={currentSpace.timezone}
+				/>
+			)}
 
 			<Dialog
 				open={isOpen}

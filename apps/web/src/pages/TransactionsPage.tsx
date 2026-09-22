@@ -28,6 +28,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { QuickEntry } from "../components/QuickEntry.tsx";
 import { type FilterQuery, SavedFilters } from "../components/SavedFilters.tsx";
+import { SplitDialog } from "../components/SplitDialog.tsx";
 import { TransactionForm } from "../components/TransactionForm.tsx";
 import { Value } from "../components/Value.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -75,6 +76,7 @@ export function TransactionsPage() {
 	const [moveTo, setMoveTo] = useState("");
 	const [problem, setProblem] = useState<string | null>(null);
 	const [taught, setTaught] = useState<string | null>(null);
+	const [dividing, setDividing] = useState<Transaction | null>(null);
 
 	const spaceId = currentSpace?.id ?? "";
 
@@ -89,6 +91,13 @@ export function TransactionsPage() {
 		queryKey: ["categories", spaceId],
 		enabled: Boolean(session && currentSpace),
 		queryFn: () => session?.categories.list(spaceId) ?? [],
+	});
+
+	// Only a shared space needs to know who else is in it, and only to divide a cost.
+	const peers = useQuery({
+		queryKey: ["peers", spaceId],
+		enabled: Boolean(session && currentSpace?.kind === "shared"),
+		queryFn: () => session?.users.peers() ?? [],
 	});
 
 	// Asking for a category that has others under it means asking for all of them, which
@@ -531,6 +540,9 @@ export function TransactionsPage() {
 													{t("transactions.alwaysSortLikeThis")}
 												</MenuItem>
 											) : null}
+											{currentSpace.kind === "shared" && row.kind === "expense" ? (
+												<MenuItem onSelect={() => setDividing(row)}>{t("sharing.divide")}</MenuItem>
+											) : null}
 											<MenuItem
 												onSelect={() =>
 													reconcile.mutate({ id: row.id, reconciled: row.reconciledAt === null })
@@ -564,6 +576,15 @@ export function TransactionsPage() {
 					</p>
 				</>
 			) : null}
+
+			<SplitDialog
+				open={dividing !== null}
+				onOpenChange={(open) => {
+					if (!open) setDividing(null);
+				}}
+				record={dividing}
+				people={peers.data ?? []}
+			/>
 
 			<TransactionForm
 				open={isOpen}

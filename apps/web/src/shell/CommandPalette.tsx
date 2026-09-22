@@ -85,6 +85,12 @@ export function CommandPalette({ state }: { state: PaletteState }) {
 				run: go(ROUTES.calendar),
 			},
 			{
+				id: "goBudget",
+				group: t("palette.navigate"),
+				label: t("nav.budget"),
+				run: go(ROUTES.budget),
+			},
+			{
 				id: "goInvoices",
 				group: t("palette.navigate"),
 				label: t("nav.invoices"),

@@ -8,24 +8,38 @@ import type {
 	Account,
 	AccountBalance,
 	AccountKind,
+	Budget,
+	BudgetWithProgress,
 	CategorizationRule,
 	Category,
 	Change,
+	CreateBudgetInput,
 	CreateCategoryInput,
+	CreateGoalInput,
 	CreateRecurrenceInput,
 	CreateRuleInput,
 	CreateSavedFilterInput,
 	CreateTransactionInput,
+	ExpenseSplit,
+	Goal,
+	GoalProgress,
+	PersonBalance,
 	Recurrence,
 	Role,
 	SavedFilter,
+	SavingsProgress,
+	SavingsRule,
+	Settlement,
+	SettleSuggestion,
 	Space,
 	SpaceKind,
 	SpaceMember,
+	SplitInput,
 	Transaction,
 	TransactionFilter,
 	TransactionKind,
 	UpdateCategoryInput,
+	UpdateGoalInput,
 	UpdateRecurrenceInput,
 	UpdateRuleInput,
 	UpdateSavedFilterInput,
@@ -70,6 +84,8 @@ export type CofreSession = {
 	members: {
 		list: (spaceId: string) => Promise<SpaceMember[]>;
 		changeRole: (spaceId: string, userId: string, role: AssignableRole) => Promise<void>;
+		/** Only the division that follows income reads this. Empty clears it. */
+		setIncome: (spaceId: string, userId: string, monthlyIncome: number | null) => Promise<void>;
 		remove: (spaceId: string, userId: string) => Promise<void>;
 		leave: (spaceId: string) => Promise<void>;
 	};
@@ -130,6 +146,52 @@ export type CofreSession = {
 		remove: (id: string, options?: { keepPlanned?: boolean }) => Promise<number>;
 		/** Writes the planned records the series owe. Safe to call on every load. */
 		materialize: (input: { spaceId: string; until?: string }) => Promise<number>;
+	};
+	budgets: {
+		list: (spaceId: string) => Promise<Budget[]>;
+		create: (input: CreateBudgetInput) => Promise<Budget>;
+		update: (id: string, input: { amount?: number; month?: string | null }) => Promise<Budget>;
+		remove: (id: string) => Promise<void>;
+		/** Every limit that applies to a month, with what has been spent against it. */
+		progress: (input: {
+			spaceId: string;
+			month: string;
+			today?: string;
+		}) => Promise<BudgetWithProgress[]>;
+	};
+	goals: {
+		list: (spaceId: string, options?: { includeArchived?: boolean }) => Promise<Goal[]>;
+		create: (input: CreateGoalInput) => Promise<Goal>;
+		update: (id: string, input: UpdateGoalInput) => Promise<Goal>;
+		markAchieved: (id: string) => Promise<Goal>;
+		remove: (id: string) => Promise<void>;
+		progress: (input: { spaceId: string; today: string }) => Promise<GoalProgress[]>;
+		readRule: (spaceId: string) => Promise<SavingsRule | null>;
+		setRule: (input: {
+			spaceId: string;
+			mode: "percent" | "fixed";
+			value: number;
+			accountId?: string | null;
+		}) => Promise<SavingsRule>;
+		clearRule: (spaceId: string) => Promise<void>;
+		savings: (input: { spaceId: string; month: string }) => Promise<SavingsProgress>;
+	};
+	sharing: {
+		splitsOf: (transactionId: string) => Promise<ExpenseSplit[]>;
+		split: (input: SplitInput) => Promise<ExpenseSplit[]>;
+		clearSplit: (transactionId: string) => Promise<void>;
+		balances: (spaceId: string) => Promise<PersonBalance[]>;
+		suggestSettlements: (spaceId: string) => Promise<SettleSuggestion[]>;
+		settlements: (spaceId: string) => Promise<Settlement[]>;
+		settle: (input: {
+			spaceId: string;
+			fromUserId: string;
+			toUserId: string;
+			amount: number;
+			happenedOn: string;
+			note?: string | null;
+		}) => Promise<Settlement>;
+		forgetSettlement: (id: string) => Promise<void>;
 	};
 	savedFilters: {
 		list: (spaceId: string) => Promise<SavedFilter[]>;

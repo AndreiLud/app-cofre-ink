@@ -3,6 +3,7 @@
 
 import { createRootRoute, createRoute, createRouter, Outlet } from "@tanstack/react-router";
 import { AccountsPage } from "./pages/AccountsPage.tsx";
+import { BudgetPage } from "./pages/BudgetPage.tsx";
 import { CalendarPage } from "./pages/CalendarPage.tsx";
 import { CategoriesPage } from "./pages/CategoriesPage.tsx";
 import { DashboardPage } from "./pages/DashboardPage.tsx";
@@ -52,6 +53,12 @@ const transactionsRoute = createRoute({
 	component: TransactionsPage,
 });
 
+const budgetRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/orcamento",
+	component: BudgetPage,
+});
+
 const calendarRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/calendario",
@@ -86,6 +93,7 @@ const routeTree = rootRoute.addChildren([
 	dashboardRoute,
 	transactionsRoute,
 	calendarRoute,
+	budgetRoute,
 	invoicesRoute,
 	categoriesRoute,
 	spacesRoute,
@@ -107,6 +115,7 @@ export const ROUTES = {
 	dashboard: "/",
 	transactions: "/lancamentos",
 	calendar: "/calendario",
+	budget: "/orcamento",
 	invoices: "/faturas",
 	categories: "/categorias",
 	spaces: "/espacos",

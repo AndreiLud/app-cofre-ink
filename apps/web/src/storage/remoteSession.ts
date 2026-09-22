@@ -9,23 +9,37 @@ import { pickRule } from "@cofre/core";
 import type {
 	Account,
 	AccountBalance,
+	Budget,
+	BudgetWithProgress,
 	CategorizationRule,
 	Category,
 	Change,
+	CreateBudgetInput,
 	CreateCategoryInput,
+	CreateGoalInput,
 	CreateRecurrenceInput,
 	CreateRuleInput,
 	CreateSavedFilterInput,
 	CreateTransactionInput,
+	ExpenseSplit,
+	Goal,
+	GoalProgress,
 	Invitation,
+	PersonBalance,
 	Recurrence,
 	SavedFilter,
+	SavingsProgress,
+	SavingsRule,
+	Settlement,
+	SettleSuggestion,
 	Space,
 	SpaceMember,
+	SplitInput,
 	Transaction,
 	TransactionFilter,
 	TransactionKind,
 	UpdateCategoryInput,
+	UpdateGoalInput,
 	UpdateRecurrenceInput,
 	UpdateRuleInput,
 	UpdateSavedFilterInput,
@@ -165,6 +179,8 @@ export function createRemoteSession(
 			list: (spaceId: string) => get<SpaceMember[]>(`/api/spaces/${spaceId}/members`),
 			changeRole: (spaceId: string, userId: string, role: AssignableRole) =>
 				send<void>(`/api/spaces/${spaceId}/members/${userId}`, "PATCH", { role }),
+			setIncome: (spaceId: string, userId: string, monthlyIncome: number | null) =>
+				send<void>(`/api/spaces/${spaceId}/members/${userId}`, "PATCH", { monthlyIncome }),
 			remove: (spaceId: string, userId: string) =>
 				send<void>(`/api/spaces/${spaceId}/members/${userId}`, "DELETE"),
 			leave: (spaceId: string) => send<void>(`/api/spaces/${spaceId}/leave`, "POST", {}),
@@ -331,6 +347,82 @@ export function createRemoteSession(
 						{ until: input.until },
 					)
 				).written,
+		},
+
+		budgets: {
+			list: (spaceId: string) => get<Budget[]>(`/api/spaces/${spaceId}/budgets`),
+			create: (input: CreateBudgetInput) => {
+				const { spaceId, ...rest } = input;
+				return send<Budget>(`/api/spaces/${spaceId}/budgets`, "POST", rest);
+			},
+			update: (id: string, input: { amount?: number; month?: string | null }) =>
+				send<Budget>(`/api/budgets/${id}`, "PATCH", input),
+			remove: (id: string) => send<void>(`/api/budgets/${id}`, "DELETE"),
+			progress: (input: { spaceId: string; month: string; today?: string }) =>
+				get<BudgetWithProgress[]>(
+					`/api/spaces/${input.spaceId}/budgets/progress?month=${input.month}${
+						input.today ? `&today=${input.today}` : ""
+					}`,
+				),
+		},
+
+		goals: {
+			list: (spaceId: string, options: { includeArchived?: boolean } = {}) =>
+				get<Goal[]>(
+					`/api/spaces/${spaceId}/goals${options.includeArchived ? "?archived=true" : ""}`,
+				),
+			create: (input: CreateGoalInput) => {
+				const { spaceId, ...rest } = input;
+				return send<Goal>(`/api/spaces/${spaceId}/goals`, "POST", rest);
+			},
+			update: (id: string, input: UpdateGoalInput) =>
+				send<Goal>(`/api/goals/${id}`, "PATCH", input),
+			markAchieved: (id: string) => send<Goal>(`/api/goals/${id}/achieved`, "POST", {}),
+			remove: (id: string) => send<void>(`/api/goals/${id}`, "DELETE"),
+			progress: (input: { spaceId: string; today: string }) =>
+				get<GoalProgress[]>(`/api/spaces/${input.spaceId}/goals/progress?today=${input.today}`),
+			readRule: (spaceId: string) => get<SavingsRule | null>(`/api/spaces/${spaceId}/savings`),
+			setRule: (input: {
+				spaceId: string;
+				mode: "percent" | "fixed";
+				value: number;
+				accountId?: string | null;
+			}) => {
+				const { spaceId, ...rest } = input;
+				return send<SavingsRule>(`/api/spaces/${spaceId}/savings`, "POST", rest);
+			},
+			clearRule: (spaceId: string) => send<void>(`/api/spaces/${spaceId}/savings`, "DELETE"),
+			savings: (input: { spaceId: string; month: string }) =>
+				get<SavingsProgress>(`/api/spaces/${input.spaceId}/savings/progress?month=${input.month}`),
+		},
+
+		sharing: {
+			splitsOf: (transactionId: string) =>
+				get<ExpenseSplit[]>(`/api/transactions/${transactionId}/splits`),
+			split: (input: SplitInput) => {
+				const { transactionId, ...rest } = input;
+				return send<ExpenseSplit[]>(`/api/transactions/${transactionId}/splits`, "POST", rest);
+			},
+			clearSplit: (transactionId: string) =>
+				send<void>(`/api/transactions/${transactionId}/splits`, "DELETE"),
+			balances: (spaceId: string) =>
+				get<PersonBalance[]>(`/api/spaces/${spaceId}/sharing/balances`),
+			suggestSettlements: (spaceId: string) =>
+				get<SettleSuggestion[]>(`/api/spaces/${spaceId}/sharing/suggested`),
+			settlements: (spaceId: string) =>
+				get<Settlement[]>(`/api/spaces/${spaceId}/sharing/settlements`),
+			settle: (input: {
+				spaceId: string;
+				fromUserId: string;
+				toUserId: string;
+				amount: number;
+				happenedOn: string;
+				note?: string | null;
+			}) => {
+				const { spaceId, ...rest } = input;
+				return send<Settlement>(`/api/spaces/${spaceId}/sharing/settlements`, "POST", rest);
+			},
+			forgetSettlement: (id: string) => send<void>(`/api/settlements/${id}`, "DELETE"),
 		},
 
 		savedFilters: {

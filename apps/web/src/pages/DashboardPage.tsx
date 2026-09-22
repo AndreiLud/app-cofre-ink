@@ -1,7 +1,7 @@
 // What the person sees first, answering two of the four questions it exists for: how
 // much there is, and what falls due in the next days.
 
-import { addDays, todayIn } from "@cofre/core";
+import { addDays, monthOf, noticesFor, todayIn } from "@cofre/core";
 import { Button, EmptyState, InsightTitle, SectionTitle, Skeleton } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -11,7 +11,7 @@ import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 
 export function DashboardPage() {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const { session, currentSpace, spaces } = useCofre();
 	const queries = useQueryClient();
 
@@ -43,6 +43,34 @@ export function DashboardPage() {
 			}) ?? [],
 	});
 
+	// What needs attention is worked out from what is already true, never stored, so it
+	// cannot go stale and cannot pile up into a list nobody opens.
+	const month = monthOf(today);
+
+	const limits = useQuery({
+		queryKey: ["budgets", spaceId, month],
+		enabled: Boolean(session && currentSpace),
+		queryFn: () => session?.budgets.progress({ spaceId, month, today }) ?? [],
+	});
+
+	const savings = useQuery({
+		queryKey: ["savings", spaceId, month],
+		enabled: Boolean(session && currentSpace),
+		queryFn: () => session?.goals.savings({ spaceId, month }) ?? null,
+	});
+
+	const goals = useQuery({
+		queryKey: ["goals", spaceId],
+		enabled: Boolean(session && currentSpace),
+		queryFn: () => session?.goals.progress({ spaceId, today }) ?? [],
+	});
+
+	const categories = useQuery({
+		queryKey: ["categories", spaceId],
+		enabled: Boolean(session && currentSpace),
+		queryFn: () => session?.categories.list(spaceId) ?? [],
+	});
+
 	const settle = useMutation({
 		mutationFn: async (id: string) => session?.transactions.settle(id),
 		onSuccess: () => {
@@ -65,6 +93,44 @@ export function DashboardPage() {
 	const falling = [...(upcoming.data ?? [])].sort((left, right) =>
 		left.happenedOn < right.happenedOn ? -1 : 1,
 	);
+
+	const nameOfLimit = (limit: {
+		scope: string;
+		priority: string | null;
+		categoryId: string | null;
+	}) => {
+		if (limit.scope === "total") return t("budget.everything");
+		if (limit.scope === "priority") return t(`priority.${limit.priority ?? "important"}`);
+		return categories.data?.find((category) => category.id === limit.categoryId)?.name ?? "";
+	};
+
+	const notices = noticesFor({
+		today,
+		budgets: (limits.data ?? []).map((limit) => ({
+			name: nameOfLimit(limit),
+			spent: limit.progress.spent,
+			limit: limit.progress.limit,
+			state: limit.progress.state,
+		})),
+		bills: falling.map((row) => ({
+			description: row.description,
+			amount: Math.abs(row.amount),
+			happenedOn: row.happenedOn,
+		})),
+		savings: savings.data ?? null,
+		goals: (goals.data ?? []).map((goal) => ({
+			name: goal.name,
+			saved: goal.saved,
+			target: goal.targetAmount,
+			achievedAt: goal.achievedAt,
+		})),
+	});
+
+	const money = (value: unknown) =>
+		new Intl.NumberFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+			style: "currency",
+			currency: currentSpace.baseCurrency,
+		}).format(Number(value) / 100);
 
 	return (
 		<div className="space-y-10">
@@ -97,6 +163,44 @@ export function DashboardPage() {
 					<p className="text-xs text-graphite">{t("dashboard.oneSpaceOnly")}</p>
 				) : null}
 			</section>
+
+			{notices.length > 0 ? (
+				<section className="space-y-3">
+					<SectionTitle
+						action={
+							<Link to={ROUTES.budget} className="text-sm text-graphite hover:text-ink">
+								{t("dashboard.seeBudget")}
+							</Link>
+						}
+					>
+						{t("dashboard.attention")}
+					</SectionTitle>
+
+					<ul className="space-y-2">
+						{notices.slice(0, 5).map((notice) => (
+							<li
+								key={`${notice.kind}${JSON.stringify(notice.values)}`}
+								className={`border-l-2 pl-3 text-sm ${
+									notice.level === "urgent"
+										? "border-seal text-ink"
+										: notice.level === "attention"
+											? "border-ochre text-ink"
+											: "border-rule text-graphite"
+								}`}
+							>
+								{t(`notice.${notice.kind}`, {
+									...notice.values,
+									over: money(notice.values.over),
+									left: money(notice.values.left),
+									amount: money(notice.values.amount),
+									missing: money(notice.values.missing),
+									target: money(notice.values.target),
+								})}
+							</li>
+						))}
+					</ul>
+				</section>
+			) : null}
 
 			<section className="space-y-4">
 				<SectionTitle
