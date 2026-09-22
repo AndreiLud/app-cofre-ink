@@ -143,7 +143,10 @@ const routeTree = rootRoute.addChildren([
 	designSystemRoute,
 ]);
 
-export const router = createRouter({ routeTree });
+// The base of the build, so that a copy served from a folder of a domain reads and
+// writes addresses inside that folder. At the root of a domain it is a single slash and
+// nothing changes.
+export const router = createRouter({ routeTree, basepath: import.meta.env.BASE_URL });
 
 declare module "@tanstack/react-router" {
 	interface Register {

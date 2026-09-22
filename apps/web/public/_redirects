@@ -1,0 +1,4 @@
+# Netlify and Cloudflare Pages read this file. Every address that is not a file is the
+# application itself, which then reads the address. The status is 200 and not 301,
+# because the address the person typed is the one they should keep.
+/*    /index.html   200

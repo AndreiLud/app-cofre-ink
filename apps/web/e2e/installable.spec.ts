@@ -25,18 +25,19 @@ test.describe("the built application", () => {
 		const link = page.locator('link[rel="manifest"]');
 		await expect(link).toHaveAttribute("href", "/manifest.webmanifest");
 
-		const manifest = (await (
-			await request.get(`${BUILT_ADDRESS}/manifest.webmanifest`)
-		).json()) as Manifest;
+		const where = `${BUILT_ADDRESS}/manifest.webmanifest`;
+		const manifest = (await (await request.get(where)).json()) as Manifest;
 		expect(manifest.name).toBe("Cofre");
 		expect(manifest.display).toBe("standalone");
-		expect(manifest.start_url).toBe("/");
+		// Written against the manifest itself, so the same build works at the root of a
+		// domain and inside a folder of one.
+		expect(manifest.start_url).toBe(".");
 
 		// One of them has to be maskable, or a launcher crops the mark badly.
 		expect(manifest.icons.some((icon) => icon.purpose === "maskable")).toBe(true);
 
 		for (const icon of manifest.icons) {
-			const answer = await request.get(`${BUILT_ADDRESS}${icon.src}`);
+			const answer = await request.get(new URL(icon.src, where).href);
 			expect(answer.status(), icon.src).toBe(200);
 			expect(answer.headers()["content-type"]).toContain("image/png");
 		}
@@ -53,6 +54,18 @@ test.describe("the built application", () => {
 			"/icons/icon512.png",
 		);
 		expect(drawn).toEqual({ width: 512, height: 512 });
+	});
+
+	test("carries the two files a static host reads to answer every address", async ({ request }) => {
+		// A host that only knows about files is asked for /importar and finds nothing.
+		// These two say, in the two dialects hosts speak, that the answer is the page.
+		const fallback = await request.get(`${BUILT_ADDRESS}/404.html`);
+		expect(fallback.status()).toBe(200);
+		expect(await fallback.text()).toContain('id="root"');
+
+		const redirects = await request.get(`${BUILT_ADDRESS}/_redirects`);
+		expect(redirects.status()).toBe(200);
+		expect(await redirects.text()).toContain("/index.html   200");
 	});
 
 	test("takes over the page, and opens again with no connection", async ({ page, context }) => {

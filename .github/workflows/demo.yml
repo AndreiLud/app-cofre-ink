@@ -1,0 +1,58 @@
+name: demo
+
+# Never on its own. Somebody presses the button in the Actions tab, and nothing is
+# published before that. The demo is the browser mode, which is a folder of files: no
+# server, no database, no account, and every visitor gets their own copy in their own
+# browser.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: demo
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: publish the browser mode to GitHub Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: install
+        run: pnpm install --frozen-lockfile
+
+      - name: build
+        run: pnpm run build
+
+      # Pages serves a project from a folder of the domain, so the whole build has to
+      # be written against that folder. The worker reads the folder back out of the
+      # page, so it is said here once and nowhere else.
+      - name: build again, for the folder Pages serves this from
+        run: |
+          pnpm --filter @cofre/web exec vite build --base=/${{ github.event.repository.name }}/
+          node scripts/buildServiceWorker.mjs
+          node scripts/copyFallback.mjs
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/dist
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

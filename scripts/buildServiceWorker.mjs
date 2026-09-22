@@ -32,10 +32,16 @@ function everyFile(folder) {
 	return found;
 }
 
+const page = readFileSync(join(dist, "index.html"), "utf8");
+// Where this build is going to live, read from the page the build just wrote rather
+// than from a setting somebody has to remember to pass twice. A copy served from the
+// root of a domain says a single slash, and a copy served from a folder says the folder.
+const base = page.match(/href="([^"]*)manifest\.webmanifest"/)?.[1] ?? "/";
+
 const files = everyFile(dist)
-	.map((file) => `/${relative(dist, file).split("\\").join("/")}`)
+	.map((file) => `${base}${relative(dist, file).split("\\").join("/")}`)
 	// The worker itself is never cached by itself, and a map is for a developer.
-	.filter((path) => path !== "/sw.js" && !path.endsWith(".map"));
+	.filter((path) => path !== `${base}sw.js` && !path.endsWith(".map"));
 
 const digest = createHash("sha256");
 // This file too, so that changing the rules below starts a new cache instead of
@@ -43,7 +49,7 @@ const digest = createHash("sha256");
 digest.update(readFileSync(fileURLToPath(import.meta.url)));
 for (const path of files) {
 	digest.update(path);
-	digest.update(readFileSync(join(dist, path.slice(1))));
+	digest.update(readFileSync(join(dist, path.slice(base.length))));
 }
 const version = digest.digest("hex").slice(0, 12);
 
@@ -51,14 +57,15 @@ const version = digest.digest("hex").slice(0, 12);
 // everything the build named with a hash.
 const precache = files.filter(
 	(path) =>
-		path === "/index.html" ||
-		path === "/manifest.webmanifest" ||
-		path.startsWith("/icons/") ||
-		path.startsWith("/assets/"),
+		path === `${base}index.html` ||
+		path === `${base}manifest.webmanifest` ||
+		path.startsWith(`${base}icons/`) ||
+		path.startsWith(`${base}assets/`),
 );
 
 const worker = `// Written by scripts/buildServiceWorker.mjs. Do not edit by hand.
 const CACHE = "cofre-${version}";
+const BASE = ${JSON.stringify(base)};
 const PRECACHE = ${JSON.stringify(precache, null, 1)};
 
 self.addEventListener("install", (event) => {
@@ -99,7 +106,7 @@ async function page(request) {
 	try {
 		return await fetch(request);
 	} catch (reason) {
-		const stored = await kept("/index.html");
+		const stored = await kept(BASE + "index.html");
 		if (stored) return stored;
 		throw reason;
 	}
@@ -135,9 +142,9 @@ self.addEventListener("fetch", (event) => {
 	// file does. Anything else, a server or a drive or the Banco Central, goes out as
 	// it is, or fails, and the screen says so.
 	const mine =
-		url.pathname.startsWith("/assets/") ||
-		url.pathname.startsWith("/icons/") ||
-		url.pathname === "/manifest.webmanifest";
+		url.pathname.startsWith(BASE + "assets/") ||
+		url.pathname.startsWith(BASE + "icons/") ||
+		url.pathname === BASE + "manifest.webmanifest";
 	if (!mine) return;
 
 	event.respondWith(file(url.pathname, request));
