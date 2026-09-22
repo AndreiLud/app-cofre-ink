@@ -1,14 +1,22 @@
 // The data, and what the person can do with it.
 //
-// Taking everything out in one file, putting it back somewhere else, keeping a copy
-// somewhere the person chooses, and mirroring the records into a spreadsheet for
-// whoever prefers one. Every button on this screen says where the data goes, and
-// nothing on it happens until one is pressed.
+// This screen had six sections of equal weight, every one of them open, and somebody
+// arriving to do the one thing they came for had to read all of it first. Most of what
+// was on it is something a person does once a year or never.
+//
+// So it is ordered by how often it is done rather than by what the code calls it. Where
+// the data is and when it was last copied, first, because that is the question the
+// screen is really being asked. Then the three things somebody actually does: save a
+// copy, bring one back, read a statement in. Everything else is behind one line of text
+// that says what is inside, and the zone that erases is last and looks it.
+//
+// Nothing here happens without being asked, and the two that write into the space say
+// what they are about to do before they do it.
 
 import { mirrorToSheet } from "@cofre/cloud";
 import { writeAmount, writeCsv } from "@cofre/importers";
 import type { Backup, RecordForExport, RestoreResult } from "@cofre/storage";
-import { Button, Callout, Field, Panel, SectionTitle } from "@cofre/ui";
+import { Button, Callout, Dialog, Disclosure, Field, Icon, Panel, SectionTitle } from "@cofre/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
@@ -25,20 +33,45 @@ import {
 } from "../lib/download.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { lastMet, storedDestination } from "../storage/destinations.ts";
 
-function Section({
+const BACKUP_KEY = "cofreBackupAt";
+
+function rememberBackup(spaceId: string): void {
+	try {
+		localStorage.setItem(`${BACKUP_KEY}:${spaceId}`, String(Date.now()));
+	} catch {
+		// Without storage the screen simply cannot say when the last one was.
+	}
+}
+
+function backupAt(spaceId: string): number | null {
+	try {
+		const value = Number(localStorage.getItem(`${BACKUP_KEY}:${spaceId}`));
+		return Number.isFinite(value) && value > 0 ? value : null;
+	} catch {
+		return null;
+	}
+}
+
+/** One thing this screen can do: a sentence, and the button that does it. */
+function Action({
 	title,
 	children,
-	description,
+	action,
 }: {
 	title: string;
-	description: string;
 	children: ReactNode;
+	action: ReactNode;
 }) {
 	return (
-		<Panel title={title} description={description}>
-			{children}
-		</Panel>
+		<div className="flex flex-wrap items-start justify-between gap-3 py-3">
+			<span className="min-w-0 max-w-[62ch]">
+				<span className="block text-sm font-medium text-ink">{title}</span>
+				<span className="block text-sm leading-relaxed text-quiet">{children}</span>
+			</span>
+			<span className="flex shrink-0 flex-wrap gap-2">{action}</span>
+		</div>
 	);
 }
 
@@ -75,16 +108,18 @@ function storedSheet(): { token: string; spreadsheetId: string } {
 }
 
 export function DataPage() {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const navigate = useNavigate();
-	const { session, currentSpace, spaces, reload } = useCofre();
+	const { session, currentSpace, spaces, mode, reload } = useCofre();
 	const queries = useQueryClient();
 
 	const spaceId = currentSpace?.id ?? "";
 	const [problem, setProblem] = useState<string | null>(null);
 	const [restored, setRestored] = useState<RestoreResult | null>(null);
+	const [waiting, setWaiting] = useState<File | null>(null);
 	const [sheet, setSheet] = useState(storedSheet);
 	const [mirrored, setMirrored] = useState<string | null>(null);
+	const [savedAt, setSavedAt] = useState<number | null>(() => backupAt(spaceId));
 
 	function failed(error: unknown) {
 		if (error instanceof FileTooLargeError) {
@@ -149,6 +184,8 @@ export function DataPage() {
 		onSuccess: (backup: Backup) => {
 			setProblem(null);
 			downloadJson(fileNameFor("cofre_espaco", "json"), backup);
+			rememberBackup(spaceId);
+			setSavedAt(Date.now());
 		},
 		onError: failed,
 	});
@@ -209,111 +246,229 @@ export function DataPage() {
 		onSuccess: async (result) => {
 			setProblem(null);
 			setRestored(result);
+			setWaiting(null);
 			await reload();
 			void queries.invalidateQueries();
 		},
-		onError: failed,
+		onError: (error: unknown) => {
+			setWaiting(null);
+			failed(error);
+		},
 	});
+
+	if (!currentSpace) return null;
+
+	const when = (at: number) => new Date(at).toLocaleString(i18n.resolvedLanguage ?? "pt-BR");
+
+	// What this device is set up to keep a copy in, and when it last managed to.
+	const destination = storedDestination();
+	const met = spaceId === "" ? null : lastMet(spaceId, destination.kind);
 
 	return (
 		<div className="space-y-5">
 			<SectionTitle level="h1">{t("data.title")}</SectionTitle>
-			<p className="-mt-3 max-w-[62ch] text-sm leading-relaxed text-quiet">{t("data.explain")}</p>
 
 			{problem ? <Callout tone="problem">{problem}</Callout> : null}
+			{restored ? <RestoreSummary result={restored} /> : null}
 
-			<Section title={t("data.importTitle")} description={t("data.importBody")}>
-				<Button variant="primary" onClick={() => void navigate({ to: ROUTES.import })}>
-					{t("data.importAction")}
-				</Button>
-			</Section>
+			{/* The question this screen is really being asked, answered before anything
+			    on it can be pressed. */}
+			<Panel title={t("data.whereTitle")}>
+				<dl className="divide-y divide-line text-sm">
+					<div className="flex flex-wrap justify-between gap-2 pb-2">
+						<dt className="text-quiet">{t("data.whereLives")}</dt>
+						<dd className="text-ink">
+							{mode === "server" ? t("data.livesOnServer") : t("data.livesHere")}
+						</dd>
+					</div>
+					<div className="flex flex-wrap justify-between gap-2 py-2">
+						<dt className="text-quiet">{t("data.lastBackup")}</dt>
+						<dd className={savedAt === null ? "text-seal" : "text-ink"}>
+							{savedAt === null ? t("data.neverBackedUp") : when(savedAt)}
+						</dd>
+					</div>
+					<div className="flex flex-wrap justify-between gap-2 pt-2">
+						<dt className="text-quiet">{t("data.copyIn")}</dt>
+						<dd className="text-ink">
+							{met === null
+								? t("data.noCopyYet")
+								: t("data.copyMet", {
+										where: t(`destination.${destination.kind}`),
+										when: when(met),
+									})}
+						</dd>
+					</div>
+				</dl>
+			</Panel>
 
-			<Section title={t("data.exportTitle")} description={t("data.exportBody")}>
-				<div className="flex flex-wrap gap-2">
-					<Button
-						variant="secondary"
-						disabled={spaceId === "" || exportSpace.isPending}
-						onClick={() => exportSpace.mutate()}
+			<Panel title={t("data.everydayTitle")} description={t("data.everydayBody")}>
+				<div className="divide-y divide-line">
+					<Action
+						title={t("data.saveCopy")}
+						action={
+							<Button
+								variant="primary"
+								disabled={spaceId === "" || exportSpace.isPending}
+								onClick={() => exportSpace.mutate()}
+							>
+								{t("data.saveCopyAction")}
+							</Button>
+						}
 					>
-						{t("data.exportSpace", { name: currentSpace?.name ?? "" })}
-					</Button>
+						{t("data.saveCopyBody", { name: currentSpace.name })}
+					</Action>
+
+					<Action
+						title={t("data.bringBack")}
+						action={
+							<label className="cursor-pointer rounded-sm border border-lineStrong bg-sunken px-3 py-2 text-sm text-ink has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent">
+								{t("data.bringBackAction")}
+								<input
+									type="file"
+									accept=".json,application/json"
+									className="sr-only"
+									onChange={(event) => {
+										const file = event.target.files?.[0];
+										event.target.value = "";
+										// Chosen, not yet read: it writes into the space, so it
+										// says what it is about to do first.
+										if (file) setWaiting(file);
+									}}
+								/>
+							</label>
+						}
+					>
+						{t("data.bringBackBody")}
+					</Action>
+
+					<Action
+						title={t("data.importTitle")}
+						action={
+							<Button variant="secondary" onClick={() => void navigate({ to: ROUTES.import })}>
+								{t("data.importAction")}
+							</Button>
+						}
+					>
+						{t("data.importBody")}
+					</Action>
+				</div>
+			</Panel>
+
+			{/* Open already when it is set up, because then it is not a rarity any more:
+			    it is the button somebody came here to press. */}
+			<Disclosure
+				summary={t("data.syncTitle")}
+				hint={t("data.syncBody")}
+				open={destination.kind !== "file" || met !== null}
+			>
+				<Destinations />
+			</Disclosure>
+
+			<Disclosure summary={t("data.moreTitle")} hint={t("data.moreBody")}>
+				<div className="divide-y divide-line">
 					{spaces.length > 1 ? (
+						<Action
+							title={t("data.exportEverything")}
+							action={
+								<Button
+									variant="secondary"
+									disabled={exportAll.isPending}
+									onClick={() => exportAll.mutate()}
+								>
+									{t("data.saveCopyAction")}
+								</Button>
+							}
+						>
+							{t("data.exportEverythingBody")}
+						</Action>
+					) : null}
+
+					<Action
+						title={t("data.exportRecords")}
+						action={
+							<Button
+								variant="secondary"
+								disabled={spaceId === "" || exportRecords.isPending}
+								onClick={() => exportRecords.mutate()}
+							>
+								{t("data.exportRecordsAction")}
+							</Button>
+						}
+					>
+						{t("data.exportRecordsBody")}
+					</Action>
+				</div>
+
+				<div className="space-y-3 border-t border-line pt-4">
+					<p className="text-sm font-medium text-ink">{t("data.sheetTitle")}</p>
+					<p className="max-w-[62ch] text-sm leading-relaxed text-quiet">{t("data.sheetBody")}</p>
+					<div className="max-w-md space-y-3">
+						<Field
+							label={t("data.sheetToken")}
+							type="password"
+							value={sheet.token}
+							onChange={(event) => rememberSheet({ ...sheet, token: event.target.value })}
+							hint={t("destination.secretStaysHere")}
+						/>
+						<Field
+							label={t("data.sheetId")}
+							value={sheet.spreadsheetId}
+							onChange={(event) => rememberSheet({ ...sheet, spreadsheetId: event.target.value })}
+							hint={t("data.sheetIdHint")}
+						/>
 						<Button
 							variant="secondary"
-							disabled={exportAll.isPending}
-							onClick={() => exportAll.mutate()}
+							disabled={sheet.token === "" || spaceId === "" || mirror.isPending}
+							onClick={() => mirror.mutate()}
 						>
-							{t("data.exportEverything")}
+							{t("data.sheetAction")}
 						</Button>
-					) : null}
-					<Button
-						variant="quiet"
-						disabled={spaceId === "" || exportRecords.isPending}
-						onClick={() => exportRecords.mutate()}
-					>
-						{t("data.exportRecords")}
-					</Button>
+						{mirrored ? (
+							<p className="text-sm text-quiet">
+								{t("data.sheetDone")}{" "}
+								<a className="underline" href={mirrored} target="_blank" rel="noreferrer">
+									{mirrored}
+								</a>
+							</p>
+						) : null}
+					</div>
 				</div>
-			</Section>
+			</Disclosure>
 
-			<Section title={t("data.sheetTitle")} description={t("data.sheetBody")}>
-				<div className="max-w-md space-y-3">
-					<Field
-						label={t("data.sheetToken")}
-						type="password"
-						value={sheet.token}
-						onChange={(event) => rememberSheet({ ...sheet, token: event.target.value })}
-						hint={t("destination.secretStaysHere")}
-					/>
-					<Field
-						label={t("data.sheetId")}
-						value={sheet.spreadsheetId}
-						onChange={(event) => rememberSheet({ ...sheet, spreadsheetId: event.target.value })}
-						hint={t("data.sheetIdHint")}
-					/>
-					<Button
-						variant="secondary"
-						disabled={sheet.token === "" || spaceId === "" || mirror.isPending}
-						onClick={() => mirror.mutate()}
-					>
-						{t("data.sheetAction")}
-					</Button>
-					{mirrored ? (
-						<p className="text-sm text-quiet">
-							{t("data.sheetDone")}{" "}
-							<a className="underline" href={mirrored} target="_blank" rel="noreferrer">
-								{mirrored}
-							</a>
-						</p>
-					) : null}
-				</div>
-			</Section>
-
-			<Section title={t("data.restoreTitle")} description={t("data.restoreBody")}>
-				<label htmlFor="backupFile" className="block text-sm font-medium text-ink">
-					{t("data.restorePick")}
-				</label>
-				<input
-					id="backupFile"
-					type="file"
-					accept=".json,application/json"
-					onChange={(event) => {
-						const file = event.target.files?.[0];
-						if (file) restore.mutate(file);
-						event.target.value = "";
-					}}
-					className="block w-full max-w-md text-sm text-ink file:mr-3 file:rounded-sm file:border file:border-line file:bg-panel file:px-3 file:py-2 file:text-sm file:text-ink"
-				/>
-				{restored ? <RestoreSummary result={restored} /> : null}
-			</Section>
-
-			<Section title={t("data.syncTitle")} description={t("data.syncBody")}>
-				<Destinations />
-			</Section>
-
-			{/* Last, and looking different, because it is the only thing on this screen
-			    that cannot be undone by opening a file again. */}
 			<DangerZone />
+
+			{/* Reading a file in writes into the space, so it says what it will do. It
+			    adds and never removes, which is the part somebody needs to hear. */}
+			<Dialog
+				open={waiting !== null}
+				onOpenChange={(next) => {
+					if (!next) setWaiting(null);
+				}}
+				title={t("data.bringBackConfirmTitle")}
+				description={t("data.bringBackConfirmBody", { name: waiting?.name ?? "" })}
+				closeLabel={t("actions.cancel")}
+				footer={
+					<>
+						<Button variant="quiet" onClick={() => setWaiting(null)}>
+							{t("actions.cancel")}
+						</Button>
+						<Button
+							variant="primary"
+							disabled={restore.isPending}
+							onClick={() => waiting && restore.mutate(waiting)}
+						>
+							{restore.isPending ? t("data.bringingBack") : t("data.bringBackNow")}
+						</Button>
+					</>
+				}
+			>
+				<Callout tone="neutral">
+					<span className="flex items-start gap-2">
+						<Icon name="check" className="mt-0.5 shrink-0 text-cedar" />
+						{t("data.bringBackAdds")}
+					</span>
+				</Callout>
+			</Dialog>
 		</div>
 	);
 }

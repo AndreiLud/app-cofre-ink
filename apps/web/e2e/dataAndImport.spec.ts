@@ -188,27 +188,54 @@ test.describe("reading a statement", () => {
 });
 
 test.describe("taking the data out", () => {
-	test("hands over a backup of the space", async ({ page }) => {
+	test("hands over a copy of the space, and then says when that was", async ({ page }) => {
 		await openCofre(page, { space: "Meu dinheiro" });
 
 		await go(page, "Dados");
+		// Before anything is saved the screen says so, in the one colour it uses for
+		// something being wrong.
+		await expect(page.getByText("Nunca", { exact: true })).toBeVisible();
 
 		const download = page.waitForEvent("download");
-		await page.getByRole("button", { name: "Backup de Meu dinheiro" }).click();
+		await page.getByRole("button", { name: "Guardar", exact: true }).first().click();
 		const file = await download;
 
 		expect(file.suggestedFilename()).toMatch(/^cofre_espaco_\d{8}\.json$/);
+		await expect(page.getByText("Nunca", { exact: true })).toHaveCount(0);
 	});
 
-	test("hands over the records as a spreadsheet", async ({ page }) => {
+	test("hands over the records as a spreadsheet, from behind the line that hides it", async ({
+		page,
+	}) => {
 		await openCofre(page);
 
 		await go(page, "Dados");
+		// A CSV is a once a year thing, so it is not on the screen until it is asked for.
+		await expect(page.getByRole("button", { name: "Baixar CSV" })).toHaveCount(0);
+		await page.getByText("Levar os dados para outro programa").click();
 
 		const download = page.waitForEvent("download");
-		await page.getByRole("button", { name: "Lançamentos em planilha" }).click();
+		await page.getByRole("button", { name: "Baixar CSV" }).click();
 		const file = await download;
 
 		expect(file.suggestedFilename()).toMatch(/^cofre_lancamentos_\d{8}\.csv$/);
+	});
+
+	test("says what bringing a file back will do before it does it", async ({ page }) => {
+		await openCofre(page);
+
+		await go(page, "Dados");
+		const download = page.waitForEvent("download");
+		await page.getByRole("button", { name: "Guardar", exact: true }).first().click();
+		const saved = await download;
+		const path = await saved.path();
+
+		// Choosing a file does not write it: the screen says what it is about to do.
+		await page.getByLabel("Escolher arquivo").setInputFiles(path);
+		const dialog = page.getByRole("dialog");
+		await expect(dialog).toContainText("Só acrescenta o que está faltando");
+
+		await dialog.getByRole("button", { name: "Trazer de volta" }).click();
+		await expect(page.getByText("Restaurado", { exact: true })).toBeVisible({ timeout: 20_000 });
 	});
 });

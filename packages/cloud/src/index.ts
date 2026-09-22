@@ -1,9 +1,11 @@
 // Where a space can be kept, besides here and besides a server.
 //
-// Every destination in this package is the same thing to the engine: somewhere a file
-// can be read and written. What differs is what each one needs from the person, and
-// what each one can promise about two devices writing at the same moment, which is
-// written down beside each of them and in registry 0017.
+// Two shapes of destination live here. Most of them are somewhere a file can be read
+// and written, which is all a drive or a folder can offer, and each of those has to say
+// what it can promise about two devices writing at the same moment. The other is a
+// database, which keeps the log as rows and needs to promise nothing, because appending
+// to a log is not a thing two devices can do wrong. Registry 0017 has the reasoning,
+// and registry 0026 has the database.
 
 export {
 	type FetchSeriesOptions,
@@ -13,13 +15,7 @@ export {
 	type SeriesPoint,
 	seriesUrl,
 } from "./bancoCentral.ts";
-export {
-	createDropboxStore,
-	type DropboxOptions,
-	dropboxAccountName,
-} from "./dropbox.ts";
 export { bundleFileName, createFileStore, type FileStoreOptions } from "./file.ts";
-export { createGoogleDriveStore, type GoogleDriveOptions } from "./googleDrive.ts";
 export {
 	mirrorToSheet,
 	type SheetOptions,
@@ -27,16 +23,7 @@ export {
 	sheetUrl,
 } from "./googleSheets.ts";
 export { CloudError, call, callJson, type Fetcher } from "./http.ts";
-export {
-	challengeOf,
-	finishOAuth,
-	type OAuthService,
-	type OAuthSetup,
-	type OAuthStart,
-	type OAuthToken,
-	refreshOAuth,
-	startOAuth,
-} from "./oauth.ts";
+export { createLibsqlStore, type LibsqlOptions } from "./libsql.ts";
 export {
 	BUNDLE_MEDIA_TYPE,
 	base64Of,
@@ -48,7 +35,7 @@ export {
 } from "./pack.ts";
 export { createWebdavStore, fileNameFor, type WebdavOptions } from "./webdav.ts";
 
-export type DestinationKind = "file" | "server" | "webdav" | "dropbox" | "googleDrive";
+export type DestinationKind = "file" | "server" | "webdav" | "database";
 
 /** What each destination needs, and what it can promise. Read by the screen. */
 export const DESTINATIONS: Record<
@@ -63,6 +50,5 @@ export const DESTINATIONS: Record<
 	file: { safeTogether: true, worksInABrowser: true },
 	server: { safeTogether: true, worksInABrowser: true },
 	webdav: { safeTogether: true, worksInABrowser: false },
-	dropbox: { safeTogether: true, worksInABrowser: true },
-	googleDrive: { safeTogether: false, worksInABrowser: true },
+	database: { safeTogether: true, worksInABrowser: true },
 };

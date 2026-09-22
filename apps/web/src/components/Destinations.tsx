@@ -10,22 +10,18 @@ import {
 	BUNDLE_MEDIA_TYPE,
 	bundleFileName,
 	CloudError,
-	createDropboxStore,
 	createFileStore,
-	createGoogleDriveStore,
+	createLibsqlStore,
 	createWebdavStore,
 	DESTINATIONS,
 	type DestinationKind,
-	finishOAuth,
-	type OAuthService,
 	packBundle,
-	startOAuth,
 	unpackBundle,
 } from "@cofre/cloud";
 import { type StoredBundle, type SyncBundle, type SyncStore, syncWithStore } from "@cofre/storage";
 import { Button, Callout, Field, Select } from "@cofre/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { downloadBytes, FileTooLargeError, LARGEST_FILE, readPickedFile } from "../lib/download.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -34,20 +30,13 @@ import {
 	lastMet,
 	markMet,
 	rememberDestination,
-	rememberPending,
 	storedDestination,
-	takePending,
 } from "../storage/destinations.ts";
 import { normaliseServer } from "../storage/mode.ts";
 import { createServerClient } from "../storage/remoteSession.ts";
 import { lastSyncAt, SyncError, syncWithServer } from "../storage/syncClient.ts";
 
-const KINDS: DestinationKind[] = ["file", "server", "webdav", "dropbox", "googleDrive"];
-
-const SERVICE_OF: Partial<Record<DestinationKind, OAuthService>> = {
-	dropbox: "dropbox",
-	googleDrive: "googleDrive",
-};
+const KINDS: DestinationKind[] = ["file", "server", "database", "webdav"];
 
 /**
  * What went wrong, in words.
@@ -104,48 +93,6 @@ export function Destinations() {
 		rememberDestination(merged);
 	};
 
-	// Coming back from a service the person was sent to sign in at. The number that
-	// proves it was this browser never left here, and is used once.
-	useEffect(() => {
-		const address = new URL(window.location.href);
-		const code = address.searchParams.get("code");
-		const state = address.searchParams.get("state");
-		if (code === null) return;
-
-		const pending = takePending();
-
-		// The address is cleaned either way, so a code is never used twice and never
-		// sits in the history of the browser.
-		address.searchParams.delete("code");
-		address.searchParams.delete("state");
-		window.history.replaceState(null, "", address.toString());
-
-		if (!pending) return;
-		if (pending.state !== state) {
-			setProblem(t("destination.didNotComeFromHere"));
-			return;
-		}
-
-		const service = SERVICE_OF[pending.kind];
-		if (!service) return;
-
-		void finishOAuth(
-			{
-				service,
-				clientId: pending.clientId,
-				clientSecret: pending.clientSecret,
-				redirectUri: pending.redirectUri,
-			},
-			{ code, verifier: pending.verifier },
-		)
-			.then((token) => {
-				const merged = { ...storedDestination(), kind: pending.kind, secret: token.token };
-				setSettings(merged);
-				rememberDestination(merged);
-			})
-			.catch((error: unknown) => setProblem(saidWhy(error, t)));
-	}, [t]);
-
 	function storeFor(): SyncStore {
 		if (kind === "webdav") {
 			return createWebdavStore({
@@ -155,15 +102,12 @@ export function Destinations() {
 				name: t("destination.webdav"),
 			});
 		}
-		if (kind === "dropbox") {
-			return createDropboxStore({
+		if (kind === "database") {
+			return createLibsqlStore({
+				url: settings.address,
 				token: settings.secret,
-				folder: settings.folder,
-				name: t("destination.dropbox"),
+				name: t("destination.database"),
 			});
-		}
-		if (kind === "googleDrive") {
-			return createGoogleDriveStore({ token: settings.secret, name: t("destination.googleDrive") });
 		}
 
 		return createFileStore({
@@ -182,32 +126,6 @@ export function Destinations() {
 	/** The space this exchange is about: the one that is open, or the one in the file. */
 	const target = incoming?.bundle.spaceId ?? spaceId;
 	const newToThisDevice = target !== "" && !spaces.some((space) => space.id === target);
-
-	const connect = useMutation({
-		mutationFn: async () => {
-			const service = SERVICE_OF[kind];
-			if (!service || settings.clientId === "") throw new Error(t("destination.needsClientId"));
-
-			const redirectUri = `${window.location.origin}${window.location.pathname}`;
-			const started = await startOAuth({
-				service,
-				clientId: settings.clientId,
-				clientSecret: settings.clientSecret,
-				redirectUri,
-			});
-
-			rememberPending({
-				kind,
-				verifier: started.verifier,
-				state: started.state,
-				clientId: settings.clientId,
-				clientSecret: settings.clientSecret,
-				redirectUri,
-			});
-			window.location.assign(started.url);
-		},
-		onError: (error: unknown) => setProblem(saidWhy(error, t)),
-	});
 
 	const signIn = useMutation({
 		mutationFn: async () => {
@@ -304,7 +222,7 @@ export function Destinations() {
 				? serverAddress !== "" && (signedIn || mode === "server")
 				: kind === "webdav"
 					? settings.address !== "" && settings.user !== "" && settings.secret !== ""
-					: settings.secret !== "";
+					: settings.address !== "" && settings.secret !== "";
 
 	return (
 		<div className="space-y-4">
@@ -427,26 +345,15 @@ export function Destinations() {
 				</div>
 			) : null}
 
-			{kind === "dropbox" || kind === "googleDrive" ? (
+			{kind === "database" ? (
 				<div className="max-w-md space-y-3">
 					<Field
-						label={t("destination.clientId")}
-						value={settings.clientId}
-						onChange={(event) => change({ clientId: event.target.value })}
-						hint={t("destination.clientIdHint")}
+						label={t("destination.databaseAddress")}
+						value={settings.address}
+						onChange={(event) => change({ address: event.target.value })}
+						placeholder="https://cofre-voce.turso.io"
+						hint={t("destination.databaseAddressHint")}
 					/>
-					{/* Google, and only Google. Its token endpoint refuses a web client
-					    that sends only the proof, however much the specification says a
-					    public client should not need a secret. */}
-					{kind === "googleDrive" ? (
-						<Field
-							label={t("destination.clientSecret")}
-							type="password"
-							value={settings.clientSecret}
-							onChange={(event) => change({ clientSecret: event.target.value })}
-							hint={t("destination.clientSecretHint")}
-						/>
-					) : null}
 					<Field
 						label={t("destination.token")}
 						type="password"
@@ -454,21 +361,6 @@ export function Destinations() {
 						onChange={(event) => change({ secret: event.target.value })}
 						hint={t("destination.secretStaysHere")}
 					/>
-					{kind === "dropbox" ? (
-						<Field
-							label={t("destination.folder")}
-							value={settings.folder}
-							onChange={(event) => change({ folder: event.target.value })}
-							placeholder="/Cofre"
-						/>
-					) : null}
-					<Button
-						variant="secondary"
-						disabled={settings.clientId === "" || connect.isPending}
-						onClick={() => connect.mutate()}
-					>
-						{t("destination.connect")}
-					</Button>
 				</div>
 			) : null}
 

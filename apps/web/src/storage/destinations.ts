@@ -12,21 +12,8 @@ export type DestinationSettings = {
 	/** The address of a server of the person, or of a WebDAV folder. */
 	address: string;
 	user: string;
-	/** An application password or an access token, depending on the destination. */
+	/** An application password or a database token, depending on the destination. */
 	secret: string;
-	/** The folder inside the drive, when the drive has folders. */
-	folder: string;
-	/** The identifier of the application the owner made in their own account. */
-	clientId: string;
-	/**
-	 * The secret of that same application, which only Google asks for.
-	 *
-	 * Its token endpoint refuses a web application client that sends only the proof and
-	 * answers that the secret is missing. This one belongs to the person, was made in
-	 * their own account, and stays here beside the token it buys. Dropbox never sees
-	 * one.
-	 */
-	clientSecret: string;
 };
 
 export const EMPTY_SETTINGS: DestinationSettings = {
@@ -34,9 +21,6 @@ export const EMPTY_SETTINGS: DestinationSettings = {
 	address: "",
 	user: "",
 	secret: "",
-	folder: "",
-	clientId: "",
-	clientSecret: "",
 };
 
 const KEY = "cofreDestination";
@@ -69,37 +53,6 @@ export function storedDestination(): DestinationSettings {
 
 export function rememberDestination(settings: DestinationSettings): void {
 	write(KEY, JSON.stringify(settings));
-}
-
-/** What the person was doing when they were sent to a service to sign in. */
-export type PendingOAuth = {
-	kind: DestinationKind;
-	verifier: string;
-	state: string;
-	clientId: string;
-	clientSecret?: string;
-	redirectUri: string;
-};
-
-const PENDING = "cofreOAuth";
-
-export function rememberPending(pending: PendingOAuth): void {
-	write(PENDING, JSON.stringify(pending));
-}
-
-export function takePending(): PendingOAuth | null {
-	const raw = read(PENDING);
-	if (raw === null) return null;
-	try {
-		localStorage.removeItem(PENDING);
-	} catch {
-		// Nothing to forget.
-	}
-	try {
-		return JSON.parse(raw) as PendingOAuth;
-	} catch {
-		return null;
-	}
 }
 
 /** The last time this device met each destination, per space. */

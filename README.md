@@ -38,7 +38,7 @@ year, a subscription that quietly went up, the same charge twice, a reserve meas
 months of ordinary spending. Nothing about what to buy or where to put money.
 
 **Leaving.** Export everything as JSON or as a spreadsheet, restore it anywhere, keep a
-copy in a file, a WebDAV folder, Dropbox or Drive, and mirror the records into a Google
+copy in a file, a WebDAV folder or an online database, and mirror the records into a Google
 spreadsheet. Two devices agree by exchanging a change log, over a server or through a
 file somebody carries.
 

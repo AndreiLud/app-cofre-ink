@@ -6,12 +6,9 @@
 
 import { BUNDLE_FORMAT, type SyncBundle } from "@cofre/storage";
 import { describe, expect, it } from "vitest";
-import { createDropboxStore } from "./dropbox.ts";
 import { createFileStore } from "./file.ts";
-import { createGoogleDriveStore } from "./googleDrive.ts";
 import { mirrorToSheet } from "./googleSheets.ts";
 import { CloudError } from "./http.ts";
-import { challengeOf, finishOAuth, startOAuth } from "./oauth.ts";
 import { isPacked, packBundle, unpackBundle } from "./pack.ts";
 import { createWebdavStore } from "./webdav.ts";
 
@@ -148,89 +145,6 @@ describe("a folder over WebDAV", () => {
 	});
 });
 
-describe("a folder in Dropbox", () => {
-	it("reads the file and the revision beside it", async () => {
-		const service = fakeService(() => ({
-			bytes: packed(),
-			headers: { "Dropbox-API-Result": JSON.stringify({ rev: "abc" }) },
-		}));
-
-		const store = createDropboxStore({ token: "t", fetcher: service.fetcher });
-		const read = await store.read("espaco1");
-
-		expect(read.bundle?.spaceId).toBe("espaco1");
-		expect(read.revision).toBe("abc");
-		expect(JSON.parse(service.calls[0]?.headers["dropbox-api-arg"] ?? "{}")).toEqual({
-			path: "/cofre_espaco1.json.gz",
-		});
-	});
-
-	it("writes as an update of the revision it read", async () => {
-		const service = fakeService(() => ({ body: JSON.stringify({ rev: "def" }) }));
-		const store = createDropboxStore({ token: "t", folder: "/Cofre", fetcher: service.fetcher });
-
-		const written = await store.write("espaco1", bundle, "abc");
-		expect(written.revision).toBe("def");
-
-		const argument = JSON.parse(service.calls[0]?.headers["dropbox-api-arg"] ?? "{}");
-		expect(argument.path).toBe("/Cofre/cofre_espaco1.json.gz");
-		expect(argument.mode).toEqual({ ".tag": "update", update: "abc" });
-	});
-
-	it("turns the answer for a file that moved into a conflict", async () => {
-		const service = fakeService(() => ({ status: 409, body: "{}" }));
-		const store = createDropboxStore({ token: "t", fetcher: service.fetcher });
-
-		await expect(store.write("espaco1", bundle, "abc")).rejects.toThrow(
-			/changed while this device/,
-		);
-	});
-});
-
-describe("a folder in Google Drive", () => {
-	it("looks in the corner that belongs to this application", async () => {
-		const service = fakeService((call) =>
-			call.url.includes("alt=media")
-				? { bytes: packed() }
-				: { body: JSON.stringify({ files: [{ id: "1", name: "x", modifiedTime: "2026-09-22" }] }) },
-		);
-
-		const store = createGoogleDriveStore({ token: "t", fetcher: service.fetcher });
-		const read = await store.read("espaco1");
-
-		expect(read.bundle?.spaceId).toBe("espaco1");
-		expect(read.revision).toBe("2026-09-22");
-		expect(service.calls[0]?.url).toContain("spaces=appDataFolder");
-		expect(service.calls[0]?.url).toContain("cofre_espaco1.json.gz");
-	});
-
-	it("creates the file the first time, in two parts", async () => {
-		const service = fakeService((call) =>
-			call.url.includes("uploadType=multipart")
-				? { body: JSON.stringify({ id: "1", modifiedTime: "2026-09-22" }) }
-				: { body: JSON.stringify({ files: [] }) },
-		);
-
-		const store = createGoogleDriveStore({ token: "t", fetcher: service.fetcher });
-		const written = await store.write("espaco1", bundle, null);
-
-		expect(written.revision).toBe("2026-09-22");
-		expect(service.calls[1]?.body).toContain("cofre_espaco1.json.gz");
-		expect(service.calls[1]?.body).toContain("appDataFolder");
-	});
-
-	it("refuses to write when the file moved since it was read", async () => {
-		const service = fakeService(() => ({
-			body: JSON.stringify({ files: [{ id: "1", name: "x", modifiedTime: "muito depois" }] }),
-		}));
-
-		const store = createGoogleDriveStore({ token: "t", fetcher: service.fetcher });
-		await expect(store.write("espaco1", bundle, "2026-09-22")).rejects.toThrow(
-			/changed while this device/,
-		);
-	});
-});
-
 describe("packing the file", () => {
 	const wordy: SyncBundle = {
 		...bundle,
@@ -292,43 +206,25 @@ describe("packing the file", () => {
 	});
 });
 
-describe("a folder with an accent in its name", () => {
-	it("goes into the header as an escape, because a header is bytes", async () => {
-		const service = fakeService(() => ({
-			bytes: packed(),
-			headers: { "Dropbox-API-Result": "{}" },
-		}));
-
-		const store = createDropboxStore({
-			token: "t",
-			folder: "/Orçamento",
-			fetcher: service.fetcher,
-		});
-		await store.read("espaco1");
-
-		const argument = service.calls[0]?.headers["dropbox-api-arg"] ?? "";
-		// Nothing above the ASCII range, and still the folder it was given.
-		const highest = Math.max(...[...argument].map((character) => character.charCodeAt(0)));
-		expect(highest).toBeLessThan(128);
-		expect((JSON.parse(argument) as { path: string }).path).toBe(
-			"/Orçamento/cofre_espaco1.json.gz",
-		);
-	});
-});
-
 describe("a service that does not answer at all", () => {
 	it("is a failure with a name and a place, not the words a browser uses", async () => {
 		// What a browser throws when there is no connection, no such host, or a
 		// certificate it refuses. All of them arrive here as one thing.
 		const offline = (() => Promise.reject(new TypeError("Failed to fetch"))) as typeof fetch;
 
-		const store = createDropboxStore({ token: "t", fetcher: offline, name: "Dropbox" });
+		const store = createWebdavStore({
+			url: "https://nuvem.exemplo.com/cofre",
+			user: "ana",
+			password: "segredo",
+			fetcher: offline,
+			name: "WebDAV",
+		});
 		const failed = await store.read("espaco1").catch((error: unknown) => error);
 
 		expect(failed).toBeInstanceOf(CloudError);
 		expect((failed as CloudError).status).toBe(0);
-		expect((failed as CloudError).where).toBe("Dropbox");
-		expect((failed as CloudError).message).toBe("Dropbox did not answer");
+		expect((failed as CloudError).where).toBe("WebDAV");
+		expect((failed as CloudError).message).toBe("WebDAV did not answer");
 	});
 });
 
@@ -380,46 +276,5 @@ describe("a spreadsheet that keeps up", () => {
 		expect(service.calls[0]?.url).toContain(":clear");
 		expect(service.calls[1]?.url).toContain("valueInputOption=USER_ENTERED");
 		expect(JSON.parse(service.calls[1]?.body ?? "{}").values).toEqual([["Data"], ["2026-09-10"]]);
-	});
-});
-
-describe("getting a token without a secret", () => {
-	it("sends the hash and keeps the number", async () => {
-		const setup = {
-			service: "dropbox" as const,
-			clientId: "abc",
-			redirectUri: "http://localhost:5173/dados",
-		};
-		const started = await startOAuth(setup);
-		const query = new URL(started.url).searchParams;
-
-		expect(started.url.startsWith("https://www.dropbox.com/oauth2/authorize")).toBe(true);
-		expect(query.get("code_challenge_method")).toBe("S256");
-		expect(query.get("code_challenge")).toBe(await challengeOf(started.verifier));
-		// The number itself is never in the address.
-		expect(started.url).not.toContain(started.verifier);
-	});
-
-	it("turns the code into a token, and says so when it cannot", async () => {
-		const good = fakeService(() => ({
-			body: JSON.stringify({ access_token: "t", expires_in: 3600 }),
-		}));
-		const setup = {
-			service: "googleDrive" as const,
-			clientId: "abc",
-			redirectUri: "http://localhost:5173/dados",
-		};
-
-		const token = await finishOAuth(setup, { code: "c", verifier: "v" }, good.fetcher);
-		expect(token.token).toBe("t");
-		expect(token.expiresAt).toBeGreaterThan(Date.now());
-
-		const bad = fakeService(() => ({
-			status: 400,
-			body: JSON.stringify({ error: "invalid_grant", error_description: "codigo usado" }),
-		}));
-		await expect(finishOAuth(setup, { code: "c", verifier: "v" }, bad.fetcher)).rejects.toThrow(
-			"codigo usado",
-		);
 	});
 });

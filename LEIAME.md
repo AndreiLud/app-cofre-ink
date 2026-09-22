@@ -40,7 +40,7 @@ ano, uma assinatura que subiu de preço, a mesma cobrança duas vezes, a reserva
 meses de despesa comum. Nada sobre o que comprar ou onde colocar dinheiro.
 
 **Ir embora.** Exporte tudo em JSON ou em planilha, restaure em qualquer instalação,
-guarde uma cópia num arquivo, numa pasta WebDAV, no Dropbox ou no Drive, e espelhe os
+guarde uma cópia num arquivo, numa pasta WebDAV ou num banco de dados online, e espelhe os
 lançamentos numa planilha do Google. Dois aparelhos combinam trocando um histórico de
 alterações, por um servidor ou por um arquivo que você carrega.
 

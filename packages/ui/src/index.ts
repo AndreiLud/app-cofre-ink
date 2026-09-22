@@ -20,6 +20,7 @@ export {
 	type LineTone,
 } from "./components/charts/LineChart.tsx";
 export { Dialog, type DialogProps } from "./components/Dialog.tsx";
+export { Disclosure, type DisclosureProps } from "./components/Disclosure.tsx";
 export {
 	Callout,
 	type CalloutProps,

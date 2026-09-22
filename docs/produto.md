@@ -150,8 +150,8 @@ líquido, mapa de calor, comparações e relatórios.
 
 **Fase 6.** Importação de CSV, OFX, QIF, XLSX e JSON, exportação e backup, migração
 entre modos e o motor de sincronização entre membros. Além do servidor próprio, a
-cópia pode viver num arquivo que a pessoa move, numa pasta WebDAV, no Dropbox ou no
-Google Drive, e os lançamentos podem ser espelhados numa planilha do Google. Cada lugar
+cópia pode viver num arquivo que a pessoa move, numa pasta WebDAV ou num banco de dados
+online, e os lançamentos podem ser espelhados numa planilha do Google. Cada lugar
 diz na tela o que custa. O registro 0017 explica o porquê de cada escolha.
 
 **Fase 7.** Reconhecimento de fatura e comprovante, em camadas, do texto do PDF ao

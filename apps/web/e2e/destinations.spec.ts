@@ -11,8 +11,22 @@ import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import { go, openCofre, openSetting, record } from "./support.ts";
 
-async function pickDestination(page: import("@playwright/test").Page, label: string) {
+/**
+ * The data screen keeps this behind a line of text until it is set up, so that the
+ * three things people do every day are the three things on the screen. Opening it is
+ * part of the flow now, and this only opens it when it is not open already.
+ */
+async function openSync(page: import("@playwright/test").Page) {
 	await go(page, "Dados");
+	const where = page.getByLabel("Onde guardar a cópia");
+	if (!(await where.isVisible())) {
+		await page.getByText("Manter uma cópia em outro lugar").click();
+	}
+	await expect(where).toBeVisible();
+}
+
+async function pickDestination(page: import("@playwright/test").Page, label: string) {
+	await openSync(page);
 	await page.getByLabel("Onde guardar a cópia").selectOption({ label });
 }
 
@@ -116,19 +130,22 @@ test.describe("a copy somewhere else", () => {
 
 	test("says what each destination costs before anything is set up", async ({ page }) => {
 		await openCofre(page);
-		await go(page, "Dados");
+		await openSync(page);
 
-		// A drive that cannot say whether the file moved says so out loud.
-		await page
-			.getByLabel("Onde guardar a cópia")
-			.selectOption({ label: "Uma pasta no Google Drive" });
-		await expect(page.getByText(/podem perder uma das duas gravações/)).toBeVisible();
-
-		// And one a browser cannot reach without permission says that instead.
+		// One a browser cannot reach without the other side allowing it says so.
 		await page.getByLabel("Onde guardar a cópia").selectOption({ label: "Uma pasta WebDAV" });
 		await expect(
 			page.getByText(/só fala com este lugar se o servidor de lá permitir/),
 		).toBeVisible();
+
+		// A database asks for two things and warns about nothing, because rows in a log
+		// are not a file two devices can write over.
+		await page
+			.getByLabel("Onde guardar a cópia")
+			.selectOption({ label: "Um banco de dados online" });
+		await expect(page.getByLabel("Endereço do banco")).toBeVisible();
+		await expect(page.getByLabel("Token", { exact: true })).toBeVisible();
+		await expect(page.getByText(/podem perder uma das duas gravações/)).toHaveCount(0);
 
 		// The file asks for nothing and is ready at once.
 		await page

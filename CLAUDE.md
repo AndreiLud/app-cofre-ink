@@ -66,7 +66,7 @@ packages/
   db/         schema described once, generated for SQLite and PostgreSQL, migrations
   storage/    repository layer and adapters, one permission model
   importers/  CSV, OFX, QIF, XLSX, JSON and PDF readers, and the statement pipeline
-  cloud/      where a copy can live: a file, WebDAV, Dropbox, Drive, a spreadsheet
+  cloud/      where a copy can live: a file, WebDAV, an online database, a spreadsheet
   ui/         design tokens, components, charts drawn as SVG
 docs/
   produto.md  product brief in Portuguese
@@ -144,7 +144,7 @@ nothing.
 | 6 block A. Replication engine, one round trip over the server | done |
 | 6 block B. Readers for CSV, OFX, QIF, XLSX and JSON, the import path and its screen | done |
 | 6 block C. Export, backup, restore, sync in the browser, the report on paper | done |
-| 6 block D. Destinations: a file, WebDAV, Dropbox, Drive, a spreadsheet as a mirror | done |
+| 6 block D. Destinations: a file, WebDAV, a database, a spreadsheet as a mirror | done |
 | 7. Statement and receipt recognition: the PDF reader, the recogniser, the review | done |
 | 7 pending. Hints per institution, once real statements are in hand | waiting on samples |
 | 8. Projections, scenarios, investments, simulators | done |
@@ -154,6 +154,7 @@ nothing.
 | 10 review. Charts on a telephone, the rate limit, a failure with a name | done |
 | 11. Cards as a thing of their own: credit, debit, multiple, benefit, prepaid | done |
 | 12. The danger zone: erasing a space, and erasing everything | done |
+| 13. VA and VR as one, a database destination, the data screen redrawn | done |
 | Next. Real statements for the recogniser, and whatever the owner asks for | waiting |
 
 ## Architecture decision records
@@ -185,3 +186,4 @@ nothing.
 | [0023](docs/adr/0023_surfaces_weight_and_one_colour.md) | three surfaces, two line weights and one colour |
 | [0024](docs/adr/0024_the_plastic_and_the_money.md) | cards, the accounts they reach, and which pot a voucher is |
 | [0025](docs/adr/0025_taking_the_data_away.md) | erasing a space, erasing everything, and what neither can reach |
+| [0026](docs/adr/0026_a_copy_that_is_a_database.md) | a copy that is a database, and a screen ordered by how often |
