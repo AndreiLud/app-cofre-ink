@@ -157,6 +157,21 @@ docker compose up -d
 A interface e a API sobem juntas, na porta 4321 por padrão. Os dados ficam num volume
 chamado `cofreData`, que sobrevive a uma atualização da imagem.
 
+### A senha do primeiro acesso
+
+Não existe senha padrão, e não existe senha escrita em lugar nenhum. Quando você abre o
+endereço pela primeira vez, o servidor ainda não tem ninguém, a tela diz isso e abre já
+em criar acesso: você escolhe o email e a senha ali, naquele momento. Ela é guardada
+cifrada no banco de dados do seu servidor e mais nada a conhece.
+
+O `COFRE_SECRET` do `.env` não é a sua senha. Ele assina os cookies de sessão, e trocá lo
+só desconecta quem estiver conectado.
+
+Quem abrir o endereço depois disso vê a tela de entrar. **Cadastrar continua aberto**, ou
+seja, quem chegar ao endereço pode criar uma conta. A conta nova nasce vazia e não vê
+nada do que é seu, mas se o seu endereço é público e você quer que só quem for convidado
+entre, deixe o Cofre atrás de uma autenticação do proxy ou de uma rede privada.
+
 Para usar PostgreSQL no lugar do SQLite, descomente o serviço `database` no
 `compose.yaml` e aponte `COFRE_DATABASE` para ele.
 

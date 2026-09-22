@@ -17,7 +17,7 @@ import { describe, expect, it } from "vitest";
 import { ALL_PERMISSIONS, PERMISSIONS, type Permission, type Role } from "../actor.ts";
 import { NotFoundError, PermissionError, RuleError } from "../errors.ts";
 import { migrate } from "../migrate.ts";
-import { createUser } from "../repositories/users.ts";
+import { createUser, listProfiles } from "../repositories/users.ts";
 import type { Session } from "../session.ts";
 import { runAdviceConformance } from "./advice.ts";
 import { runCardConformance } from "./cards.ts";
@@ -250,6 +250,39 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 					await expect(
 						createUser(fixture.driver, { email: "ana@exemplo.com", name: "Outra Ana" }),
 					).rejects.toBeInstanceOf(RuleError);
+				} finally {
+					await fixture.close();
+				}
+			});
+
+			/**
+			 * A browser offers to change between the people who use that machine, and the
+			 * people table is not that list. A shared space brings the names of the people
+			 * in it along with the records that point at them, so somebody who has never
+			 * touched this machine is in it too. What tells them apart is a personal space
+			 * of their own, which is made when somebody sets themselves up here.
+			 */
+			it("counts as a profile only somebody who has a personal space here", async () => {
+				const fixture = await prepare(adapter);
+				try {
+					await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+					const house = await fixture.asAna.spaces.create({ name: "Casa" });
+					await fixture.asAna.members.invite({
+						spaceId: house.id,
+						userId: fixture.joao.id,
+						role: "editor",
+					});
+					await fixture.asJoao.members.accept(house.id);
+
+					// Joao is in the database, and in a space of Ana's, and is still not
+					// somebody this machine can be.
+					expect((await listProfiles(fixture.driver)).map((one) => one.name)).toEqual(["Ana"]);
+
+					await fixture.asJoao.spaces.create({ name: "Pessoal", kind: "personal" });
+					expect((await listProfiles(fixture.driver)).map((one) => one.name)).toEqual([
+						"Ana",
+						"Joao",
+					]);
 				} finally {
 					await fixture.close();
 				}

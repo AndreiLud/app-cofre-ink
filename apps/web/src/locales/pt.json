@@ -45,7 +45,10 @@
 		"signInFailed": "Email ou senha não conferem.",
 		"signUpFailed": "Não consegui criar a conta. Talvez esse email já esteja em uso.",
 		"unreachable": "Não consegui falar com {{server}}. Confira se o servidor está no ar e se o endereço está certo.",
-		"useThisDevice": "Prefiro guardar só neste dispositivo"
+		"useThisDevice": "Prefiro guardar só neste dispositivo",
+		"firstTitle": "Crie o seu acesso",
+		"firstNobodyTitle": "Este servidor ainda não tem ninguém",
+		"firstNobodyBody": "A senha é a que você escolher agora. Ela não vem de lugar nenhum e não está escrita em canto nenhum: fica cifrada no banco de dados do seu servidor, e só você a conhece."
 	},
 	"invitation": {
 		"title": "Convite",
@@ -1086,5 +1089,10 @@
 		"spaceGone_other": "{{name}} foi apagado, com {{count}} registros.",
 		"spaceEmptied_one": "{{name}} ficou vazio. 1 registro foi apagado.",
 		"spaceEmptied_other": "{{name}} ficou vazio. {{count}} registros foram apagados."
+	},
+	"profiles": {
+		"you": "Você é {{name}}",
+		"beThisOne": "Entrar como {{name}}",
+		"add": "Adicionar outra pessoa neste aparelho"
 	}
 }

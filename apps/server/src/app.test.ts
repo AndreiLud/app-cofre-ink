@@ -188,6 +188,20 @@ describe("the api", () => {
 		expect(response.status).toBe(400);
 	});
 
+	it("says whether anybody has an account here, before anybody can ask anything else", async () => {
+		const stranger = createClient(app);
+
+		// Answered without a session, because it is the question of somebody who cannot
+		// sign in yet: they have just installed this and are being shown a password box.
+		const fresh = await stranger.json<{ needsFirstAccount: boolean }>("/api/setup");
+		expect(fresh).toEqual({ needsFirstAccount: true });
+
+		await stranger.signUp({ name: "Ana", email: "ana@exemplo.com" });
+
+		const after = await stranger.json<{ needsFirstAccount: boolean }>("/api/setup");
+		expect(after).toEqual({ needsFirstAccount: false });
+	});
+
 	it("carries a card over the network, and refuses one that reaches nothing", async () => {
 		const ana = createClient(app);
 		await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });

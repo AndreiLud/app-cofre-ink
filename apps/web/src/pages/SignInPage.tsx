@@ -2,7 +2,7 @@
 // somebody runs for themselves the two are the same visit.
 
 import { Button, Callout, Field } from "@cofre/ui";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LanguageToggle, ThemeToggle } from "../components/Controls.tsx";
 import { useTheme } from "../lib/theme.ts";
@@ -17,6 +17,12 @@ export function SignInPage() {
 	const { choice, setChoice } = useTheme();
 
 	const [intent, setIntent] = useState<Intent>("signIn");
+	/**
+	 * A server nobody has an account on yet. Asked before anything is typed, because
+	 * somebody who has just installed this on their own machine is being shown a form
+	 * for a password they never chose, and the answer is that they choose it here.
+	 */
+	const [firstEver, setFirstEver] = useState(false);
 	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
@@ -26,6 +32,25 @@ export function SignInPage() {
 	const isDark =
 		choice === "dark" ||
 		(choice === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+	useEffect(() => {
+		if (!client) return;
+		let alive = true;
+		void client
+			.setup()
+			.then((answer) => {
+				if (!alive || !answer.needsFirstAccount) return;
+				setFirstEver(true);
+				setIntent("signUp");
+			})
+			.catch(() => {
+				// An older server has no such route, and a server that is not there is
+				// about to say so anyway. Either way the ordinary screen still works.
+			});
+		return () => {
+			alive = false;
+		};
+	}, [client]);
 
 	async function submit(event: FormEvent) {
 		event.preventDefault();
@@ -69,9 +94,19 @@ export function SignInPage() {
 			</div>
 
 			<h1 className="mt-6 text-3xl">
-				{intent === "signIn" ? t("signIn.title") : t("signIn.signUpTitle")}
+				{firstEver
+					? t("signIn.firstTitle")
+					: intent === "signIn"
+						? t("signIn.title")
+						: t("signIn.signUpTitle")}
 			</h1>
 			<p className="mt-2 text-sm text-quiet">{t("signIn.connectedTo", { server })}</p>
+
+			{firstEver ? (
+				<Callout tone="neutral" className="mt-5" title={t("signIn.firstNobodyTitle")}>
+					{t("signIn.firstNobodyBody")}
+				</Callout>
+			) : null}
 
 			<form onSubmit={submit} className="mt-8 space-y-5">
 				{intent === "signUp" ? (

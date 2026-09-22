@@ -180,6 +180,9 @@ export function createServerClient(server: string) {
 
 		me: () => get<{ user: User; spaces: Space[] }>("/api/me"),
 
+		/** Whether this server is waiting for its first account, asked before signing in. */
+		setup: () => get<{ needsFirstAccount: boolean }>("/api/setup"),
+
 		previewInvitation: (token: string) =>
 			get<InvitationPreview>(`/api/invitations/${encodeURIComponent(token)}`),
 	};

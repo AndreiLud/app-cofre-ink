@@ -71,6 +71,34 @@ export async function findUserById(driver: Driver, userId: string): Promise<User
 	return first ? toUser(first) : null;
 }
 
+/**
+ * Everybody who has a profile in this database, so that a browser can offer to change
+ * between them: one machine at home, two people, a Cofre each.
+ *
+ * A profile is somebody who owns a personal space here, and that is the difference
+ * between a person and a row in the people table. A shared space brings the names of
+ * the people in it along with the records that point at them, so the table also holds
+ * somebody who has never touched this machine and never will. Offering to become them
+ * would be offering to read a space as a person who cannot open it.
+ *
+ * It takes the database directly, and that is the whole of its contract: it is for the
+ * browser, where the database belongs to the device in front of you. On a server the
+ * same question is asked through a session, which answers only for people who share a
+ * space, because there a list of everybody is a list of the customers.
+ */
+export async function listProfiles(driver: Driver): Promise<User[]> {
+	const rows = await driver.all(
+		`${SELECT} u WHERE EXISTS (
+			SELECT 1 FROM "spaces" s
+			JOIN "space_members" m ON m."space_id" = s."id"
+			WHERE s."kind" = 'personal' AND s."deleted_at" IS NULL
+			  AND m."user_id" = u."id" AND m."deleted_at" IS NULL AND m."role" = 'owner'
+		 )
+		 ORDER BY u."created_at"`,
+	);
+	return rows.map(toUser);
+}
+
 export type IdentityInput = {
 	id: string;
 	email: string;

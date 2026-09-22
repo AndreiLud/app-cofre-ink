@@ -352,6 +352,23 @@ export function createApp({ config, database, auth }: AppDependencies) {
 	// Sign up, sign in, sign out and everything else the library handles.
 	app.on(["GET", "POST"], "/api/auth/*", (context) => auth.handler(context.req.raw));
 
+	/**
+	 * Whether this server has anybody on it yet.
+	 *
+	 * Somebody who has just installed Cofre on their own machine arrives at a screen
+	 * asking for an email and a password they never chose, and the way to make one is a
+	 * quiet button beside it. So the screen asks this first and opens on "create your
+	 * account" when the answer is nobody, which is the whole of the problem.
+	 *
+	 * It is answered before signing in, because it is the question of somebody who
+	 * cannot sign in yet. It says one thing and says nothing about who is here: a count
+	 * turned into a yes or a no.
+	 */
+	app.get("/api/setup", async (context) => {
+		const rows = await database.driver.all(`SELECT COUNT(*) AS how_many FROM "auth_users"`);
+		return context.json({ needsFirstAccount: Number(rows[0]?.how_many ?? 0) === 0 });
+	});
+
 	/** Anyone holding a link may read what it offers, before having an account. */
 	app.get("/api/invitations/:token", async (context) => {
 		const preview = await previewInvitation(database.driver, context.req.param("token"));
@@ -360,6 +377,7 @@ export function createApp({ config, database, auth }: AppDependencies) {
 
 	app.use("/api/*", async (context, next) => {
 		if (context.req.path.startsWith("/api/auth")) return next();
+		if (context.req.method === "GET" && context.req.path === "/api/setup") return next();
 		if (context.req.method === "GET" && /^\/api\/invitations\/[^/]+$/.test(context.req.path)) {
 			return next();
 		}

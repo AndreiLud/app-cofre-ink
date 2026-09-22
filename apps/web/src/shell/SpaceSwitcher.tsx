@@ -11,9 +11,21 @@ import { useCofre } from "../storage/CofreProvider.tsx";
 export function SpaceSwitcher() {
 	const { t } = useTranslation();
 	const navigate = useNavigate();
-	const { spaces, currentSpace, selectSpace } = useCofre();
+	const {
+		spaces,
+		currentSpace,
+		selectSpace,
+		user,
+		profiles,
+		mode,
+		switchProfile,
+		addProfile,
+		signOut,
+	} = useCofre();
 
 	if (!currentSpace) return null;
+
+	const others = profiles.filter((person) => person.id !== user?.id);
 
 	return (
 		<Menu
@@ -47,6 +59,25 @@ export function SpaceSwitcher() {
 				{t("spaces.manage")}
 			</MenuItem>
 			<MenuItem onSelect={() => void navigate({ to: ROUTES.members })}>{t("nav.members")}</MenuItem>
+
+			{/* Who is reading, and how to be somebody else. It lives here because this is
+			    the menu that already answers "where am I", and being in the wrong space
+			    and being the wrong person are the same kind of mistake. */}
+			<MenuSeparator />
+			<MenuLabel>{t("profiles.you", { name: user?.name ?? "" })}</MenuLabel>
+
+			{mode === "browser" ? (
+				<>
+					{others.map((person) => (
+						<MenuItem key={person.id} onSelect={() => void switchProfile(person.id)}>
+							{t("profiles.beThisOne", { name: person.name })}
+						</MenuItem>
+					))}
+					<MenuItem onSelect={() => addProfile()}>{t("profiles.add")}</MenuItem>
+				</>
+			) : (
+				<MenuItem onSelect={() => void signOut()}>{t("palette.signOut")}</MenuItem>
+			)}
 		</Menu>
 	);
 }

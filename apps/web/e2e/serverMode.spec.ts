@@ -24,8 +24,15 @@ async function arrive(browser: Browser, person: { name: string; email: string })
 	await page.getByLabel("Endereço do servidor").fill(API_ADDRESS);
 	await page.getByRole("button", { name: "Conectar", exact: true }).click();
 
-	await expect(page.getByRole("heading", { name: "Entrar" })).toBeVisible({ timeout: 20_000 });
-	await page.getByRole("button", { name: "Ainda não tenho conta" }).click();
+	// A server with nobody on it opens on creating the access rather than on a password
+	// box nobody can fill. Once somebody is on it, the ordinary screen is the right one.
+	const first = page.getByRole("heading", { name: "Crie o seu acesso" });
+	const returning = page.getByRole("heading", { name: "Entrar" });
+	await expect(first.or(returning)).toBeVisible({ timeout: 20_000 });
+	if (await returning.isVisible()) {
+		await page.getByRole("button", { name: "Ainda não tenho conta" }).click();
+	}
+
 	await page.getByLabel("Como você se chama").fill(person.name);
 	await page.getByLabel("Email").fill(person.email);
 	await page.getByLabel("Senha").fill(PASSWORD);

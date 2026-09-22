@@ -45,7 +45,10 @@
 		"signInFailed": "The email or the password does not match.",
 		"signUpFailed": "I could not create the account. That email may already be taken.",
 		"unreachable": "I could not reach {{server}}. Check that the server is up and that the address is right.",
-		"useThisDevice": "I would rather keep it on this device"
+		"useThisDevice": "I would rather keep it on this device",
+		"firstTitle": "Create your access",
+		"firstNobodyTitle": "This server has nobody on it yet",
+		"firstNobodyBody": "The password is the one you choose now. It comes from nowhere and is written nowhere: it lives encrypted in the database of your server, and only you know it."
 	},
 	"invitation": {
 		"title": "Invitation",
@@ -1086,5 +1089,10 @@
 		"spaceGone_other": "{{name}} was erased, with {{count}} records.",
 		"spaceEmptied_one": "{{name}} is empty now. 1 record was erased.",
 		"spaceEmptied_other": "{{name}} is empty now. {{count}} records were erased."
+	},
+	"profiles": {
+		"you": "You are {{name}}",
+		"beThisOne": "Come in as {{name}}",
+		"add": "Add somebody else on this device"
 	}
 }

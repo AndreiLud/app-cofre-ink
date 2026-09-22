@@ -3,7 +3,7 @@
 // lives in this browser or on a server, which is why no screen has to.
 
 import type { Driver, Space, User } from "@cofre/storage";
-import { findUserById, openSession, tidyEverySpace } from "@cofre/storage";
+import { findUserById, listProfiles, openSession, tidyEverySpace } from "@cofre/storage";
 import {
 	createContext,
 	type ReactNode,
@@ -55,6 +55,8 @@ export type CofreValue = {
 	/** Present only in server mode, because a link needs somewhere to point. */
 	linkInvitations: RemoteInvitations | null;
 	user: User | null;
+	/** Browser mode: everybody with a profile on this device, to change between them. */
+	profiles: User[];
 	spaces: Space[];
 	currentSpace: Space | null;
 	amountsHidden: boolean;
@@ -66,6 +68,10 @@ export type CofreValue = {
 	/** Called after signing in or signing up, in server mode. */
 	adoptServerSession: () => Promise<void>;
 	signOut: () => Promise<void>;
+	/** Browser mode: read this database as another profile that is already in it. */
+	switchProfile: (userId: string) => Promise<void>;
+	/** Browser mode: make room for somebody else on this device. */
+	addProfile: () => void;
 	reload: () => Promise<void>;
 	/**
 	 * Browser mode only: takes the database file off the device, forgets the profile and
@@ -115,17 +121,24 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 	const [session, setSession] = useState<CofreSession | null>(null);
 	const [linkInvitations, setLinkInvitations] = useState<RemoteInvitations | null>(null);
 	const [user, setUser] = useState<User | null>(null);
+	/** Browser mode only: everybody who has a profile in this database. */
+	const [profiles, setProfiles] = useState<User[]>([]);
 	const [spaces, setSpaces] = useState<Space[]>([]);
 	const [currentSpaceId, setCurrentSpaceId] = useState<string | null>(storedSpaceId);
 	const [amountsHidden, setAmountsHidden] = useState(false);
 
 	const startLocalSession = useCallback(async (database: Driver, userId: string) => {
 		const opened = await openSession({ driver: database, userId, deviceId: deviceId() });
-		const [me, list] = await Promise.all([opened.users.me(), opened.spaces.list()]);
+		const [me, list, everybody] = await Promise.all([
+			opened.users.me(),
+			opened.spaces.list(),
+			listProfiles(database),
+		]);
 		setSession(asCofreSession(opened));
 		setLinkInvitations(null);
 		setUser(me);
 		setSpaces(list);
+		setProfiles(everybody);
 		setStatus("ready");
 
 		// The database looks after itself, after the screen is up and while nobody is
@@ -308,6 +321,38 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 		window.location.reload();
 	}, []);
 
+	/**
+	 * Another profile on this same device, in browser mode.
+	 *
+	 * One machine at home and two people is the ordinary case, and until now the only
+	 * way to be the other one was to forget the profile and make a new one, which left
+	 * the first one in the database with no way back to it. Nothing is created here and
+	 * nothing is thrown away: the database is the same, and which person is reading it
+	 * is what changes. The space is forgotten with it, because the spaces of one person
+	 * are not the spaces of the other.
+	 */
+	const switchProfile = useCallback(
+		async (userId: string) => {
+			if (!driver) return;
+			setStatus("opening");
+			forgetProfile();
+			rememberUser(userId);
+			setCurrentSpaceId(null);
+			await startLocalSession(driver, userId);
+		},
+		[driver, startLocalSession],
+	);
+
+	/** Somebody else on this device, who does not have a profile here yet. */
+	const addProfile = useCallback(() => {
+		forgetProfile();
+		setSession(null);
+		setUser(null);
+		setSpaces([]);
+		setCurrentSpaceId(null);
+		setStatus("needsProfile");
+	}, []);
+
 	const selectSpace = useCallback((spaceId: string) => {
 		setCurrentSpaceId(spaceId);
 		rememberSpace(spaceId);
@@ -338,6 +383,7 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 			session,
 			linkInvitations,
 			user,
+			profiles,
 			spaces,
 			currentSpace,
 			amountsHidden,
@@ -347,6 +393,8 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 			adoptUser,
 			adoptServerSession,
 			signOut,
+			switchProfile,
+			addProfile,
 			reload,
 			eraseDevice,
 		}),
@@ -361,6 +409,7 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 			session,
 			linkInvitations,
 			user,
+			profiles,
 			spaces,
 			currentSpace,
 			amountsHidden,
@@ -369,6 +418,8 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 			adoptUser,
 			adoptServerSession,
 			signOut,
+			switchProfile,
+			addProfile,
 			reload,
 			eraseDevice,
 		],
