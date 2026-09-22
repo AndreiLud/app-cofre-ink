@@ -63,6 +63,40 @@ test.describe("reading a statement", () => {
 		await expect(record(page, "Reembolso do plano")).toHaveCount(0);
 	});
 
+	test("reads a card invoice as spending, although nothing in it is negative", async ({ page }) => {
+		await openCofre(page);
+
+		await go(page, "Dados");
+		await page.getByRole("button", { name: "Abrir a importação" }).click();
+
+		// The shape a card invoice is exported in: the day the ISO way, a point for the
+		// decimal, and a purchase written as a positive number.
+		await pickStatement(
+			page,
+			"fatura.csv",
+			[
+				"date,title,amount",
+				"2026-01-03,Padaria Sao Jorge,18.50",
+				"2026-01-05,Mercado Livre,249.90",
+				"2026-01-08,Spotify,21.90",
+				"2026-01-14,Posto Ipiranga,180.00",
+			].join("\n"),
+		);
+
+		await expect(page.getByText("4 lançamentos lidos de um arquivo CSV.")).toBeVisible();
+		// The screen says what it decided and offers to turn it round.
+		await expect(page.getByRole("radio", { name: "São gastos" })).toBeChecked();
+		await expect(page.getByText("Nenhum valor deste arquivo é negativo")).toBeVisible();
+		await expect(page.getByRole("cell", { name: "-R$ 249,90" })).toBeVisible();
+
+		// And the person can say it was a statement after all. The radio behind the
+		// choice is for the keyboard and the screen reader, and the label is what a
+		// mouse hits, which is what this clicks.
+		await page.getByText("O sinal é do banco").click();
+		await expect(page.getByRole("radio", { name: "O sinal é do banco" })).toBeChecked();
+		await expect(page.getByRole("cell", { name: "R$ 249,90", exact: true })).toBeVisible();
+	});
+
 	test("refuses to write the same entries a second time", async ({ page }) => {
 		await openCofre(page);
 

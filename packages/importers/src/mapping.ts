@@ -19,10 +19,21 @@ export type FieldName =
 	| "category"
 	| "ignore";
 
+/**
+ * What a positive number in the amount column means.
+ *
+ * A statement writes money leaving as a negative number, and a card invoice does not:
+ * every line of it is a purchase, so the file has no use for a sign and writes 18,50
+ * for eighteen reais spent. Read as written, importing an invoice turns fifty purchases
+ * into fifty salaries, which is the single most expensive mistake this reader can make.
+ */
+export type SignMeaning = "asWritten" | "expense";
+
 export type ColumnMapping = {
 	/** One entry per column of the file, in order. */
 	fields: FieldName[];
 	dateOrder: DateOrder;
+	positiveMeans: SignMeaning;
 };
 
 const WORDS: { field: FieldName; words: string[] }[] = [
@@ -42,6 +53,9 @@ const WORDS: { field: FieldName; words: string[] }[] = [
 			"payee",
 			"estabelecimento",
 			"titulo",
+			// What a card invoice calls the shop, in English, because that is what the
+			// file says even when everything in it is in Portuguese.
+			"title",
 		],
 	},
 	{ field: "amount", words: ["valor", "amount", "montante", "quantia", "total", "value"] },
@@ -119,7 +133,31 @@ export function guessMapping(header: readonly string[], rows: readonly string[][
 	const dateOrder =
 		dateColumn < 0 ? "dayFirst" : guessDateOrder(rows.map((row) => row[dateColumn] ?? ""));
 
-	return { fields, dateOrder };
+	return { fields, dateOrder, positiveMeans: guessSign(fields, rows) };
+}
+
+/**
+ * Whether the file is using the sign to carry the direction.
+ *
+ * A statement covering any real month has money going both ways, so a column where
+ * nothing at all is negative is a column that is not saying which way the money went.
+ * The only file shaped like that in ordinary life is a card invoice, where every line
+ * is a purchase.
+ *
+ * Three rows at least, because two positive numbers are a coincidence, and never when
+ * the file already splits the two directions into two columns.
+ */
+function guessSign(fields: readonly FieldName[], rows: readonly string[][]): SignMeaning {
+	const column = fields.indexOf("amount");
+	if (column < 0) return "asWritten";
+	if (fields.includes("debit") || fields.includes("credit")) return "asWritten";
+
+	const amounts = rows
+		.map((row) => readAmount(row[column] ?? ""))
+		.filter((amount): amount is number => amount !== null && amount !== 0);
+
+	if (amounts.length < 3) return "asWritten";
+	return amounts.every((amount) => amount > 0) ? "expense" : "asWritten";
 }
 
 export type MappedRow = {
@@ -148,7 +186,9 @@ export function applyMapping(row: readonly string[], mapping: ColumnMapping): Ma
 			? -Math.abs(debit)
 			: credit !== null && credit !== 0
 				? Math.abs(credit)
-				: plain;
+				: plain === null || mapping.positiveMeans !== "expense"
+					? plain
+					: -Math.abs(plain);
 
 	return {
 		happenedOn: readDate(value("happenedOn"), mapping.dateOrder),

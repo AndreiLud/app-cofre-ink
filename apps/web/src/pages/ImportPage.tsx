@@ -6,7 +6,7 @@
 // somebody ends up with two of every purchase in a month and no way to tell which.
 
 import { pickRule, todayIn } from "@cofre/core";
-import type { FieldName, MarkedRecord, RecognisedDocument } from "@cofre/importers";
+import type { FieldName, MarkedRecord, RecognisedDocument, SignMeaning } from "@cofre/importers";
 import { guessAccount, markDuplicates, readFile, shapeOf } from "@cofre/importers";
 import type { ImportedRecord } from "@cofre/storage";
 import {
@@ -15,6 +15,7 @@ import {
 	EmptyState,
 	Icon,
 	SectionTitle,
+	Segmented,
 	Select,
 	Table,
 	TableBody,
@@ -34,8 +35,10 @@ import { useCofre } from "../storage/CofreProvider.tsx";
 import {
 	recallAccount,
 	recallColumns,
+	recallSign,
 	rememberAccount,
 	rememberColumns,
+	rememberSign,
 } from "../storage/importMemory.ts";
 
 const FIELDS: FieldName[] = [
@@ -104,6 +107,7 @@ export function ImportPage() {
 	const spaceId = currentSpace?.id ?? "";
 	const [picked, setPicked] = useState<Picked | null>(null);
 	const [fields, setFields] = useState<FieldName[] | null>(null);
+	const [sign, setSign] = useState<SignMeaning | null>(null);
 	const [accountId, setAccountId] = useState("");
 	const [left, setLeft] = useState<Set<number>>(new Set());
 	const [problem, setProblem] = useState<string | null>(null);
@@ -125,15 +129,21 @@ export function ImportPage() {
 		const first = readFile(picked.bytes, { fileName: picked.name, today });
 		if (!first.mapping) return first;
 
-		const corrected = fields ?? recallColumns(spaceId, shapeOf(first.header));
-		if (!corrected) return first;
+		const shape = shapeOf(first.header);
+		const corrected = fields ?? recallColumns(spaceId, shape);
+		const chosenSign = sign ?? recallSign(spaceId, shape);
+		if (!corrected && !chosenSign) return first;
 
 		return readFile(picked.bytes, {
 			fileName: picked.name,
 			today,
-			mapping: { ...first.mapping, fields: corrected },
+			mapping: {
+				...first.mapping,
+				fields: corrected ?? first.mapping.fields,
+				positiveMeans: chosenSign ?? first.mapping.positiveMeans,
+			},
 		});
-	}, [picked, fields, today, spaceId]);
+	}, [picked, fields, sign, today, spaceId]);
 
 	const usable = (accounts.data ?? []).filter((account) => account.archivedAt === null);
 
@@ -263,12 +273,16 @@ export function ImportPage() {
 				rememberAccount(spaceId, shape, chosen.id);
 				const bank = read.document?.institution ?? read.accountHint ?? "";
 				if (bank !== "") rememberAccount(spaceId, bank, chosen.id);
-				if (read.mapping) rememberColumns(spaceId, shape, read.mapping.fields);
+				if (read.mapping) {
+					rememberColumns(spaceId, shape, read.mapping.fields);
+					rememberSign(spaceId, shape, read.mapping.positiveMeans);
+				}
 			}
 
 			setWritten(result.written);
 			setPicked(null);
 			setFields(null);
+			setSign(null);
 			void queries.invalidateQueries();
 		},
 		onError: (error: unknown) => setProblem(error instanceof Error ? error.message : String(error)),
@@ -386,6 +400,29 @@ export function ImportPage() {
 									</div>
 								))}
 							</div>
+
+							{/* A card invoice has no use for a sign: every line of it is a
+							    purchase. Read as written it would turn a month of shopping
+							    into a month of salaries, so the guess is shown and can be
+							    turned round. */}
+							{read.mapping.fields.includes("amount") ? (
+								<div className="max-w-md pt-2">
+									<Segmented
+										label={t("importing.signTitle")}
+										value={read.mapping.positiveMeans}
+										onChange={setSign}
+										options={[
+											{ value: "expense", label: t("importing.signExpense") },
+											{ value: "asWritten", label: t("importing.signAsWritten") },
+										]}
+									/>
+									<p className="pt-1 text-xs text-graphite">
+										{read.mapping.positiveMeans === "expense"
+											? t("importing.signGuessedExpense")
+											: t("importing.signHint")}
+									</p>
+								</div>
+							) : null}
 						</section>
 					) : null}
 
