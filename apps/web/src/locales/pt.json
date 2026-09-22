@@ -89,7 +89,8 @@
 		"members": "Membros",
 		"transactions": "Lançamentos",
 		"invoices": "Faturas",
-		"categories": "Categorias"
+		"categories": "Categorias",
+		"calendar": "Calendário"
 	},
 	"shell": {
 		"opening": "Abrindo o seu banco de dados neste dispositivo.",
@@ -183,6 +184,8 @@
 		"categoryHasChildren": "Essa categoria tem outras dentro dela. Mova ou apague as de dentro primeiro.",
 		"categoryIsNotItsOwnParent": "Uma categoria não pode ficar dentro dela mesma.",
 		"categoriesAlreadyThere": "Este espaço já tem categorias, então o conjunto inicial não foi escrito de novo.",
+		"matchTextIsTooShort": "Escreva pelo menos duas letras, senão a regra pega tudo.",
+		"recurrenceNeedsOneCurrency": "Uma recorrência usa a moeda do espaço. Escolha uma conta nessa moeda.",
 		"unknown": "Não consegui concluir. Tente de novo."
 	},
 	"transactions": {
@@ -240,7 +243,65 @@
 		"priority": "Prioridade",
 		"priorityInherited": "A da categoria",
 		"priorityHint": "Escolha uma categoria e a prioridade vem dela.",
-		"priorityFromCategory": "A categoria diz {{priority}}. Mude só se este gasto for diferente."
+		"priorityFromCategory": "A categoria diz {{priority}}. Mude só se este gasto for diferente.",
+		"alwaysSortLikeThis": "Sempre categorizar assim",
+		"taught": "Pronto. Todo lançamento com {{text}} na descrição vai para essa categoria."
+	},
+	"rulesSection": {
+		"title": "Regras que categorizam sozinhas",
+		"explain": "Quando um lançamento chega sem categoria, a primeira regra que combinar decide por ele. O que você escolheu na mão nunca é trocado por uma regra.",
+		"create": "Nova regra",
+		"createDescription": "Escreva um pedaço do que aparece na descrição e diga para onde vai.",
+		"edit": "Editar",
+		"actions": "Ações da regra",
+		"disable": "Desligar",
+		"enable": "Ligar",
+		"applyNow": "Aplicar nos antigos",
+		"sorted_one": "Categorizei {{count}} lançamento que estava solto.",
+		"sorted_other": "Categorizei {{count}} lançamentos que estavam soltos.",
+		"sorted_zero": "Nada para categorizar: todos já têm categoria.",
+		"sentence": "Quando tiver {{text}}, vai para {{category}}",
+		"matchText": "Quando a descrição tiver",
+		"matchTextHint": "Ignora maiúsculas e acentos. Pode ser só um pedaço, como ifood ou uber.",
+		"matchTextPlaceholder": "ifood",
+		"category": "Vai para",
+		"empty": "Nenhuma regra ainda. Categorize um lançamento e use o menu dele para criar a primeira."
+	},
+	"recurrences": {
+		"title": "O que se repete",
+		"explain": "Aluguel, assinatura, salário. O Cofre escreve esses lançamentos como previstos nos dias certos, e eles só mexem no saldo quando você marca como pago.",
+		"create": "Nova recorrência",
+		"createDescription": "Diga o que se repete, quanto e a partir de quando.",
+		"edit": "Editar",
+		"actions": "Ações da recorrência",
+		"pause": "Pausar",
+		"resume": "Voltar a repetir",
+		"paused": "pausada",
+		"ended": "terminou",
+		"next": "próxima em {{day}}",
+		"empty": "Nada se repetindo ainda.",
+		"frequency": "Repete",
+		"startsOn": "A partir de",
+		"startsOnHint": "O dia desta data é o dia que vai se repetir.",
+		"descriptionPlaceholder": "Aluguel",
+		"every": {
+			"weekly": "Toda semana",
+			"monthly": "Todo mês",
+			"yearly": "Todo ano"
+		}
+	},
+	"calendar": {
+		"headline": "O mês de {{month}}, do jeito que ele vai acontecer",
+		"nothingPending": "Nada previsto pendente neste mês.",
+		"stillToCome": "Ainda por acontecer neste mês: {{amount}}.",
+		"earned": "Entrou:",
+		"spent": "Saiu:",
+		"previous": "Mês anterior",
+		"next": "Próximo mês",
+		"thisMonth": "Voltar para este mês",
+		"thisMonthShort": "Hoje",
+		"andMore": "mais {{count}}",
+		"plannedLegend": "O que está em outra cor ainda não aconteceu."
 	},
 	"categories": {
 		"title": "Categorias de {{space}}",

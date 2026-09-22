@@ -5,21 +5,29 @@
 // What the screens get back has the same shape as the local one, so no screen knows
 // which of the two it is talking to.
 
+import { pickRule } from "@cofre/core";
 import type {
 	Account,
 	AccountBalance,
+	CategorizationRule,
 	Category,
 	Change,
 	CreateCategoryInput,
+	CreateRecurrenceInput,
+	CreateRuleInput,
 	CreateSavedFilterInput,
 	CreateTransactionInput,
 	Invitation,
+	Recurrence,
 	SavedFilter,
 	Space,
 	SpaceMember,
 	Transaction,
 	TransactionFilter,
+	TransactionKind,
 	UpdateCategoryInput,
+	UpdateRecurrenceInput,
+	UpdateRuleInput,
 	UpdateSavedFilterInput,
 	UpdateTransactionInput,
 	User,
@@ -266,6 +274,63 @@ export function createRemoteSession(
 			removeGroup: async (groupId: string) =>
 				(await send<{ removed: number }>(`/api/installments/${groupId}`, "DELETE")).removed,
 			balances: (spaceId: string) => get<AccountBalance[]>(`/api/spaces/${spaceId}/balances`),
+		},
+
+		rules: {
+			list: (spaceId: string) => get<CategorizationRule[]>(`/api/spaces/${spaceId}/rules`),
+			create: (input: CreateRuleInput) => {
+				const { spaceId, ...rest } = input;
+				return send<CategorizationRule>(`/api/spaces/${spaceId}/rules`, "POST", rest);
+			},
+			update: (id: string, input: UpdateRuleInput) =>
+				send<CategorizationRule>(`/api/rules/${id}`, "PATCH", input),
+			remove: (id: string) => send<void>(`/api/rules/${id}`, "DELETE"),
+			suggest: async (input: {
+				spaceId: string;
+				description: string;
+				accountId: string;
+				kind: TransactionKind;
+			}) => {
+				// The server answers this one by writing nothing, so it is a plain read of
+				// the rules and the same choosing logic the repository uses.
+				const rules = await get<CategorizationRule[]>(`/api/spaces/${input.spaceId}/rules`);
+				return (
+					pickRule(
+						rules.filter((rule) => rule.disabledAt === null),
+						input,
+					) ?? null
+				);
+			},
+			applyToExisting: async (input: { spaceId: string; from?: string; to?: string }) => {
+				const { spaceId, ...rest } = input;
+				return (await send<{ sorted: number }>(`/api/spaces/${spaceId}/rules/apply`, "POST", rest))
+					.sorted;
+			},
+		},
+
+		recurrences: {
+			list: (spaceId: string) => get<Recurrence[]>(`/api/spaces/${spaceId}/recurrences`),
+			create: (input: CreateRecurrenceInput) => {
+				const { spaceId, ...rest } = input;
+				return send<Recurrence>(`/api/spaces/${spaceId}/recurrences`, "POST", rest);
+			},
+			update: (id: string, input: UpdateRecurrenceInput) =>
+				send<Recurrence>(`/api/recurrences/${id}`, "PATCH", input),
+			remove: async (id: string, options: { keepPlanned?: boolean } = {}) =>
+				(
+					await send<{ removed: number }>(
+						`/api/recurrences/${id}${options.keepPlanned ? "?keepPlanned=true" : ""}`,
+						"DELETE",
+					)
+				).removed,
+			materialize: async (input: { spaceId: string; until?: string }) =>
+				(
+					await send<{ written: number }>(
+						`/api/spaces/${input.spaceId}/recurrences/materialize`,
+						"POST",
+						{ until: input.until },
+					)
+				).written,
 		},
 
 		savedFilters: {

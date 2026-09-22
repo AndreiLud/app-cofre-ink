@@ -23,11 +23,10 @@ function Navigation() {
 	const entries = [
 		{ to: ROUTES.dashboard, label: t("nav.dashboard") },
 		{ to: ROUTES.transactions, label: t("nav.transactions") },
+		{ to: ROUTES.calendar, label: t("nav.calendar") },
 		{ to: ROUTES.invoices, label: t("nav.invoices") },
 		{ to: ROUTES.categories, label: t("nav.categories") },
 		{ to: ROUTES.accounts, label: t("nav.accounts") },
-		{ to: ROUTES.spaces, label: t("nav.spaces") },
-		{ to: ROUTES.members, label: t("nav.members") },
 	];
 
 	return (

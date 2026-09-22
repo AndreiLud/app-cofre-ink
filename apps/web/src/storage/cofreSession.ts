@@ -8,11 +8,15 @@ import type {
 	Account,
 	AccountBalance,
 	AccountKind,
+	CategorizationRule,
 	Category,
 	Change,
 	CreateCategoryInput,
+	CreateRecurrenceInput,
+	CreateRuleInput,
 	CreateSavedFilterInput,
 	CreateTransactionInput,
+	Recurrence,
 	Role,
 	SavedFilter,
 	Space,
@@ -20,7 +24,10 @@ import type {
 	SpaceMember,
 	Transaction,
 	TransactionFilter,
+	TransactionKind,
 	UpdateCategoryInput,
+	UpdateRecurrenceInput,
+	UpdateRuleInput,
 	UpdateSavedFilterInput,
 	UpdateTransactionInput,
 	User,
@@ -100,6 +107,29 @@ export type CofreSession = {
 		removeMany: (ids: string[]) => Promise<number>;
 		removeGroup: (groupId: string) => Promise<number>;
 		balances: (spaceId: string) => Promise<AccountBalance[]>;
+	};
+	rules: {
+		list: (spaceId: string) => Promise<CategorizationRule[]>;
+		create: (input: CreateRuleInput) => Promise<CategorizationRule>;
+		update: (id: string, input: UpdateRuleInput) => Promise<CategorizationRule>;
+		remove: (id: string) => Promise<void>;
+		/** What the rules would do to one record, without writing anything. */
+		suggest: (input: {
+			spaceId: string;
+			description: string;
+			accountId: string;
+			kind: TransactionKind;
+		}) => Promise<CategorizationRule | null>;
+		/** Runs them over the records nobody has sorted yet. Returns how many changed. */
+		applyToExisting: (input: { spaceId: string; from?: string; to?: string }) => Promise<number>;
+	};
+	recurrences: {
+		list: (spaceId: string) => Promise<Recurrence[]>;
+		create: (input: CreateRecurrenceInput) => Promise<Recurrence>;
+		update: (id: string, input: UpdateRecurrenceInput) => Promise<Recurrence>;
+		remove: (id: string, options?: { keepPlanned?: boolean }) => Promise<number>;
+		/** Writes the planned records the series owe. Safe to call on every load. */
+		materialize: (input: { spaceId: string; until?: string }) => Promise<number>;
 	};
 	savedFilters: {
 		list: (spaceId: string) => Promise<SavedFilter[]>;

@@ -49,6 +49,15 @@ export function total(page: Page) {
 }
 
 /**
+ * Spaces and members are settings, so they live in the menu of the space instead of in
+ * the navigation. Both screens are reached the same way.
+ */
+export async function openSetting(page: Page, label: "Gerenciar espaços" | "Membros") {
+	await page.getByRole("button", { name: "Você está no espaço" }).click();
+	await page.getByRole("menuitem", { name: label }).click();
+}
+
+/**
  * The row of the list that shows one record. Asking for a cell would match twice,
  * because the checkbox that selects the row is labelled with the same description, on
  * purpose: somebody using a screen reader has to know which record they are ticking.

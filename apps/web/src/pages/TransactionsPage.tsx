@@ -74,6 +74,7 @@ export function TransactionsPage() {
 	const [picked, setPicked] = useState<string[]>([]);
 	const [moveTo, setMoveTo] = useState("");
 	const [problem, setProblem] = useState<string | null>(null);
+	const [taught, setTaught] = useState<string | null>(null);
 
 	const spaceId = currentSpace?.id ?? "";
 
@@ -181,6 +182,27 @@ export function TransactionsPage() {
 		mutationFn: async (groupId: string) => session?.transactions.removeGroup(groupId),
 		onSuccess: invalidate,
 	});
+	/**
+	 * Turns one record into a rule: whatever was written in the description becomes the
+	 * text to look for, and the category it was given becomes the answer. One click,
+	 * because the person has already made the decision by sorting this record.
+	 */
+	const teach = useMutation({
+		mutationFn: async (row: Transaction) => {
+			if (!session || !row.categoryId) return null;
+			return session.rules.create({
+				spaceId: row.spaceId,
+				matchText: row.description,
+				categoryId: row.categoryId,
+			});
+		},
+		onSuccess: (rule) => {
+			if (rule) setTaught(rule.matchText);
+			void queries.invalidateQueries({ queryKey: ["rules"] });
+		},
+		onError: complain,
+	});
+
 	const reconcile = useMutation({
 		mutationFn: async (input: { id: string; reconciled: boolean }) =>
 			session?.transactions.reconcile(input.id, input.reconciled),
@@ -331,6 +353,10 @@ export function TransactionsPage() {
 			) : null}
 
 			{problem ? <Callout tone="problem">{problem}</Callout> : null}
+
+			{taught ? (
+				<Callout tone="neutral">{t("transactions.taught", { text: taught })}</Callout>
+			) : null}
 
 			{picked.length > 0 ? (
 				<div className="flex flex-wrap items-center gap-3 border-y border-ink py-2 text-sm">
@@ -498,6 +524,11 @@ export function TransactionsPage() {
 											{row.status === "planned" ? (
 												<MenuItem onSelect={() => settle.mutate(row.id)}>
 													{t("transactions.settle")}
+												</MenuItem>
+											) : null}
+											{row.categoryId ? (
+												<MenuItem onSelect={() => teach.mutate(row)}>
+													{t("transactions.alwaysSortLikeThis")}
 												</MenuItem>
 											) : null}
 											<MenuItem

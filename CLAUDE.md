@@ -131,8 +131,8 @@ nothing.
 | 2 block B. The screens: register, list with filters, balances on the overview | done |
 | 2 block C. Card invoice screen, quick entry by free text, bulk edit, saved filters | done |
 | 3 block A. Categories with two levels, spending priority, the screens that use them | done |
-| 3 block B. Rules that sort on their own, recurrences, the calendar | next |
-| 4. Budget, savings rule, goals, expense splitting, alerts | planned |
+| 3 block B. Rules that sort on their own, recurrences, the calendar | done |
+| 4. Budget, savings rule, goals, expense splitting, alerts | next |
 | 5. Dashboard, consolidated view, reports and charts | planned |
 | 6. Import, export, backup, migration, sync engine | planned |
 | 7. Statement and receipt recognition | planned |
@@ -155,3 +155,4 @@ nothing.
 | [0009](docs/adr/0009_authentication_and_identity.md) | authentication, identity and invitations |
 | [0010](docs/adr/0010_shape_of_a_transaction.md) | the shape of a transaction |
 | [0011](docs/adr/0011_reading_one_line_of_text.md) | reading a record from one line of text |
+| [0012](docs/adr/0012_rules_and_recurrences.md) | rules that sort, and series that write |

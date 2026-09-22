@@ -23,6 +23,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { RulesSection } from "../components/RulesSection.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 
 const PRIORITIES: SpendingPriority[] = ["essential", "important", "desirable", "superfluous"];
@@ -247,6 +248,8 @@ export function CategoriesPage() {
 
 			{side("expense")}
 			{side("income")}
+
+			{rows.length > 0 ? <RulesSection spaceId={spaceId} categories={rows} /> : null}
 
 			<Dialog
 				open={isOpen}

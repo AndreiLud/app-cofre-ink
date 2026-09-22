@@ -6,6 +6,7 @@
 
 import { type Browser, expect, type Page, test } from "@playwright/test";
 import { API_ADDRESS } from "../playwright.config.ts";
+import { openSetting } from "./support.ts";
 
 const PASSWORD = "uma senha bem comprida";
 
@@ -41,7 +42,7 @@ test.describe("server mode", () => {
 		const page = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
 
 		await expect(page.getByRole("heading", { level: 1 })).toContainText("Pessoal");
-		await page.getByRole("link", { name: "Espaços" }).click();
+		await openSetting(page, "Gerenciar espaços");
 		await expect(page.getByRole("listitem").filter({ hasText: "Pessoal" })).toContainText(
 			"Pessoal e privado",
 		);
@@ -66,13 +67,13 @@ test.describe("server mode", () => {
 	test("takes a second person from a link into the shared space", async ({ browser }) => {
 		const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
 
-		await ana.getByRole("link", { name: "Espaços" }).click();
+		await openSetting(ana, "Gerenciar espaços");
 		await ana.getByRole("button", { name: "Novo espaço" }).click();
 		await ana.getByLabel("Nome do espaço").fill("Casa");
 		await ana.getByRole("button", { name: "Salvar" }).click();
 		await expect(ana.getByRole("banner")).toContainText("Casa");
 
-		await ana.getByRole("link", { name: "Membros" }).click();
+		await openSetting(ana, "Membros");
 		await ana.getByRole("button", { name: "Convidar" }).first().click();
 		await ana.getByRole("button", { name: "Gerar link" }).click();
 
@@ -89,13 +90,13 @@ test.describe("server mode", () => {
 		await expect(joao.getByRole("banner")).toContainText("Casa");
 
 		// The shared space is shared. The personal space of the other person is not.
-		await joao.getByRole("link", { name: "Espaços" }).click();
+		await openSetting(joao, "Gerenciar espaços");
 		await expect(joao.getByRole("listitem").filter({ hasText: "Casa" })).toBeVisible();
 		await expect(joao.getByRole("listitem")).toHaveCount(2);
 
 		// And the role that came with the link is the role that took effect.
 		await ana.reload();
-		await ana.getByRole("link", { name: "Membros" }).click();
+		await openSetting(ana, "Membros");
 		await expect(ana.getByRole("cell", { name: "João" })).toBeVisible();
 		await expect(ana.getByRole("cell", { name: "Editor" })).toBeVisible();
 	});
@@ -103,12 +104,12 @@ test.describe("server mode", () => {
 	test("burns the link after the first person uses it", async ({ browser }) => {
 		const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
 
-		await ana.getByRole("link", { name: "Espaços" }).click();
+		await openSetting(ana, "Gerenciar espaços");
 		await ana.getByRole("button", { name: "Novo espaço" }).click();
 		await ana.getByLabel("Nome do espaço").fill("Viagem");
 		await ana.getByRole("button", { name: "Salvar" }).click();
 
-		await ana.getByRole("link", { name: "Membros" }).click();
+		await openSetting(ana, "Membros");
 		await ana.getByRole("button", { name: "Convidar" }).first().click();
 		await ana.getByRole("button", { name: "Gerar link" }).click();
 		const link = await ana.getByRole("dialog").locator("p.font-mono").innerText();

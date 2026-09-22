@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openCofre, total } from "./support.ts";
+import { openCofre, openSetting, total } from "./support.ts";
 
 test.describe("accounts", () => {
 	test("creates one and shows it with the amount that was typed", async ({ page }) => {
@@ -42,7 +42,7 @@ test.describe("spaces", () => {
 	test("switches space and carries the accounts of that space", async ({ page }) => {
 		await openCofre(page, { space: "Pessoal" });
 
-		await page.getByRole("link", { name: "Espaços" }).click();
+		await openSetting(page, "Gerenciar espaços");
 		await expect(page.getByRole("listitem").filter({ hasText: "Casa" })).toContainText(
 			"Compartilhado",
 		);
@@ -58,7 +58,7 @@ test.describe("spaces", () => {
 	test("says the personal space takes no members", async ({ page }) => {
 		await openCofre(page);
 
-		await page.getByRole("link", { name: "Membros" }).click();
+		await openSetting(page, "Membros");
 		await expect(
 			page.getByText("Este espaço é só seu e não aceita membros", { exact: false }),
 		).toBeVisible();
@@ -68,9 +68,9 @@ test.describe("spaces", () => {
 	test("shows who is in the shared space and with which role", async ({ page }) => {
 		await openCofre(page);
 
-		await page.getByRole("link", { name: "Espaços" }).click();
+		await openSetting(page, "Gerenciar espaços");
 		await page.getByRole("button", { name: "Entrar" }).click();
-		await page.getByRole("link", { name: "Membros" }).click();
+		await openSetting(page, "Membros");
 
 		await expect(page.getByRole("cell", { name: "Andrei (você)" })).toBeVisible();
 		await expect(page.getByRole("cell", { name: "Dono" })).toBeVisible();

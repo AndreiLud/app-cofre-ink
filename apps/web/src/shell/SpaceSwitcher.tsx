@@ -41,9 +41,12 @@ export function SpaceSwitcher() {
 				</MenuItem>
 			))}
 			<MenuSeparator />
+			{/* Spaces and members are settings, not screens somebody opens every day, so
+			    they live here instead of taking room in the navigation. */}
 			<MenuItem onSelect={() => void navigate({ to: ROUTES.spaces })}>
 				{t("spaces.manage")}
 			</MenuItem>
+			<MenuItem onSelect={() => void navigate({ to: ROUTES.members })}>{t("nav.members")}</MenuItem>
 		</Menu>
 	);
 }

@@ -89,7 +89,8 @@
 		"members": "Members",
 		"transactions": "Records",
 		"invoices": "Card invoices",
-		"categories": "Categories"
+		"categories": "Categories",
+		"calendar": "Calendar"
 	},
 	"shell": {
 		"opening": "Opening your database on this device.",
@@ -183,6 +184,8 @@
 		"categoryHasChildren": "That category has others inside it. Move or delete those first.",
 		"categoryIsNotItsOwnParent": "A category cannot sit inside itself.",
 		"categoriesAlreadyThere": "This space already has categories, so the starting set was not written again.",
+		"matchTextIsTooShort": "Write at least two letters, otherwise the rule catches everything.",
+		"recurrenceNeedsOneCurrency": "A recurrence uses the currency of the space. Pick an account in it.",
 		"unknown": "I could not finish that. Try again."
 	},
 	"transactions": {
@@ -240,7 +243,65 @@
 		"priority": "Priority",
 		"priorityInherited": "The one of the category",
 		"priorityHint": "Pick a category and the priority comes from it.",
-		"priorityFromCategory": "The category says {{priority}}. Change it only when this one is different."
+		"priorityFromCategory": "The category says {{priority}}. Change it only when this one is different.",
+		"alwaysSortLikeThis": "Always sort like this",
+		"taught": "Done. Every record with {{text}} in the description goes to that category."
+	},
+	"rulesSection": {
+		"title": "Rules that sort on their own",
+		"explain": "When a record arrives with no category, the first rule that matches decides for it. What you chose by hand is never replaced by a rule.",
+		"create": "New rule",
+		"createDescription": "Write a piece of what shows up in the description and say where it goes.",
+		"edit": "Edit",
+		"actions": "Rule actions",
+		"disable": "Switch off",
+		"enable": "Switch on",
+		"applyNow": "Run over the old ones",
+		"sorted_one": "Sorted {{count}} record that had no category.",
+		"sorted_other": "Sorted {{count}} records that had no category.",
+		"sorted_zero": "Nothing to sort: everything already has a category.",
+		"sentence": "When it has {{text}}, it goes to {{category}}",
+		"matchText": "When the description has",
+		"matchTextHint": "Case and accents are ignored. A piece is enough, such as ifood or uber.",
+		"matchTextPlaceholder": "ifood",
+		"category": "It goes to",
+		"empty": "No rules yet. Sort one record and use its menu to write the first one."
+	},
+	"recurrences": {
+		"title": "What happens again",
+		"explain": "Rent, a subscription, a salary. Cofre writes these as planned records on the right days, and they only touch the balance when you mark them as paid.",
+		"create": "New recurrence",
+		"createDescription": "Say what repeats, how much and from when.",
+		"edit": "Edit",
+		"actions": "Recurrence actions",
+		"pause": "Hold",
+		"resume": "Start again",
+		"paused": "on hold",
+		"ended": "ended",
+		"next": "next on {{day}}",
+		"empty": "Nothing repeating yet.",
+		"frequency": "Repeats",
+		"startsOn": "From",
+		"startsOnHint": "The day of this date is the day that repeats.",
+		"descriptionPlaceholder": "Rent",
+		"every": {
+			"weekly": "Every week",
+			"monthly": "Every month",
+			"yearly": "Every year"
+		}
+	},
+	"calendar": {
+		"headline": "{{month}}, the way it will happen",
+		"nothingPending": "Nothing planned is left this month.",
+		"stillToCome": "Still to happen this month: {{amount}}.",
+		"earned": "In:",
+		"spent": "Out:",
+		"previous": "Previous month",
+		"next": "Next month",
+		"thisMonth": "Back to this month",
+		"thisMonthShort": "Today",
+		"andMore": "{{count}} more",
+		"plannedLegend": "What is in another colour has not happened yet."
 	},
 	"categories": {
 		"title": "Categories of {{space}}",
