@@ -25,6 +25,7 @@ import { runReportConformance } from "./reports.ts";
 import { runRuleConformance } from "./rules.ts";
 import { runSavedFilterConformance } from "./savedFilters.ts";
 import { type AdapterUnderTest, type Fixture, prepare } from "./setup.ts";
+import { runSyncConformance } from "./sync.ts";
 import { runTransactionConformance } from "./transactions.ts";
 
 type ProbeContext = {
@@ -574,6 +575,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 		runPlanConformance(adapter);
 		runReportConformance(adapter);
 		runSavedFilterConformance(adapter);
+		runSyncConformance(adapter);
 
 		describe("the permission matrix", () => {
 			it("covers every permission with at least one probe", () => {

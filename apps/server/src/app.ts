@@ -7,9 +7,13 @@
 
 import type { Session } from "@cofre/storage";
 import {
+	applyChanges,
+	changesToPush,
+	latestStampOf,
 	NotFoundError,
 	openSession,
 	PermissionError,
+	peopleInSpace,
 	previewInvitation,
 	RuleError,
 	upsertUserFromIdentity,
@@ -110,6 +114,19 @@ const settlementInput = z.object({
 	amount: z.number().int().positive(),
 	happenedOn: calendarDate,
 	note: z.string().trim().max(200).nullable().optional(),
+});
+
+const changeInput = z.object({
+	id: z.string().min(1),
+	spaceId: z.string().min(1),
+	entity: z.string().min(1).max(60),
+	entityId: z.string().min(1),
+	operation: z.enum(["insert", "update", "delete"]),
+	payload: z.record(z.string(), z.unknown()),
+	hlc: z.string().min(1).max(80),
+	deviceId: z.string().min(1).max(80),
+	actorId: z.string().min(1).nullable(),
+	createdAt: z.number().int().nonnegative(),
 });
 
 const ruleInput = z.object({
@@ -785,6 +802,58 @@ export function createApp({ config, database, auth }: AppDependencies) {
 			default:
 				return context.json(await reports.byDay(range));
 		}
+	});
+
+	/**
+	 * One round trip of replication: what this device wrote goes up, what it has not
+	 * seen comes down. Two calls would leave a window where a device is half synced.
+	 *
+	 * A device may only push the changes it made itself. The server is the hub, so
+	 * every device has a direct line to it and never needs to relay somebody else's
+	 * work, and without the rule a member could write records in another person's name.
+	 */
+	app.post("/api/spaces/:id/sync", async (context) => {
+		const spaceId = context.req.param("id");
+		const userId = context.get("userId");
+		const session = context.get("session");
+
+		const input = z
+			.object({
+				since: z.string().min(1).nullable().optional(),
+				changes: z.array(changeInput).max(2000).optional(),
+			})
+			.parse(await context.req.json());
+
+		// Belonging to the space is the price of entry. Somebody who does not is told the
+		// space does not exist, as everywhere else.
+		await session.spaces.get(spaceId);
+
+		const incoming = (input.changes ?? []).filter((change) => change.actorId === userId);
+		const refused = (input.changes ?? []).length - incoming.length;
+
+		const written =
+			incoming.length === 0
+				? { applied: 0, skipped: 0, rejected: [], deferred: 0 }
+				: await applyChanges(
+						database.driver,
+						incoming.map((change) => ({
+							...change,
+							spaceId,
+							payload: change.payload as Record<string, unknown>,
+						})),
+						{ spaceId },
+					);
+
+		const changes = await changesToPush(database.driver, spaceId, input.since ?? null);
+		const people = await peopleInSpace(database.driver, spaceId);
+
+		return context.json({
+			changes,
+			people,
+			stamp: await latestStampOf(database.driver, spaceId),
+			applied: written.applied,
+			refused,
+		});
 	});
 
 	app.get("/api/spaces/:id/changes", async (context) => {

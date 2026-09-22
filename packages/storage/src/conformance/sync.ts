@@ -1,0 +1,439 @@
+// Replication, on every adapter.
+//
+// The test registry 0003 asked for is the one at the end: the same set of changes,
+// applied in different orders, has to end in the same state. Everything above it builds
+// the situations that make that hard, which are two people writing at once, a deletion
+// crossing an edit, and an entry that tries to grant itself a role.
+
+import { describe, expect, it } from "vitest";
+import type { Driver } from "../driver.ts";
+import { migrate } from "../migrate.ts";
+import type { User } from "../models.ts";
+import { openSession, type Session } from "../session.ts";
+import {
+	applyChanges,
+	applyPeople,
+	changesSince,
+	changesToPush,
+	isReplicated,
+	latestStampOf,
+	peopleInSpace,
+	rowOf,
+} from "../sync.ts";
+import { type AdapterUnderTest, prepare } from "./setup.ts";
+
+type Device = { driver: Driver; session: Session; close: () => Promise<void> };
+
+export function runSyncConformance(adapter: AdapterUnderTest): void {
+	/**
+	 * Another device of the same person: its own database, its own device name, and the
+	 * same identity, which it learns the way a real one does.
+	 */
+	async function otherDevice(person: User, deviceId: string): Promise<Device> {
+		const driver = adapter.openAnother ? await adapter.openAnother(deviceId) : await adapter.open();
+		await migrate(driver);
+		await applyPeople(driver, [
+			{
+				id: person.id,
+				email: person.email,
+				name: person.name,
+				image: person.image,
+				createdAt: person.createdAt,
+				updatedAt: person.updatedAt,
+			},
+		]);
+		const session = await openSession({ driver, userId: person.id, deviceId });
+		return { driver, session, close: () => driver.close() };
+	}
+
+	/** Everything one side has, carried to the other, people first. */
+	async function carry(from: Driver, to: Driver, spaceId: string) {
+		await applyPeople(to, await peopleInSpace(from, spaceId));
+		return applyChanges(to, await changesToPush(from, spaceId, null), { spaceId });
+	}
+
+	describe("replication", () => {
+		it("carries a space and everything in it to another database", async () => {
+			const one = await prepare(adapter);
+			const two = await otherDevice(one.ana, "deviceTwo");
+			try {
+				const space = await one.asAna.spaces.create({ name: "Casa" });
+				const account = await one.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+					initialBalance: 100_000,
+				});
+				await one.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 4290,
+					happenedOn: "2026-09-10",
+					description: "Mercado",
+					accountId: account.id,
+				});
+
+				const result = await carry(one.driver, two.driver, space.id);
+				expect(result.applied).toBeGreaterThan(0);
+				expect(result.rejected).toEqual([]);
+
+				const there = await rowOf(two.driver, "spaces", space.id);
+				expect(String(there?.name)).toBe("Casa");
+
+				const rows = await two.driver.all(
+					`SELECT "description", "amount" FROM "transactions" WHERE "space_id" = ?`,
+					[space.id],
+				);
+				expect(rows).toHaveLength(1);
+				expect(String(rows[0]?.description)).toBe("Mercado");
+				expect(Number(rows[0]?.amount)).toBe(-4290);
+
+				const account2 = await rowOf(two.driver, "accounts", account.id);
+				expect(Number(account2?.initial_balance)).toBe(100_000);
+			} finally {
+				await one.close();
+				await two.close();
+			}
+		});
+
+		it("never replicates who belongs to a space, or who anybody is", async () => {
+			const one = await prepare(adapter);
+			try {
+				const space = await one.asAna.spaces.create({ name: "Casa" });
+				await one.asAna.members.invite({
+					spaceId: space.id,
+					userId: one.joao.id,
+					role: "viewer",
+				});
+
+				expect(isReplicated("space_members")).toBe(false);
+				expect(isReplicated("space_invitations")).toBe(false);
+				expect(isReplicated("users")).toBe(false);
+				expect(isReplicated("auth_users")).toBe(false);
+				expect(isReplicated("changes")).toBe(false);
+				expect(isReplicated("spaces")).toBe(true);
+				expect(isReplicated("transactions")).toBe(true);
+
+				// Membership writes stay out of what is sent.
+				const sent = await changesToPush(one.driver, space.id, null);
+				expect(sent.some((change) => change.entity === "space_members")).toBe(false);
+
+				// And one that arrives anyway is refused, not ignored.
+				const refused = await applyChanges(one.driver, [
+					{
+						id: "11111111-1111-7111-8111-111111111111",
+						spaceId: space.id,
+						entity: "space_members",
+						entityId: "whatever",
+						operation: "update",
+						payload: { role: "owner" },
+						hlc: "zzzzzzzzzzzz",
+						deviceId: "attacker",
+						actorId: one.joao.id,
+						createdAt: Date.now(),
+					},
+				]);
+
+				expect(refused.applied).toBe(0);
+				expect(refused.rejected[0]?.reason).toBe("entityIsNotReplicated");
+			} finally {
+				await one.close();
+			}
+		});
+
+		it("refuses an entry that belongs to another space", async () => {
+			const one = await prepare(adapter);
+			try {
+				const space = await one.asAna.spaces.create({ name: "Casa" });
+				const other = await one.asAna.spaces.create({ name: "Viagem" });
+				const changes = await changesToPush(one.driver, other.id, null);
+
+				const refused = await applyChanges(one.driver, changes, { spaceId: space.id });
+				expect(refused.applied).toBe(0);
+				expect(refused.rejected.every((one) => one.reason === "wrongSpace")).toBe(true);
+			} finally {
+				await one.close();
+			}
+		});
+
+		it("keeps the later edit, and the earlier one stays in the log", async () => {
+			const one = await prepare(adapter);
+			const two = await otherDevice(one.ana, "deviceTwo");
+			try {
+				const space = await one.asAna.spaces.create({ name: "Casa" });
+				const account = await one.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+				});
+				const [record] = await one.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 1000,
+					happenedOn: "2026-09-10",
+					description: "Primeiro nome",
+					accountId: account.id,
+				});
+				const id = record?.id ?? "";
+
+				await carry(one.driver, two.driver, space.id);
+
+				// Both devices change the same record while they cannot see each other.
+				// The second one writes with a later stamp, whatever its clock says.
+				await one.asAna.transactions.update(id, { description: "Do primeiro" });
+				await two.driver.run(
+					`INSERT INTO "changes" ("id", "space_id", "entity", "entity_id", "operation",
+					 "payload", "hlc", "device_id", "actor_id", "created_at")
+					 VALUES (?, ?, 'transactions', ?, 'update', ?, 'zzzzzzzzzzzz', 'deviceTwo', ?, ?)`,
+					[
+						"22222222-2222-7222-8222-222222222222",
+						space.id,
+						id,
+						JSON.stringify({ description: "Do segundo" }),
+						one.ana.id,
+						Date.now(),
+					],
+				);
+				await applyChanges(two.driver, [], { spaceId: space.id });
+
+				// They meet, in both directions.
+				await carry(two.driver, one.driver, space.id);
+				await carry(one.driver, two.driver, space.id);
+
+				const here = await rowOf(one.driver, "transactions", id);
+				const there = await rowOf(two.driver, "transactions", id);
+
+				expect(String(here?.description)).toBe("Do segundo");
+				expect(String(there?.description)).toBe("Do segundo");
+
+				// The edit that lost is still in the log, so nothing was hidden.
+				const log = await changesSince(one.driver, space.id, null);
+				expect(log.some((change) => JSON.stringify(change.payload).includes("Do primeiro"))).toBe(
+					true,
+				);
+			} finally {
+				await one.close();
+				await two.close();
+			}
+		});
+
+		it("keeps an edit to one field and an edit to another, made at the same time", async () => {
+			const one = await prepare(adapter);
+			const two = await otherDevice(one.ana, "deviceTwo");
+			try {
+				const space = await one.asAna.spaces.create({ name: "Casa" });
+				const account = await one.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+				});
+				const [record] = await one.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 1000,
+					happenedOn: "2026-09-10",
+					description: "Mercado",
+					accountId: account.id,
+				});
+				const id = record?.id ?? "";
+
+				await carry(one.driver, two.driver, space.id);
+
+				// One renames it, the other writes a note, neither can see the other.
+				await one.asAna.transactions.update(id, { description: "Mercado do bairro" });
+				await two.driver.run(
+					`INSERT INTO "changes" ("id", "space_id", "entity", "entity_id", "operation",
+					 "payload", "hlc", "device_id", "actor_id", "created_at")
+					 VALUES (?, ?, 'transactions', ?, 'update', ?, 'zzzzzzzzzzzz', 'deviceTwo', ?, ?)`,
+					[
+						"33333333-3333-7333-8333-333333333333",
+						space.id,
+						id,
+						JSON.stringify({ notes: "Comprei fiado" }),
+						one.ana.id,
+						Date.now(),
+					],
+				);
+
+				await carry(two.driver, one.driver, space.id);
+				await carry(one.driver, two.driver, space.id);
+
+				const here = await rowOf(one.driver, "transactions", id);
+				expect(String(here?.description)).toBe("Mercado do bairro");
+				expect(String(here?.notes)).toBe("Comprei fiado");
+			} finally {
+				await one.close();
+				await two.close();
+			}
+		});
+
+		it("carries a deletion, and an edit that arrives later does not undo it", async () => {
+			const one = await prepare(adapter);
+			const two = await otherDevice(one.ana, "deviceTwo");
+			try {
+				const space = await one.asAna.spaces.create({ name: "Casa" });
+				const account = await one.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+				});
+				const [record] = await one.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 1000,
+					happenedOn: "2026-09-10",
+					description: "Some",
+					accountId: account.id,
+				});
+				const id = record?.id ?? "";
+
+				await carry(one.driver, two.driver, space.id);
+				await one.asAna.transactions.remove(id);
+				await carry(one.driver, two.driver, space.id);
+
+				const there = await rowOf(two.driver, "transactions", id);
+				expect(there?.deleted_at).not.toBe(null);
+
+				// An edit written before the deletion arrives later and changes nothing
+				// about the row being gone.
+				await two.driver.run(
+					`INSERT INTO "changes" ("id", "space_id", "entity", "entity_id", "operation",
+					 "payload", "hlc", "device_id", "actor_id", "created_at")
+					 VALUES (?, ?, 'transactions', ?, 'update', ?, 'zzzzzzzzzzzz', 'deviceTwo', ?, ?)`,
+					[
+						"44444444-4444-7444-8444-444444444444",
+						space.id,
+						id,
+						JSON.stringify({ description: "Voltou?" }),
+						one.ana.id,
+						Date.now(),
+					],
+				);
+				await carry(two.driver, one.driver, space.id);
+
+				const after = await rowOf(one.driver, "transactions", id);
+				expect(after?.deleted_at).not.toBe(null);
+				expect(String(after?.description)).toBe("Voltou?");
+			} finally {
+				await one.close();
+				await two.close();
+			}
+		});
+
+		it("reaches the same state whatever order the changes arrive in", async () => {
+			const source = await prepare(adapter);
+			const first = await otherDevice(source.ana, "deviceTwo");
+			const second = await otherDevice(source.ana, "deviceThree");
+			try {
+				const space = await source.asAna.spaces.create({ name: "Casa" });
+				const account = await source.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+					initialBalance: 50_000,
+				});
+				const category = await source.asAna.categories.create({
+					spaceId: space.id,
+					name: "Mercado",
+					kind: "expense",
+				});
+				const [record] = await source.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 4290,
+					happenedOn: "2026-09-10",
+					description: "Feira",
+					accountId: account.id,
+				});
+				await source.asAna.transactions.update(record?.id ?? "", {
+					description: "Feira da semana",
+					categoryId: category.id,
+				});
+				await source.asAna.accounts.update(account.id, { name: "Conta corrente" });
+				await source.asAna.transactions.settle(record?.id ?? "");
+
+				const changes = await changesToPush(source.driver, space.id, null);
+				expect(changes.length).toBeGreaterThan(5);
+
+				const people = await peopleInSpace(source.driver, space.id);
+				await applyPeople(first.driver, people);
+				await applyPeople(second.driver, people);
+
+				// One takes the set as it came. The other takes it backwards, and then in
+				// two halves, which is what a device that syncs twice does.
+				await applyChanges(first.driver, changes, { spaceId: space.id });
+
+				const half = Math.ceil(changes.length / 2);
+				await applyChanges(second.driver, [...changes.slice(0, half)].reverse(), {
+					spaceId: space.id,
+				});
+				await applyChanges(second.driver, [...changes.slice(half)].reverse(), {
+					spaceId: space.id,
+				});
+
+				for (const entity of ["spaces", "accounts", "categories", "transactions"]) {
+					const here = await first.driver.all(
+						`SELECT * FROM ${entity === "spaces" ? `"spaces" WHERE "id" = ?` : `"${entity}" WHERE "space_id" = ?`} ORDER BY "id"`,
+						[space.id],
+					);
+					const there = await second.driver.all(
+						`SELECT * FROM ${entity === "spaces" ? `"spaces" WHERE "id" = ?` : `"${entity}" WHERE "space_id" = ?`} ORDER BY "id"`,
+						[space.id],
+					);
+					expect(there, `${entity} differs`).toEqual(here);
+				}
+
+				expect(await latestStampOf(first.driver, space.id)).toBe(
+					await latestStampOf(second.driver, space.id),
+				);
+			} finally {
+				await source.close();
+				await first.close();
+				await second.close();
+			}
+		});
+
+		it("says nothing changed when it runs again", async () => {
+			const one = await prepare(adapter);
+			const two = await otherDevice(one.ana, "deviceTwo");
+			try {
+				const space = await one.asAna.spaces.create({ name: "Casa" });
+				await one.asAna.accounts.create({ spaceId: space.id, kind: "cash", name: "Carteira" });
+
+				const changes = await changesToPush(one.driver, space.id, null);
+				await applyPeople(two.driver, await peopleInSpace(one.driver, space.id));
+
+				const firstRun = await applyChanges(two.driver, changes, { spaceId: space.id });
+				const again = await applyChanges(two.driver, changes, { spaceId: space.id });
+
+				expect(firstRun.applied).toBe(changes.length);
+				expect(again.applied).toBe(0);
+				expect(again.skipped).toBe(changes.length);
+
+				const accounts = await two.driver.all(`SELECT "id" FROM "accounts" WHERE "space_id" = ?`, [
+					space.id,
+				]);
+				expect(accounts).toHaveLength(1);
+			} finally {
+				await one.close();
+				await two.close();
+			}
+		});
+
+		it("sends only what the other side has not seen", async () => {
+			const one = await prepare(adapter);
+			try {
+				const space = await one.asAna.spaces.create({ name: "Casa" });
+				const mark = await latestStampOf(one.driver, space.id);
+
+				await one.asAna.accounts.create({ spaceId: space.id, kind: "cash", name: "Carteira" });
+
+				const since = await changesToPush(one.driver, space.id, mark);
+				expect(since.every((change) => change.entity === "accounts")).toBe(true);
+				expect(since.length).toBe(1);
+			} finally {
+				await one.close();
+			}
+		});
+	});
+}

@@ -490,6 +490,102 @@ describe("the api", () => {
 		});
 	});
 
+	describe("replication", () => {
+		it("takes what a device wrote and hands back what it has not seen", async () => {
+			const ana = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+
+			const space = await ana.json<{ id: string }>("/api/spaces", {
+				method: "POST",
+				body: JSON.stringify({ name: "Casa" }),
+			});
+			await ana.request(`/api/spaces/${space.id}/accounts`, {
+				method: "POST",
+				body: JSON.stringify({ kind: "cash", name: "Carteira" }),
+			});
+
+			const first = await ana.json<{ changes: unknown[]; people: unknown[]; stamp: string }>(
+				`/api/spaces/${space.id}/sync`,
+				{ method: "POST", body: JSON.stringify({ since: null, changes: [] }) },
+			);
+
+			expect(first.changes.length).toBeGreaterThan(0);
+			expect(first.people).toHaveLength(1);
+
+			// Asking again from the stamp it was given brings nothing new.
+			const second = await ana.json<{ changes: unknown[] }>(`/api/spaces/${space.id}/sync`, {
+				method: "POST",
+				body: JSON.stringify({ since: first.stamp, changes: [] }),
+			});
+			expect(second.changes).toHaveLength(0);
+		});
+
+		it("refuses a change written in somebody else's name", async () => {
+			const ana = createClient(app);
+			const joao = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			await joao.signUp({ name: "Joao", email: "joao@exemplo.com" });
+
+			const space = await ana.json<{ id: string }>("/api/spaces", {
+				method: "POST",
+				body: JSON.stringify({ name: "Casa" }),
+			});
+			const invitation = await ana.json<{ token: string }>(`/api/spaces/${space.id}/invitations`, {
+				method: "POST",
+				body: JSON.stringify({ role: "editor" }),
+			});
+			await joao.request(`/api/invitations/${invitation.token}/accept`, { method: "POST" });
+
+			const me = await ana.json<{ user: { id: string } }>("/api/me");
+
+			const answer = await joao.json<{ applied: number; refused: number }>(
+				`/api/spaces/${space.id}/sync`,
+				{
+					method: "POST",
+					body: JSON.stringify({
+						since: null,
+						changes: [
+							{
+								id: "55555555-5555-7555-8555-555555555555",
+								spaceId: space.id,
+								entity: "accounts",
+								entityId: "66666666-6666-7666-8666-666666666666",
+								operation: "insert",
+								payload: { name: "Conta falsa" },
+								hlc: "zzzzzzzzzzzz",
+								deviceId: "outro",
+								// Written as if it were Ana.
+								actorId: me.user.id,
+								createdAt: Date.now(),
+							},
+						],
+					}),
+				},
+			);
+
+			expect(answer.applied).toBe(0);
+			expect(answer.refused).toBe(1);
+		});
+
+		it("tells somebody outside the space that it does not exist", async () => {
+			const ana = createClient(app);
+			const joao = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			await joao.signUp({ name: "Joao", email: "joao@exemplo.com" });
+
+			const space = await ana.json<{ id: string }>("/api/spaces", {
+				method: "POST",
+				body: JSON.stringify({ name: "Casa" }),
+			});
+
+			const response = await joao.request(`/api/spaces/${space.id}/sync`, {
+				method: "POST",
+				body: JSON.stringify({ since: null, changes: [] }),
+			});
+			expect(response.status).toBe(404);
+		});
+	});
+
 	describe("saved filters", () => {
 		it("keeps a filter for the person who wrote it, and for nobody else", async () => {
 			const ana = createClient(app);

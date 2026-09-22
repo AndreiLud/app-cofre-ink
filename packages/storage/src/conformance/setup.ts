@@ -10,6 +10,12 @@ export type AdapterUnderTest = {
 	name: string;
 	/** Opens a database that has nothing in it. */
 	open: () => Promise<Driver>;
+	/**
+	 * Opens a second database that has nothing in it either, and that the first one
+	 * keeps living beside. Replication needs two, and an engine that runs as one shared
+	 * instance has to say how it gives out a second one.
+	 */
+	openAnother?: (name: string) => Promise<Driver>;
 };
 
 export type Fixture = {

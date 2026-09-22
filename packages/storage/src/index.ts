@@ -24,3 +24,4 @@ export * from "./repositories/spaces.ts";
 export * from "./repositories/transactions.ts";
 export * from "./repositories/users.ts";
 export * from "./session.ts";
+export * from "./sync.ts";
