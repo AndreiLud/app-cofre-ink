@@ -1009,10 +1009,7 @@
 	"cards": {
 		"title": "Cards",
 		"explain": "The card is the plastic. The account is the money. A multiple card uses both: on credit it lands on the invoice, on debit it leaves the balance the same day.",
-		"create": "New card",
-		"createDescription": "The card goes into the space {{space}}.",
 		"edit": "Edit card",
-		"caption": "Cards of the space {{space}}, with name, kind and the accounts it uses",
 		"name": "Name",
 		"namePlaceholder": "Nubank",
 		"kind": "Kind",
@@ -1034,7 +1031,13 @@
 		"emptyBody": "Add the card you use every day. Then each purchase says which one it was, and the invoice closes on its own.",
 		"needsCreditAccount": "To add a credit card, first create an account of the credit card kind.",
 		"needsDebitAccount": "To add a debit or a benefit card, first create the account the money leaves.",
-		"onInvoice": "Cards on this invoice"
+		"onInvoice": "Cards on this invoice",
+		"addTo": "New card",
+		"addToDescription": "A card that uses the account {{name}}.",
+		"addAction": "Add a card",
+		"editDescription": "The name, the digits and the accounts can be corrected. The kind does not change: a card of another kind is another card.",
+		"kindIs": "Kind: {{kind}}.",
+		"fromAccounts": "Cards are added from the account they use. Open the menu of an account up there and choose Add a card."
 	},
 	"transaction": {
 		"card": "Card",

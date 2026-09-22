@@ -24,14 +24,23 @@ test.describe("accounts", () => {
 		await openCofre(page);
 
 		await go(page, "Contas");
-		await page.getByRole("button", { name: "Novo cartão" }).click();
 
-		// The demonstration space has a current account and a credit card account, so a
-		// multiple card can reach both, which is the case worth proving.
-		await page.getByLabel("Tipo").selectOption("multiple");
-		await page.getByLabel("Nome").fill("Cartão novo");
-		await page.getByLabel("Quatro últimos dígitos").fill("7788");
-		await page.getByRole("button", { name: "Salvar" }).click();
+		// A card is added from the account it reaches, and from nowhere else.
+		await page
+			.getByRole("row")
+			.filter({ hasText: "Cartão de crédito" })
+			.getByRole("button", { name: "Ações da conta" })
+			.click();
+		await page.getByRole("menuitem", { name: "Adicionar cartão" }).click();
+
+		// Opened from the invoice, so only the other side is asked about, and the kinds
+		// offered are the two a credit account can be part of.
+		const adding = page.getByRole("dialog");
+		await adding.getByLabel("Tipo").selectOption("multiple");
+		await expect(adding.getByLabel("Saldo que ele gasta")).toBeVisible();
+		await adding.getByLabel("Nome").fill("Cartão novo");
+		await adding.getByLabel("Quatro últimos dígitos").fill("7788");
+		await adding.getByRole("button", { name: "Salvar" }).click();
 
 		await expect(page.getByText("Final 7788")).toBeVisible();
 

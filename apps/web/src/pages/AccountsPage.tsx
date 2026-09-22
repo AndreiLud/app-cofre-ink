@@ -25,6 +25,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { CardDialog, type CardTarget } from "../components/CardDialog.tsx";
 import { CardsSection } from "../components/CardsSection.tsx";
 import { Value } from "../components/Value.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -45,6 +46,7 @@ export function AccountsPage() {
 	const [closingDay, setClosingDay] = useState("3");
 	const [dueDay, setDueDay] = useState("10");
 	const [benefit, setBenefit] = useState<BenefitKind>("meal");
+	const [cardTarget, setCardTarget] = useState<CardTarget>(null);
 	const [problem, setProblem] = useState<string | null>(null);
 
 	const spaceId = currentSpace?.id ?? "";
@@ -212,6 +214,13 @@ export function AccountsPage() {
 												</Button>
 											}
 										>
+											{/* The one place a card is added, because a card is a way to
+											    reach this account and nothing else. */}
+											{account.archivedAt ? null : (
+												<MenuItem onSelect={() => setCardTarget({ mode: "add", account })}>
+													{t("cards.addAction")}
+												</MenuItem>
+											)}
 											{account.archivedAt ? (
 												<MenuItem onSelect={() => unarchive.mutate(account.id)}>
 													{t("accounts.unarchive")}
@@ -233,7 +242,18 @@ export function AccountsPage() {
 				</Panel>
 			) : null}
 
-			<CardsSection spaceId={spaceId} spaceName={currentSpace.name} accounts={rows} />
+			<CardsSection
+				spaceId={spaceId}
+				accounts={rows}
+				onEdit={(card) => setCardTarget({ mode: "edit", card })}
+			/>
+
+			<CardDialog
+				target={cardTarget}
+				spaceId={spaceId}
+				accounts={rows}
+				onClose={() => setCardTarget(null)}
+			/>
 
 			<Dialog
 				open={isOpen}

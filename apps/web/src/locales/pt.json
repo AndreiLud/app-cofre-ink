@@ -1009,10 +1009,7 @@
 	"cards": {
 		"title": "Cartões",
 		"explain": "O cartão é o plástico. A conta é o dinheiro. Um cartão múltiplo usa as duas: no crédito cai na fatura, no débito sai do saldo na hora.",
-		"create": "Novo cartão",
-		"createDescription": "O cartão vai para o espaço {{space}}.",
 		"edit": "Editar cartão",
-		"caption": "Cartões do espaço {{space}}, com nome, tipo e as contas que ele usa",
 		"name": "Nome",
 		"namePlaceholder": "Nubank",
 		"kind": "Tipo",
@@ -1034,7 +1031,13 @@
 		"emptyBody": "Cadastre o cartão que você usa no dia a dia. Depois cada compra diz com qual foi, e a fatura fecha sozinha.",
 		"needsCreditAccount": "Para cadastrar um cartão de crédito, crie antes uma conta do tipo cartão de crédito.",
 		"needsDebitAccount": "Para cadastrar um cartão de débito ou de benefício, crie antes a conta de onde o dinheiro sai.",
-		"onInvoice": "Cartões desta fatura"
+		"onInvoice": "Cartões desta fatura",
+		"addTo": "Novo cartão",
+		"addToDescription": "Um cartão que usa a conta {{name}}.",
+		"addAction": "Adicionar cartão",
+		"editDescription": "Dá para corrigir o nome, os dígitos e as contas. O tipo não muda: um cartão de outro tipo é outro cartão.",
+		"kindIs": "Tipo: {{kind}}.",
+		"fromAccounts": "Os cartões são cadastrados a partir da conta que eles usam. Abra o menu de uma conta ali em cima e escolha Adicionar cartão."
 	},
 	"transaction": {
 		"card": "Cartão",
