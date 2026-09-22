@@ -100,6 +100,64 @@ export function createSpacesRepository(context: RepositoryContext) {
 			return readable(id);
 		},
 
+		/**
+		 * Takes a space that arrived from somewhere else and has nobody in it.
+		 *
+		 * This is how a space born on a device reaches a server: the device pushes what
+		 * it wrote, the space row arrives with it, and then whoever pushed it becomes its
+		 * owner. A space that already has a member is never adopted, because that would
+		 * be a way to walk into somebody else's money by guessing an identifier.
+		 */
+		async adopt(spaceId: string): Promise<Space> {
+			const exists = await context.driver.all(
+				`SELECT "id", "kind" FROM "spaces" WHERE "id" = ? AND "deleted_at" IS NULL`,
+				[spaceId],
+			);
+			const space = exists[0];
+			if (!space) throw new NotFoundError("space", spaceId);
+
+			const members = await context.driver.all(
+				`SELECT "user_id" FROM "space_members"
+				 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "state" <> 'removed'`,
+				[spaceId],
+			);
+			if (members.length > 0) {
+				// Already somebody's. If it is theirs they are a member and never get here.
+				throw new NotFoundError("space", spaceId);
+			}
+
+			// A personal space is one per person, and a second one would break that rule
+			// quietly. It arrives as a space of its own instead.
+			const mine = await context.driver.all(
+				`SELECT s."id" FROM "spaces" s
+				 JOIN "space_members" m ON m."space_id" = s."id"
+				 WHERE s."kind" = 'personal' AND m."user_id" = ? AND s."deleted_at" IS NULL
+				   AND m."deleted_at" IS NULL`,
+				[context.actor().userId],
+			);
+			if (String(space.kind) === "personal" && mine.length > 0) {
+				throw new RuleError(
+					"onePersonalSpace",
+					"this person already has a personal space, so this one arrives as a shared space",
+				);
+			}
+
+			await insertRow(context.write(), {
+				table: spaceMembers,
+				spaceId,
+				values: {
+					user_id: context.actor().userId,
+					role: "owner",
+					state: "active",
+					invited_by: null,
+					accepted_at: context.now(),
+				},
+			});
+
+			await context.refreshActor();
+			return readable(spaceId);
+		},
+
 		/** Every space this person belongs to, personal first. */
 		async list(): Promise<Space[]> {
 			const ids = readableSpaceIds(context.actor());

@@ -344,6 +344,12 @@ export async function applyPeople(driver: Driver, people: readonly Person[]): Pr
 		const already = await driver.all(`SELECT "id" FROM "users" WHERE "id" = ?`, [person.id]);
 		if (already.length > 0) continue;
 
+		// An address already in use belongs to somebody, and a second row claiming it
+		// would fail the unique index and take the whole exchange down with it. The
+		// person is skipped instead: learning who somebody is never overwrites anybody.
+		const taken = await driver.all(`SELECT "id" FROM "users" WHERE "email" = ?`, [person.email]);
+		if (taken.length > 0) continue;
+
 		// The people table is not replicated and carries no sync columns: identity comes
 		// from a server, and this only writes down who somebody is.
 		await driver.run(

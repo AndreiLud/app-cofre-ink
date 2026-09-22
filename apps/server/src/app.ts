@@ -8,6 +8,7 @@
 import type { Session } from "@cofre/storage";
 import {
 	applyChanges,
+	applyPeople,
 	changesToPush,
 	latestStampOf,
 	NotFoundError,
@@ -16,6 +17,7 @@ import {
 	peopleInSpace,
 	previewInvitation,
 	RuleError,
+	rowOf,
 	upsertUserFromIdentity,
 } from "@cofre/storage";
 import { Hono } from "hono";
@@ -859,9 +861,12 @@ export function createApp({ config, database, auth }: AppDependencies) {
 	 * One round trip of replication: what this device wrote goes up, what it has not
 	 * seen comes down. Two calls would leave a window where a device is half synced.
 	 *
-	 * A device may only push the changes it made itself. The server is the hub, so
-	 * every device has a direct line to it and never needs to relay somebody else's
-	 * work, and without the rule a member could write records in another person's name.
+	 * A device may push what it wrote itself, as the account or as a device profile it
+	 * declares. A browser that keeps its data locally has a profile of its own, made on
+	 * that device and belonging to no account, and its records are written in that name.
+	 * What it may never do is write in the name of somebody who has an account here:
+	 * that is the rule that stops a member of a shared space from putting words in
+	 * another member's mouth.
 	 */
 	app.post("/api/spaces/:id/sync", async (context) => {
 		const spaceId = context.req.param("id");
@@ -872,14 +877,61 @@ export function createApp({ config, database, auth }: AppDependencies) {
 			.object({
 				since: z.string().min(1).nullable().optional(),
 				changes: z.array(changeInput).max(2000).optional(),
+				/** Who this device writes as, when that is not the account itself. */
+				profile: z
+					.object({
+						id: z.string().min(1),
+						email: z.string().trim().email().max(200),
+						name: z.string().trim().min(1).max(120),
+						image: z.string().trim().max(500).nullable().optional(),
+					})
+					.optional(),
 			})
 			.parse(await context.req.json());
 
-		// Belonging to the space is the price of entry. Somebody who does not is told the
-		// space does not exist, as everywhere else.
-		await session.spaces.get(spaceId);
+		// Who the caller may speak for. Themselves, always.
+		const speakingFor = new Set<string>([userId]);
 
-		const incoming = (input.changes ?? []).filter((change) => change.actorId === userId);
+		if (input.profile && input.profile.id !== userId) {
+			const account = await database.driver.all(`SELECT "id" FROM "auth_users" WHERE "id" = ?`, [
+				input.profile.id,
+			]);
+			if (account.length > 0) {
+				return context.json({ error: "profileBelongsToAnAccount" }, 403);
+			}
+
+			const moment = Date.now();
+			await applyPeople(database.driver, [
+				{
+					id: input.profile.id,
+					email: input.profile.email.toLowerCase(),
+					name: input.profile.name,
+					image: input.profile.image ?? null,
+					createdAt: moment,
+					updatedAt: moment,
+				},
+			]);
+			speakingFor.add(input.profile.id);
+		}
+
+		const here = await rowOf(database.driver, "spaces", spaceId);
+		const brings = (input.changes ?? []).some(
+			(change) =>
+				change.entity === "spaces" &&
+				change.entityId === spaceId &&
+				change.operation === "insert" &&
+				change.actorId !== null &&
+				speakingFor.has(change.actorId),
+		);
+
+		// A space this server already holds belongs to whoever is in it, so the caller
+		// has to be one of them. A space it has never seen may arrive with this push, and
+		// is taken below once the row exists.
+		if (here || !brings) await session.spaces.get(spaceId);
+
+		const incoming = (input.changes ?? []).filter(
+			(change) => change.actorId !== null && speakingFor.has(change.actorId),
+		);
 		const refused = (input.changes ?? []).length - incoming.length;
 
 		const written =
@@ -894,6 +946,12 @@ export function createApp({ config, database, auth }: AppDependencies) {
 						})),
 						{ spaceId },
 					);
+
+		// The space arrived with this push, so it has nobody in it yet.
+		if (!here) {
+			await session.spaces.adopt(spaceId);
+			await session.refresh();
+		}
 
 		const changes = await changesToPush(database.driver, spaceId, input.since ?? null);
 		const people = await peopleInSpace(database.driver, spaceId);

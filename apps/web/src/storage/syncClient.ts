@@ -65,11 +65,16 @@ export type SyncOutcome = SyncSummary & { refused: number; at: number };
  * One round trip for one space. The address is the person's own server, and the cookie
  * they signed in with is what says who they are, so a space they do not belong to
  * answers that it does not exist.
+ *
+ * The profile travels with the push because the records of this browser are written in
+ * the name of the profile made on this device, which the server has never heard of. It
+ * writes it down as somebody the records point at, never as an account.
  */
 export async function syncWithServer(
 	driver: Driver,
 	server: string,
 	spaceId: string,
+	profile?: { id: string; email: string; name: string; image?: string | null },
 ): Promise<SyncOutcome> {
 	let refused = 0;
 
@@ -81,7 +86,7 @@ export async function syncWithServer(
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
 					credentials: "include",
-					body: JSON.stringify({ since: input.since, changes: input.changes }),
+					body: JSON.stringify({ since: input.since, changes: input.changes, profile }),
 				});
 
 				const text = await response.text();

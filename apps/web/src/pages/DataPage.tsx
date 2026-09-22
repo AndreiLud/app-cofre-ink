@@ -17,7 +17,7 @@ import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { normaliseServer } from "../storage/mode.ts";
 import { createServerClient } from "../storage/remoteSession.ts";
-import { lastSyncAt, type SyncOutcome, syncWithServer } from "../storage/syncClient.ts";
+import { lastSyncAt, SyncError, type SyncOutcome, syncWithServer } from "../storage/syncClient.ts";
 
 function Section({
 	title,
@@ -60,7 +60,7 @@ function RestoreSummary({ result }: { result: RestoreResult }) {
 export function DataPage() {
 	const { t, i18n } = useTranslation();
 	const navigate = useNavigate();
-	const { session, driver, mode, server, currentSpace, spaces, reload } = useCofre();
+	const { session, driver, mode, server, user, currentSpace, spaces, reload } = useCofre();
 	const queries = useQueryClient();
 
 	const spaceId = currentSpace?.id ?? "";
@@ -180,7 +180,15 @@ export function DataPage() {
 	const sync = useMutation({
 		mutationFn: async () => {
 			if (!driver) throw new Error("no database");
-			return syncWithServer(driver, normaliseServer(address), spaceId);
+			// The records of this browser are written in the name of the profile made on
+			// this device, so the server is told who that is before it is asked to keep
+			// anything written by them.
+			return syncWithServer(
+				driver,
+				normaliseServer(address),
+				spaceId,
+				user ? { id: user.id, email: user.email, name: user.name, image: user.image } : undefined,
+			);
 		},
 		onSuccess: async (outcome) => {
 			setProblem(null);
@@ -188,7 +196,18 @@ export function DataPage() {
 			await reload();
 			void queries.invalidateQueries();
 		},
-		onError: failed,
+		onError: (error: unknown) => {
+			// A refusal from the other end has a reason, and the reason is worth saying.
+			if (error instanceof SyncError && error.status === 404) {
+				setProblem(t("data.syncNotYours"));
+				return;
+			}
+			if (error instanceof SyncError && error.status === 403) {
+				setProblem(t("data.syncProfileTaken"));
+				return;
+			}
+			failed(error);
+		},
 	});
 
 	return (
@@ -299,6 +318,9 @@ export function DataPage() {
 								{synced ? (
 									<p className="text-sm text-graphite">
 										{t("data.syncDone", { sent: synced.pushed, received: synced.pulled })}
+										{synced.refused > 0
+											? ` ${t("data.syncRefused", { count: synced.refused })}`
+											: ""}
 									</p>
 								) : null}
 							</div>

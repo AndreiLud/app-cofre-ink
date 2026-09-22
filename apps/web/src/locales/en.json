@@ -688,6 +688,10 @@
 		"connect": "Connect",
 		"syncNow": "Sync {{name}} now",
 		"syncDone": "Sent {{sent}}, received {{received}}.",
+		"syncRefused_one": "1 change was not accepted, because somebody else wrote it.",
+		"syncRefused_other": "{{count}} changes were not accepted, because somebody else wrote them.",
+		"syncNotYours": "The server did not let you into that space. Either it belongs to somebody else there, or you signed in with another account.",
+		"syncProfileTaken": "The profile of this browser carries the same identifier as an account on the server, so it cannot write in that name.",
 		"lastSync": "Last sync at {{when}}.",
 		"column": {
 			"currency": "Currency",

@@ -567,6 +567,155 @@ describe("the api", () => {
 			expect(answer.refused).toBe(1);
 		});
 
+		/**
+		 * A browser that keeps its data locally has a profile made on that device, which
+		 * the server has never heard of. These are the entries such a device pushes the
+		 * first time it meets a server, written by hand because the device is not here.
+		 */
+		function aSpaceFromADevice(spaceId: string, accountId: string, profileId: string) {
+			const moment = Date.now();
+			const base = {
+				created_at: moment,
+				updated_at: moment,
+				updated_by: profileId,
+				deleted_at: null,
+			};
+
+			return [
+				{
+					id: "77777777-7777-7777-8777-777777777777",
+					spaceId,
+					entity: "spaces",
+					entityId: spaceId,
+					operation: "insert" as const,
+					payload: {
+						id: spaceId,
+						kind: "shared",
+						name: "Casa do aparelho",
+						colour: "clay",
+						icon: "wallet",
+						base_currency: "BRL",
+						timezone: "America/Sao_Paulo",
+						created_by: profileId,
+						hlc: "000000000001",
+						...base,
+					},
+					hlc: "000000000001",
+					deviceId: "aparelho",
+					actorId: profileId,
+					createdAt: moment,
+				},
+				{
+					id: "88888888-8888-7888-8888-888888888888",
+					spaceId,
+					entity: "accounts",
+					entityId: accountId,
+					operation: "insert" as const,
+					payload: {
+						id: accountId,
+						space_id: spaceId,
+						kind: "cash",
+						name: "Carteira do aparelho",
+						currency: "BRL",
+						initial_balance: 25_000,
+						created_by: profileId,
+						hlc: "000000000002",
+						...base,
+					},
+					hlc: "000000000002",
+					deviceId: "aparelho",
+					actorId: profileId,
+					createdAt: moment,
+				},
+			];
+		}
+
+		it("takes in a space a device made under a profile of its own", async () => {
+			const ana = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+
+			const spaceId = "99999999-9999-7999-8999-999999999999";
+			const accountId = "aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa";
+			const profileId = "bbbbbbbb-bbbb-7bbb-8bbb-bbbbbbbbbbbb";
+
+			const answer = await ana.json<{ applied: number; refused: number }>(
+				`/api/spaces/${spaceId}/sync`,
+				{
+					method: "POST",
+					body: JSON.stringify({
+						since: null,
+						profile: { id: profileId, email: "ana.7k2@dispositivo.local", name: "Ana (aparelho)" },
+						changes: aSpaceFromADevice(spaceId, accountId, profileId),
+					}),
+				},
+			);
+
+			expect(answer.applied).toBe(2);
+			expect(answer.refused).toBe(0);
+
+			// Whoever pushed it owns it, and the rows came with it.
+			const spaces = await ana.json<Array<{ id: string; name: string }>>("/api/spaces");
+			expect(spaces.map((space) => space.name)).toEqual(["Casa do aparelho"]);
+
+			const accounts = await ana.json<Array<{ name: string; initialBalance: number }>>(
+				`/api/spaces/${spaceId}/accounts`,
+			);
+			expect(accounts).toEqual([
+				expect.objectContaining({ name: "Carteira do aparelho", initialBalance: 25_000 }),
+			]);
+		});
+
+		it("does not let a second person walk into a space that is now taken", async () => {
+			const ana = createClient(app);
+			const joao = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			await joao.signUp({ name: "Joao", email: "joao@exemplo.com" });
+
+			const spaceId = "99999999-9999-7999-8999-999999999999";
+			const accountId = "aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa";
+			const profileId = "bbbbbbbb-bbbb-7bbb-8bbb-bbbbbbbbbbbb";
+			const changes = aSpaceFromADevice(spaceId, accountId, profileId);
+
+			await ana.request(`/api/spaces/${spaceId}/sync`, {
+				method: "POST",
+				body: JSON.stringify({
+					since: null,
+					profile: { id: profileId, email: "ana.7k2@dispositivo.local", name: "Ana (aparelho)" },
+					changes,
+				}),
+			});
+
+			const response = await joao.request(`/api/spaces/${spaceId}/sync`, {
+				method: "POST",
+				body: JSON.stringify({
+					since: null,
+					profile: { id: profileId, email: "ana.7k2@dispositivo.local", name: "Ana (aparelho)" },
+					changes,
+				}),
+			});
+			expect(response.status).toBe(404);
+		});
+
+		it("never lets a device write in the name of an account", async () => {
+			const ana = createClient(app);
+			const joao = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			await joao.signUp({ name: "Joao", email: "joao@exemplo.com" });
+
+			const me = await ana.json<{ user: { id: string; email: string } }>("/api/me");
+
+			const response = await joao.request(`/api/spaces/99999999-9999-7999-8999-999999999999/sync`, {
+				method: "POST",
+				body: JSON.stringify({
+					since: null,
+					// A profile that claims to be Ana.
+					profile: { id: me.user.id, email: me.user.email, name: "Ana" },
+					changes: [],
+				}),
+			});
+			expect(response.status).toBe(403);
+		});
+
 		it("tells somebody outside the space that it does not exist", async () => {
 			const ana = createClient(app);
 			const joao = createClient(app);

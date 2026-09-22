@@ -85,9 +85,29 @@ is the browser side: an address, a sign in, and a button that says which space i
 about to send. Nothing syncs on a timer and nothing syncs on load, because the whole
 point of browser mode is that the data is not going anywhere unless somebody says so.
 
-The server accepts only the changes the caller wrote themselves. A device has a direct
-line to the hub and never has to relay somebody else's work, and without the rule a
-member could write records in another person's name.
+### A device writes under a profile, and may speak for it
+
+A browser that keeps its data locally has no account. It has a profile made on that
+device, and every record it writes is in that name. The server has never heard of that
+identifier, so the first rule of the protocol, that a device may push only what it
+wrote itself, would have refused every push a browser ever made.
+
+The rule is now this. A device may push what it wrote, as the account it signed in with
+or as a profile it declares, and the server writes that profile down as somebody the
+records point at. What it may never do is declare a profile that belongs to an account:
+that is the line that stops a member of a shared space from putting words in another
+member's mouth, and it is checked against the authentication tables rather than guessed.
+
+### A space that arrives from a device is taken by whoever pushed it
+
+Membership does not replicate, so a space born in a browser reaches a server as rows
+with nobody in them. The push that carries the creation of the space is allowed to land
+even though the caller is not a member yet, and then the caller adopts it and becomes
+its owner.
+
+A space that already exists on the server is a different matter: the caller has to be a
+member of it, and a space that has anybody at all in it can never be adopted. Without
+that, guessing an identifier would be a way to walk into somebody else's money.
 
 ### A report on paper is the same report
 

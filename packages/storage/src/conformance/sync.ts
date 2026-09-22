@@ -7,6 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 import type { Driver } from "../driver.ts";
+import { NotFoundError } from "../errors.ts";
 import { migrate } from "../migrate.ts";
 import type { User } from "../models.ts";
 import { openSession, type Session } from "../session.ts";
@@ -138,6 +139,37 @@ export function runSyncConformance(adapter: AdapterUnderTest): void {
 				expect(refused.rejected[0]?.reason).toBe("entityIsNotReplicated");
 			} finally {
 				await one.close();
+			}
+		});
+
+		it("lets a space that arrived from a device be taken by whoever pushed it", async () => {
+			const one = await prepare(adapter);
+			const two = await otherDevice(one.ana, "deviceTwo");
+			try {
+				// Born on the device, where nobody signed in to anything.
+				const space = await two.session.spaces.create({ name: "Casa" });
+				await two.session.accounts.create({
+					spaceId: space.id,
+					kind: "cash",
+					name: "Dinheiro",
+				});
+
+				// What arrives at the other end is the rows, never the membership.
+				await carry(two.driver, one.driver, space.id);
+				expect(await one.asAna.spaces.list()).toEqual([]);
+
+				const taken = await one.asAna.spaces.adopt(space.id);
+				expect(taken.name).toBe("Casa");
+				expect((await one.asAna.spaces.list()).map((found) => found.id)).toEqual([space.id]);
+				expect((await one.asAna.accounts.list(space.id)).map((found) => found.name)).toEqual([
+					"Dinheiro",
+				]);
+
+				// And once it belongs to somebody, nobody else can take it.
+				await expect(one.asJoao.spaces.adopt(space.id)).rejects.toBeInstanceOf(NotFoundError);
+			} finally {
+				await one.close();
+				await two.close();
 			}
 		});
 
