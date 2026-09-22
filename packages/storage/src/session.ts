@@ -5,11 +5,13 @@ import { createHybridClock, type HybridClock } from "@cofre/core";
 import { type Actor, can, type Membership, type Permission } from "./actor.ts";
 import type { Driver } from "./driver.ts";
 import { createAccountsRepository } from "./repositories/accounts.ts";
+import { createBackupRepository } from "./repositories/backup.ts";
 import { createBudgetsRepository } from "./repositories/budgets.ts";
 import { createCategoriesRepository } from "./repositories/categories.ts";
 import { createChangesRepository } from "./repositories/changes.ts";
 import type { RepositoryContext } from "./repositories/context.ts";
 import { createGoalsRepository } from "./repositories/goals.ts";
+import { createImportsRepository } from "./repositories/imports.ts";
 import { createInvitationsRepository } from "./repositories/invitations.ts";
 import { createMembersRepository } from "./repositories/members.ts";
 import { createRecurrencesRepository } from "./repositories/recurrences.ts";
@@ -48,6 +50,8 @@ export type Session = {
 	goals: ReturnType<typeof createGoalsRepository>;
 	sharing: ReturnType<typeof createSharingRepository>;
 	savedFilters: ReturnType<typeof createSavedFiltersRepository>;
+	imports: ReturnType<typeof createImportsRepository>;
+	backup: ReturnType<typeof createBackupRepository>;
 	changes: ReturnType<typeof createChangesRepository>;
 	users: ReturnType<typeof createUsersRepository>;
 };
@@ -121,6 +125,8 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 		goals: createGoalsRepository(context),
 		sharing: createSharingRepository(context),
 		savedFilters: createSavedFiltersRepository(context),
+		imports: createImportsRepository(context),
+		backup: createBackupRepository(context),
 		changes: createChangesRepository(context),
 		users: createUsersRepository(context),
 	};

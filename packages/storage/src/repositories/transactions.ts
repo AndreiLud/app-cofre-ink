@@ -37,8 +37,8 @@ import type { RepositoryContext } from "./context.ts";
 const SELECT = `SELECT "id", "space_id", "kind", "status", "amount", "currency", "fx_rate",
 	"amount_in_base", "happened_on", "description", "account_id", "counter_account_id", "notes",
 	"reconciled_at", "installment_group", "installment_number", "installment_count",
-	"invoice_month", "category_id", "priority", "recurrence_id", "created_by", "created_at",
-	"updated_at"
+	"invoice_month", "category_id", "priority", "recurrence_id", "paid_by", "external_id",
+	"created_by", "created_at", "updated_at"
 	FROM "transactions"`;
 
 export type CreateTransactionInput = {
@@ -61,6 +61,8 @@ export type CreateTransactionInput = {
 	categoryId?: string | null;
 	/** Only when this one record disagrees with the priority of its category. */
 	priority?: SpendingPriority | null;
+	/** What the bank called this entry, set by an import and by nothing else. */
+	externalId?: string | null;
 };
 
 export type UpdateTransactionInput = {
@@ -402,6 +404,9 @@ export function createTransactionsRepository(context: RepositoryContext) {
 							invoice_month: part.invoiceMonth ?? null,
 							category_id: categoryId,
 							priority: input.priority ?? sorted.priority,
+							// One entry from the bank becomes one record, so only a purchase
+							// that was not split carries the identifier it came with.
+							external_id: count > 1 ? null : (input.externalId ?? null),
 							created_by: context.actor().userId,
 						},
 					});

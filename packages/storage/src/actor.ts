@@ -66,6 +66,10 @@ export const PERMISSIONS = {
 	"filter.read": ["owner", "admin", "editor", "viewer", "logger"],
 	"filter.write": ["owner", "admin", "editor", "viewer", "logger"],
 	"activity.read": ["owner", "admin", "editor", "viewer"],
+	// A backup is the whole space in one file. Anybody who can read the space can read
+	// it a screen at a time, and taking a copy of all of it away is a decision of the
+	// people who run the space.
+	"backup.export": ["owner", "admin"],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof PERMISSIONS;

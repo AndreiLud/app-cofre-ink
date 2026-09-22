@@ -21,6 +21,7 @@ import { createUser } from "../repositories/users.ts";
 import type { Session } from "../session.ts";
 import { runCategoryConformance } from "./categories.ts";
 import { runPlanConformance } from "./plan.ts";
+import { runPortabilityConformance } from "./portability.ts";
 import { runReportConformance } from "./reports.ts";
 import { runRuleConformance } from "./rules.ts";
 import { runSavedFilterConformance } from "./savedFilters.ts";
@@ -177,6 +178,10 @@ const PROBES: Probe[] = [
 	{
 		permission: "activity.read",
 		run: (session, where) => session.changes.list({ spaceId: where.spaceId }),
+	},
+	{
+		permission: "backup.export",
+		run: (session, where) => session.backup.exportSpace(where.spaceId),
 	},
 ];
 
@@ -575,6 +580,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 		runPlanConformance(adapter);
 		runReportConformance(adapter);
 		runSavedFilterConformance(adapter);
+		runPortabilityConformance(adapter);
 		runSyncConformance(adapter);
 
 		describe("the permission matrix", () => {

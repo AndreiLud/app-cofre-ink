@@ -20,6 +20,7 @@ import { SCHEMA } from "./schema/tables.ts";
 import {
 	CARD_COLUMNS,
 	TRANSACTION_CATEGORY_COLUMNS,
+	TRANSACTION_IMPORT_COLUMNS,
 	TRANSACTION_PAYER_COLUMNS,
 	TRANSACTION_RECURRENCE_COLUMNS,
 	TRANSACTION_TABLES,
@@ -92,6 +93,15 @@ export const MIGRATIONS: readonly Migration[] = [
 				(column) => !context.hasColumn("space_members", column.name),
 			).map((column) => addColumnSql("space_members", column, context.dialect)),
 			...createSchemaSql([...PLAN_TABLES], context.dialect),
+		],
+	},
+	{
+		id: "0008_imported_records",
+		statements: (context) => [
+			...TRANSACTION_IMPORT_COLUMNS.filter(
+				(column) => !context.hasColumn("transactions", column.name),
+			).map((column) => addColumnSql("transactions", column, context.dialect)),
+			...createIndexSql(transactions, context.dialect),
 		],
 	},
 ];

@@ -57,6 +57,14 @@ export const TRANSACTION_PAYER_COLUMNS = [
 	},
 ];
 
+/**
+ * Added by migration 0008. The identifier the bank itself gave the entry, kept so that
+ * the same statement read twice does not become two records. It is not unique in the
+ * database: two banks can hand out the same string, and a person who really wants the
+ * same entry twice is allowed to have it.
+ */
+export const TRANSACTION_IMPORT_COLUMNS = [{ name: "external_id", type: "text" as const }];
+
 export const transactions = defineTable({
 	name: "transactions",
 	scope: "space",
@@ -102,6 +110,7 @@ export const transactions = defineTable({
 		...TRANSACTION_CATEGORY_COLUMNS,
 		...TRANSACTION_RECURRENCE_COLUMNS,
 		...TRANSACTION_PAYER_COLUMNS,
+		...TRANSACTION_IMPORT_COLUMNS,
 		{
 			name: "created_by",
 			type: "text",
@@ -117,6 +126,7 @@ export const transactions = defineTable({
 		{ name: "transactions_by_invoice", columns: ["account_id", "invoice_month"] },
 		{ name: "transactions_by_group", columns: ["installment_group"] },
 		{ name: "transactions_by_author", columns: ["space_id", "created_by"] },
+		{ name: "transactions_by_external", columns: ["space_id", "external_id"] },
 	],
 });
 

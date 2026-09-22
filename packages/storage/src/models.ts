@@ -110,6 +110,8 @@ export type Transaction = {
 	recurrenceId: string | null;
 	/** Who put the money in, which in a shared space is not always who wrote it down. */
 	paidBy: string | null;
+	/** What the bank called this entry, when it came from a file that said. */
+	externalId: string | null;
 	createdBy: string;
 	createdAt: number;
 	updatedAt: number;
@@ -370,6 +372,7 @@ export function toTransaction(row: Row): Transaction {
 		priority: asOptionalText(row.priority) as SpendingPriority | null,
 		recurrenceId: asOptionalText(row.recurrence_id),
 		paidBy: asOptionalText(row.paid_by),
+		externalId: asOptionalText(row.external_id),
 		createdBy: asText(row.created_by),
 		createdAt: asNumber(row.created_at),
 		updatedAt: asNumber(row.updated_at),
