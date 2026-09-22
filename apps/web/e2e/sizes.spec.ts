@@ -6,7 +6,7 @@
 // and it is the same check on every screen: nothing is wider than the window.
 
 import { expect, type Page, test } from "@playwright/test";
-import { openCofre } from "./support.ts";
+import { inside, nav, openCofre } from "./support.ts";
 
 const SIZES = [
 	{ name: "phone", width: 360, height: 720 },
@@ -74,14 +74,19 @@ test("a long form on a short window scrolls inside its dialog", async ({ page })
 	expect(await widerThanTheWindow(page)).toBeLessThanOrEqual(1);
 });
 
-test("the sections are reachable when they do not fit in a row", async ({ page }) => {
+test("the sections are reachable on a telephone without opening anything", async ({ page }) => {
 	await page.setViewportSize({ width: 360, height: 720 });
 	await openCofre(page);
 
-	// On a narrow screen the sections live in a menu instead of a row that scrolls.
-	await page.getByRole("navigation", { name: "Seções do aplicativo" }).getByRole("button").click();
-	await page.getByRole("menuitem", { name: "Relatórios" }).click();
+	// On a narrow screen the five sections are a bar along the bottom. All five are on
+	// screen at once, so getting to one is a tap, not a tap to open and a tap to choose.
+	await nav(page, "Relatórios").click();
 
 	await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 	await expect(page).toHaveURL(/relatorios/);
+
+	// And the second level is with the content, so it takes one more tap and no menu.
+	await nav(page, "Planejamento").click();
+	await inside(page, "Investimentos").click();
+	await expect(page).toHaveURL(/investimentos/);
 });

@@ -98,7 +98,8 @@
 		"data": "Data",
 		"allRecords": "List",
 		"planning": "Planning",
-		"settings": "Settings"
+		"settings": "Settings",
+		"insideLabel": "Screens in this section"
 	},
 	"projection": {
 		"headlineLasts": "In {{month}} you would have {{amount}}",

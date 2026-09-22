@@ -2,19 +2,9 @@
 // everything else. The space is named in the header at all times, which is the whole
 // defence against writing a personal expense into the family space.
 
-import {
-	Button,
-	Callout,
-	Icon,
-	Menu,
-	MenuItem,
-	MenuLabel,
-	Skeleton,
-	type SpaceColour,
-	SpaceRule,
-} from "@cofre/ui";
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Fragment, type ReactNode } from "react";
+import { Button, Callout, Icon, Skeleton, type SpaceColour, SpaceRule } from "@cofre/ui";
+import { Link, useRouterState } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { LanguageToggle, PrivacyToggle, ThemeToggle } from "../components/Controls.tsx";
 import { useTheme } from "../lib/theme.ts";
@@ -38,10 +28,11 @@ import { SpaceSwitcher } from "./SpaceSwitcher.tsx";
  */
 function sectionsOf(t: (key: string) => string) {
 	return [
-		{ to: ROUTES.dashboard, label: t("nav.dashboard"), children: [] },
+		{ to: ROUTES.dashboard, label: t("nav.dashboard"), icon: "home" as const, children: [] },
 		{
 			to: ROUTES.transactions,
 			label: t("nav.transactions"),
+			icon: "records" as const,
 			children: [
 				{ to: ROUTES.transactions, label: t("nav.allRecords") },
 				{ to: ROUTES.invoices, label: t("nav.invoices") },
@@ -51,16 +42,18 @@ function sectionsOf(t: (key: string) => string) {
 		{
 			to: ROUTES.budget,
 			label: t("nav.planning"),
+			icon: "target" as const,
 			children: [
 				{ to: ROUTES.budget, label: t("nav.budget") },
 				{ to: ROUTES.projection, label: t("nav.projection") },
 				{ to: ROUTES.investments, label: t("nav.investments") },
 			],
 		},
-		{ to: ROUTES.reports, label: t("nav.reports"), children: [] },
+		{ to: ROUTES.reports, label: t("nav.reports"), icon: "chart" as const, children: [] },
 		{
 			to: ROUTES.accounts,
 			label: t("nav.settings"),
+			icon: "settings" as const,
 			children: [
 				{ to: ROUTES.accounts, label: t("nav.accounts") },
 				{ to: ROUTES.categories, label: t("nav.categories") },
@@ -70,9 +63,9 @@ function sectionsOf(t: (key: string) => string) {
 	];
 }
 
-function Navigation() {
+/** The five sections and the one you are in, however wide the screen is. */
+function useWhereIAm() {
 	const { t } = useTranslation();
-	const navigate = useNavigate();
 	const path = useRouterState({ select: (state) => state.location.pathname });
 
 	const sections = sectionsOf(t);
@@ -81,17 +74,27 @@ function Navigation() {
 			(section) => section.to === path || section.children.some((child) => child.to === path),
 		) ?? sections[0];
 
-	const inside = here?.children ?? [];
+	return { sections, here, inside: here?.children ?? [], path };
+}
+
+/**
+ * The five sections, on a wide screen, across the top.
+ *
+ * The one you are in is filled rather than underlined, because an underline is the
+ * same weight as every other line on the page and disappears into it.
+ */
+function Sections() {
+	const { t } = useTranslation();
+	const { sections, here } = useWhereIAm();
 
 	return (
-		<nav aria-label={t("nav.label")}>
-			{/* The section you are in is filled, not underlined. An underline is the same
-			    weight as every other line on the page and disappears into it. */}
-			<div className="hidden flex-wrap gap-1 pb-2 md:flex">
+		<nav aria-label={t("nav.label")} className="hidden md:block">
+			<div className="flex flex-wrap gap-1 pb-2">
 				{sections.map((section) => (
 					<Link
 						key={section.label}
 						to={section.to}
+						aria-current={section === here ? "page" : undefined}
 						className={`whitespace-nowrap rounded-sm px-3 py-1.5 text-sm transition-colors ${
 							section === here
 								? "bg-accentSoft font-medium text-ink"
@@ -102,65 +105,86 @@ function Navigation() {
 					</Link>
 				))}
 			</div>
+		</nav>
+	);
+}
 
-			{/* The screens inside the section you are in. It only appears where there is
-			    more than one, so a section with a single screen adds no furniture. */}
-			{inside.length > 1 ? (
-				<div className="hidden flex-wrap items-center gap-1 pb-2 md:flex">
-					{inside.map((child) => (
-						<Link
-							key={child.to}
-							to={child.to}
-							className={`rounded-sm px-2.5 py-1 text-sm transition-colors ${
-								child.to === path
-									? "font-medium text-accent"
-									: "text-quiet hover:bg-sunken hover:text-ink"
-							}`}
+/**
+ * The screens inside the section you are in.
+ *
+ * Built like the switch the rest of the interface uses, a track with the chosen one
+ * raised out of it, so that two levels of navigation do not look like two lists of
+ * links with nothing to tell them apart. It sits with the content rather than in the
+ * header, which is where it belongs: it moves you inside a section, not between them.
+ */
+function Inside() {
+	const { t } = useTranslation();
+	const { inside, path } = useWhereIAm();
+	if (inside.length < 2) return null;
+
+	return (
+		<nav aria-label={t("nav.insideLabel")} className="print:hidden">
+			<div className="flex w-fit max-w-full flex-wrap gap-1 rounded-sm border border-line bg-sunken p-1">
+				{inside.map((child) => (
+					<Link
+						key={child.to}
+						to={child.to}
+						aria-current={child.to === path ? "page" : undefined}
+						className={`rounded-sm px-3 py-1.5 text-sm transition-colors ${
+							child.to === path
+								? "bg-panel font-medium text-ink shadow-sm"
+								: "text-quiet hover:text-ink"
+						}`}
+					>
+						{child.label}
+					</Link>
+				))}
+			</div>
+		</nav>
+	);
+}
+
+/**
+ * On a telephone, a bar along the bottom instead of a menu.
+ *
+ * The menu it replaces was a word with an arrow, in a header that already had another
+ * word with an arrow for switching space. Two of those, one above the other, and
+ * nothing said which one moved you between screens.
+ *
+ * A bar shows all five at once, needs no tap to reveal itself, sits where a thumb
+ * already is, and leaves the one arrow at the top meaning exactly one thing.
+ */
+function Bar() {
+	const { t } = useTranslation();
+	const { sections, here } = useWhereIAm();
+
+	return (
+		<nav
+			aria-label={t("nav.label")}
+			className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-panel md:hidden print:hidden"
+			style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+		>
+			<div className="flex">
+				{sections.map((section) => (
+					<Link
+						key={section.label}
+						to={section.to}
+						aria-current={section === here ? "page" : undefined}
+						className={`flex min-w-0 flex-1 flex-col items-center gap-1 pt-2 pb-2.5 text-[0.6875rem] leading-none transition-colors ${
+							section === here ? "font-medium text-ink" : "text-quiet"
+						}`}
+					>
+						{/* The one you are in is a filled shape and not only a colour, so it is
+						    still the obvious one in grayscale or to somebody who does not see
+						    the difference between these two. */}
+						<span
+							className={`rounded-full px-3 py-0.5 ${section === here ? "bg-accentSoft text-accent" : ""}`}
 						>
-							{child.label}
-						</Link>
-					))}
-				</div>
-			) : null}
-
-			{/* On a phone the two levels are one menu, with the grouping kept. */}
-			<div className="py-1 md:hidden">
-				<Menu
-					align="start"
-					trigger={
-						<Button size="small" variant="quiet" className="font-medium text-ink">
-							{inside.find((child) => child.to === path)?.label ?? here?.label}
-							<Icon name="chevronDown" className="ml-1 text-quiet" />
-						</Button>
-					}
-				>
-					{sections.map((section) =>
-						section.children.length > 0 ? (
-							<Fragment key={section.label}>
-								<MenuLabel>{section.label}</MenuLabel>
-								{section.children.map((child) => (
-									<MenuItem
-										key={child.to}
-										onSelect={() => void navigate({ to: child.to })}
-										selected={child.to === path}
-										detail={child.to === path ? <Icon name="check" /> : undefined}
-									>
-										{child.label}
-									</MenuItem>
-								))}
-							</Fragment>
-						) : (
-							<MenuItem
-								key={section.label}
-								onSelect={() => void navigate({ to: section.to })}
-								selected={section.to === path}
-								detail={section.to === path ? <Icon name="check" /> : undefined}
-							>
-								{section.label}
-							</MenuItem>
-						),
-					)}
-				</Menu>
+							<Icon name={section.icon} size="medium" />
+						</span>
+						<span className="max-w-full truncate px-0.5">{section.label}</span>
+					</Link>
+				))}
 			</div>
 		</nav>
 	);
@@ -274,28 +298,28 @@ export function AppShell({ children }: { children: ReactNode }) {
 					</div>
 				</div>
 				<div className="mx-auto max-w-5xl px-4">
-					<Navigation />
+					<Sections />
 				</div>
 				<SpaceRule colour={colour} />
 			</header>
 
+			{/* Room for the bar at the bottom, which floats over the page on a telephone
+			    and does not exist above it. */}
 			<main
 				id="conteudo"
 				tabIndex={-1}
-				className="mx-auto max-w-5xl px-4 py-8 print:max-w-none print:px-0 print:py-0"
+				className="mx-auto max-w-5xl space-y-5 px-4 pt-6 pb-24 md:pb-10 print:max-w-none print:px-0 print:py-0"
 			>
 				{cofre.persistent ? null : (
-					<Callout
-						tone="attention"
-						title={t("shell.notPersistentTitle")}
-						className="mb-6 print:hidden"
-					>
+					<Callout tone="attention" title={t("shell.notPersistentTitle")} className="print:hidden">
 						{t("shell.notPersistentBody")}
 					</Callout>
 				)}
+				<Inside />
 				{children}
 			</main>
 
+			<Bar />
 			<CommandPalette state={palette} />
 		</div>
 	);

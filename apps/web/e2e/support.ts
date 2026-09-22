@@ -34,12 +34,20 @@ export async function openCofre(
 }
 
 /**
- * A link in the top navigation. Several screens also link to the same places in their
- * own words, so the tests say which one they mean.
+ * One of the five sections, in the row at the top on a wide screen or in the bar at the
+ * bottom on a telephone. Only one of the two is rendered at a time. Several screens also
+ * link to the same places in their own words, so the tests say which one they mean.
  */
 export function nav(page: Page, label: string) {
 	return page
 		.getByRole("navigation", { name: "Seções do aplicativo" })
+		.getByRole("link", { name: label, exact: true });
+}
+
+/** One of the screens inside the section you are in, on the line above the content. */
+export function inside(page: Page, label: string) {
+	return page
+		.getByRole("navigation", { name: "Telas desta seção" })
 		.getByRole("link", { name: label, exact: true });
 }
 
@@ -61,8 +69,12 @@ const SECTION_OF: Record<string, string> = {
 
 export async function go(page: Page, label: string): Promise<void> {
 	const section = SECTION_OF[label];
-	if (section) await nav(page, section).click();
-	await nav(page, label).click();
+	if (!section) {
+		await nav(page, label).click();
+		return;
+	}
+	await nav(page, section).click();
+	await inside(page, label).click();
 }
 
 /** The amount shown as the answer to "how much do I have". */

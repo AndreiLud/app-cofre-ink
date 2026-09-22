@@ -98,7 +98,8 @@
 		"data": "Dados",
 		"allRecords": "Lista",
 		"planning": "Planejamento",
-		"settings": "Ajustes"
+		"settings": "Ajustes",
+		"insideLabel": "Telas desta seção"
 	},
 	"projection": {
 		"headlineLasts": "Em {{month}} você teria {{amount}}",

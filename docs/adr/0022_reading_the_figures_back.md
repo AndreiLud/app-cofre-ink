@@ -80,6 +80,18 @@ reports and settings. The screens inside the section you are in are on a second 
 under it. The command palette still reaches every screen by name, so nothing became
 harder to find for somebody who already knows what they want.
 
+From 768 pixels the five are a row across the top. Below that they are a bar along the
+bottom, all five on screen, icon over word. The first attempt put them in a menu there,
+which failed for a reason worth writing down: the header already had a menu, the one that
+switches space, and the two were a word and an arrow sitting one above the other with
+nothing saying which one moved between screens. A bar needs no tap to reveal itself, sits
+where a thumb already is, and leaves the one arrow at the top meaning exactly one thing.
+
+The second level is drawn as the switch the rest of the interface uses, a track with the
+chosen one raised out of it, and it sits with the content rather than in the header. Two
+rows of plain links, one under the other, said nothing about which was which. The shape
+says it: the five change the subject, the track moves inside the one you are on.
+
 The findings go on the overview, four at a time, beside the notices about today rather
 than on a screen of their own. A person who opens Cofre to see their balance is exactly
 the person who should be told that a subscription went up.
