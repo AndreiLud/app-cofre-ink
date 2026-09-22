@@ -139,6 +139,7 @@ export function TransactionsPage() {
 	const invalidate = () => {
 		void queries.invalidateQueries({ queryKey: ["transactions"] });
 		void queries.invalidateQueries({ queryKey: ["balances"] });
+		void queries.invalidateQueries({ queryKey: ["advice"] });
 	};
 
 	/** A change over a selection either goes through or says why, and then clears it. */

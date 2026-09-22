@@ -60,6 +60,7 @@ export function AccountsPage() {
 		// An opening balance is part of what an account is worth, so the balances the
 		// overview is showing are no longer true.
 		void queries.invalidateQueries({ queryKey: ["balances"] });
+		void queries.invalidateQueries({ queryKey: ["advice"] });
 	};
 
 	const create = useMutation({

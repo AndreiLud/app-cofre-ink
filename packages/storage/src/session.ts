@@ -5,6 +5,7 @@ import { createHybridClock, type HybridClock } from "@cofre/core";
 import { type Actor, can, type Membership, type Permission } from "./actor.ts";
 import type { Driver } from "./driver.ts";
 import { createAccountsRepository } from "./repositories/accounts.ts";
+import { createAdviceRepository } from "./repositories/advice.ts";
 import { createBackupRepository } from "./repositories/backup.ts";
 import { createBudgetsRepository } from "./repositories/budgets.ts";
 import { createCategoriesRepository } from "./repositories/categories.ts";
@@ -59,6 +60,7 @@ export type Session = {
 	projections: ReturnType<typeof createProjectionsRepository>;
 	scenarios: ReturnType<typeof createScenariosRepository>;
 	indices: ReturnType<typeof createIndicesRepository>;
+	advice: ReturnType<typeof createAdviceRepository>;
 	backup: ReturnType<typeof createBackupRepository>;
 	changes: ReturnType<typeof createChangesRepository>;
 	users: ReturnType<typeof createUsersRepository>;
@@ -114,6 +116,13 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 		},
 	};
 
+	// The four that the findings read through. They are built first so that one
+	// repository can be handed another instead of reaching for a global.
+	const accounts = createAccountsRepository(context);
+	const transactions = createTransactionsRepository(context);
+	const budgets = createBudgetsRepository(context);
+	const goals = createGoalsRepository(context);
+
 	return {
 		get actor() {
 			return state.actor;
@@ -123,14 +132,14 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 		spaces: createSpacesRepository(context),
 		members: createMembersRepository(context),
 		invitations: createInvitationsRepository(context),
-		accounts: createAccountsRepository(context),
+		accounts,
 		categories: createCategoriesRepository(context),
-		transactions: createTransactionsRepository(context),
+		transactions,
 		rules: createRulesRepository(context),
 		recurrences: createRecurrencesRepository(context),
 		reports: createReportsRepository(context),
-		budgets: createBudgetsRepository(context),
-		goals: createGoalsRepository(context),
+		budgets,
+		goals,
 		sharing: createSharingRepository(context),
 		savedFilters: createSavedFiltersRepository(context),
 		imports: createImportsRepository(context),
@@ -138,6 +147,7 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 		projections: createProjectionsRepository(context),
 		scenarios: createScenariosRepository(context),
 		indices: createIndicesRepository(context),
+		advice: createAdviceRepository(context, { budgets, goals, accounts, transactions }),
 		backup: createBackupRepository(context),
 		changes: createChangesRepository(context),
 		users: createUsersRepository(context),

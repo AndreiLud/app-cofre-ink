@@ -294,7 +294,9 @@
 		"attention": "What needs attention",
 		"seeBudget": "See the budget",
 		"headlineEverywhere": "This is what you have, every space added together",
-		"across": "Show"
+		"across": "Show",
+		"seeEverything_one": "See 1 more",
+		"seeEverything_other": "See {{count}} more"
 	},
 	"notice": {
 		"budgetOver": "{{name}} went over its limit by {{over}}.",
@@ -933,5 +935,27 @@
 	},
 	"demo": {
 		"notice": "Made up data, for demonstration only."
+	},
+	"finding": {
+		"spentMoreThanEarned": "This month {{over}} more went out than came in. You earned {{income}} and spent {{expense}}.",
+		"categoryAboveUsual": "{{subject}} is {{difference}} above its usual month. Usually {{usual}}, this month {{thisMonth}}.",
+		"categoryBelowUsual": "{{subject}} came in {{difference}} under its usual month: {{thisMonth}} against the usual {{usual}}.",
+		"budgetPassed": "The limit on {{subject}} is past by {{over}}. It was {{limit}} and {{spent}} has gone.",
+		"budgetPace": "At this rate {{subject}} ends the month at {{atThisRate}}, {{over}} over the limit. There is {{left}} left.",
+		"subscriptionLoad_one": "One charge repeats every month and takes {{everyMonth}}, or {{everyYear}} a year.",
+		"subscriptionLoad_other": "{{count}} charges repeat every month and add up to {{everyMonth}}, or {{everyYear}} a year. Worth opening the list and seeing which ones you use.",
+		"subscriptionRose": "{{subject}} went from {{was}} to {{now}}. That is {{everyYear}} more a year.",
+		"chargedTwice_one": "{{subject}} shows up twice at {{amount}}, one day apart. Check that it was not charged twice.",
+		"chargedTwice_other": "{{subject}} shows up twice at {{amount}}, {{count}} days apart. Check that it was not charged twice.",
+		"thinReserve": "You have {{onHand}} and spend {{usualExpense}} a month: that covers {{covers}} months. Three months is {{missing}} away, or {{everyMonth}} a month for a year.",
+		"lowSavingRate": "{{left}} is left of the {{income}} that comes in, {{percent}} per cent. Ten per cent would be {{wanted}}, which is {{missing}} away.",
+		"invoiceOverBalance_one": "The {{subject}} invoice is {{amount}} and you have {{onHand}}. That is {{short}} short, and it is due tomorrow.",
+		"invoiceOverBalance_other": "The {{subject}} invoice is {{amount}} and you have {{onHand}}. That is {{short}} short, and it is due in {{count}} days.",
+		"duesOverBalance_one": "One bill falls due in the next fortnight, of {{total}}. You have {{onHand}}, which is {{short}} short.",
+		"duesOverBalance_other": "{{count}} bills fall due in the next fortnight and add up to {{total}}. You have {{onHand}}, which is {{short}} short.",
+		"goalStalled_one": "{{subject}} has had nothing put into it for a day. {{still}} to go, or {{everyMonth}} a month to arrive on time.",
+		"goalStalled_other": "{{subject}} has had nothing put into it for {{count}} days. {{still}} to go, or {{everyMonth}} a month to arrive on time.",
+		"idleCash": "You have {{spare}} beyond three months of cover. Worth keeping that apart from the money you spend.",
+		"betterThanUsual": "This month you spent {{saved}} less than usual: {{expense}} against the usual {{usual}}."
 	}
 }

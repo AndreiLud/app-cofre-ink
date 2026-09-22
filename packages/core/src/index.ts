@@ -1,3 +1,4 @@
+export * from "./advice/findings.ts";
 export * from "./alerts/notice.ts";
 export * from "./budget/progress.ts";
 export * from "./cards/installments.ts";

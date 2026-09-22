@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Findings } from "../components/Findings.tsx";
 import { Value } from "../components/Value.tsx";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -23,6 +24,9 @@ export function DashboardPage() {
 	// only exists when there is more than one to add.
 	const [across, setAcross] = useState<"space" | "everything">("space");
 	const consolidated = across === "everything" && spaces.length > 1;
+
+	// Four lines is what somebody reads. The rest is one click away and stays open.
+	const [all, setAll] = useState(false);
 
 	const accounts = useQuery({
 		queryKey: ["accounts", spaceId],
@@ -95,11 +99,20 @@ export function DashboardPage() {
 		queryFn: () => session?.categories.list(spaceId) ?? [],
 	});
 
+	// What the months behind have to say. It reads a fair amount, so it runs after the
+	// balance rather than beside it, and a space with no history simply says nothing.
+	const findings = useQuery({
+		queryKey: ["advice", spaceId, today],
+		enabled: Boolean(session && currentSpace) && balances.isSuccess,
+		queryFn: () => session?.advice.findings({ spaceId, today }) ?? [],
+	});
+
 	const settle = useMutation({
 		mutationFn: async (id: string) => session?.transactions.settle(id),
 		onSuccess: () => {
 			void queries.invalidateQueries({ queryKey: ["transactions"] });
 			void queries.invalidateQueries({ queryKey: ["balances"] });
+			void queries.invalidateQueries({ queryKey: ["advice"] });
 		},
 	});
 
@@ -152,6 +165,9 @@ export function DashboardPage() {
 			achievedAt: goal.achievedAt,
 		})),
 	});
+
+	const found = findings.data ?? [];
+	const shown = all ? found.length : 4;
 
 	const money = (value: unknown) =>
 		new Intl.NumberFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
@@ -208,18 +224,25 @@ export function DashboardPage() {
 				) : null}
 			</section>
 
-			{notices.length > 0 ? (
+			{notices.length > 0 || found.length > 0 ? (
 				<section className="space-y-3">
 					<SectionTitle
 						action={
-							<Link to={ROUTES.budget} className="text-sm text-graphite hover:text-ink">
-								{t("dashboard.seeBudget")}
-							</Link>
+							found.length > shown ? (
+								<button
+									type="button"
+									className="text-sm text-graphite hover:text-ink"
+									onClick={() => setAll(true)}
+								>
+									{t("dashboard.seeEverything", { count: found.length - shown })}
+								</button>
+							) : null
 						}
 					>
 						{t("dashboard.attention")}
 					</SectionTitle>
 
+					{/* Today first, because a bill due today is not a pattern, it is today. */}
 					<ul className="space-y-2">
 						{notices.slice(0, 5).map((notice) => (
 							<li
@@ -243,6 +266,8 @@ export function DashboardPage() {
 							</li>
 						))}
 					</ul>
+
+					<Findings findings={found} money={money} limit={shown} />
 				</section>
 			) : null}
 

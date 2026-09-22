@@ -49,6 +49,7 @@ export function CalendarPage() {
 			if (written > 0) {
 				void queries.invalidateQueries({ queryKey: ["transactions"] });
 				void queries.invalidateQueries({ queryKey: ["balances"] });
+				void queries.invalidateQueries({ queryKey: ["advice"] });
 			}
 		});
 	}, [session, spaceId, queries]);

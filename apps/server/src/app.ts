@@ -1005,6 +1005,17 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		);
 	});
 
+	/** What the figures of a space have to say, heaviest first. Reads and never writes. */
+	app.get("/api/spaces/:id/advice", async (context) => {
+		const query = z.object({ today: calendarDate }).parse(context.req.query());
+		return context.json(
+			await context.get("session").advice.findings({
+				spaceId: context.req.param("id"),
+				today: query.today,
+			}),
+		);
+	});
+
 	app.get("/api/spaces/:id/projection", async (context) => {
 		const query = z
 			.object({

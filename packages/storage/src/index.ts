@@ -9,6 +9,7 @@ export * from "./housekeeping.ts";
 export * from "./migrate.ts";
 export * from "./models.ts";
 export * from "./repositories/accounts.ts";
+export * from "./repositories/advice.ts";
 export * from "./repositories/backup.ts";
 export * from "./repositories/budgets.ts";
 export * from "./repositories/categories.ts";

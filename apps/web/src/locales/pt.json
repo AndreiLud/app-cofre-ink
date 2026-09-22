@@ -294,7 +294,9 @@
 		"attention": "O que precisa de atenção",
 		"seeBudget": "Ver orçamento",
 		"headlineEverywhere": "Você tem isto somando todos os espaços",
-		"across": "Mostrar"
+		"across": "Mostrar",
+		"seeEverything_one": "Ver mais 1",
+		"seeEverything_other": "Ver mais {{count}}"
 	},
 	"notice": {
 		"budgetOver": "{{name}} passou do limite em {{over}}.",
@@ -933,5 +935,27 @@
 	},
 	"demo": {
 		"notice": "Dados fictícios, só para demonstração."
+	},
+	"finding": {
+		"spentMoreThanEarned": "Este mês saiu {{over}} a mais do que entrou. Você recebeu {{income}} e gastou {{expense}}.",
+		"categoryAboveUsual": "{{subject}} está {{difference}} acima do de sempre. O normal é {{usual}} e este mês foi {{thisMonth}}.",
+		"categoryBelowUsual": "{{subject}} ficou {{difference}} abaixo do de sempre. Foram {{thisMonth}} contra os {{usual}} habituais.",
+		"budgetPassed": "O limite de {{subject}} passou {{over}}. Era {{limit}} e já saíram {{spent}}.",
+		"budgetPace": "No ritmo de agora, {{subject}} fecha o mês em {{atThisRate}}, {{over}} acima do limite. Ainda cabem {{left}}.",
+		"subscriptionLoad_one": "Uma cobrança se repete todo mês e come {{everyMonth}}, ou {{everyYear}} por ano.",
+		"subscriptionLoad_other": "{{count}} cobranças se repetem todo mês e somam {{everyMonth}}, ou {{everyYear}} por ano. Vale abrir a lista e ver se usa todas.",
+		"subscriptionRose": "{{subject}} subiu de {{was}} para {{now}}. São {{everyYear}} a mais por ano.",
+		"chargedTwice_one": "{{subject}} aparece duas vezes de {{amount}}, com um dia de diferença. Confira se não foi cobrado em dobro.",
+		"chargedTwice_other": "{{subject}} aparece duas vezes de {{amount}}, com {{count}} dias de diferença. Confira se não foi cobrado em dobro.",
+		"thinReserve": "Você tem {{onHand}} e gasta {{usualExpense}} por mês: dá para {{covers}} mês. Para chegar a três meses faltam {{missing}}, ou {{everyMonth}} por mês durante um ano.",
+		"lowSavingRate": "Sobram {{left}} dos {{income}} que entram, {{percent}} por cento. Guardar dez por cento seria {{wanted}}, faltam {{missing}}.",
+		"invoiceOverBalance_one": "A fatura do {{subject}} é {{amount}} e você tem {{onHand}}. Faltam {{short}} e ela vence amanhã.",
+		"invoiceOverBalance_other": "A fatura do {{subject}} é {{amount}} e você tem {{onHand}}. Faltam {{short}} e ela vence em {{count}} dias.",
+		"duesOverBalance_one": "Uma conta vence nos próximos quinze dias, de {{total}}. Você tem {{onHand}}, faltam {{short}}.",
+		"duesOverBalance_other": "{{count}} contas vencem nos próximos quinze dias e somam {{total}}. Você tem {{onHand}}, faltam {{short}}.",
+		"goalStalled_one": "{{subject}} não recebe nada há um dia. Faltam {{still}}, ou {{everyMonth}} por mês para chegar na data.",
+		"goalStalled_other": "{{subject}} não recebe nada há {{count}} dias. Faltam {{still}}, ou {{everyMonth}} por mês para chegar na data.",
+		"idleCash": "Você tem {{spare}} além dos três meses de reserva. Vale separar esse dinheiro do que você usa no dia a dia.",
+		"betterThanUsual": "Este mês você gastou {{saved}} a menos que o normal. Foram {{expense}} contra os {{usual}} de sempre."
 	}
 }

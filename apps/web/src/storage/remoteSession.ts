@@ -27,6 +27,7 @@ import type {
 	CreateTransactionInput,
 	DayTotal,
 	ExpenseSplit,
+	Finding,
 	Goal,
 	GoalProgress,
 	HoldingPrice,
@@ -478,6 +479,11 @@ export function createRemoteSession(
 			update: (id: string, input: UpdateSavedFilterInput) =>
 				send<SavedFilter>(`/api/filters/${id}`, "PATCH", input),
 			remove: (id: string) => send<void>(`/api/filters/${id}`, "DELETE"),
+		},
+
+		advice: {
+			findings: (input: { spaceId: string; today: string }) =>
+				get<Finding[]>(`/api/spaces/${input.spaceId}/advice?today=${input.today}`),
 		},
 
 		projections: {

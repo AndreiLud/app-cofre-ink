@@ -19,6 +19,7 @@ import { NotFoundError, PermissionError, RuleError } from "../errors.ts";
 import { migrate } from "../migrate.ts";
 import { createUser } from "../repositories/users.ts";
 import type { Session } from "../session.ts";
+import { runAdviceConformance } from "./advice.ts";
 import { runCategoryConformance } from "./categories.ts";
 import { runFutureConformance } from "./future.ts";
 import { runPlanConformance } from "./plan.ts";
@@ -598,6 +599,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 		runReportConformance(adapter);
 		runSavedFilterConformance(adapter);
 		runFutureConformance(adapter);
+		runAdviceConformance(adapter);
 		runPortabilityConformance(adapter);
 		runSyncConformance(adapter);
 

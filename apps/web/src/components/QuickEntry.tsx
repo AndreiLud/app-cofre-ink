@@ -53,6 +53,7 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 	const invalidate = () => {
 		void queries.invalidateQueries({ queryKey: ["transactions"] });
 		void queries.invalidateQueries({ queryKey: ["balances"] });
+		void queries.invalidateQueries({ queryKey: ["advice"] });
 	};
 
 	const write = useMutation({

@@ -68,6 +68,7 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 		void queries.invalidateQueries({ queryKey: ["recurrences"] });
 		void queries.invalidateQueries({ queryKey: ["transactions"] });
 		void queries.invalidateQueries({ queryKey: ["balances"] });
+		void queries.invalidateQueries({ queryKey: ["advice"] });
 	};
 
 	const complain = (error: unknown) => {

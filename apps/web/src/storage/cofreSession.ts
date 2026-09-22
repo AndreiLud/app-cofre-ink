@@ -26,6 +26,7 @@ import type {
 	CreateTransactionInput,
 	DayTotal,
 	ExpenseSplit,
+	Finding,
 	Goal,
 	GoalProgress,
 	HoldingPrice,
@@ -231,6 +232,10 @@ export type CofreSession = {
 		create: (input: CreateSavedFilterInput) => Promise<SavedFilter>;
 		update: (id: string, input: UpdateSavedFilterInput) => Promise<SavedFilter>;
 		remove: (id: string) => Promise<void>;
+	};
+	advice: {
+		/** Everything the figures of a space have to say, heaviest first. */
+		findings: (input: { spaceId: string; today: string }) => Promise<Finding[]>;
 	};
 	projections: {
 		monthsAhead: (input: {
