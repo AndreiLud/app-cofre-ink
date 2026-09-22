@@ -26,4 +26,6 @@ new one.
 | [0017](0017_where_a_copy_lives.md) | where a copy of a space can live, and what each place costs | accepted |
 | [0018](0018_making_the_history_smaller.md) | folding the change log up to a watermark, and packing what travels | accepted |
 | [0019](0019_the_months_ahead.md) | projections, scenarios, compound interest and what is put aside | accepted |
-| [0020](0020_an_application_in_a_window.md) | installed on a telephone, wrapped for a desktop, served from anywhere | accepted |
+| [0020](0020_an_application_in_a_window.md) | installed on a telephone, wrapped for a desktop, served from anywhere | partly superseded by 0021 |
+| [0021](0021_a_web_application_that_tidies_itself.md) | no shell, and housekeeping that nobody is asked about | accepted |
+| [0022](0022_reading_the_figures_back.md) | findings over a household's own records, and five ways in | accepted |

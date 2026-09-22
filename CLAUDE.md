@@ -1,7 +1,7 @@
 # Cofre
 
 Personal finance app that anyone can clone and run with their own database, in the
-browser, on their own server, in the cloud or as a desktop app. Shared spaces let a
+browser, on their own server or in a cloud. Shared spaces let a
 couple, a family or a group of friends keep some money life together and the rest
 private. Open source, no telemetry, data stays where the owner puts it.
 
@@ -61,7 +61,6 @@ settle up flow. The app works offline and syncs when it can reach a server.
 apps/
   web/        React, Vite, TanStack Router and Query, Tailwind, PWA
   server/     Hono, Zod, Better Auth, scheduled jobs
-  desktop/    Tauri 2 around the same web build, for a computer and for a telephone
 packages/
   core/       business rules, pure TypeScript, no framework
   db/         schema described once, generated for SQLite and PostgreSQL, migrations
@@ -94,14 +93,7 @@ scripts/
 | `pnpm check:writing` | writing rule over Markdown and translations |
 | `docker compose up -d` | the server and the interface in one container, built and run on 21 September 2026 |
 | `pnpm --filter @cofre/web icons` | redraws every icon, for the browser and for the shell |
-| `pnpm --filter @cofre/desktop app` | the shell in a window, with the interface reloading |
-| `pnpm --filter @cofre/desktop app:build` | the installer for this computer, never run here |
-| `pnpm --filter @cofre/desktop android` | the same build on a telephone, never run here |
 | `pnpm run configurar` | setup wizard that asks the mode and writes the config, still to be written |
-
-Anything under `apps/desktop` needs Rust and the platform toolchain, which the machine
-this was written on does not have. `docs/instalar.md` says what to install and says
-plainly what was never compiled.
 
 The server needs `.env`. Copy `.env.example` and fill `COFRE_SECRET`. On Node 22 it
 runs with `--experimental-sqlite`, which the scripts already pass. Node 24 needs
@@ -154,8 +146,8 @@ nothing.
 | 7. Statement and receipt recognition: the PDF reader, the recogniser, the review | done |
 | 7 pending. Hints per institution, once real statements are in hand | waiting on samples |
 | 8. Projections, scenarios, investments, simulators | done |
-| 9. Installed on a telephone, the shell, publishing anywhere, the guides | done |
-| 9 pending. Compiling the shell, once a machine with Rust is in hand | waiting on a toolchain |
+| 9. Offline, publishing anywhere, the guides | done |
+| 9 revised. The shell dropped, housekeeping made automatic, findings, five sections | done |
 | 10. Accessibility audit, copy review, performance, README | next |
 
 ## Architecture decision records
@@ -181,7 +173,9 @@ nothing.
 | [0017](docs/adr/0017_where_a_copy_lives.md) | where a copy of a space can live, and what it costs |
 | [0018](docs/adr/0018_making_the_history_smaller.md) | folding the change log, and packing what travels |
 | [0019](docs/adr/0019_the_months_ahead.md) | projections, scenarios, interest and what is put aside |
-| [0020](docs/adr/0020_an_application_in_a_window.md) | installed on a telephone, wrapped for a desktop |
+| [0020](docs/adr/0020_an_application_in_a_window.md) | offline, icons and a build that serves from anywhere |
+| [0021](docs/adr/0021_a_web_application_that_tidies_itself.md) | no shell, and housekeeping nobody is asked about |
+| [0022](docs/adr/0022_reading_the_figures_back.md) | findings over a household's own records, and five ways in |
 | [0015](docs/adr/0015_import_export_and_sync.md) | reading files in, taking everything out, and meeting a server |
 | [0016](docs/adr/0016_reading_a_document.md) | reading a card invoice and a receipt out of a PDF |
 | [0017](docs/adr/0017_where_a_copy_lives.md) | where a copy of a space can live, and what each place costs |
