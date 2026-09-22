@@ -12,6 +12,11 @@ export type TableProps = HTMLAttributes<HTMLTableElement> & {
  * The table carries its own horizontal scroll. Without it, a narrow window turns a
  * wide table into a page that scrolls sideways as a whole, which moves the header and
  * the navigation with it and feels like the screen is broken.
+ *
+ * The container is positioned, which looks like a detail and is not. A caption that is
+ * read only by a screen reader is placed absolutely, and an absolute box with no
+ * positioned ancestor escapes this scroll container and lands in the page itself, which
+ * is enough to make the whole page slide sideways by the width of one table.
  */
 export function Table({
 	caption,
@@ -21,7 +26,7 @@ export function Table({
 	...rest
 }: TableProps) {
 	return (
-		<div className="w-full overflow-x-auto">
+		<div className="relative w-full overflow-x-auto">
 			<table className={cn("w-full min-w-0 border-collapse text-sm", className)} {...rest}>
 				<caption
 					className={cn("text-left text-sm text-graphite", visibleCaption ? "pb-2" : "sr-only")}
@@ -81,7 +86,10 @@ export function TableHeader({
 		<th
 			scope="col"
 			className={cn(
-				"py-2 text-xs font-medium text-graphite",
+				// The gap between columns is what keeps two short headings from reading as
+				// one word. The last column keeps its edge, so a column of amounts still
+				// lines up with the right of the table.
+				"py-2 pr-4 text-xs font-medium text-graphite last:pr-0",
 				numeric ? "text-right" : "text-left",
 				className,
 			)}
@@ -100,7 +108,11 @@ export function TableCell({
 }: TdHTMLAttributes<HTMLTableCellElement> & CellProps) {
 	return (
 		<td
-			className={cn("py-2 align-baseline", numeric ? "text-right" : "text-left", className)}
+			className={cn(
+				"py-2 pr-4 align-baseline last:pr-0",
+				numeric ? "text-right" : "text-left",
+				className,
+			)}
 			{...rest}
 		>
 			{children}
