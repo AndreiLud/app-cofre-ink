@@ -13,6 +13,7 @@ import { createGoalsRepository } from "./repositories/goals.ts";
 import { createInvitationsRepository } from "./repositories/invitations.ts";
 import { createMembersRepository } from "./repositories/members.ts";
 import { createRecurrencesRepository } from "./repositories/recurrences.ts";
+import { createReportsRepository } from "./repositories/reports.ts";
 import { createRulesRepository } from "./repositories/rules.ts";
 import { createSavedFiltersRepository } from "./repositories/savedFilters.ts";
 import { createSharingRepository } from "./repositories/sharing.ts";
@@ -42,6 +43,7 @@ export type Session = {
 	transactions: ReturnType<typeof createTransactionsRepository>;
 	rules: ReturnType<typeof createRulesRepository>;
 	recurrences: ReturnType<typeof createRecurrencesRepository>;
+	reports: ReturnType<typeof createReportsRepository>;
 	budgets: ReturnType<typeof createBudgetsRepository>;
 	goals: ReturnType<typeof createGoalsRepository>;
 	sharing: ReturnType<typeof createSharingRepository>;
@@ -114,6 +116,7 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 		transactions: createTransactionsRepository(context),
 		rules: createRulesRepository(context),
 		recurrences: createRecurrencesRepository(context),
+		reports: createReportsRepository(context),
 		budgets: createBudgetsRepository(context),
 		goals: createGoalsRepository(context),
 		sharing: createSharingRepository(context),

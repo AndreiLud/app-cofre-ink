@@ -16,6 +16,7 @@ export * from "./repositories/goals.ts";
 export * from "./repositories/invitations.ts";
 export * from "./repositories/members.ts";
 export * from "./repositories/recurrences.ts";
+export * from "./repositories/reports.ts";
 export * from "./repositories/rules.ts";
 export * from "./repositories/savedFilters.ts";
 export * from "./repositories/sharing.ts";

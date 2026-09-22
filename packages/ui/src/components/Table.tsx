@@ -8,6 +8,11 @@ export type TableProps = HTMLAttributes<HTMLTableElement> & {
 	visibleCaption?: boolean;
 };
 
+/**
+ * The table carries its own horizontal scroll. Without it, a narrow window turns a
+ * wide table into a page that scrolls sideways as a whole, which moves the header and
+ * the navigation with it and feels like the screen is broken.
+ */
 export function Table({
 	caption,
 	visibleCaption = false,
@@ -16,14 +21,16 @@ export function Table({
 	...rest
 }: TableProps) {
 	return (
-		<table className={cn("w-full border-collapse text-sm", className)} {...rest}>
-			<caption
-				className={cn("text-left text-sm text-graphite", visibleCaption ? "pb-2" : "sr-only")}
-			>
-				{caption}
-			</caption>
-			{children}
-		</table>
+		<div className="w-full overflow-x-auto">
+			<table className={cn("w-full min-w-0 border-collapse text-sm", className)} {...rest}>
+				<caption
+					className={cn("text-left text-sm text-graphite", visibleCaption ? "pb-2" : "sr-only")}
+				>
+					{caption}
+				</caption>
+				{children}
+			</table>
+		</div>
 	);
 }
 

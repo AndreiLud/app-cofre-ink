@@ -13,6 +13,7 @@ import type {
 	BudgetWithProgress,
 	CategorizationRule,
 	Category,
+	CategoryTotal,
 	Change,
 	CreateBudgetInput,
 	CreateCategoryInput,
@@ -21,12 +22,17 @@ import type {
 	CreateRuleInput,
 	CreateSavedFilterInput,
 	CreateTransactionInput,
+	DayTotal,
 	ExpenseSplit,
 	Goal,
 	GoalProgress,
 	Invitation,
+	MonthTotal,
+	PeriodTotals,
 	PersonBalance,
+	PriorityTotal,
 	Recurrence,
+	ReportRange,
 	SavedFilter,
 	SavingsProgress,
 	SavingsRule,
@@ -117,6 +123,17 @@ async function call<T>(server: string, path: string, init: RequestInit = {}): Pr
 		});
 	}
 	return body as T;
+}
+
+/**
+ * A report is one route with the kind in it, because six routes that differ by a word
+ * would be six places to forget the same permission check.
+ */
+function reportPath(kind: string, range: ReportRange): string {
+	const query = new URLSearchParams({ kind, from: range.from, to: range.to });
+	if (range.spaceId) query.set("spaceId", range.spaceId);
+	if (range.includePlanned) query.set("includePlanned", "true");
+	return `/api/reports?${query.toString()}`;
 }
 
 export function createServerClient(server: string) {
@@ -347,6 +364,16 @@ export function createRemoteSession(
 						{ until: input.until },
 					)
 				).written,
+		},
+
+		reports: {
+			totals: (range: ReportRange) => get<PeriodTotals>(reportPath("totals", range)),
+			byCategory: (range: ReportRange) => get<CategoryTotal[]>(reportPath("byCategory", range)),
+			incomeByCategory: (range: ReportRange) =>
+				get<CategoryTotal[]>(reportPath("incomeByCategory", range)),
+			byPriority: (range: ReportRange) => get<PriorityTotal[]>(reportPath("byPriority", range)),
+			byMonth: (range: ReportRange) => get<MonthTotal[]>(reportPath("byMonth", range)),
+			byDay: (range: ReportRange) => get<DayTotal[]>(reportPath("byDay", range)),
 		},
 
 		budgets: {

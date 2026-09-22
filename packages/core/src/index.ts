@@ -7,6 +7,7 @@ export * from "./entry/quickEntry.ts";
 export * from "./ids/uuidV7.ts";
 export * from "./money/index.ts";
 export * from "./recurrences/schedule.ts";
+export * from "./reports/flow.ts";
 export * from "./rules/match.ts";
 export * from "./sharing/split.ts";
 export * from "./sync/hlc.ts";

@@ -2,8 +2,18 @@
 // everything else. The space is named in the header at all times, which is the whole
 // defence against writing a personal expense into the family space.
 
-import { Button, Callout, Icon, Skeleton, type SpaceColour, SpaceRule } from "@cofre/ui";
-import { Link, useRouterState } from "@tanstack/react-router";
+import {
+	Button,
+	Callout,
+	Icon,
+	Menu,
+	MenuItem,
+	MenuLabel,
+	Skeleton,
+	type SpaceColour,
+	SpaceRule,
+} from "@cofre/ui";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { LanguageToggle, PrivacyToggle, ThemeToggle } from "../components/Controls.tsx";
@@ -16,35 +26,70 @@ import { useCofre } from "../storage/CofreProvider.tsx";
 import { CommandPalette, useCommandPalette } from "./CommandPalette.tsx";
 import { SpaceSwitcher } from "./SpaceSwitcher.tsx";
 
+/**
+ * Eight sections do not fit on a phone, and a row that scrolls sideways hides half of
+ * them behind a gesture nobody performs. So the same list is a row of links where
+ * there is room and a menu where there is not, inside one landmark either way.
+ */
 function Navigation() {
 	const { t } = useTranslation();
+	const navigate = useNavigate();
 	const path = useRouterState({ select: (state) => state.location.pathname });
 
 	const entries = [
 		{ to: ROUTES.dashboard, label: t("nav.dashboard") },
 		{ to: ROUTES.transactions, label: t("nav.transactions") },
-		{ to: ROUTES.calendar, label: t("nav.calendar") },
+		{ to: ROUTES.reports, label: t("nav.reports") },
 		{ to: ROUTES.budget, label: t("nav.budget") },
+		{ to: ROUTES.calendar, label: t("nav.calendar") },
 		{ to: ROUTES.invoices, label: t("nav.invoices") },
 		{ to: ROUTES.categories, label: t("nav.categories") },
 		{ to: ROUTES.accounts, label: t("nav.accounts") },
 	];
 
+	const here = entries.find((entry) => entry.to === path) ?? entries[0];
+
 	return (
-		<nav aria-label={t("nav.label")} className="flex gap-1 overflow-x-auto">
-			{entries.map((entry) => (
-				<Link
-					key={entry.to}
-					to={entry.to}
-					className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm ${
-						path === entry.to
-							? "border-ink font-medium text-ink"
-							: "border-transparent text-graphite hover:text-ink"
-					}`}
+		<nav aria-label={t("nav.label")}>
+			<div className="hidden flex-wrap gap-1 lg:flex">
+				{entries.map((entry) => (
+					<Link
+						key={entry.to}
+						to={entry.to}
+						className={`whitespace-nowrap border-b-2 px-3 py-2 text-sm ${
+							path === entry.to
+								? "border-ink font-medium text-ink"
+								: "border-transparent text-graphite hover:text-ink"
+						}`}
+					>
+						{entry.label}
+					</Link>
+				))}
+			</div>
+
+			<div className="py-1 lg:hidden">
+				<Menu
+					align="start"
+					trigger={
+						<Button size="small" variant="quiet" className="font-medium text-ink">
+							{here?.label}
+							<Icon name="chevronDown" className="ml-1 text-graphite" />
+						</Button>
+					}
 				>
-					{entry.label}
-				</Link>
-			))}
+					<MenuLabel>{t("nav.label")}</MenuLabel>
+					{entries.map((entry) => (
+						<MenuItem
+							key={entry.to}
+							onSelect={() => void navigate({ to: entry.to })}
+							selected={entry.to === path}
+							detail={entry.to === path ? <Icon name="check" /> : undefined}
+						>
+							{entry.label}
+						</MenuItem>
+					))}
+				</Menu>
+			</div>
 		</nav>
 	);
 }
@@ -119,19 +164,20 @@ export function AppShell({ children }: { children: ReactNode }) {
 	return (
 		<div className="min-h-dvh bg-paper text-ink">
 			<header className="sticky top-0 z-20 bg-paper">
-				<div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
-					<div className="flex min-w-0 items-center gap-3">
-						<Link to={ROUTES.dashboard} className="font-serif text-lg font-semibold">
+				<div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3">
+					<div className="flex min-w-0 items-center gap-2 sm:gap-3">
+						<Link to={ROUTES.dashboard} className="shrink-0 font-serif text-lg font-semibold">
 							{t("app.name")}
 						</Link>
 						<SpaceSwitcher />
 					</div>
-					<div className="flex items-center gap-1">
+					<div className="flex shrink-0 items-center gap-1">
 						<Button
 							size="small"
 							variant="quiet"
 							onClick={palette.open}
 							icon={<Icon name="search" />}
+							aria-label={t("palette.title")}
 							aria-keyshortcuts="Control+K"
 						>
 							<span className="hidden font-mono text-xs md:inline">{t("palette.shortcut")}</span>

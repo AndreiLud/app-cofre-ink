@@ -11,6 +11,7 @@ import { DesignSystemPage } from "./pages/DesignSystemPage.tsx";
 import { InvitationPage } from "./pages/InvitationPage.tsx";
 import { InvoicePage } from "./pages/InvoicePage.tsx";
 import { MembersPage } from "./pages/MembersPage.tsx";
+import { ReportsPage } from "./pages/ReportsPage.tsx";
 import { SpacesPage } from "./pages/SpacesPage.tsx";
 import { TransactionsPage } from "./pages/TransactionsPage.tsx";
 import { AppShell } from "./shell/AppShell.tsx";
@@ -53,6 +54,12 @@ const transactionsRoute = createRoute({
 	component: TransactionsPage,
 });
 
+const reportsRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/relatorios",
+	component: ReportsPage,
+});
+
 const budgetRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/orcamento",
@@ -93,6 +100,7 @@ const routeTree = rootRoute.addChildren([
 	dashboardRoute,
 	transactionsRoute,
 	calendarRoute,
+	reportsRoute,
 	budgetRoute,
 	invoicesRoute,
 	categoriesRoute,
@@ -115,6 +123,7 @@ export const ROUTES = {
 	dashboard: "/",
 	transactions: "/lancamentos",
 	calendar: "/calendario",
+	reports: "/relatorios",
 	budget: "/orcamento",
 	invoices: "/faturas",
 	categories: "/categorias",

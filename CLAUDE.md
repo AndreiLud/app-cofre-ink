@@ -59,7 +59,7 @@ settle up flow. The app works offline and syncs when it can reach a server.
 
 ```
 apps/
-  web/        React, Vite, TanStack Router, Query and Table, Tailwind, ECharts, PWA
+  web/        React, Vite, TanStack Router and Query, Tailwind, PWA
   server/     Hono, Zod, Better Auth, scheduled jobs
   desktop/    Tauri 2 wrapping the web build with local SQLite
 packages/
@@ -67,7 +67,7 @@ packages/
   db/         schema described once, generated for SQLite and PostgreSQL, migrations
   storage/    repository layer and adapters, one permission model
   importers/  CSV, OFX, QIF, XLSX, JSON readers and the statement pipeline
-  ui/         design tokens, components, chart presets
+  ui/         design tokens, components, charts drawn as SVG
 docs/
   produto.md  product brief in Portuguese
   adr/        architecture decision records
@@ -133,8 +133,8 @@ nothing.
 | 3 block A. Categories with two levels, spending priority, the screens that use them | done |
 | 3 block B. Rules that sort on their own, recurrences, the calendar | done |
 | 4. Budget, savings rule, goals, expense splitting, alerts | done |
-| 5. Dashboard, consolidated view, reports and charts | next |
-| 6. Import, export, backup, migration, sync engine | planned |
+| 5. Dashboard, consolidated view, reports and charts | done |
+| 6. Import, export, backup, migration, sync engine | next |
 | 7. Statement and receipt recognition | planned |
 | 8. Projections, scenarios, investments, simulators | planned |
 | 9. Desktop, PWA, demo deploy, deployment guides | planned |
@@ -157,3 +157,4 @@ nothing.
 | [0011](docs/adr/0011_reading_one_line_of_text.md) | reading a record from one line of text |
 | [0012](docs/adr/0012_rules_and_recurrences.md) | rules that sort, and series that write |
 | [0013](docs/adr/0013_budget_goals_and_splitting.md) | limits, goals and the division between people |
+| [0014](docs/adr/0014_charts_and_sizes.md) | charts drawn by hand, and screens that survive a resize |

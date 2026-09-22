@@ -160,7 +160,9 @@ export function CalendarPage() {
 
 			{!records.isPending ? (
 				<div className="overflow-x-auto">
-					<div className="grid min-w-[42rem] grid-cols-7 gap-px border border-rule bg-rule">
+					{/* A month needs a width of its own to stay a month. Below it the grid
+					    scrolls inside its box rather than pushing the whole page sideways. */}
+					<div className="grid min-w-[34rem] grid-cols-7 gap-px border border-rule bg-rule">
 						{WEEKDAY_ORDER.map((weekday) => (
 							<div key={weekday} className="bg-paper px-2 py-1 text-xs text-graphite">
 								{weekdayName.format(new Date(Date.UTC(2026, 1, 1 + weekday)))}

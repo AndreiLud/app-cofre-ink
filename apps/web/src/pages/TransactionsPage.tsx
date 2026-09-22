@@ -267,7 +267,9 @@ export function TransactionsPage() {
 				}}
 			/>
 
-			<div className="grid grid-cols-2 gap-3 md:grid-cols-6">
+			{/* One column on a phone, two on a tablet, all six on a screen. A select that
+			    is narrower than its own text is a select nobody can read. */}
+			<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
 				<Field
 					label={t("transactions.month")}
 					type="month"
@@ -460,7 +462,11 @@ export function TransactionsPage() {
 								</TableHeader>
 								<TableHeader>{t("transactions.day")}</TableHeader>
 								<TableHeader>{t("transactions.description")}</TableHeader>
-								<TableHeader>{t("transactions.account")}</TableHeader>
+								{/* The account is the first thing to go when the screen is narrow:
+								    it is context, and the description is the answer. */}
+								<TableHeader className="hidden sm:table-cell">
+									{t("transactions.account")}
+								</TableHeader>
 								<TableHeader numeric={true}>{t("transactions.amount")}</TableHeader>
 								<TableHeader numeric={true}>
 									<span className="sr-only">{t("accounts.actions")}</span>
@@ -502,7 +508,7 @@ export function TransactionsPage() {
 											</span>
 										) : null}
 									</TableCell>
-									<TableCell className="text-graphite">
+									<TableCell className="hidden text-graphite sm:table-cell">
 										{nameOf(row.accountId)}
 										{row.counterAccountId ? ` → ${nameOf(row.counterAccountId)}` : ""}
 									</TableCell>

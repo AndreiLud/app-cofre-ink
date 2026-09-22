@@ -12,6 +12,7 @@ import type {
 	BudgetWithProgress,
 	CategorizationRule,
 	Category,
+	CategoryTotal,
 	Change,
 	CreateBudgetInput,
 	CreateCategoryInput,
@@ -20,11 +21,16 @@ import type {
 	CreateRuleInput,
 	CreateSavedFilterInput,
 	CreateTransactionInput,
+	DayTotal,
 	ExpenseSplit,
 	Goal,
 	GoalProgress,
+	MonthTotal,
+	PeriodTotals,
 	PersonBalance,
+	PriorityTotal,
 	Recurrence,
+	ReportRange,
 	Role,
 	SavedFilter,
 	SavingsProgress,
@@ -146,6 +152,15 @@ export type CofreSession = {
 		remove: (id: string, options?: { keepPlanned?: boolean }) => Promise<number>;
 		/** Writes the planned records the series owe. Safe to call on every load. */
 		materialize: (input: { spaceId: string; until?: string }) => Promise<number>;
+	};
+	reports: {
+		/** Every method takes no space for the consolidated view across the spaces. */
+		totals: (range: ReportRange) => Promise<PeriodTotals>;
+		byCategory: (range: ReportRange) => Promise<CategoryTotal[]>;
+		incomeByCategory: (range: ReportRange) => Promise<CategoryTotal[]>;
+		byPriority: (range: ReportRange) => Promise<PriorityTotal[]>;
+		byMonth: (range: ReportRange) => Promise<MonthTotal[]>;
+		byDay: (range: ReportRange) => Promise<DayTotal[]>;
 	};
 	budgets: {
 		list: (spaceId: string) => Promise<Budget[]>;

@@ -21,6 +21,7 @@ import { createUser } from "../repositories/users.ts";
 import type { Session } from "../session.ts";
 import { runCategoryConformance } from "./categories.ts";
 import { runPlanConformance } from "./plan.ts";
+import { runReportConformance } from "./reports.ts";
 import { runRuleConformance } from "./rules.ts";
 import { runSavedFilterConformance } from "./savedFilters.ts";
 import { type AdapterUnderTest, type Fixture, prepare } from "./setup.ts";
@@ -571,6 +572,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 		runCategoryConformance(adapter);
 		runRuleConformance(adapter);
 		runPlanConformance(adapter);
+		runReportConformance(adapter);
 		runSavedFilterConformance(adapter);
 
 		describe("the permission matrix", () => {

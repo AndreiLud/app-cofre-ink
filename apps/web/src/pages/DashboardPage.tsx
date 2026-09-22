@@ -2,9 +2,10 @@
 // much there is, and what falls due in the next days.
 
 import { addDays, monthOf, noticesFor, todayIn } from "@cofre/core";
-import { Button, EmptyState, InsightTitle, SectionTitle, Skeleton } from "@cofre/ui";
+import { Button, EmptyState, InsightTitle, SectionTitle, Segmented, Skeleton } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
 import { ROUTES } from "../router.tsx";
@@ -18,10 +19,33 @@ export function DashboardPage() {
 	const spaceId = currentSpace?.id ?? "";
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
 
+	// One life, more than one space. The consolidated view adds them together, and it
+	// only exists when there is more than one to add.
+	const [across, setAcross] = useState<"space" | "everything">("space");
+	const consolidated = across === "everything" && spaces.length > 1;
+
 	const accounts = useQuery({
 		queryKey: ["accounts", spaceId],
 		enabled: Boolean(session && currentSpace),
 		queryFn: () => session?.accounts.list(spaceId) ?? [],
+	});
+
+	const everywhere = useQuery({
+		queryKey: ["accountsEverywhere"],
+		enabled: Boolean(session) && consolidated,
+		queryFn: () => session?.accounts.listEverywhere() ?? [],
+	});
+
+	const balancesEverywhere = useQuery({
+		queryKey: ["balances", "everywhere", spaces.map((space) => space.id).join(",")],
+		enabled: Boolean(session) && consolidated,
+		queryFn: async () => {
+			if (!session) return [];
+			const lists = await Promise.all(
+				spaces.map((space) => session.transactions.balances(space.id)),
+			);
+			return lists.flat();
+		},
 	});
 
 	const balances = useQuery({
@@ -81,13 +105,16 @@ export function DashboardPage() {
 
 	if (!currentSpace) return null;
 
-	const open = (accounts.data ?? []).map((account) => account.id);
-	const visible = (balances.data ?? []).filter((balance) => open.includes(balance.accountId));
+	const shownAccounts = consolidated ? (everywhere.data ?? []) : (accounts.data ?? []);
+	const shownBalances = consolidated ? (balancesEverywhere.data ?? []) : (balances.data ?? []);
+
+	const open = shownAccounts.map((account) => account.id);
+	const visible = shownBalances.filter((balance) => open.includes(balance.accountId));
 	const settled = visible.reduce((sum, balance) => sum + balance.settled, 0);
 	const projected = visible.reduce((sum, balance) => sum + balance.projected, 0);
 
 	const nameOf = (accountId: string) =>
-		accounts.data?.find((account) => account.id === accountId)?.name ?? "";
+		shownAccounts.find((account) => account.id === accountId)?.name ?? "";
 
 	// Oldest first here: what falls due soonest is what needs attention first.
 	const falling = [...(upcoming.data ?? [])].sort((left, right) =>
@@ -135,14 +162,31 @@ export function DashboardPage() {
 	return (
 		<div className="space-y-10">
 			<section className="space-y-3">
-				<InsightTitle
-					level="h1"
-					detail={
-						projected === settled ? t("dashboard.nothingPending") : t("dashboard.projectedDetail")
-					}
-				>
-					{t("dashboard.headline", { space: currentSpace.name })}
-				</InsightTitle>
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+					<InsightTitle
+						level="h1"
+						detail={
+							projected === settled ? t("dashboard.nothingPending") : t("dashboard.projectedDetail")
+						}
+					>
+						{consolidated
+							? t("dashboard.headlineEverywhere")
+							: t("dashboard.headline", { space: currentSpace.name })}
+					</InsightTitle>
+
+					{spaces.length > 1 ? (
+						<Segmented
+							className="sm:w-auto"
+							label={t("dashboard.across")}
+							value={across}
+							onChange={setAcross}
+							options={[
+								{ value: "space", label: t("reports.thisSpace") },
+								{ value: "everything", label: t("reports.everySpace") },
+							]}
+						/>
+					) : null}
+				</div>
 
 				{balances.isPending ? (
 					<Skeleton lines={2} />
@@ -159,7 +203,7 @@ export function DashboardPage() {
 					</p>
 				) : null}
 
-				{spaces.length > 1 ? (
+				{spaces.length > 1 && !consolidated ? (
 					<p className="text-xs text-graphite">{t("dashboard.oneSpaceOnly")}</p>
 				) : null}
 			</section>
@@ -255,7 +299,7 @@ export function DashboardPage() {
 
 				{accounts.isPending ? <Skeleton lines={3} /> : null}
 
-				{!accounts.isPending && (accounts.data ?? []).length === 0 ? (
+				{!accounts.isPending && shownAccounts.length === 0 ? (
 					<EmptyState
 						icon="wallet"
 						title={t("accounts.emptyTitle")}
@@ -269,7 +313,7 @@ export function DashboardPage() {
 				) : null}
 
 				<ul className="divide-y divide-rule">
-					{(accounts.data ?? []).map((account) => {
+					{shownAccounts.map((account) => {
 						const balance = visible.find((entry) => entry.accountId === account.id);
 						return (
 							<li key={account.id} className="flex items-baseline justify-between gap-4 py-2">

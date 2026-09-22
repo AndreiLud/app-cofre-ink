@@ -48,6 +48,9 @@ export function Dialog({
 					className={cn(
 						"fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2",
 						"border border-ink bg-paper p-5 text-ink",
+						// A long form on a short window scrolls inside the dialog instead of
+						// running off the bottom of the screen with its buttons.
+						"flex max-h-[calc(100dvh-2rem)] flex-col overflow-y-auto overscroll-contain",
 						SIZES[size],
 						className,
 					)}

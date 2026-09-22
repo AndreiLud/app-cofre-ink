@@ -741,6 +741,52 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		return context.body(null, 204);
 	});
 
+	/**
+	 * Every report goes through one route. Six routes that differ by a word would be six
+	 * places to forget the same permission check.
+	 */
+	app.get("/api/reports", async (context) => {
+		const query = z
+			.object({
+				kind: z.enum([
+					"totals",
+					"byCategory",
+					"incomeByCategory",
+					"byPriority",
+					"byMonth",
+					"byDay",
+				]),
+				from: calendarDate,
+				to: calendarDate,
+				spaceId: z.string().min(1).optional(),
+				includePlanned: z.enum(["true", "false"]).optional(),
+			})
+			.parse(context.req.query());
+
+		const range = {
+			spaceId: query.spaceId,
+			from: query.from,
+			to: query.to,
+			includePlanned: query.includePlanned === "true",
+		};
+
+		const reports = context.get("session").reports;
+		switch (query.kind) {
+			case "totals":
+				return context.json(await reports.totals(range));
+			case "byCategory":
+				return context.json(await reports.byCategory(range));
+			case "incomeByCategory":
+				return context.json(await reports.incomeByCategory(range));
+			case "byPriority":
+				return context.json(await reports.byPriority(range));
+			case "byMonth":
+				return context.json(await reports.byMonth(range));
+			default:
+				return context.json(await reports.byDay(range));
+		}
+	});
+
 	app.get("/api/spaces/:id/changes", async (context) => {
 		const after = context.req.query("after");
 		return context.json(

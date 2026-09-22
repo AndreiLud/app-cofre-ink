@@ -5,6 +5,14 @@ export {
 	type ButtonSize,
 	type ButtonVariant,
 } from "./components/Button.tsx";
+export { BarList, type BarListItem, type BarListProps } from "./components/charts/BarList.tsx";
+export {
+	ColumnChart,
+	type ColumnChartProps,
+	type ColumnGroup,
+} from "./components/charts/ColumnChart.tsx";
+export { FlowChart, type FlowChartProps, type FlowSide } from "./components/charts/FlowChart.tsx";
+export { type HeatDay, HeatMap, type HeatMapProps } from "./components/charts/HeatMap.tsx";
 export { Dialog, type DialogProps } from "./components/Dialog.tsx";
 export {
 	Callout,
