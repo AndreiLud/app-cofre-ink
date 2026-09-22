@@ -188,6 +188,64 @@ describe("the api", () => {
 		expect(response.status).toBe(400);
 	});
 
+	it("carries a card over the network, and refuses one that reaches nothing", async () => {
+		const ana = createClient(app);
+		await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+		const space = await ana.json<{ id: string }>("/api/spaces", {
+			method: "POST",
+			body: JSON.stringify({ name: "Casa" }),
+		});
+		const checking = await ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+			method: "POST",
+			body: JSON.stringify({ kind: "checking", name: "Conta" }),
+		});
+		const invoice = await ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+			method: "POST",
+			body: JSON.stringify({ kind: "credit", name: "Cartao", closingDay: 3, dueDay: 10 }),
+		});
+
+		const card = await ana.json<{ id: string; kind: string }>(`/api/spaces/${space.id}/cards`, {
+			method: "POST",
+			body: JSON.stringify({
+				kind: "multiple",
+				name: "Do banco",
+				lastFour: "4417",
+				creditAccountId: invoice.id,
+				debitAccountId: checking.id,
+			}),
+		});
+		expect(card.kind).toBe("multiple");
+
+		// The same rule the repository holds, reached through a route.
+		const wrong = await ana.request(`/api/spaces/${space.id}/cards`, {
+			method: "POST",
+			body: JSON.stringify({ kind: "debit", name: "Sem conta" }),
+		});
+		expect(wrong.status).toBe(409);
+
+		const [written] = await ana.json<Array<{ cardId: string; invoiceMonth: string }>>(
+			`/api/spaces/${space.id}/transactions`,
+			{
+				method: "POST",
+				body: JSON.stringify({
+					kind: "expense",
+					amount: 9_900,
+					happenedOn: "2026-09-10",
+					description: "Livraria",
+					accountId: invoice.id,
+					cardId: card.id,
+				}),
+			},
+		);
+		expect(written?.cardId).toBe(card.id);
+		expect(written?.invoiceMonth).toBe("2026-10");
+
+		const byCard = await ana.json<Array<{ description: string }>>(
+			`/api/spaces/${space.id}/transactions?cardId=${card.id}`,
+		);
+		expect(byCard.map((one) => one.description)).toEqual(["Livraria"]);
+	});
+
 	describe("several records at once", () => {
 		/** A space, an account and three planned bills in it. */
 		async function threeBills(client: Client) {

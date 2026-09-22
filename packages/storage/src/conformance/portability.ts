@@ -217,6 +217,13 @@ export function runPortabilityConformance(adapter: AdapterUnderTest): void {
 					name: "Mercado",
 					kind: "expense",
 				});
+				const card = await fixture.asAna.cards.create({
+					spaceId: space.id,
+					kind: "debit",
+					name: "Cartao da casa",
+					lastFour: "4417",
+					debitAccountId: account.id,
+				});
 				await fixture.asAna.transactions.create({
 					spaceId: space.id,
 					kind: "expense",
@@ -225,6 +232,7 @@ export function runPortabilityConformance(adapter: AdapterUnderTest): void {
 					description: "Mercado do bairro",
 					accountId: account.id,
 					categoryId: category.id,
+					cardId: card.id,
 				});
 				await fixture.asAna.budgets.create({
 					spaceId: space.id,
@@ -253,6 +261,14 @@ export function runPortabilityConformance(adapter: AdapterUnderTest): void {
 				expect(records).toHaveLength(1);
 				expect(records[0]?.amount).toBe(-4290);
 				expect(records[0]?.categoryId).toBe(category.id);
+
+				// The card came with it, still pointing at the account it spends, and the
+				// record still says it was the one used. A backup that loses which card
+				// paid is a backup that loses a column of every statement.
+				const carried = await other.session.cards.list(space.id);
+				expect(carried.map((one) => one.lastFour)).toEqual(["4417"]);
+				expect(carried[0]?.debitAccountId).toBe(account.id);
+				expect(records[0]?.cardId).toBe(card.id);
 
 				expect(
 					(await other.session.accounts.list(space.id)).map((found) => found.initialBalance),

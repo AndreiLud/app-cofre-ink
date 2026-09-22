@@ -6,6 +6,9 @@ import { asJson, asNumber, asOptionalNumber, asOptionalText, asText, type Row } 
 
 export type SpaceKind = "personal" | "shared";
 export type AccountKind = "checking" | "savings" | "cash" | "credit" | "voucher" | "investment";
+/** Which pot a voucher account is. Empty on every other kind. */
+export type BenefitKind = "meal" | "food" | "transport" | "culture" | "mobility";
+export type CardKind = "credit" | "debit" | "multiple" | "benefit" | "prepaid";
 export type ChangeOperation = "insert" | "update" | "delete";
 export type TransactionKind = "income" | "expense" | "transfer";
 export type TransactionStatus = "planned" | "settled";
@@ -61,6 +64,30 @@ export type Account = {
 	closingDay: number | null;
 	dueDay: number | null;
 	creditLimit: number | null;
+	/** Only a voucher account has this: which pot it is, VR, VA, VT and the rest. */
+	benefit: BenefitKind | null;
+	createdBy: string;
+	createdAt: number;
+	updatedAt: number;
+};
+
+/**
+ * A piece of plastic, which is a way to reach money and not the money itself.
+ *
+ * It charges an invoice, or takes from a balance, or both when it is a cartao
+ * multiplo. Which of the two are filled is what the kind means, and the repository
+ * refuses any other combination.
+ */
+export type Card = {
+	id: string;
+	spaceId: string;
+	kind: CardKind;
+	name: string;
+	/** The four digits a statement names it by, or nothing. */
+	lastFour: string | null;
+	creditAccountId: string | null;
+	debitAccountId: string | null;
+	archivedAt: number | null;
 	createdBy: string;
 	createdAt: number;
 	updatedAt: number;
@@ -112,6 +139,8 @@ export type Transaction = {
 	paidBy: string | null;
 	/** What the bank called this entry, when it came from a file that said. */
 	externalId: string | null;
+	/** Which piece of plastic was used, when one was. The account is still the truth. */
+	cardId: string | null;
 	createdBy: string;
 	createdAt: number;
 	updatedAt: number;
@@ -324,6 +353,23 @@ export function toAccount(row: Row): Account {
 		closingDay: asOptionalNumber(row.closing_day),
 		dueDay: asOptionalNumber(row.due_day),
 		creditLimit: asOptionalNumber(row.credit_limit),
+		benefit: asOptionalText(row.benefit) as BenefitKind | null,
+		createdBy: asText(row.created_by),
+		createdAt: asNumber(row.created_at),
+		updatedAt: asNumber(row.updated_at),
+	};
+}
+
+export function toCard(row: Row): Card {
+	return {
+		id: asText(row.id),
+		spaceId: asText(row.space_id),
+		kind: asText(row.kind) as CardKind,
+		name: asText(row.name),
+		lastFour: asOptionalText(row.last_four),
+		creditAccountId: asOptionalText(row.credit_account_id),
+		debitAccountId: asOptionalText(row.debit_account_id),
+		archivedAt: asOptionalNumber(row.archived_at),
 		createdBy: asText(row.created_by),
 		createdAt: asNumber(row.created_at),
 		updatedAt: asNumber(row.updated_at),
@@ -373,6 +419,7 @@ export function toTransaction(row: Row): Transaction {
 		recurrenceId: asOptionalText(row.recurrence_id),
 		paidBy: asOptionalText(row.paid_by),
 		externalId: asOptionalText(row.external_id),
+		cardId: asOptionalText(row.card_id),
 		createdBy: asText(row.created_by),
 		createdAt: asNumber(row.created_at),
 		updatedAt: asNumber(row.updated_at),

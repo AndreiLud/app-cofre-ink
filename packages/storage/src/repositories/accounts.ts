@@ -1,7 +1,7 @@
 import { accounts } from "@cofre/db";
 import { assertCan, readableSpaceIds } from "../actor.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
-import { type Account, type AccountKind, toAccount } from "../models.ts";
+import { type Account, type AccountKind, type BenefitKind, toAccount } from "../models.ts";
 import { marks } from "../sql.ts";
 import { insertRow, softDeleteRow, updateRow } from "../writer.ts";
 import type { RepositoryContext } from "./context.ts";
@@ -18,17 +18,20 @@ export type CreateAccountInput = {
 	closingDay?: number | null;
 	dueDay?: number | null;
 	creditLimit?: number | null;
+	/** Which pot a voucher is: VR, VA, VT and the rest. Only a voucher may say. */
+	benefit?: BenefitKind | null;
 };
 
 export type UpdateAccountInput = {
 	name?: string;
 	institution?: string | null;
 	initialBalance?: number;
+	benefit?: BenefitKind | null;
 };
 
 const SELECT = `SELECT "id", "space_id", "kind", "name", "currency", "initial_balance",
-	"institution", "archived_at", "closing_day", "due_day", "credit_limit", "created_by",
-	"created_at", "updated_at"
+	"institution", "archived_at", "closing_day", "due_day", "credit_limit", "benefit",
+	"created_by", "created_at", "updated_at"
 	FROM "accounts"`;
 
 export function createAccountsRepository(context: RepositoryContext) {
@@ -62,6 +65,14 @@ export function createAccountsRepository(context: RepositoryContext) {
 					"the opening balance is an integer of minor units, never a fractional number",
 				);
 			}
+			// A current account that claims to be a meal voucher would be filtered as one
+			// everywhere, so the two have to agree from the start.
+			if (input.benefit != null && input.kind !== "voucher") {
+				throw new RuleError(
+					"benefitIsForVouchers",
+					"only a voucher account says which benefit it holds",
+				);
+			}
 
 			const id = await insertRow(context.write(), {
 				table: accounts,
@@ -76,6 +87,7 @@ export function createAccountsRepository(context: RepositoryContext) {
 					closing_day: input.closingDay ?? null,
 					due_day: input.dueDay ?? null,
 					credit_limit: input.creditLimit ?? null,
+					benefit: input.benefit ?? null,
 					created_by: context.actor().userId,
 				},
 			});
@@ -129,6 +141,15 @@ export function createAccountsRepository(context: RepositoryContext) {
 					);
 				}
 				values.initial_balance = input.initialBalance;
+			}
+			if (input.benefit !== undefined) {
+				if (input.benefit !== null && account.kind !== "voucher") {
+					throw new RuleError(
+						"benefitIsForVouchers",
+						"only a voucher account says which benefit it holds",
+					);
+				}
+				values.benefit = input.benefit;
 			}
 
 			await updateRow(context.write(), {

@@ -10,8 +10,10 @@ import type {
 	Account,
 	AccountBalance,
 	Backup,
+	BenefitKind,
 	Budget,
 	BudgetWithProgress,
+	Card,
 	CategorizationRule,
 	Category,
 	CategoryTotal,
@@ -73,7 +75,9 @@ import type {
 	AssignableRole,
 	CofreSession,
 	CreateAccountInput,
+	CreateCardInput,
 	CreateSpaceInput,
+	UpdateCardInput,
 } from "./cofreSession.ts";
 
 export type ServerProblem = {
@@ -260,11 +264,32 @@ export function createRemoteSession(
 			},
 			update: (
 				id: string,
-				input: { name?: string; institution?: string | null; initialBalance?: number },
+				input: {
+					name?: string;
+					institution?: string | null;
+					initialBalance?: number;
+					benefit?: BenefitKind | null;
+				},
 			) => send<Account>(`/api/accounts/${id}`, "PATCH", input),
 			archive: (id: string) => send<Account>(`/api/accounts/${id}/archive`, "POST", {}),
 			unarchive: (id: string) => send<Account>(`/api/accounts/${id}/unarchive`, "POST", {}),
 			remove: (id: string) => send<void>(`/api/accounts/${id}`, "DELETE"),
+		},
+
+		cards: {
+			list: (spaceId: string, options: { includeArchived?: boolean } = {}) =>
+				get<Card[]>(
+					`/api/spaces/${spaceId}/cards${options.includeArchived ? "?archived=true" : ""}`,
+				),
+			create: (input: CreateCardInput) => {
+				const { spaceId, ...rest } = input;
+				return send<Card>(`/api/spaces/${spaceId}/cards`, "POST", rest);
+			},
+			update: (id: string, input: UpdateCardInput) =>
+				send<Card>(`/api/cards/${id}`, "PATCH", input),
+			archive: (id: string) => send<Card>(`/api/cards/${id}/archive`, "POST", {}),
+			unarchive: (id: string) => send<Card>(`/api/cards/${id}/unarchive`, "POST", {}),
+			remove: (id: string) => send<void>(`/api/cards/${id}`, "DELETE"),
 		},
 
 		categories: {
@@ -552,7 +577,12 @@ export function createRemoteSession(
 					`/api/spaces/${spaceId}/imports/existing${search === "" ? "" : `?${search}`}`,
 				);
 			},
-			create: (input: { spaceId: string; accountId: string; records: ImportedRecord[] }) => {
+			create: (input: {
+				spaceId: string;
+				accountId: string;
+				cardId?: string | null;
+				records: ImportedRecord[];
+			}) => {
 				const { spaceId, ...rest } = input;
 				return send<ImportResult>(`/api/spaces/${spaceId}/imports`, "POST", rest);
 			},

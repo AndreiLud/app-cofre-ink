@@ -45,7 +45,27 @@ export async function seedDemo(
 		spaceId,
 		kind: "voucher",
 		name: "Vale refeição",
+		benefit: "meal",
 		initialBalance: 64_500,
+	});
+
+	// Two pieces of plastic, which is what this person actually carries: one that works
+	// in both functions, so the demonstration shows the same card landing on the invoice
+	// and leaving the balance, and one that only spends the meal voucher.
+	const multiple = await session.cards.create({
+		spaceId,
+		kind: "multiple",
+		name: "Cartão do banco",
+		lastFour: "4417",
+		creditAccountId: card.id,
+		debitAccountId: checking.id,
+	});
+	const mealCard = await session.cards.create({
+		spaceId,
+		kind: "benefit",
+		name: "Vale refeição",
+		lastFour: "8302",
+		debitAccountId: voucher.id,
 	});
 
 	// A few weeks of a person who exists only here. Everything is settled on purpose:
@@ -84,6 +104,7 @@ export async function seedDemo(
 			happenedOn: day(12),
 			description: "Livraria",
 			accountId: card.id,
+			cardId: multiple.id,
 			categoryId: find("Cursos e livros"),
 		},
 		{
@@ -93,6 +114,7 @@ export async function seedDemo(
 			happenedOn: day(9),
 			description: "Cinema",
 			accountId: card.id,
+			cardId: multiple.id,
 			categoryId: find("Cinema, show e teatro"),
 		},
 		{
@@ -102,6 +124,7 @@ export async function seedDemo(
 			happenedOn: day(6),
 			description: "Streaming",
 			accountId: card.id,
+			cardId: multiple.id,
 			categoryId: find("Streaming"),
 		},
 		{
@@ -111,6 +134,7 @@ export async function seedDemo(
 			happenedOn: day(4),
 			description: "Almoço perto do trabalho",
 			accountId: voucher.id,
+			cardId: mealCard.id,
 			categoryId: find("Restaurante"),
 		},
 		{
@@ -144,6 +168,7 @@ export async function seedDemo(
 		description: "Fone de ouvido",
 		categoryId: find("Hobby"),
 		accountId: card.id,
+		cardId: multiple.id,
 		installments: 3,
 	});
 

@@ -152,6 +152,7 @@ nothing.
 | 9 revised. The shell dropped, housekeeping made automatic, findings, five sections | done |
 | 10. Accessibility audit, copy review, performance, README and LEIAME | done |
 | 10 review. Charts on a telephone, the rate limit, a failure with a name | done |
+| 11. Cards as a thing of their own: credit, debit, multiple, benefit, prepaid | done |
 | Next. Real statements for the recogniser, and whatever the owner asks for | waiting |
 
 ## Architecture decision records
@@ -180,6 +181,5 @@ nothing.
 | [0020](docs/adr/0020_an_application_in_a_window.md) | offline, icons and a build that serves from anywhere |
 | [0021](docs/adr/0021_a_web_application_that_tidies_itself.md) | no shell, and housekeeping nobody is asked about |
 | [0022](docs/adr/0022_reading_the_figures_back.md) | findings over a household's own records, and five ways in |
-| [0015](docs/adr/0015_import_export_and_sync.md) | reading files in, taking everything out, and meeting a server |
-| [0016](docs/adr/0016_reading_a_document.md) | reading a card invoice and a receipt out of a PDF |
-| [0017](docs/adr/0017_where_a_copy_lives.md) | where a copy of a space can live, and what each place costs |
+| [0023](docs/adr/0023_surfaces_weight_and_one_colour.md) | three surfaces, two line weights and one colour |
+| [0024](docs/adr/0024_the_plastic_and_the_money.md) | cards, the accounts they reach, and which pot a voucher is |

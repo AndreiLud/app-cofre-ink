@@ -2,6 +2,7 @@ export * from "./ddl.ts";
 export * from "./introspection.ts";
 export * from "./migrations.ts";
 export * from "./schema/authTables.ts";
+export * from "./schema/cardTables.ts";
 export * from "./schema/categoryTables.ts";
 export * from "./schema/investmentTables.ts";
 export * from "./schema/planTables.ts";

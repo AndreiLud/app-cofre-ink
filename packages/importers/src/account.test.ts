@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { guessAccount, type KnownAccount, shapeOf } from "./account.ts";
+import { guessAccount, type KnownAccount, type KnownCard, shapeOf } from "./account.ts";
 
 const accounts: KnownAccount[] = [
 	{ id: "corrente", name: "Conta corrente 12345-6", kind: "checking", institution: "Banco Inter" },
@@ -34,6 +34,32 @@ describe("which account a file belongs to", () => {
 
 		expect(guessAccount({ institution: "Inter", kind: "invoice" }, both)?.id).toBe("cartao");
 		expect(guessAccount({ institution: "Inter", kind: "statement" }, both)?.id).toBe("conta");
+	});
+
+	it("follows the four digits of a card, and says which card it was", () => {
+		const cards: KnownCard[] = [
+			{
+				id: "plastico",
+				name: "Cartão do banco",
+				lastFour: "4417",
+				creditAccountId: "cartao",
+				debitAccountId: "corrente",
+			},
+		];
+
+		// A cartao multiplo reaches two accounts, and what the file is decides which of
+		// the two it is about.
+		expect(guessAccount({ accountHint: "final 4417", kind: "invoice" }, accounts, cards)).toEqual({
+			id: "cartao",
+			why: "cardDigits",
+			cardId: "plastico",
+		});
+		expect(guessAccount({ accountHint: "final 4417", kind: "statement" }, accounts, cards)).toEqual(
+			{ id: "corrente", why: "cardDigits", cardId: "plastico" },
+		);
+
+		// Digits that belong to no card fall through to the rules below.
+		expect(guessAccount({ accountHint: "final 9999" }, accounts, cards)).toBe(null);
 	});
 
 	it("says nothing when the file says nothing", () => {

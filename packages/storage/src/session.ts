@@ -8,6 +8,7 @@ import { createAccountsRepository } from "./repositories/accounts.ts";
 import { createAdviceRepository } from "./repositories/advice.ts";
 import { createBackupRepository } from "./repositories/backup.ts";
 import { createBudgetsRepository } from "./repositories/budgets.ts";
+import { createCardsRepository } from "./repositories/cards.ts";
 import { createCategoriesRepository } from "./repositories/categories.ts";
 import { createChangesRepository } from "./repositories/changes.ts";
 import type { RepositoryContext } from "./repositories/context.ts";
@@ -46,6 +47,7 @@ export type Session = {
 	members: ReturnType<typeof createMembersRepository>;
 	invitations: ReturnType<typeof createInvitationsRepository>;
 	accounts: ReturnType<typeof createAccountsRepository>;
+	cards: ReturnType<typeof createCardsRepository>;
 	categories: ReturnType<typeof createCategoriesRepository>;
 	transactions: ReturnType<typeof createTransactionsRepository>;
 	rules: ReturnType<typeof createRulesRepository>;
@@ -133,6 +135,7 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 		members: createMembersRepository(context),
 		invitations: createInvitationsRepository(context),
 		accounts,
+		cards: createCardsRepository(context),
 		categories: createCategoriesRepository(context),
 		transactions,
 		rules: createRulesRepository(context),

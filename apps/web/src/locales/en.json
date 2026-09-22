@@ -416,7 +416,9 @@
 		"dueDay": "Due day",
 		"dueDayHint": "When the invoice has to be paid.",
 		"emptyTitle": "No accounts here yet",
-		"emptyBody": "Start with the account your salary lands in. Cards, cash and investments can come later."
+		"emptyBody": "Start with the account your salary lands in. Cards, cash and investments can come later.",
+		"benefit": "Which benefit",
+		"benefitHint": "VR buys a meal already made, VA buys the shopping, VT pays for transport. A shop that takes one may refuse the other."
 	},
 	"rules": {
 		"emailTaken": "There is already a profile with that email on this device. Use another one.",
@@ -448,7 +450,17 @@
 		"onlyExpensesAreSplit": "Only an expense is divided, because only an expense is a cost.",
 		"payerIsNotAMember": "Whoever paid has to belong to the space.",
 		"settlementNeedsTwoPeople": "Nobody pays themselves back.",
-		"unknown": "I could not finish that. Try again."
+		"unknown": "I could not finish that. Try again.",
+		"cardNeedsCreditAccount": "Choose the invoice this card charges.",
+		"cardHasNoCredit": "This kind of card does not charge an invoice.",
+		"cardNeedsDebitAccount": "Choose the account the money leaves.",
+		"cardHasNoDebit": "This kind of card does not spend the balance of an account.",
+		"creditAccountIsNotACard": "The invoice has to be an account of the credit card kind.",
+		"debitAccountIsACard": "A credit card account is an invoice, not a balance.",
+		"lastFourIsFourDigits": "Write the last four digits of the card.",
+		"cardDoesNotReachAccount": "This card does not spend from that account.",
+		"cardIsArchived": "This card is archived. Bring it back before writing with it.",
+		"benefitIsForVouchers": "Only a voucher account says which benefit it is."
 	},
 	"transactions": {
 		"title": "Records",
@@ -657,7 +669,7 @@
 		"savings": "Savings",
 		"cash": "Cash",
 		"credit": "Credit card",
-		"voucher": "Meal voucher",
+		"voucher": "Voucher or benefit",
 		"investment": "Investment"
 	},
 	"spaces": {
@@ -892,7 +904,8 @@
 			"institution": "I picked this one from the name of the bank in the document. Change it if it is wrong.",
 			"onlyCard": "It is an invoice, and this is your only card. Change it if it is wrong.",
 			"onlyAccount": "It is a statement, and this is your only account. Change it if it is wrong.",
-			"remembered": "It is the account the last file of this shape went into."
+			"remembered": "It is the account the last file of this shape went into.",
+			"cardDigits": "Recognised by the four digits of the card."
 		},
 		"willSort": "{{count}} arrive already sorted by your rules.",
 		"allClear_one": "Everything is ready: 1 record for {{account}}, nothing in doubt and nothing repeated. Just write it.",
@@ -978,5 +991,58 @@
 		"goalStalled_other": "{{subject}} has had nothing put into it for {{count}} days. {{still}} to go, or {{everyMonth}} a month to arrive on time.",
 		"idleCash": "You have {{spare}} beyond three months of cover. Worth keeping that apart from the money you spend.",
 		"betterThanUsual": "This month you spent {{saved}} less than usual: {{expense}} against the usual {{usual}}."
+	},
+	"benefitKind": {
+		"meal": "Meal voucher (VR)",
+		"food": "Food voucher (VA)",
+		"transport": "Transport voucher (VT)",
+		"culture": "Culture voucher",
+		"mobility": "Mobility"
+	},
+	"cardKind": {
+		"credit": "Credit",
+		"debit": "Debit",
+		"multiple": "Multiple",
+		"benefit": "Benefit",
+		"prepaid": "Prepaid"
+	},
+	"cards": {
+		"title": "Cards",
+		"explain": "The card is the plastic. The account is the money. A multiple card uses both: on credit it lands on the invoice, on debit it leaves the balance the same day.",
+		"create": "New card",
+		"createDescription": "The card goes into the space {{space}}.",
+		"edit": "Edit card",
+		"caption": "Cards of the space {{space}}, with name, kind and the accounts it uses",
+		"name": "Name",
+		"namePlaceholder": "Nubank",
+		"kind": "Kind",
+		"kindHint": "Multiple is the card that works both as credit and as debit.",
+		"lastFour": "Last four digits",
+		"lastFourHint": "It is how a statement names the card, and how an import recognises it. You can leave it empty.",
+		"creditAccount": "Invoice it charges",
+		"creditAccountHint": "The credit card account the purchases land on.",
+		"debitAccount": "Balance it spends",
+		"debitAccountHint": "The account the money leaves the same day.",
+		"uses": "Uses",
+		"usesCredit": "Invoice of {{name}}",
+		"usesDebit": "Balance of {{name}}",
+		"digits": "Ending {{digits}}",
+		"actions": "Card actions",
+		"archive": "Archive",
+		"unarchive": "Unarchive",
+		"emptyTitle": "No cards yet",
+		"emptyBody": "Add the card you use every day. Then each purchase says which one it was, and the invoice closes on its own.",
+		"needsCreditAccount": "To add a credit card, first create an account of the credit card kind.",
+		"needsDebitAccount": "To add a debit or a benefit card, first create the account the money leaves.",
+		"onInvoice": "Cards on this invoice"
+	},
+	"transaction": {
+		"card": "Card",
+		"cardNone": "No card",
+		"cardHint": "Choosing the card already takes the record to the right account."
+	},
+	"filters": {
+		"card": "Card",
+		"anyCard": "Any card"
 	}
 }

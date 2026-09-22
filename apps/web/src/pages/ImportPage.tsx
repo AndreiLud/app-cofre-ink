@@ -6,7 +6,13 @@
 // somebody ends up with two of every purchase in a month and no way to tell which.
 
 import { pickRule, todayIn } from "@cofre/core";
-import type { FieldName, MarkedRecord, RecognisedDocument, SignMeaning } from "@cofre/importers";
+import type {
+	AccountGuess,
+	FieldName,
+	MarkedRecord,
+	RecognisedDocument,
+	SignMeaning,
+} from "@cofre/importers";
 import { guessAccount, markDuplicates, readFile, shapeOf } from "@cofre/importers";
 import type { ImportedRecord } from "@cofre/storage";
 import {
@@ -119,6 +125,14 @@ export function ImportPage() {
 		queryFn: () => session?.accounts.list(spaceId) ?? [],
 	});
 
+	// A statement names a card by its four digits, so the cards are part of working out
+	// which account a file is about.
+	const cards = useQuery({
+		queryKey: ["cards", spaceId],
+		enabled: Boolean(session && spaceId !== ""),
+		queryFn: () => session?.cards.list(spaceId) ?? [],
+	});
+
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
 
 	// Reading the file again with a corrected mapping is cheap and keeps one path:
@@ -148,7 +162,7 @@ export function ImportPage() {
 	const usable = (accounts.data ?? []).filter((account) => account.archivedAt === null);
 
 	/** What the file says about where it belongs, before anybody is asked. */
-	const guessed = useMemo(() => {
+	const guessed = useMemo<AccountGuess | null>(() => {
 		if (!read || usable.length === 0) return null;
 
 		const shape = shapeOf(read.header);
@@ -171,8 +185,15 @@ export function ImportPage() {
 				kind: account.kind,
 				institution: account.institution,
 			})),
+			(cards.data ?? []).map((card) => ({
+				id: card.id,
+				name: card.name,
+				lastFour: card.lastFour,
+				creditAccountId: card.creditAccountId,
+				debitAccountId: card.debitAccountId,
+			})),
 		);
-	}, [read, usable, spaceId]);
+	}, [read, usable, spaceId, cards.data]);
 
 	const chosen =
 		usable.find((account) => account.id === accountId) ??
@@ -276,7 +297,11 @@ export function ImportPage() {
 				notes: record.notes,
 				externalId: record.externalId,
 			}));
-			return session.imports.create({ spaceId, accountId: chosen.id, records });
+			// Only when the file itself named the card, and only while the account it
+			// named is still the one being written into.
+			const cardId =
+				guessed?.cardId !== undefined && guessed.id === chosen.id ? guessed.cardId : null;
+			return session.imports.create({ spaceId, accountId: chosen.id, cardId, records });
 		},
 		onSuccess: (result) => {
 			// What this import took to get right is what the next one starts from.

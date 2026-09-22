@@ -416,7 +416,9 @@
 		"dueDay": "Dia do vencimento",
 		"dueDayHint": "Quando a fatura tem que ser paga.",
 		"emptyTitle": "Nenhuma conta por aqui ainda",
-		"emptyBody": "Comece pela conta onde cai o seu salário. Dá para adicionar cartão, dinheiro e investimento depois."
+		"emptyBody": "Comece pela conta onde cai o seu salário. Dá para adicionar cartão, dinheiro e investimento depois.",
+		"benefit": "Qual benefício",
+		"benefitHint": "VR compra refeição pronta, VA compra mercado, VT paga transporte. Loja que aceita um pode recusar o outro."
 	},
 	"rules": {
 		"emailTaken": "Já existe um perfil com esse email neste dispositivo. Use outro email.",
@@ -448,7 +450,17 @@
 		"onlyExpensesAreSplit": "Só despesa se divide, porque só despesa é custo.",
 		"payerIsNotAMember": "Quem pagou precisa estar no espaço.",
 		"settlementNeedsTwoPeople": "Ninguém paga a si mesmo.",
-		"unknown": "Não consegui concluir. Tente de novo."
+		"unknown": "Não consegui concluir. Tente de novo.",
+		"cardNeedsCreditAccount": "Escolha a fatura que esse cartão lança.",
+		"cardHasNoCredit": "Esse tipo de cartão não lança em fatura.",
+		"cardNeedsDebitAccount": "Escolha a conta de onde o dinheiro sai.",
+		"cardHasNoDebit": "Esse tipo de cartão não gasta saldo de conta.",
+		"creditAccountIsNotACard": "A fatura tem que ser uma conta do tipo cartão de crédito.",
+		"debitAccountIsACard": "Uma conta de cartão de crédito é fatura, não é saldo.",
+		"lastFourIsFourDigits": "Escreva os quatro últimos dígitos do cartão.",
+		"cardDoesNotReachAccount": "Esse cartão não gasta dessa conta.",
+		"cardIsArchived": "Esse cartão está arquivado. Desarquive antes de lançar com ele.",
+		"benefitIsForVouchers": "Só uma conta de vale diz qual benefício é."
 	},
 	"transactions": {
 		"title": "Lançamentos",
@@ -657,7 +669,7 @@
 		"savings": "Poupança",
 		"cash": "Dinheiro",
 		"credit": "Cartão de crédito",
-		"voucher": "Vale refeição",
+		"voucher": "Vale ou benefício",
 		"investment": "Investimento"
 	},
 	"spaces": {
@@ -892,7 +904,8 @@
 			"institution": "Escolhi esta pelo nome do banco no documento. Troque se não for.",
 			"onlyCard": "É uma fatura, e este é o seu único cartão. Troque se não for.",
 			"onlyAccount": "É um extrato, e esta é a sua única conta. Troque se não for.",
-			"remembered": "Foi a conta da última vez que você importou um arquivo assim."
+			"remembered": "Foi a conta da última vez que você importou um arquivo assim.",
+			"cardDigits": "Reconheci pelos quatro dígitos do cartão."
 		},
 		"willSort": "{{count}} já entram categorizados pelas suas regras.",
 		"allClear_one": "Está tudo pronto: 1 lançamento para {{account}}, nada em dúvida e nada repetido. É só gravar.",
@@ -978,5 +991,58 @@
 		"goalStalled_other": "{{subject}} não recebe nada há {{count}} dias. Faltam {{still}}, ou {{everyMonth}} por mês para chegar na data.",
 		"idleCash": "Você tem {{spare}} além dos três meses de reserva. Vale separar esse dinheiro do que você usa no dia a dia.",
 		"betterThanUsual": "Este mês você gastou {{saved}} a menos que o normal. Foram {{expense}} contra os {{usual}} de sempre."
+	},
+	"benefitKind": {
+		"meal": "Vale refeição (VR)",
+		"food": "Vale alimentação (VA)",
+		"transport": "Vale transporte (VT)",
+		"culture": "Vale cultura",
+		"mobility": "Mobilidade"
+	},
+	"cardKind": {
+		"credit": "Crédito",
+		"debit": "Débito",
+		"multiple": "Múltiplo",
+		"benefit": "Benefício",
+		"prepaid": "Pré pago"
+	},
+	"cards": {
+		"title": "Cartões",
+		"explain": "O cartão é o plástico. A conta é o dinheiro. Um cartão múltiplo usa as duas: no crédito cai na fatura, no débito sai do saldo na hora.",
+		"create": "Novo cartão",
+		"createDescription": "O cartão vai para o espaço {{space}}.",
+		"edit": "Editar cartão",
+		"caption": "Cartões do espaço {{space}}, com nome, tipo e as contas que ele usa",
+		"name": "Nome",
+		"namePlaceholder": "Nubank",
+		"kind": "Tipo",
+		"kindHint": "Múltiplo é o cartão que funciona no crédito e no débito.",
+		"lastFour": "Quatro últimos dígitos",
+		"lastFourHint": "É assim que o extrato chama o cartão, e é assim que a importação reconhece ele. Pode deixar em branco.",
+		"creditAccount": "Fatura que ele lança",
+		"creditAccountHint": "A conta de cartão de crédito onde as compras entram.",
+		"debitAccount": "Saldo que ele gasta",
+		"debitAccountHint": "A conta de onde o dinheiro sai na hora.",
+		"uses": "Usa",
+		"usesCredit": "Fatura de {{name}}",
+		"usesDebit": "Saldo de {{name}}",
+		"digits": "Final {{digits}}",
+		"actions": "Ações do cartão",
+		"archive": "Arquivar",
+		"unarchive": "Desarquivar",
+		"emptyTitle": "Nenhum cartão cadastrado",
+		"emptyBody": "Cadastre o cartão que você usa no dia a dia. Depois cada compra diz com qual foi, e a fatura fecha sozinha.",
+		"needsCreditAccount": "Para cadastrar um cartão de crédito, crie antes uma conta do tipo cartão de crédito.",
+		"needsDebitAccount": "Para cadastrar um cartão de débito ou de benefício, crie antes a conta de onde o dinheiro sai.",
+		"onInvoice": "Cartões desta fatura"
+	},
+	"transaction": {
+		"card": "Cartão",
+		"cardNone": "Sem cartão",
+		"cardHint": "Escolher o cartão já leva o lançamento para a conta certa."
+	},
+	"filters": {
+		"card": "Cartão",
+		"anyCard": "Qualquer cartão"
 	}
 }

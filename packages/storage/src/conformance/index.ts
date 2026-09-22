@@ -20,6 +20,7 @@ import { migrate } from "../migrate.ts";
 import { createUser } from "../repositories/users.ts";
 import type { Session } from "../session.ts";
 import { runAdviceConformance } from "./advice.ts";
+import { runCardConformance } from "./cards.ts";
 import { runCategoryConformance } from "./categories.ts";
 import { runFutureConformance } from "./future.ts";
 import { runPlanConformance } from "./plan.ts";
@@ -82,6 +83,19 @@ const PROBES: Probe[] = [
 	{
 		permission: "account.delete",
 		run: (session, where) => session.accounts.remove(where.accountId),
+	},
+	// A card holds no money and shows nothing a person could not already see, so it
+	// borrows the words of the accounts rather than inventing five roles of its own.
+	{ permission: "account.read", run: (session, where) => session.cards.list(where.spaceId) },
+	{
+		permission: "account.create",
+		run: (session, where) =>
+			session.cards.create({
+				spaceId: where.spaceId,
+				kind: "debit",
+				name: "Debito",
+				debitAccountId: where.accountId,
+			}),
 	},
 	{
 		permission: "transaction.read",
@@ -593,6 +607,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 		});
 
 		runTransactionConformance(adapter);
+		runCardConformance(adapter);
 		runCategoryConformance(adapter);
 		runRuleConformance(adapter);
 		runPlanConformance(adapter);

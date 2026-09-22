@@ -43,6 +43,11 @@ export type ImportInput = {
 	spaceId: string;
 	/** Every line of one file belongs to one account, which the person picks. */
 	accountId: string;
+	/**
+	 * And to one piece of plastic, when the file says which. A statement names a card by
+	 * its four digits, so this is usually worked out rather than chosen.
+	 */
+	cardId?: string | null;
 	records: ImportedRecord[];
 };
 
@@ -70,7 +75,7 @@ export function createImportsRepository(context: RepositoryContext) {
 	async function accountIn(spaceId: string, accountId: string): Promise<Account> {
 		const rows = await context.driver.all(
 			`SELECT "id", "space_id", "kind", "name", "currency", "initial_balance", "institution",
-			        "archived_at", "closing_day", "due_day", "credit_limit", "created_by",
+			        "archived_at", "closing_day", "due_day", "credit_limit", "benefit", "created_by",
 			        "created_at", "updated_at"
 			 FROM "accounts" WHERE "id" = ? AND "space_id" = ? AND "deleted_at" IS NULL`,
 			[accountId, spaceId],
@@ -192,6 +197,26 @@ export function createImportsRepository(context: RepositoryContext) {
 			const rules = ruleRows.map(toCategorizationRule);
 			const cycle = cycleOf(account);
 
+			// Checked once for the whole file, for the same reason every other check here
+			// is: a card that does not reach this account has to stop the import before a
+			// single row is written, not halfway through.
+			let cardId: string | null = null;
+			if (input.cardId) {
+				const rows = await context.driver.all(
+					`SELECT "id" FROM "cards"
+					 WHERE "id" = ? AND "space_id" = ? AND "deleted_at" IS NULL
+					   AND ("credit_account_id" = ? OR "debit_account_id" = ?)`,
+					[input.cardId, input.spaceId, input.accountId, input.accountId],
+				);
+				if (rows.length === 0) {
+					throw new RuleError(
+						"cardDoesNotReachAccount",
+						"this card does not spend from the account the file is being read into",
+					);
+				}
+				cardId = input.cardId;
+			}
+
 			const ids = await context.driver.transaction(async (tx) => {
 				const write = { ...context.write(), driver: tx };
 				const written: string[] = [];
@@ -229,6 +254,7 @@ export function createImportsRepository(context: RepositoryContext) {
 							category_id: record.categoryId ?? sorted?.categoryId ?? null,
 							priority: record.priority ?? sorted?.priority ?? null,
 							external_id: record.externalId ?? null,
+							card_id: cardId,
 							created_by: context.actor().userId,
 						},
 					});

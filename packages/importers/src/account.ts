@@ -24,10 +24,21 @@ export type AccountHint = {
 	kind?: DocumentKind | null;
 };
 
+/** A piece of plastic of the space, which a statement names by its four digits. */
+export type KnownCard = {
+	id: string;
+	name: string;
+	lastFour: string | null;
+	creditAccountId: string | null;
+	debitAccountId: string | null;
+};
+
 export type AccountGuess = {
 	id: string;
 	/** Why this one, so the screen can say it rather than just pick. */
-	why: "digits" | "institution" | "onlyCard" | "onlyAccount" | "remembered";
+	why: "digits" | "cardDigits" | "institution" | "onlyCard" | "onlyAccount" | "remembered";
+	/** The card the digits named, when they named one. */
+	cardId?: string;
 };
 
 function fold(value: string): string {
@@ -61,10 +72,36 @@ const SPENDING_KINDS = new Set(["checking", "savings", "cash", "voucher"]);
 export function guessAccount(
 	hint: AccountHint,
 	accounts: readonly KnownAccount[],
+	cards: readonly KnownCard[] = [],
 ): AccountGuess | null {
 	if (accounts.length === 0) return null;
 
 	const wanted = digitsOf(hint.accountHint ?? "");
+	const known = new Set(accounts.map((account) => account.id));
+
+	// A card invoice says "final 4417", which names the plastic and not the account.
+	// This is the strongest evidence there is, because four digits somebody typed in
+	// once beat every other rule below, and it is the only one that also answers which
+	// card a purchase was made with.
+	if (wanted.length > 0) {
+		const matching = cards.filter(
+			(card) => card.lastFour !== null && wanted.includes(card.lastFour),
+		);
+		const card = matching.length === 1 ? matching[0] : undefined;
+		if (card) {
+			// A cartao multiplo reaches two accounts, and which one a file is about is
+			// decided by what the file is: an invoice is the credit side, a statement of
+			// the balance is the other.
+			const preferred =
+				hint.kind === "invoice"
+					? (card.creditAccountId ?? card.debitAccountId)
+					: (card.debitAccountId ?? card.creditAccountId);
+			if (preferred !== null && known.has(preferred)) {
+				return { id: preferred, why: "cardDigits", cardId: card.id };
+			}
+		}
+	}
+
 	if (wanted.length > 0) {
 		const matching = accounts.filter((account) => {
 			const mine = digitsOf(`${account.name} ${account.institution ?? ""}`);

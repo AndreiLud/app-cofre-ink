@@ -9,8 +9,11 @@ import type {
 	AccountBalance,
 	AccountKind,
 	Backup,
+	BenefitKind,
 	Budget,
 	BudgetWithProgress,
+	Card,
+	CardKind,
 	CategorizationRule,
 	Category,
 	CategoryTotal,
@@ -89,6 +92,24 @@ export type CreateAccountInput = {
 	closingDay?: number | null;
 	dueDay?: number | null;
 	creditLimit?: number | null;
+	/** Only a voucher carries this: which pot it is, VR, VA, VT and the rest. */
+	benefit?: BenefitKind | null;
+};
+
+export type CreateCardInput = {
+	spaceId: string;
+	kind: CardKind;
+	name: string;
+	lastFour?: string | null;
+	creditAccountId?: string | null;
+	debitAccountId?: string | null;
+};
+
+export type UpdateCardInput = {
+	name?: string;
+	lastFour?: string | null;
+	creditAccountId?: string | null;
+	debitAccountId?: string | null;
 };
 
 export type AssignableRole = Exclude<Role, "owner">;
@@ -120,10 +141,23 @@ export type CofreSession = {
 		create: (input: CreateAccountInput) => Promise<Account>;
 		update: (
 			id: string,
-			input: { name?: string; institution?: string | null; initialBalance?: number },
+			input: {
+				name?: string;
+				institution?: string | null;
+				initialBalance?: number;
+				benefit?: BenefitKind | null;
+			},
 		) => Promise<Account>;
 		archive: (id: string) => Promise<Account>;
 		unarchive: (id: string) => Promise<Account>;
+		remove: (id: string) => Promise<void>;
+	};
+	cards: {
+		list: (spaceId: string, options?: { includeArchived?: boolean }) => Promise<Card[]>;
+		create: (input: CreateCardInput) => Promise<Card>;
+		update: (id: string, input: UpdateCardInput) => Promise<Card>;
+		archive: (id: string) => Promise<Card>;
+		unarchive: (id: string) => Promise<Card>;
 		remove: (id: string) => Promise<void>;
 	};
 	categories: {
@@ -277,6 +311,8 @@ export type CofreSession = {
 		create: (input: {
 			spaceId: string;
 			accountId: string;
+			/** The plastic the file named, when it named one. */
+			cardId?: string | null;
 			records: ImportedRecord[];
 		}) => Promise<ImportResult>;
 	};

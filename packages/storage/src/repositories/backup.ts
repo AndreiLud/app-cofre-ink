@@ -85,6 +85,8 @@ export type RecordForExport = {
 	status: string;
 	account: string;
 	counterAccount: string | null;
+	/** The plastic it was paid with, when the record says. */
+	card: string | null;
 	category: string | null;
 	priority: string | null;
 	notes: string | null;
@@ -284,11 +286,13 @@ export function createBackupRepository(context: RepositoryContext) {
 				`SELECT t."happened_on", t."description", t."amount", t."currency", t."kind",
 				        t."status", t."notes", t."invoice_month", t."priority", t."external_id",
 				        t."installment_number", t."installment_count",
-				        a."name" AS account_name, b."name" AS counter_name, c."name" AS category_name
+				        a."name" AS account_name, b."name" AS counter_name, c."name" AS category_name,
+				        d."name" AS card_name
 				 FROM "transactions" t
 				 JOIN "accounts" a ON a."id" = t."account_id"
 				 LEFT JOIN "accounts" b ON b."id" = t."counter_account_id"
 				 LEFT JOIN "categories" c ON c."id" = t."category_id"
+				 LEFT JOIN "cards" d ON d."id" = t."card_id" AND d."deleted_at" IS NULL
 				 WHERE ${where.join(" AND ")}
 				 ORDER BY t."happened_on", t."created_at"`,
 				params,
@@ -303,6 +307,7 @@ export function createBackupRepository(context: RepositoryContext) {
 				status: String(row.status),
 				account: String(row.account_name),
 				counterAccount: row.counter_name === null ? null : String(row.counter_name),
+				card: row.card_name === null ? null : String(row.card_name),
 				category: row.category_name === null ? null : String(row.category_name),
 				priority: row.priority === null ? null : String(row.priority),
 				notes: row.notes === null ? null : String(row.notes),

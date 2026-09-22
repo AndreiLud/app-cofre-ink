@@ -2,6 +2,7 @@
 // to exercise the space scope, and the change log that every write passes through.
 
 import { AUTH_TABLES } from "./authTables.ts";
+import { CARD_TABLES } from "./cardTables.ts";
 import { CATEGORY_TABLES } from "./categoryTables.ts";
 import { INVESTMENT_TABLES } from "./investmentTables.ts";
 import { PLAN_TABLES } from "./planTables.ts";
@@ -21,6 +22,24 @@ export const ACCOUNT_KINDS = [
 	"voucher",
 	"investment",
 ] as const;
+
+/**
+ * Which pot a voucher account is, when it is one. VR and VA are not the same money:
+ * one buys a meal already made and the other buys the shopping, and a shop that takes
+ * one may refuse the other. VT is a third pot again, and Caju and Flash hand out
+ * several of them behind a single card.
+ *
+ * Empty on every account that is not a voucher, which is why it is a column of its own
+ * rather than six more account kinds: the kind says what the money is, this says which
+ * flavour of the same thing, and widening a list a database already checks is a table
+ * rebuild in SQLite.
+ */
+export const BENEFIT_KINDS = ["meal", "food", "transport", "culture", "mobility"] as const;
+
+/** Added to the accounts table by migration 0011, and declared below as well. */
+export const ACCOUNT_BENEFIT_COLUMNS = [
+	{ name: "benefit", type: "text" as const, check: inList("benefit", BENEFIT_KINDS) },
+];
 
 function inList(column: string, values: readonly string[]): string {
 	return `${column} in (${values.map((value) => `'${value}'`).join(", ")})`;
@@ -108,6 +127,7 @@ export const accounts = defineTable({
 		{ name: "closing_day", type: "integer" },
 		{ name: "due_day", type: "integer" },
 		{ name: "credit_limit", type: "bigint" },
+		...ACCOUNT_BENEFIT_COLUMNS,
 		{
 			name: "created_by",
 			type: "text",
@@ -153,6 +173,9 @@ export const SCHEMA: readonly Table[] = [
 	spaces,
 	spaceMembers,
 	accounts,
+	// The plastic that reaches an account, so it comes after them and before the
+	// records that name one.
+	...CARD_TABLES,
 	changes,
 	...AUTH_TABLES,
 	// Categories and recurrences come before transactions, which point at both.

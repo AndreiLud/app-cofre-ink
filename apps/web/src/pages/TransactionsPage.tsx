@@ -38,6 +38,8 @@ type Filters = {
 	kind: TransactionKind | "";
 	status: TransactionStatus | "";
 	accountId: string;
+	/** One piece of plastic, which is narrower than an account when a card is multiple. */
+	cardId: string;
 	/** A category, the word "none" for what was never sorted, or empty for everything. */
 	categoryId: string;
 	search: string;
@@ -51,6 +53,7 @@ function filtersFrom(query: FilterQuery, fallbackMonth: string): Filters {
 		kind: text("kind") as TransactionKind | "",
 		status: text("status") as TransactionStatus | "",
 		accountId: text("accountId"),
+		cardId: text("cardId"),
 		categoryId: text("categoryId"),
 		search: text("search"),
 		month: "month" in query ? text("month") : fallbackMonth,
@@ -67,6 +70,7 @@ export function TransactionsPage() {
 		kind: "",
 		status: "",
 		accountId: "",
+		cardId: "",
 		categoryId: "",
 		search: "",
 		month: monthOf(today),
@@ -93,6 +97,12 @@ export function TransactionsPage() {
 		queryKey: ["categories", spaceId],
 		enabled: Boolean(session && currentSpace),
 		queryFn: () => session?.categories.list(spaceId) ?? [],
+	});
+
+	const cards = useQuery({
+		queryKey: ["cards", spaceId],
+		enabled: Boolean(session && currentSpace),
+		queryFn: () => session?.cards.list(spaceId) ?? [],
 	});
 
 	// Only a shared space needs to know who else is in it, and only to divide a cost.
@@ -131,6 +141,7 @@ export function TransactionsPage() {
 				kind: filters.kind === "" ? undefined : filters.kind,
 				status: filters.status === "" ? undefined : filters.status,
 				accountId: filters.accountId === "" ? undefined : filters.accountId,
+				cardId: filters.cardId === "" ? undefined : filters.cardId,
 				search: filters.search === "" ? undefined : filters.search,
 				categoryIds: chosenCategories,
 				withoutCategory: filters.categoryId === "none",
@@ -222,12 +233,16 @@ export function TransactionsPage() {
 	});
 
 	/** How many of the filters behind the button are doing something. */
-	const narrowed = [filters.kind, filters.status, filters.accountId, filters.categoryId].filter(
-		(value) => value !== "",
-	).length;
+	const narrowed = [
+		filters.kind,
+		filters.status,
+		filters.accountId,
+		filters.cardId,
+		filters.categoryId,
+	].filter((value) => value !== "").length;
 
 	const clearFilters = () => {
-		setFilters({ ...filters, kind: "", status: "", accountId: "", categoryId: "" });
+		setFilters({ ...filters, kind: "", status: "", accountId: "", cardId: "", categoryId: "" });
 		setPicked([]);
 	};
 
@@ -355,6 +370,19 @@ export function TransactionsPage() {
 								})),
 							]}
 						/>
+						{/* Only when there is one. A space with no card should not be asked
+						    about cards. */}
+						{(cards.data ?? []).length > 0 ? (
+							<Select
+								label={t("filters.card")}
+								value={filters.cardId}
+								onChange={(event) => setFilters({ ...filters, cardId: event.target.value })}
+								options={[
+									{ value: "", label: t("filters.anyCard") },
+									...(cards.data ?? []).map((card) => ({ value: card.id, label: card.name })),
+								]}
+							/>
+						) : null}
 						<Select
 							label={t("transactions.category")}
 							value={filters.categoryId}

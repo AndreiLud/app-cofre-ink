@@ -65,6 +65,21 @@ export const TRANSACTION_PAYER_COLUMNS = [
  */
 export const TRANSACTION_IMPORT_COLUMNS = [{ name: "external_id", type: "text" as const }];
 
+/**
+ * Added by migration 0011. Which piece of plastic was used, when one was.
+ *
+ * It never decides anything by itself: the account is what a record is charged to, and
+ * the card only says how it got there. That is why it empties instead of blocking when
+ * a card is removed, and why a record with no card is as complete as one with it.
+ */
+export const TRANSACTION_CARD_COLUMNS = [
+	{
+		name: "card_id",
+		type: "text" as const,
+		references: { table: "cards", column: "id", onDelete: "setNull" as const },
+	},
+];
+
 export const transactions = defineTable({
 	name: "transactions",
 	scope: "space",
@@ -111,6 +126,7 @@ export const transactions = defineTable({
 		...TRANSACTION_RECURRENCE_COLUMNS,
 		...TRANSACTION_PAYER_COLUMNS,
 		...TRANSACTION_IMPORT_COLUMNS,
+		...TRANSACTION_CARD_COLUMNS,
 		{
 			name: "created_by",
 			type: "text",
@@ -123,6 +139,7 @@ export const transactions = defineTable({
 		{ name: "transactions_by_recurrence", columns: ["recurrence_id", "happened_on"] },
 		{ name: "transactions_by_space_and_date", columns: ["space_id", "happened_on"] },
 		{ name: "transactions_by_account", columns: ["account_id", "happened_on"] },
+		{ name: "transactions_by_card", columns: ["card_id", "happened_on"] },
 		{ name: "transactions_by_invoice", columns: ["account_id", "invoice_month"] },
 		{ name: "transactions_by_group", columns: ["installment_group"] },
 		{ name: "transactions_by_author", columns: ["space_id", "created_by"] },

@@ -13,13 +13,15 @@
 
 import { addColumnSql, createIndexSql, createSchemaSql, type Dialect } from "./ddl.ts";
 import { AUTH_TABLES } from "./schema/authTables.ts";
+import { CARD_TABLES } from "./schema/cardTables.ts";
 import { CATEGORY_TABLES } from "./schema/categoryTables.ts";
 import { INVESTMENT_TABLES } from "./schema/investmentTables.ts";
 import { MEMBER_INCOME_COLUMNS, PLAN_TABLES } from "./schema/planTables.ts";
 import { RULE_TABLES } from "./schema/ruleTables.ts";
-import { SCHEMA, SPACE_COMPACTION_COLUMNS } from "./schema/tables.ts";
+import { ACCOUNT_BENEFIT_COLUMNS, SCHEMA, SPACE_COMPACTION_COLUMNS } from "./schema/tables.ts";
 import {
 	CARD_COLUMNS,
+	TRANSACTION_CARD_COLUMNS,
 	TRANSACTION_CATEGORY_COLUMNS,
 	TRANSACTION_IMPORT_COLUMNS,
 	TRANSACTION_PAYER_COLUMNS,
@@ -115,6 +117,19 @@ export const MIGRATIONS: readonly Migration[] = [
 	{
 		id: "0010_investments_and_scenarios",
 		statements: (context) => createSchemaSql([...INVESTMENT_TABLES], context.dialect),
+	},
+	{
+		id: "0011_cards_and_benefits",
+		statements: (context) => [
+			...createSchemaSql([...CARD_TABLES], context.dialect),
+			...ACCOUNT_BENEFIT_COLUMNS.filter(
+				(column) => !context.hasColumn("accounts", column.name),
+			).map((column) => addColumnSql("accounts", column, context.dialect)),
+			...TRANSACTION_CARD_COLUMNS.filter(
+				(column) => !context.hasColumn("transactions", column.name),
+			).map((column) => addColumnSql("transactions", column, context.dialect)),
+			...createIndexSql(transactions, context.dialect),
+		],
 	},
 ];
 

@@ -12,6 +12,7 @@ export * from "./repositories/accounts.ts";
 export * from "./repositories/advice.ts";
 export * from "./repositories/backup.ts";
 export * from "./repositories/budgets.ts";
+export * from "./repositories/cards.ts";
 export * from "./repositories/categories.ts";
 export * from "./repositories/changes.ts";
 export * from "./repositories/context.ts";

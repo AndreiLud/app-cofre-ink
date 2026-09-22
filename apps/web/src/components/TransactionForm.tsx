@@ -53,6 +53,7 @@ export function TransactionForm({
 	const [notes, setNotes] = useState("");
 	const [categoryId, setCategoryId] = useState("");
 	const [priority, setPriority] = useState("");
+	const [way, setWay] = useState("");
 	const [problem, setProblem] = useState<string | null>(null);
 
 	const categories = useQuery({
@@ -61,9 +62,58 @@ export function TransactionForm({
 		queryFn: () => session?.categories.list(spaceId) ?? [],
 	});
 
+	const cards = useQuery({
+		queryKey: ["cards", spaceId],
+		enabled: Boolean(session && spaceId !== ""),
+		queryFn: () => session?.cards.list(spaceId) ?? [],
+	});
+
 	const usable = accounts.filter((account) => account.archivedAt === null);
 	const chosen = usable.find((account) => account.id === accountId);
 	const canSplit = kind === "expense" && chosen?.kind === "credit";
+
+	/**
+	 * One entry per way to pay rather than one per card, because that is the choice
+	 * somebody actually makes at the till. A cartao multiplo appears twice, as credit
+	 * and as debit, and picking one of the two is what decides whether the purchase
+	 * lands on the invoice or leaves the balance today.
+	 */
+	const ways = (cards.data ?? []).flatMap((card) => {
+		const both = card.creditAccountId !== null && card.debitAccountId !== null;
+		const entries: { value: string; label: string; cardId: string; accountId: string }[] = [];
+		if (card.creditAccountId) {
+			entries.push({
+				value: `${card.id}:${card.creditAccountId}`,
+				label: both ? `${card.name} (${t("cardKind.credit")})` : card.name,
+				cardId: card.id,
+				accountId: card.creditAccountId,
+			});
+		}
+		if (card.debitAccountId) {
+			entries.push({
+				value: `${card.id}:${card.debitAccountId}`,
+				label: both ? `${card.name} (${t("cardKind.debit")})` : card.name,
+				cardId: card.id,
+				accountId: card.debitAccountId,
+			});
+		}
+		return entries.filter((entry) => usable.some((account) => account.id === entry.accountId));
+	});
+
+	const chosenWay = ways.find((entry) => entry.value === way) ?? null;
+
+	/** Picking the plastic picks the account, which is the whole point of having it. */
+	function pickWay(value: string) {
+		setWay(value);
+		const found = ways.find((entry) => entry.value === value);
+		if (found) setAccountId(found.accountId);
+	}
+
+	/** And choosing another account by hand drops a card that cannot reach it. */
+	function pickAccount(value: string) {
+		setAccountId(value);
+		if (chosenWay && chosenWay.accountId !== value) setWay("");
+	}
 
 	// Opening the form is what resets it, so a half typed record is never inherited.
 	useEffect(() => {
@@ -81,6 +131,7 @@ export function TransactionForm({
 			setInstallments("1");
 			setCategoryId(editing.categoryId ?? "");
 			setPriority(editing.priority ?? "");
+			setWay(editing.cardId === null ? "" : `${editing.cardId}:${editing.accountId}`);
 			return;
 		}
 		setKind("expense");
@@ -94,6 +145,7 @@ export function TransactionForm({
 		setNotes("");
 		setCategoryId("");
 		setPriority("");
+		setWay("");
 	}, [open, editing, today, usable[0]?.id]);
 
 	const save = useMutation({
@@ -110,6 +162,9 @@ export function TransactionForm({
 			const sorting = {
 				categoryId: kind === "transfer" || categoryId === "" ? null : categoryId,
 				priority: priority === "" ? null : (priority as SpendingPriority),
+				// A transfer between your own accounts is not a card purchase, whatever
+				// piece of plastic happened to be in the hand.
+				cardId: kind === "transfer" ? null : (chosenWay?.cardId ?? null),
 			};
 
 			if (editing) {
@@ -230,11 +285,24 @@ export function TransactionForm({
 					required={true}
 				/>
 
+				{kind === "transfer" || ways.length === 0 ? null : (
+					<Select
+						label={t("transaction.card")}
+						hint={t("transaction.cardHint")}
+						value={way}
+						onChange={(event) => pickWay(event.target.value)}
+						options={[
+							{ value: "", label: t("transaction.cardNone") },
+							...ways.map((entry) => ({ value: entry.value, label: entry.label })),
+						]}
+					/>
+				)}
+
 				<div className="grid gap-4 md:grid-cols-2">
 					<Select
 						label={kind === "transfer" ? t("transactions.from") : t("transactions.account")}
 						value={accountId}
-						onChange={(event) => setAccountId(event.target.value)}
+						onChange={(event) => pickAccount(event.target.value)}
 						options={accountOptions}
 					/>
 					{kind === "transfer" ? (

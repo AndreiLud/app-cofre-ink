@@ -62,6 +62,20 @@ const accountInput = z.object({
 	closingDay: z.number().int().min(1).max(31).nullable().optional(),
 	dueDay: z.number().int().min(1).max(31).nullable().optional(),
 	creditLimit: z.number().int().nonnegative().nullable().optional(),
+	benefit: z.enum(["meal", "food", "transport", "culture", "mobility"]).nullable().optional(),
+});
+
+/**
+ * A card, which is a way to reach an account and not an account itself. Which of the
+ * two links a kind requires is decided by the repository layer, in one place, for every
+ * mode: this only says what a well formed request looks like.
+ */
+const cardInput = z.object({
+	kind: z.enum(["credit", "debit", "multiple", "benefit", "prepaid"]),
+	name: z.string().trim().min(1).max(80),
+	lastFour: z.string().trim().max(4).nullable().optional(),
+	creditAccountId: z.string().trim().max(64).nullable().optional(),
+	debitAccountId: z.string().trim().max(64).nullable().optional(),
 });
 
 const roleInput = z.enum(["admin", "editor", "viewer", "logger"]);
@@ -179,6 +193,7 @@ const transactionInput = z.object({
 	installments: z.number().int().min(1).max(420).optional(),
 	categoryId: z.string().min(1).nullable().optional(),
 	priority: priority.nullable().optional(),
+	cardId: z.string().min(1).max(64).nullable().optional(),
 });
 
 const transactionPatch = z.object({
@@ -191,6 +206,7 @@ const transactionPatch = z.object({
 	notes: z.string().trim().max(2000).nullable().optional(),
 	categoryId: z.string().min(1).nullable().optional(),
 	priority: priority.nullable().optional(),
+	cardId: z.string().min(1).max(64).nullable().optional(),
 });
 
 /** A selection, kept small enough that one request cannot lock the database. */
@@ -234,6 +250,7 @@ const importedRecord = z.object({
 
 const importInput = z.object({
 	accountId: z.string().min(1),
+	cardId: z.string().min(1).max(64).nullable().optional(),
 	// A statement of a whole year fits. Anything larger is two files.
 	records: z.array(importedRecord).min(1).max(3000),
 });
@@ -484,7 +501,7 @@ export function createApp({ config, database, auth }: AppDependencies) {
 	app.patch("/api/accounts/:id", async (context) => {
 		const input = accountInput
 			.partial()
-			.pick({ name: true, institution: true, initialBalance: true });
+			.pick({ name: true, institution: true, initialBalance: true, benefit: true });
 		const account = await context
 			.get("session")
 			.accounts.update(context.req.param("id"), input.parse(await context.req.json()));
@@ -501,6 +518,46 @@ export function createApp({ config, database, auth }: AppDependencies) {
 
 	app.delete("/api/accounts/:id", async (context) => {
 		await context.get("session").accounts.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/cards", async (context) => {
+		const includeArchived = context.req.query("archived") === "true";
+		return context.json(
+			await context.get("session").cards.list(context.req.param("id"), { includeArchived }),
+		);
+	});
+
+	app.post("/api/spaces/:id/cards", async (context) => {
+		const input = cardInput.parse(await context.req.json());
+		const card = await context
+			.get("session")
+			.cards.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(card, 201);
+	});
+
+	// The kind is not here, and not by accident. A card that changed kind would leave
+	// every record it already wrote pointing at an invoice it no longer charges.
+	app.patch("/api/cards/:id", async (context) => {
+		const input = cardInput
+			.partial()
+			.pick({ name: true, lastFour: true, creditAccountId: true, debitAccountId: true });
+		const card = await context
+			.get("session")
+			.cards.update(context.req.param("id"), input.parse(await context.req.json()));
+		return context.json(card);
+	});
+
+	app.post("/api/cards/:id/archive", async (context) =>
+		context.json(await context.get("session").cards.archive(context.req.param("id"))),
+	);
+
+	app.post("/api/cards/:id/unarchive", async (context) =>
+		context.json(await context.get("session").cards.unarchive(context.req.param("id"))),
+	);
+
+	app.delete("/api/cards/:id", async (context) => {
+		await context.get("session").cards.remove(context.req.param("id"));
 		return context.body(null, 204);
 	});
 
@@ -558,6 +615,7 @@ export function createApp({ config, database, auth }: AppDependencies) {
 			await context.get("session").transactions.list({
 				spaceId: context.req.param("id"),
 				accountId: query.accountId,
+				cardId: query.cardId,
 				kind: query.kind as "income" | "expense" | "transfer" | undefined,
 				status: query.status as "planned" | "settled" | undefined,
 				from: query.from,

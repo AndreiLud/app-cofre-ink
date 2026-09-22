@@ -17,7 +17,7 @@ import {
 } from "@cofre/core";
 import { transactions } from "@cofre/db";
 import { assertCan, readableSpaceIds, seesOwnRowsOnly } from "../actor.ts";
-import { asNumber, type SqlValue } from "../driver.ts";
+import { asNumber, type Row, type SqlValue } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
 import {
 	type Account,
@@ -38,7 +38,7 @@ const SELECT = `SELECT "id", "space_id", "kind", "status", "amount", "currency",
 	"amount_in_base", "happened_on", "description", "account_id", "counter_account_id", "notes",
 	"reconciled_at", "installment_group", "installment_number", "installment_count",
 	"invoice_month", "category_id", "priority", "recurrence_id", "paid_by", "external_id",
-	"created_by", "created_at", "updated_at"
+	"card_id", "created_by", "created_at", "updated_at"
 	FROM "transactions"`;
 
 export type CreateTransactionInput = {
@@ -63,6 +63,12 @@ export type CreateTransactionInput = {
 	priority?: SpendingPriority | null;
 	/** What the bank called this entry, set by an import and by nothing else. */
 	externalId?: string | null;
+	/**
+	 * Which piece of plastic was used. It never chooses the account by itself: the
+	 * account is what the money is charged to, and a card that does not reach that
+	 * account is refused rather than quietly moving the record somewhere else.
+	 */
+	cardId?: string | null;
 };
 
 export type UpdateTransactionInput = {
@@ -75,11 +81,13 @@ export type UpdateTransactionInput = {
 	notes?: string | null;
 	categoryId?: string | null;
 	priority?: SpendingPriority | null;
+	cardId?: string | null;
 };
 
 export type TransactionFilter = {
 	spaceId?: string;
 	accountId?: string;
+	cardId?: string;
 	kind?: TransactionKind;
 	status?: TransactionStatus;
 	from?: CalendarDate;
@@ -155,7 +163,7 @@ export function createTransactionsRepository(context: RepositoryContext) {
 	async function accountIn(spaceId: string, accountId: string): Promise<Account> {
 		const rows = await context.driver.all(
 			`SELECT "id", "space_id", "kind", "name", "currency", "initial_balance", "institution",
-			        "archived_at", "closing_day", "due_day", "credit_limit", "created_by",
+			        "archived_at", "closing_day", "due_day", "credit_limit", "benefit", "created_by",
 			        "created_at", "updated_at"
 			 FROM "accounts" WHERE "id" = ? AND "space_id" = ? AND "deleted_at" IS NULL`,
 			[accountId, spaceId],
@@ -163,6 +171,41 @@ export function createTransactionsRepository(context: RepositoryContext) {
 		const first = rows[0];
 		if (!first) throw new NotFoundError("account", accountId);
 		return toAccount(first);
+	}
+
+	/**
+	 * A card may only be named on a record that is charged to an account it reaches.
+	 *
+	 * Without this, a purchase could say it was made with the meal voucher while landing
+	 * on the credit card invoice, and every screen that adds up a card would be adding up
+	 * a story. It is also the check that stops a card of another space being named here.
+	 */
+	async function cardRow(spaceId: string, cardId: string): Promise<Row | null> {
+		const rows = await context.driver.all(
+			`SELECT "id", "credit_account_id", "debit_account_id", "archived_at"
+			 FROM "cards" WHERE "id" = ? AND "space_id" = ? AND "deleted_at" IS NULL`,
+			[cardId, spaceId],
+		);
+		return rows[0] ?? null;
+	}
+
+	function reaches(card: Row, accountId: string): boolean {
+		return card.credit_account_id === accountId || card.debit_account_id === accountId;
+	}
+
+	async function cardIn(spaceId: string, cardId: string, accountId: string): Promise<string> {
+		const card = await cardRow(spaceId, cardId);
+		if (!card) throw new NotFoundError("card", cardId);
+		if (card.archived_at !== null) {
+			throw new RuleError("cardIsArchived", "this card is archived, bring it back before using it");
+		}
+		if (!reaches(card, accountId)) {
+			throw new RuleError(
+				"cardDoesNotReachAccount",
+				"this card does not spend from the account the record is charged to",
+			);
+		}
+		return cardId;
 	}
 
 	async function reachable(id: string): Promise<Transaction> {
@@ -294,6 +337,18 @@ export function createTransactionsRepository(context: RepositoryContext) {
 				: null;
 		}
 		if (input.priority !== undefined) values.priority = input.priority;
+		// The account and the card have to keep agreeing, so a record moved to another
+		// account loses a card that does not reach it rather than lying about it.
+		if (input.cardId !== undefined) {
+			values.card_id = input.cardId
+				? await cardIn(found.spaceId, input.cardId, input.accountId ?? found.accountId)
+				: null;
+		} else if (input.accountId !== undefined && found.cardId !== null) {
+			// A cartao multiplo reaches both of its accounts, so moving a purchase from
+			// the balance to the invoice keeps the card. Anything else loses it.
+			const card = await cardRow(found.spaceId, found.cardId);
+			if (!card || !reaches(card, input.accountId)) values.card_id = null;
+		}
 
 		return values;
 	}
@@ -343,6 +398,10 @@ export function createTransactionsRepository(context: RepositoryContext) {
 					"only a transfer moves money into another account",
 				);
 			}
+
+			const cardId = input.cardId
+				? await cardIn(input.spaceId, input.cardId, input.accountId)
+				: null;
 
 			const currency = input.currency ?? account.currency;
 			const spaceCurrency = await spaceCurrencyOf(input.spaceId);
@@ -407,6 +466,7 @@ export function createTransactionsRepository(context: RepositoryContext) {
 							// One entry from the bank becomes one record, so only a purchase
 							// that was not split carries the identifier it came with.
 							external_id: count > 1 ? null : (input.externalId ?? null),
+							card_id: cardId,
 							created_by: context.actor().userId,
 						},
 					});
@@ -444,6 +504,10 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			if (filter.accountId) {
 				where.push(`("account_id" = ? OR "counter_account_id" = ?)`);
 				params.push(filter.accountId, filter.accountId);
+			}
+			if (filter.cardId) {
+				where.push(`"card_id" = ?`);
+				params.push(filter.cardId);
 			}
 			if (filter.kind) {
 				where.push(`"kind" = ?`);

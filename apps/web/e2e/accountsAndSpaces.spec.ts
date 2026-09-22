@@ -20,6 +20,39 @@ test.describe("accounts", () => {
 		await expect(total(page)).toContainText("1.234,56");
 	});
 
+	test("adds a card and lets one purchase choose where it lands", async ({ page }) => {
+		await openCofre(page);
+
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Novo cartão" }).click();
+
+		// The demonstration space has a current account and a credit card account, so a
+		// multiple card can reach both, which is the case worth proving.
+		await page.getByLabel("Tipo").selectOption("multiple");
+		await page.getByLabel("Nome").fill("Cartão novo");
+		await page.getByLabel("Quatro últimos dígitos").fill("7788");
+		await page.getByRole("button", { name: "Salvar" }).click();
+
+		await expect(page.getByText("Final 7788")).toBeVisible();
+
+		// The same plastic, used as credit: the purchase has to reach the invoice.
+		await go(page, "Lista");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByLabel("Valor", { exact: true }).fill("99,90");
+		await dialog.getByLabel("Descrição").fill("Compra com o cartão novo");
+		await dialog
+			.getByLabel("Cartão", { exact: true })
+			.selectOption({ label: "Cartão novo (Crédito)" });
+		// Picking the plastic picked the account, which is the point of the picker.
+		await expect(dialog.getByLabel("Conta", { exact: true })).toHaveValue(/.+/);
+		await dialog.getByRole("button", { name: "Salvar" }).click();
+
+		await go(page, "Faturas");
+		await expect(page.getByText("Cartão novo (Final 7788)")).toBeVisible();
+		await expect(page.getByRole("cell", { name: "Compra com o cartão novo" })).toBeVisible();
+	});
+
 	test("hides an archived account until it is asked for", async ({ page }) => {
 		await openCofre(page);
 

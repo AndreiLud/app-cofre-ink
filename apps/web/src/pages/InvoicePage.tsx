@@ -65,7 +65,7 @@ export function InvoicePage() {
 	const spaceId = currentSpace?.id ?? "";
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
 
-	const [cardId, setCardId] = useState("");
+	const [invoiceAccountId, setInvoiceAccountId] = useState("");
 	const [month, setMonth] = useState("");
 
 	const accounts = useQuery({
@@ -74,24 +74,33 @@ export function InvoicePage() {
 		queryFn: () => session?.accounts.list(spaceId) ?? [],
 	});
 
-	const cards = (accounts.data ?? []).filter((account) => account.kind === "credit");
-	const card = cards.find((option) => option.id === cardId) ?? cards[0] ?? null;
+	const invoiceAccounts = (accounts.data ?? []).filter((one) => one.kind === "credit");
+	const invoiceAccount =
+		invoiceAccounts.find((one) => one.id === invoiceAccountId) ?? invoiceAccounts[0] ?? null;
 	const cycle: CardCycle | null =
-		card && card.closingDay !== null && card.dueDay !== null
-			? { closingDay: card.closingDay, dueDay: card.dueDay }
+		invoiceAccount && invoiceAccount.closingDay !== null && invoiceAccount.dueDay !== null
+			? { closingDay: invoiceAccount.closingDay, dueDay: invoiceAccount.dueDay }
 			: null;
 
 	// The invoice the purchases of today land on, which is the one to open on.
 	const openMonth = cycle ? invoiceMonthOf(today, cycle) : "";
 	const shown = month === "" ? openMonth : month;
 
+	// Which pieces of plastic charge this invoice. Two is normal: the holder and the
+	// extra card somebody else in the house carries.
+	const cards = useQuery({
+		queryKey: ["cards", spaceId],
+		enabled: Boolean(session && currentSpace),
+		queryFn: () => session?.cards.list(spaceId) ?? [],
+	});
+
 	const records = useQuery({
-		queryKey: ["transactions", spaceId, "invoice", card?.id, shown],
-		enabled: Boolean(session && currentSpace && card && shown !== ""),
+		queryKey: ["transactions", spaceId, "invoice", invoiceAccount?.id, shown],
+		enabled: Boolean(session && currentSpace && invoiceAccount && shown !== ""),
 		queryFn: () =>
 			session?.transactions.list({
 				spaceId,
-				accountId: card?.id,
+				accountId: invoiceAccount?.id,
 				invoiceMonth: shown,
 				limit: 500,
 			}) ?? [],
@@ -99,7 +108,7 @@ export function InvoicePage() {
 
 	if (!currentSpace) return null;
 
-	if (!accounts.isPending && cards.length === 0) {
+	if (!accounts.isPending && invoiceAccounts.length === 0) {
 		return (
 			<div className="space-y-6">
 				<InsightTitle level="h1">{t("invoice.noCardTitle")}</InsightTitle>
@@ -123,6 +132,9 @@ export function InvoicePage() {
 	const dueOn = cycle && shown ? invoiceDueDate(shown, cycle) : null;
 	const period = cycle && shown ? invoicePeriod(shown, cycle) : null;
 
+	const onThisInvoice = (cards.data ?? []).filter(
+		(one) => invoiceAccount !== null && one.creditAccountId === invoiceAccount.id,
+	);
 	const untilClosing = closesOn === null ? 0 : daysBetween(today, closesOn);
 	const untilDue = dueOn === null ? 0 : daysBetween(today, dueOn);
 
@@ -154,15 +166,15 @@ export function InvoicePage() {
 				</InsightTitle>
 
 				<div className="flex items-end gap-3">
-					{cards.length > 1 ? (
+					{invoiceAccounts.length > 1 ? (
 						<Select
 							label={t("invoice.card")}
-							value={card?.id ?? ""}
+							value={invoiceAccount?.id ?? ""}
 							onChange={(event) => {
-								setCardId(event.target.value);
+								setInvoiceAccountId(event.target.value);
 								setMonth("");
 							}}
-							options={cards.map((option) => ({ value: option.id, label: option.name }))}
+							options={invoiceAccounts.map((one) => ({ value: one.id, label: one.name }))}
 						/>
 					) : null}
 					<div className="flex items-center gap-1">
@@ -202,7 +214,7 @@ export function InvoicePage() {
 					<p className="font-mono text-3xl tabular-nums">
 						<Value
 							amount={Math.abs(total)}
-							currency={card?.currency ?? currentSpace.baseCurrency}
+							currency={invoiceAccount?.currency ?? currentSpace.baseCurrency}
 							tone="neutral"
 						/>
 					</p>
@@ -211,10 +223,26 @@ export function InvoicePage() {
 					{total > 0 ? t("invoice.inCredit") : t("invoice.toPay")}
 					{dueOn ? ` ${t("invoice.dueOn", { day: dayAndMonth(dueOn) })}` : ""}
 				</p>
-				{card?.creditLimit ? (
+				{invoiceAccount?.creditLimit ? (
 					<p className="text-sm text-quiet">
 						{t("invoice.limit")}{" "}
-						<Value amount={card.creditLimit} currency={card.currency} tone="neutral" />
+						<Value
+							amount={invoiceAccount.creditLimit}
+							currency={invoiceAccount.currency}
+							tone="neutral"
+						/>
+					</p>
+				) : null}
+				{onThisInvoice.length > 0 ? (
+					<p className="text-sm text-quiet">
+						{t("cards.onInvoice")}:{" "}
+						{onThisInvoice
+							.map((one) =>
+								one.lastFour === null
+									? one.name
+									: `${one.name} (${t("cards.digits", { digits: one.lastFour })})`,
+							)
+							.join(", ")}
 					</p>
 				) : null}
 			</section>
@@ -227,7 +255,9 @@ export function InvoicePage() {
 
 			{rows.length > 0 ? (
 				<Panel flush>
-					<Table caption={t("invoice.caption", { card: card?.name ?? "", month: monthName })}>
+					<Table
+						caption={t("invoice.caption", { card: invoiceAccount?.name ?? "", month: monthName })}
+					>
 						<TableHead>
 							<TableRow>
 								<TableHeader>{t("transactions.day")}</TableHeader>

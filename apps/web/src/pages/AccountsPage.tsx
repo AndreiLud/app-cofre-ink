@@ -1,7 +1,7 @@
 // Accounts of the current space: what exists, and how to add one.
 
 import { parseMoney } from "@cofre/core";
-import type { AccountKind } from "@cofre/storage";
+import type { AccountKind, BenefitKind } from "@cofre/storage";
 import {
 	Button,
 	Callout,
@@ -25,10 +25,12 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { CardsSection } from "../components/CardsSection.tsx";
 import { Value } from "../components/Value.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 
 const KINDS: AccountKind[] = ["checking", "savings", "cash", "credit", "voucher", "investment"];
+const BENEFITS: BenefitKind[] = ["meal", "food", "transport", "culture", "mobility"];
 
 export function AccountsPage() {
 	const { t } = useTranslation();
@@ -42,6 +44,7 @@ export function AccountsPage() {
 	const [institution, setInstitution] = useState("");
 	const [closingDay, setClosingDay] = useState("3");
 	const [dueDay, setDueDay] = useState("10");
+	const [benefit, setBenefit] = useState<BenefitKind>("meal");
 	const [problem, setProblem] = useState<string | null>(null);
 
 	const spaceId = currentSpace?.id ?? "";
@@ -80,6 +83,9 @@ export function AccountsPage() {
 				// Only a card carries a cycle, and without it a purchase has no invoice.
 				closingDay: kind === "credit" ? Number(closingDay) : null,
 				dueDay: kind === "credit" ? Number(dueDay) : null,
+				// VR, VA and VT are three different pots, and a shop that takes one may
+				// refuse the other, so the account says which it is.
+				benefit: kind === "voucher" ? benefit : null,
 			});
 		},
 		onSuccess: () => {
@@ -91,7 +97,17 @@ export function AccountsPage() {
 			invalidate();
 		},
 		onError: (error: unknown) => {
-			setProblem(error instanceof Error ? error.message : String(error));
+			const rule =
+				error !== null && typeof error === "object" && "rule" in error
+					? String((error as { rule: unknown }).rule)
+					: null;
+			setProblem(
+				rule === null
+					? error instanceof Error
+						? error.message
+						: String(error)
+					: t(`rules.${rule}`, { defaultValue: t("rules.unknown") }),
+			);
 		},
 	});
 
@@ -174,7 +190,11 @@ export function AccountsPage() {
 											{account.name}
 										</span>
 									</TableCell>
-									<TableCell className="text-quiet">{t(`accountKind.${account.kind}`)}</TableCell>
+									<TableCell className="text-quiet">
+										{account.benefit
+											? t(`benefitKind.${account.benefit}`)
+											: t(`accountKind.${account.kind}`)}
+									</TableCell>
 									<TableCell className="text-quiet">{account.institution ?? ""}</TableCell>
 									<TableCell numeric={true}>
 										<Value
@@ -212,6 +232,8 @@ export function AccountsPage() {
 					</Table>
 				</Panel>
 			) : null}
+
+			<CardsSection spaceId={spaceId} spaceName={currentSpace.name} accounts={rows} />
 
 			<Dialog
 				open={isOpen}
@@ -273,6 +295,15 @@ export function AccountsPage() {
 								}))}
 							/>
 						</div>
+					) : null}
+					{kind === "voucher" ? (
+						<Select
+							label={t("accounts.benefit")}
+							hint={t("accounts.benefitHint")}
+							value={benefit}
+							onChange={(event) => setBenefit(event.target.value as BenefitKind)}
+							options={BENEFITS.map((value) => ({ value, label: t(`benefitKind.${value}`) }))}
+						/>
 					) : null}
 					<Field
 						label={t("accounts.balance")}
