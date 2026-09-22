@@ -20,6 +20,14 @@ const schema = z.object({
 	COFRE_PUBLIC_URL: z.string().url().default("http://localhost:4321"),
 	/** Where the built interface sits, when the same process serves it. */
 	COFRE_STATIC_DIR: z.string().optional(),
+	/**
+	 * The header a reverse proxy uses to say who is really calling. Without it every
+	 * request behind a proxy looks like the same client, and the limit that protects
+	 * the sign in counts everybody together. The name comes from configuration and is
+	 * never assumed, because a header anyone can set is a header anyone can lie about.
+	 * See .env.example for the usual value.
+	 */
+	COFRE_CLIENT_IP_HEADER: z.string().optional(),
 	NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 

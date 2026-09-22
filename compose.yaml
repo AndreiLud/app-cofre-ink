@@ -8,6 +8,10 @@
 # For PostgreSQL instead of SQLite, uncomment the database service and point
 # COFRE_DATABASE at it.
 
+# The project name comes from here and not from the folder, so the container and the
+# volume are called the same thing on every machine.
+name: cofre
+
 services:
   cofre:
     build: .

@@ -5,6 +5,12 @@
 	"type": "module",
 	"description": "Personal finance app you host yourself, with private and shared spaces",
 	"license": "MIT",
+	"author": "Andrei Ludescher",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/AndreiLud/open-cofre.git"
+	},
+	"homepage": "https://github.com/AndreiLud/open-cofre",
 	"packageManager": "pnpm@12.5.1",
 	"engines": {
 		"node": ">=22"
@@ -21,7 +27,7 @@
 		"check:writing": "node scripts/checkWriting.mjs",
 		"spike:prepare": "node scripts/prepareSpike.mjs",
 		"spike:opfs": "node scripts/prepareSpike.mjs && node scripts/spikeServer.mjs",
-		"prepare": "simple-git-hooks"
+		"prepare": "node scripts/installHooks.mjs"
 	},
 	"simple-git-hooks": {
 		"pre-commit": "pnpm exec biome check --staged --no-errors-on-unmatched && node scripts/checkWriting.mjs",

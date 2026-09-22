@@ -13,7 +13,9 @@ COPY packages/db/package.json packages/db/
 COPY packages/storage/package.json packages/storage/
 COPY packages/ui/package.json packages/ui/
 
-RUN pnpm install --frozen-lockfile
+# No scripts: the only one in the workspace installs git hooks, and an image has no
+# repository to install them into.
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 COPY . .
 RUN pnpm --filter @cofre/web build
@@ -30,7 +32,7 @@ COPY --from=build /app/packages/core/package.json packages/core/
 COPY --from=build /app/packages/db/package.json packages/db/
 COPY --from=build /app/packages/storage/package.json packages/storage/
 
-RUN pnpm install --frozen-lockfile --prod --filter @cofre/server...
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts --filter @cofre/server...
 
 COPY --from=build /app/apps/server/src apps/server/src
 COPY --from=build /app/packages/core/src packages/core/src

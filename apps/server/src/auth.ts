@@ -34,6 +34,12 @@ export function createAuth(config: Config, database: OpenedDatabase) {
 			database: {
 				generateId: () => uuidV7(),
 			},
+			// Behind a proxy, and inside a container, the address of the socket is the
+			// proxy. The owner names the header their proxy sets, and only then is it
+			// believed.
+			...(config.COFRE_CLIENT_IP_HEADER
+				? { ipAddress: { ipAddressHeaders: [config.COFRE_CLIENT_IP_HEADER] } }
+				: {}),
 		},
 
 		user: {
