@@ -193,6 +193,32 @@ seja, quem chegar ao endereço pode criar uma conta. A conta nova nasce vazia e 
 nada do que é seu, mas se o seu endereço é público e você quer que só quem for convidado
 entre, deixe o Cofre atrás de uma autenticação do proxy ou de uma rede privada.
 
+### O que segura um robô
+
+Três coisas, e cada uma pega o que a anterior deixa passar.
+
+A primeira é o **limite por endereço**: cinco tentativas de entrar por minuto e cinco
+contas novas por hora. Isso para uma máquina e não para mil, e só funciona se o
+`COFRE_CLIENT_IP_HEADER` estiver preenchido quando houver proxy na frente.
+
+A segunda é o **cálculo antes da senha**, e é a que não dá para contornar com mais
+endereços. O servidor entrega um desafio, o navegador procura um número que faça o hash
+começar com uma quantidade de zeros, e só então a senha é lida. Achar custa um instante;
+conferir custa um hash. Quem tenta mil senhas paga mil instantes. O `COFRE_PROOF_BITS`
+controla quanto: dezoito é o padrão, cada bit a mais dobra o custo, zero desliga.
+
+Nada disso sai do seu servidor e ninguém precisa ler letras tortas numa imagem.
+
+A terceira é opcional e é a única que fala com gente de fora: o **Turnstile da
+Cloudflare**. Preencha `COFRE_TURNSTILE_SITE_KEY` e `COFRE_TURNSTILE_SECRET` e o widget
+aparece na tela de entrar, somando ao cálculo em vez de substituir. Vem desligado de
+propósito: ligar significa contar à Cloudflare o endereço de todo mundo que abre a sua
+tela de entrar, e essa é uma escolha sua e não um padrão herdado.
+
+O reCAPTCHA do Google não está aqui pelo mesmo motivo, com o agravante de que ele existe
+para reconhecer a pessoa entre visitas. Se você quiser mesmo assim, é uma troca do
+endereço e do formato da resposta em `apps/server/src/gate.ts`.
+
 Para usar PostgreSQL no lugar do SQLite, descomente o serviço `database` no
 `compose.yaml` e aponte `COFRE_DATABASE` para ele.
 

@@ -40,7 +40,7 @@
 		"signUpAction": "Criar conta e entrar",
 		"toSignUp": "Ainda não tenho conta",
 		"toSignIn": "Já tenho conta",
-		"working": "Só um momento",
+		"working": "Conferindo...",
 		"failedTitle": "Não deu certo",
 		"signInFailed": "Email ou senha não conferem.",
 		"signUpFailed": "Não consegui criar a conta. Talvez esse email já esteja em uso.",
@@ -48,7 +48,8 @@
 		"useThisDevice": "Prefiro guardar só neste dispositivo",
 		"firstTitle": "Crie o seu acesso",
 		"firstNobodyTitle": "Este servidor ainda não tem ninguém",
-		"firstNobodyBody": "A senha é a que você escolher agora. Ela não vem de lugar nenhum e não está escrita em canto nenhum: fica cifrada no banco de dados do seu servidor, e só você a conhece."
+		"firstNobodyBody": "A senha é a que você escolher agora. Ela não vem de lugar nenhum e não está escrita em canto nenhum: fica cifrada no banco de dados do seu servidor, e só você a conhece.",
+		"proof": "Antes de conferir a senha, este navegador resolve um cálculo que leva um instante. Isso não vai para lugar nenhum: serve para que um robô tentando milhares de senhas pague esse instante em cada tentativa."
 	},
 	"invitation": {
 		"title": "Convite",

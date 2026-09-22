@@ -5,6 +5,7 @@ import { Button, Callout, Field } from "@cofre/ui";
 import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LanguageToggle, ThemeToggle } from "../components/Controls.tsx";
+import { Turnstile } from "../components/Turnstile.tsx";
 import { useTheme } from "../lib/theme.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { createRemoteSession, ServerError } from "../storage/remoteSession.ts";
@@ -23,6 +24,9 @@ export function SignInPage() {
 	 * for a password they never chose, and the answer is that they choose it here.
 	 */
 	const [firstEver, setFirstEver] = useState(false);
+	/** Set only when the owner of the server turned the widget on. */
+	const [siteKey, setSiteKey] = useState<string | null>(null);
+	const [captcha, setCaptcha] = useState<string | null>(null);
 	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
@@ -39,7 +43,9 @@ export function SignInPage() {
 		void client
 			.setup()
 			.then((answer) => {
-				if (!alive || !answer.needsFirstAccount) return;
+				if (!alive) return;
+				setSiteKey(answer.turnstileSiteKey);
+				if (!answer.needsFirstAccount) return;
 				setFirstEver(true);
 				setIntent("signUp");
 			})
@@ -59,10 +65,11 @@ export function SignInPage() {
 		setBusy(true);
 		setProblem(null);
 		try {
+			const answer = captcha ?? undefined;
 			if (intent === "signUp") {
-				await client.signUp({ name: name.trim(), email: email.trim(), password });
+				await client.signUp({ name: name.trim(), email: email.trim(), password, captcha: answer });
 			} else {
-				await client.signIn({ email: email.trim(), password });
+				await client.signIn({ email: email.trim(), password, captcha: answer });
 			}
 
 			// A person with no space yet gets the personal one, named in their language.
@@ -141,11 +148,17 @@ export function SignInPage() {
 					minLength={10}
 				/>
 
+				{siteKey ? <Turnstile siteKey={siteKey} onToken={setCaptcha} /> : null}
+
 				{problem ? (
 					<Callout tone="problem" title={t("signIn.failedTitle")}>
 						{problem}
 					</Callout>
 				) : null}
+
+				{/* Said once, plainly, because a button that takes a second with no
+				    explanation reads as a slow server. */}
+				<p className="text-xs text-quiet">{t("signIn.proof")}</p>
 
 				<div className="flex flex-wrap items-center gap-3">
 					<Button type="submit" variant="primary" disabled={busy}>

@@ -40,7 +40,7 @@
 		"signUpAction": "Create the account and sign in",
 		"toSignUp": "I do not have an account yet",
 		"toSignIn": "I already have an account",
-		"working": "One moment",
+		"working": "Checking...",
 		"failedTitle": "That did not work",
 		"signInFailed": "The email or the password does not match.",
 		"signUpFailed": "I could not create the account. That email may already be taken.",
@@ -48,7 +48,8 @@
 		"useThisDevice": "I would rather keep it on this device",
 		"firstTitle": "Create your access",
 		"firstNobodyTitle": "This server has nobody on it yet",
-		"firstNobodyBody": "The password is the one you choose now. It comes from nowhere and is written nowhere: it lives encrypted in the database of your server, and only you know it."
+		"firstNobodyBody": "The password is the one you choose now. It comes from nowhere and is written nowhere: it lives encrypted in the database of your server, and only you know it.",
+		"proof": "Before the password is checked, this browser solves a small puzzle that takes a moment. It goes nowhere: it is there so that a robot trying thousands of passwords pays that moment on every attempt."
 	},
 	"invitation": {
 		"title": "Invitation",

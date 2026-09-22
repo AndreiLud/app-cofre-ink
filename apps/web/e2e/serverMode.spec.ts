@@ -22,18 +22,21 @@ async function arrive(browser: Browser, person: { name: string; email: string })
 	await page.goto("/");
 	await page.getByRole("button", { name: "Conectar a um servidor" }).click();
 	await page.getByLabel("Endereço do servidor").fill(API_ADDRESS);
-	await page.getByRole("button", { name: "Conectar", exact: true }).click();
 
 	// A server with nobody on it opens on creating the access rather than on a password
-	// box nobody can fill. Once somebody is on it, the ordinary screen is the right one.
-	const first = page.getByRole("heading", { name: "Crie o seu acesso" });
-	const returning = page.getByRole("heading", { name: "Entrar" });
-	await expect(first.or(returning)).toBeVisible({ timeout: 20_000 });
-	if (await returning.isVisible()) {
+	// box nobody can fill, and which of the two it is comes from the server. Waiting for
+	// that answer is what makes this deterministic: without it, the screen changes under
+	// the click and the toggle sends it back to the form it was already on.
+	const settled = page.waitForResponse((response) => response.url().includes("/api/setup"));
+	await page.getByRole("button", { name: "Conectar", exact: true }).click();
+	await settled;
+
+	const naming = page.getByLabel("Como você se chama");
+	if (!(await naming.isVisible())) {
 		await page.getByRole("button", { name: "Ainda não tenho conta" }).click();
 	}
 
-	await page.getByLabel("Como você se chama").fill(person.name);
+	await naming.fill(person.name);
 	await page.getByLabel("Email").fill(person.email);
 	await page.getByLabel("Senha").fill(PASSWORD);
 	await page.getByRole("button", { name: "Criar conta e entrar" }).click();

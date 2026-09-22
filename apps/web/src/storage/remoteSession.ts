@@ -5,7 +5,7 @@
 // What the screens get back has the same shape as the local one, so no screen knows
 // which of the two it is talking to.
 
-import { pickRule } from "@cofre/core";
+import { pickRule, solveWork } from "@cofre/core";
 import type {
 	Account,
 	AccountBalance,
@@ -167,21 +167,57 @@ export function createServerClient(server: string) {
 			body: body === undefined ? undefined : JSON.stringify(body),
 		});
 
+	/**
+	 * The work the server asks for before it reads a password, done here.
+	 *
+	 * It is a search for a number, so it costs this browser a moment and costs anything
+	 * trying passwords in bulk that same moment every single time. The answer is carried
+	 * in a header rather than in the body, because the body belongs to the library that
+	 * handles the sign in and this is not its business.
+	 */
+	async function gateHeaders(captcha?: string): Promise<Record<string, string>> {
+		const challenge = await get<{ id: string; salt: string; bits: number }>("/api/challenge");
+		const nonce = challenge.bits === 0 ? 0 : solveWork(challenge.salt, challenge.bits);
+		if (nonce === null) {
+			throw new ServerError({ status: 0, error: "proofFailed" });
+		}
+
+		return {
+			"x-cofre-proof": `${challenge.id}.${nonce}`,
+			...(captcha === undefined ? {} : { "x-cofre-turnstile": captcha }),
+		};
+	}
+
+	async function enter<T>(path: string, body: unknown, captcha?: string): Promise<T> {
+		return call<T>(server, path, {
+			method: "POST",
+			body: JSON.stringify(body),
+			headers: await gateHeaders(captcha),
+		});
+	}
+
 	return {
 		server,
 
-		signUp: (person: { name: string; email: string; password: string }) =>
-			send<unknown>("/api/auth/sign-up/email", "POST", person),
+		signUp: ({
+			captcha,
+			...person
+		}: {
+			name: string;
+			email: string;
+			password: string;
+			captcha?: string;
+		}) => enter<unknown>("/api/auth/sign-up/email", person, captcha),
 
-		signIn: (person: { email: string; password: string }) =>
-			send<unknown>("/api/auth/sign-in/email", "POST", person),
+		signIn: ({ captcha, ...person }: { email: string; password: string; captcha?: string }) =>
+			enter<unknown>("/api/auth/sign-in/email", person, captcha),
 
 		signOut: () => send<unknown>("/api/auth/sign-out", "POST", {}),
 
 		me: () => get<{ user: User; spaces: Space[] }>("/api/me"),
 
-		/** Whether this server is waiting for its first account, asked before signing in. */
-		setup: () => get<{ needsFirstAccount: boolean }>("/api/setup"),
+		/** What the sign in screen needs to know before anybody types anything. */
+		setup: () => get<{ needsFirstAccount: boolean; turnstileSiteKey: string | null }>("/api/setup"),
 
 		previewInvitation: (token: string) =>
 			get<InvitationPreview>(`/api/invitations/${encodeURIComponent(token)}`),

@@ -28,6 +28,23 @@ const schema = z.object({
 	 * See .env.example for the usual value.
 	 */
 	COFRE_CLIENT_IP_HEADER: z.string().optional(),
+	/**
+	 * How much work a caller does before the server reads a password, in leading zero
+	 * bits. Eighteen is a moment in a browser and a wall for anything trying passwords
+	 * in bulk. Zero turns it off, which is for somebody who has their own gate in front.
+	 */
+	COFRE_PROOF_BITS: z.coerce.number().int().min(0).max(26).default(18),
+	/**
+	 * Cloudflare Turnstile, for somebody who wants a widget on top of the work above.
+	 * Both are needed or neither: the site key is public and goes to the browser, the
+	 * secret stays here and is what asks Cloudflare whether the answer was real.
+	 *
+	 * It is off by default on purpose. It is a third party being told the address of
+	 * everybody who opens the sign in page of a private server, which is a thing to
+	 * choose rather than a thing to inherit.
+	 */
+	COFRE_TURNSTILE_SITE_KEY: z.string().optional(),
+	COFRE_TURNSTILE_SECRET: z.string().optional(),
 	NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 
@@ -56,6 +73,14 @@ export function readConfig(source: NodeJS.ProcessEnv = process.env): Config {
 	const value = parsed.data;
 	return {
 		...value,
+		// In a test the gate is still in the way and merely cheap. What those tests are
+		// about is that a request with no answer is refused, not how long an answer
+		// takes to find, and eighteen bits on every sign up would be minutes of a suite
+		// spent proving arithmetic that has its own test.
+		COFRE_PROOF_BITS:
+			source.COFRE_PROOF_BITS === undefined && value.NODE_ENV === "test"
+				? 8
+				: value.COFRE_PROOF_BITS,
 		databaseKind: value.COFRE_DATABASE.startsWith("postgres") ? "postgres" : "sqlite",
 	};
 }

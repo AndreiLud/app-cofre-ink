@@ -2,6 +2,7 @@
 // every request carries it. No network and no listening socket, because Hono answers
 // a plain Request.
 
+import { solveWork } from "@cofre/core";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "./app.ts";
 import { createAuth } from "./auth.ts";
@@ -11,6 +12,8 @@ import { type OpenedDatabase, openDatabase } from "./database.ts";
 type Client = {
 	request: (path: string, init?: RequestInit) => Promise<Response>;
 	json: <T>(path: string, init?: RequestInit) => Promise<T>;
+	/** One answer to one challenge, which is what the gate in front of a password wants. */
+	answer: () => Promise<string>;
 	signUp: (person: { name: string; email: string; password?: string }) => Promise<void>;
 	signOut: () => Promise<void>;
 };
@@ -55,15 +58,28 @@ function createClient(app: ReturnType<typeof createApp>): Client {
 		return response;
 	};
 
+	/**
+	 * The work the server asks for before it reads a password, done the way a browser
+	 * does it. The tests carry it because the gate is real in a test too: what is made
+	 * cheap there is the difficulty, not the rule.
+	 */
+	const answer = async (): Promise<string> => {
+		const response = await request("/api/challenge");
+		const challenge = (await response.json()) as { id: string; salt: string; bits: number };
+		return `${challenge.id}.${solveWork(challenge.salt, challenge.bits) ?? 0}`;
+	};
+
 	return {
 		request,
 		json: async <T>(path: string, init?: RequestInit) => {
 			const response = await request(path, init);
 			return (await response.json()) as T;
 		},
+		answer,
 		signUp: async (person) => {
 			const response = await request("/api/auth/sign-up/email", {
 				method: "POST",
+				headers: { "x-cofre-proof": await answer() },
 				body: JSON.stringify({
 					name: person.name,
 					email: person.email,
@@ -188,18 +204,82 @@ describe("the api", () => {
 		expect(response.status).toBe(400);
 	});
 
+	/**
+	 * Better Auth already counts attempts per address, which stops one machine and not
+	 * a thousand. This is the other half: something an address cannot fake, which is
+	 * work that was actually done, checked before the part that compares passwords.
+	 */
+	describe("the gate in front of a password", () => {
+		it("refuses a sign in and a sign up with no answer at all", async () => {
+			const client = createClient(app);
+			const body = JSON.stringify({ name: "Ana", email: "ana@exemplo.com", password: PASSWORD });
+
+			const up = await client.request("/api/auth/sign-up/email", { method: "POST", body });
+			expect(up.status).toBe(400);
+			expect(await up.json()).toEqual({ error: "proofRequired" });
+
+			const inward = await client.request("/api/auth/sign-in/email", { method: "POST", body });
+			expect(inward.status).toBe(400);
+
+			// And nothing was made by the attempt.
+			expect(await client.json("/api/setup")).toMatchObject({ needsFirstAccount: true });
+		});
+
+		it("refuses an answer that is wrong, invented, or used twice", async () => {
+			const client = createClient(app);
+			const body = JSON.stringify({ name: "Ana", email: "ana@exemplo.com", password: PASSWORD });
+
+			const challenge = await client.json<{ id: string; salt: string; bits: number }>(
+				"/api/challenge",
+			);
+
+			// The right challenge with the wrong number.
+			const wrong = await client.request("/api/auth/sign-up/email", {
+				method: "POST",
+				headers: { "x-cofre-proof": `${challenge.id}.1` },
+				body,
+			});
+			expect(wrong.status).toBe(400);
+
+			// A challenge nobody issued.
+			const invented = await client.request("/api/auth/sign-up/email", {
+				method: "POST",
+				headers: { "x-cofre-proof": "nao-existe.7" },
+				body,
+			});
+			expect(invented.status).toBe(400);
+
+			// A good answer works once. The second time it is not there any more, which
+			// is what stops one solved challenge from paying for a thousand attempts.
+			const good = await client.answer();
+			const first = await client.request("/api/auth/sign-up/email", {
+				method: "POST",
+				headers: { "x-cofre-proof": good },
+				body,
+			});
+			expect(first.status).toBeLessThan(300);
+
+			const again = await client.request("/api/auth/sign-in/email", {
+				method: "POST",
+				headers: { "x-cofre-proof": good },
+				body: JSON.stringify({ email: "ana@exemplo.com", password: PASSWORD }),
+			});
+			expect(again.status).toBe(400);
+		});
+	});
+
 	it("says whether anybody has an account here, before anybody can ask anything else", async () => {
 		const stranger = createClient(app);
 
 		// Answered without a session, because it is the question of somebody who cannot
 		// sign in yet: they have just installed this and are being shown a password box.
 		const fresh = await stranger.json<{ needsFirstAccount: boolean }>("/api/setup");
-		expect(fresh).toEqual({ needsFirstAccount: true });
+		expect(fresh).toMatchObject({ needsFirstAccount: true });
 
 		await stranger.signUp({ name: "Ana", email: "ana@exemplo.com" });
 
 		const after = await stranger.json<{ needsFirstAccount: boolean }>("/api/setup");
-		expect(after).toEqual({ needsFirstAccount: false });
+		expect(after).toMatchObject({ needsFirstAccount: false });
 	});
 
 	it("carries a card over the network, and refuses one that reaches nothing", async () => {

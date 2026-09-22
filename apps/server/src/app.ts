@@ -21,6 +21,7 @@ import {
 	rowOf,
 	upsertUserFromIdentity,
 } from "@cofre/storage";
+import type { Context, Next } from "hono";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
@@ -30,6 +31,7 @@ import { z } from "zod";
 import type { Auth } from "./auth.ts";
 import type { Config } from "./config.ts";
 import type { OpenedDatabase } from "./database.ts";
+import { checkTurnstile, createGate } from "./gate.ts";
 
 export type AppDependencies = {
 	config: Config;
@@ -301,6 +303,7 @@ const savedFilterInput = z.object({
 
 export function createApp({ config, database, auth }: AppDependencies) {
 	const app = new Hono<{ Variables: Variables }>();
+	const gate = createGate(config.COFRE_PROOF_BITS);
 
 	/**
 	 * The headers a browser reads before it does anything clever.
@@ -342,12 +345,27 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		cors({
 			origin: [config.COFRE_WEB_ORIGIN, config.COFRE_PUBLIC_URL],
 			credentials: true,
-			allowHeaders: ["Content-Type"],
+			// The two the gate reads travel as headers rather than in the body, because
+			// the body of a sign in belongs to the library that handles it. A browser
+			// will not send a header that is not named here.
+			allowHeaders: ["Content-Type", "x-cofre-proof", "x-cofre-turnstile"],
 			allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
 		}),
 	);
 
 	app.get("/health", (context) => context.json({ ok: true }));
+
+	/**
+	 * The gate, in front of the two routes worth attacking and no others.
+	 *
+	 * Better Auth already limits attempts per address. That stops one machine and not a
+	 * thousand, so this asks for something an address cannot fake: work that was
+	 * actually done. It is registered above the handler it guards, because the first
+	 * route that answers is the one that answers, and a gate behind the door it guards
+	 * is a gate that never opens.
+	 */
+	app.use("/api/auth/sign-in/email", guard);
+	app.use("/api/auth/sign-up/email", guard);
 
 	// Sign up, sign in, sign out and everything else the library handles.
 	app.on(["GET", "POST"], "/api/auth/*", (context) => auth.handler(context.req.raw));
@@ -366,8 +384,38 @@ export function createApp({ config, database, auth }: AppDependencies) {
 	 */
 	app.get("/api/setup", async (context) => {
 		const rows = await database.driver.all(`SELECT COUNT(*) AS how_many FROM "auth_users"`);
-		return context.json({ needsFirstAccount: Number(rows[0]?.how_many ?? 0) === 0 });
+		return context.json({
+			needsFirstAccount: Number(rows[0]?.how_many ?? 0) === 0,
+			// Public by definition: it is the key the widget is drawn with. The secret
+			// that checks an answer never leaves this process.
+			turnstileSiteKey: config.COFRE_TURNSTILE_SITE_KEY ?? null,
+		});
 	});
+
+	/**
+	 * A challenge to answer before a password is read. Anybody may ask for one, which is
+	 * the point: it costs them to answer and costs this server one hash to check.
+	 */
+	app.get("/api/challenge", (context) => context.json(gate.issue()));
+
+	async function guard(context: Context, next: Next) {
+		if (!gate.redeem(context.req.header("x-cofre-proof"))) {
+			return context.json({ error: "proofRequired" }, 400);
+		}
+
+		if (config.COFRE_TURNSTILE_SECRET) {
+			const passed = await checkTurnstile(
+				config.COFRE_TURNSTILE_SECRET,
+				context.req.header("x-cofre-turnstile"),
+				config.COFRE_CLIENT_IP_HEADER
+					? (context.req.header(config.COFRE_CLIENT_IP_HEADER) ?? null)
+					: null,
+			);
+			if (!passed) return context.json({ error: "captchaRequired" }, 400);
+		}
+
+		return next();
+	}
 
 	/** Anyone holding a link may read what it offers, before having an account. */
 	app.get("/api/invitations/:token", async (context) => {
@@ -378,6 +426,7 @@ export function createApp({ config, database, auth }: AppDependencies) {
 	app.use("/api/*", async (context, next) => {
 		if (context.req.path.startsWith("/api/auth")) return next();
 		if (context.req.method === "GET" && context.req.path === "/api/setup") return next();
+		if (context.req.method === "GET" && context.req.path === "/api/challenge") return next();
 		if (context.req.method === "GET" && /^\/api\/invitations\/[^/]+$/.test(context.req.path)) {
 			return next();
 		}
