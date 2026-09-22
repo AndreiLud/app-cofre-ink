@@ -8,6 +8,7 @@ import type {
 	Account,
 	AccountBalance,
 	AccountKind,
+	Backup,
 	Budget,
 	BudgetWithProgress,
 	CategorizationRule,
@@ -25,12 +26,17 @@ import type {
 	ExpenseSplit,
 	Goal,
 	GoalProgress,
+	ImportedRecord,
+	ImportResult,
+	KnownRecord,
 	MonthTotal,
 	PeriodTotals,
 	PersonBalance,
 	PriorityTotal,
+	RecordForExport,
 	Recurrence,
 	ReportRange,
+	RestoreResult,
 	Role,
 	SavedFilter,
 	SavingsProgress,
@@ -213,6 +219,28 @@ export type CofreSession = {
 		create: (input: CreateSavedFilterInput) => Promise<SavedFilter>;
 		update: (id: string, input: UpdateSavedFilterInput) => Promise<SavedFilter>;
 		remove: (id: string) => Promise<void>;
+	};
+	imports: {
+		/** What the space already has around those days, so a repeat can be marked. */
+		existing: (
+			spaceId: string,
+			range?: { from?: string; to?: string; accountId?: string },
+		) => Promise<KnownRecord[]>;
+		/** A whole file at once, all of it or none of it. */
+		create: (input: {
+			spaceId: string;
+			accountId: string;
+			records: ImportedRecord[];
+		}) => Promise<ImportResult>;
+	};
+	backup: {
+		exportSpace: (spaceId: string) => Promise<Backup>;
+		exportEverything: () => Promise<Backup>;
+		recordsForExport: (
+			spaceId: string,
+			range?: { from?: string; to?: string },
+		) => Promise<RecordForExport[]>;
+		restore: (backup: Backup) => Promise<RestoreResult>;
 	};
 	changes: {
 		list: (input: { spaceId: string; after?: string }) => Promise<Change[]>;

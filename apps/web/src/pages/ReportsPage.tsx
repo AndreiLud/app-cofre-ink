@@ -8,6 +8,7 @@
 import { addMonthsToMonth, balanceFlow, monthOf, todayIn } from "@cofre/core";
 import {
 	BarList,
+	Button,
 	ColumnChart,
 	EmptyState,
 	FlowChart,
@@ -151,6 +152,16 @@ export function ReportsPage() {
 
 	return (
 		<div className="space-y-10">
+			{/* On paper the header of the application is gone, so the page says for itself
+			    which space and which month it is about. */}
+			<p className="hidden text-sm text-graphite print:block">
+				{t("reports.printedFor", {
+					space: across === "space" ? currentSpace.name : t("reports.everySpace"),
+					month: monthName(month),
+					year: month.slice(0, 4),
+				})}
+			</p>
+
 			<div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
 				<InsightTitle
 					level="h1"
@@ -173,7 +184,7 @@ export function ReportsPage() {
 								})}
 				</InsightTitle>
 
-				<div className="flex flex-wrap items-end gap-3">
+				<div className="flex flex-wrap items-end gap-3 print:hidden">
 					<label className="flex flex-col gap-1.5 text-sm">
 						<span className="font-medium text-ink">{t("reports.month")}</span>
 						<input
@@ -194,6 +205,9 @@ export function ReportsPage() {
 							]}
 						/>
 					) : null}
+					<Button size="small" variant="secondary" onClick={() => window.print()}>
+						{t("reports.print")}
+					</Button>
 				</div>
 			</div>
 

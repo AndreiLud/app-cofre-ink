@@ -9,6 +9,7 @@ import { pickRule } from "@cofre/core";
 import type {
 	Account,
 	AccountBalance,
+	Backup,
 	Budget,
 	BudgetWithProgress,
 	CategorizationRule,
@@ -26,13 +27,18 @@ import type {
 	ExpenseSplit,
 	Goal,
 	GoalProgress,
+	ImportedRecord,
+	ImportResult,
 	Invitation,
+	KnownRecord,
 	MonthTotal,
 	PeriodTotals,
 	PersonBalance,
 	PriorityTotal,
+	RecordForExport,
 	Recurrence,
 	ReportRange,
+	RestoreResult,
 	SavedFilter,
 	SavingsProgress,
 	SavingsRule,
@@ -461,6 +467,42 @@ export function createRemoteSession(
 			update: (id: string, input: UpdateSavedFilterInput) =>
 				send<SavedFilter>(`/api/filters/${id}`, "PATCH", input),
 			remove: (id: string) => send<void>(`/api/filters/${id}`, "DELETE"),
+		},
+
+		imports: {
+			existing: (
+				spaceId: string,
+				range: { from?: string; to?: string; accountId?: string } = {},
+			) => {
+				const query = new URLSearchParams();
+				for (const [name, value] of Object.entries(range)) {
+					if (value) query.set(name, value);
+				}
+				const search = query.toString();
+				return get<KnownRecord[]>(
+					`/api/spaces/${spaceId}/imports/existing${search === "" ? "" : `?${search}`}`,
+				);
+			},
+			create: (input: { spaceId: string; accountId: string; records: ImportedRecord[] }) => {
+				const { spaceId, ...rest } = input;
+				return send<ImportResult>(`/api/spaces/${spaceId}/imports`, "POST", rest);
+			},
+		},
+
+		backup: {
+			exportSpace: (spaceId: string) => get<Backup>(`/api/spaces/${spaceId}/backup`),
+			exportEverything: () => get<Backup>("/api/backup"),
+			recordsForExport: (spaceId: string, range: { from?: string; to?: string } = {}) => {
+				const query = new URLSearchParams();
+				for (const [name, value] of Object.entries(range)) {
+					if (value) query.set(name, value);
+				}
+				const search = query.toString();
+				return get<RecordForExport[]>(
+					`/api/spaces/${spaceId}/records${search === "" ? "" : `?${search}`}`,
+				);
+			},
+			restore: (backup: Backup) => send<RestoreResult>("/api/backup/restore", "POST", backup),
 		},
 
 		changes: {

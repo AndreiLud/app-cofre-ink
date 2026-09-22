@@ -7,7 +7,9 @@ import { BudgetPage } from "./pages/BudgetPage.tsx";
 import { CalendarPage } from "./pages/CalendarPage.tsx";
 import { CategoriesPage } from "./pages/CategoriesPage.tsx";
 import { DashboardPage } from "./pages/DashboardPage.tsx";
+import { DataPage } from "./pages/DataPage.tsx";
 import { DesignSystemPage } from "./pages/DesignSystemPage.tsx";
+import { ImportPage } from "./pages/ImportPage.tsx";
 import { InvitationPage } from "./pages/InvitationPage.tsx";
 import { InvoicePage } from "./pages/InvoicePage.tsx";
 import { MembersPage } from "./pages/MembersPage.tsx";
@@ -84,6 +86,18 @@ const invoicesRoute = createRoute({
 	component: InvoicePage,
 });
 
+const dataRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/dados",
+	component: DataPage,
+});
+
+const importRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/importar",
+	component: ImportPage,
+});
+
 const invitationRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/convite/$token",
@@ -107,6 +121,8 @@ const routeTree = rootRoute.addChildren([
 	spacesRoute,
 	membersRoute,
 	accountsRoute,
+	dataRoute,
+	importRoute,
 	invitationRoute,
 	designSystemRoute,
 ]);
@@ -130,5 +146,7 @@ export const ROUTES = {
 	spaces: "/espacos",
 	members: "/membros",
 	accounts: "/contas",
+	data: "/dados",
+	import: "/importar",
 	designSystem: "/designSystem",
 } as const;

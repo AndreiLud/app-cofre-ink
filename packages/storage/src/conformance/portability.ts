@@ -335,6 +335,59 @@ export function runPortabilityConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		it("makes a whole copy when the space belongs to somebody else", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Casa" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta da casa",
+					initialBalance: 50_000,
+				});
+				const category = await fixture.asAna.categories.create({
+					spaceId: space.id,
+					name: "Mercado",
+					kind: "expense",
+				});
+				await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 4290,
+					happenedOn: "2026-09-10",
+					description: "Mercado do bairro",
+					accountId: account.id,
+					categoryId: category.id,
+				});
+
+				const backup = await fixture.asAna.backup.exportSpace(space.id);
+
+				// The same database, and Joao has never been in this space.
+				const result = await fixture.asJoao.backup.restore(backup);
+				await fixture.asJoao.refresh();
+
+				const copy = result.spaces[0]?.spaceId ?? "";
+				expect(copy).not.toBe(space.id);
+				expect(result.spaces[0]?.written).toBe(3);
+
+				const records = await fixture.asJoao.transactions.list({ spaceId: copy });
+				const accounts = await fixture.asJoao.accounts.list(copy);
+				const categories = await fixture.asJoao.categories.list(copy);
+
+				expect(records).toHaveLength(1);
+				// The copy points at its own rows, not at the ones it was copied from.
+				expect(records[0]?.accountId).toBe(accounts[0]?.id);
+				expect(records[0]?.accountId).not.toBe(account.id);
+				expect(records[0]?.categoryId).toBe(categories[0]?.id);
+				expect(accounts[0]?.initialBalance).toBe(50_000);
+
+				// And the space it was copied from is exactly as it was.
+				expect(await fixture.asAna.transactions.list({ spaceId: space.id })).toHaveLength(1);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		it("says out loud what it could not bring back", async () => {
 			const fixture = await prepare(adapter);
 			// A database that knows Ana and has never heard of Joao.

@@ -27,7 +27,7 @@ import { CommandPalette, useCommandPalette } from "./CommandPalette.tsx";
 import { SpaceSwitcher } from "./SpaceSwitcher.tsx";
 
 /**
- * Eight sections do not fit on a phone, and a row that scrolls sideways hides half of
+ * Nine sections do not fit on a phone, and a row that scrolls sideways hides half of
  * them behind a gesture nobody performs. So the same list is a row of links where
  * there is room and a menu where there is not, inside one landmark either way.
  */
@@ -45,6 +45,7 @@ function Navigation() {
 		{ to: ROUTES.invoices, label: t("nav.invoices") },
 		{ to: ROUTES.categories, label: t("nav.categories") },
 		{ to: ROUTES.accounts, label: t("nav.accounts") },
+		{ to: ROUTES.data, label: t("nav.data") },
 	];
 
 	const here = entries.find((entry) => entry.to === path) ?? entries[0];
@@ -163,7 +164,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 	return (
 		<div className="min-h-dvh bg-paper text-ink">
-			<header className="sticky top-0 z-20 bg-paper">
+			<header className="sticky top-0 z-20 bg-paper print:hidden">
 				<div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3">
 					<div className="flex min-w-0 items-center gap-2 sm:gap-3">
 						<Link to={ROUTES.dashboard} className="shrink-0 font-serif text-lg font-semibold">
@@ -193,9 +194,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 				<SpaceRule colour={colour} />
 			</header>
 
-			<main className="mx-auto max-w-5xl px-4 py-8">
+			<main className="mx-auto max-w-5xl px-4 py-8 print:max-w-none print:px-0 print:py-0">
 				{cofre.persistent ? null : (
-					<Callout tone="attention" title={t("shell.notPersistentTitle")} className="mb-6">
+					<Callout
+						tone="attention"
+						title={t("shell.notPersistentTitle")}
+						className="mb-6 print:hidden"
+					>
 						{t("shell.notPersistentBody")}
 					</Callout>
 				)}

@@ -106,6 +106,18 @@ function peopleColumns(table: Table): string[] {
 		.map((column) => column.name);
 }
 
+/**
+ * Columns that point at another row the backup carries. The tables are written in the
+ * order the schema declares them, and a table points only at tables above it, so by the
+ * time one of these is read the row it names has already been written.
+ */
+function pointerColumns(table: Table): string[] {
+	const carried = new Set(BACKUP_TABLES.map((one) => one.name));
+	return table.columns
+		.filter((column) => column.references && carried.has(column.references.table))
+		.map((column) => column.name);
+}
+
 function isJsonColumn(table: Table, name: string): boolean {
 	return table.columns.find((column) => column.name === name)?.type === "json";
 }
@@ -308,8 +320,13 @@ export function createBackupRepository(context: RepositoryContext) {
 		 *
 		 * Rows keep their identifiers, which is what lets a device that still holds the
 		 * original meet this one later and agree instead of duplicating. A row that is
-		 * already here is left alone, so running the same file twice changes nothing the
-		 * second time.
+		 * already in the space it belongs to is left alone, so running the same file
+		 * twice changes nothing the second time.
+		 *
+		 * A row whose identifier is taken by something in another space is a different
+		 * situation: the file is being restored beside the original, on a server where
+		 * somebody else already has it. That row gets a new identifier, and everything
+		 * pointing at it follows, so the copy is whole and the original is untouched.
 		 */
 		async restore(backup: Backup): Promise<RestoreResult> {
 			if (backup?.format !== BACKUP_FORMAT) {
@@ -338,21 +355,41 @@ export function createBackupRepository(context: RepositoryContext) {
 
 			for (const space of backup.spaces ?? []) {
 				// A personal space goes back into the personal space this person already
-				// has, because nobody has two. Anything else becomes a space of its own.
+				// has, because nobody has two.
 				const mine = await context.driver.all(
 					`SELECT s."id" FROM "spaces" s
 					 JOIN "space_members" m ON m."space_id" = s."id"
-					 WHERE s."kind" = 'personal' AND m."user_id" = ? AND s."deleted_at" IS NULL`,
+					 WHERE s."kind" = 'personal' AND m."user_id" = ? AND s."deleted_at" IS NULL
+					   AND m."deleted_at" IS NULL`,
 					[actor.userId],
 				);
-				const intoExisting = space.kind === "personal" && mine.length > 0;
 
-				const taken = await context.driver.all(`SELECT "id" FROM "spaces" WHERE "id" = ?`, [
-					space.id,
-				]);
-				const spaceId = intoExisting ? String(mine[0]?.id) : taken.length > 0 ? uuidV7() : space.id;
+				// The same space, already here and already theirs, means the file is being
+				// put back rather than copied, so it goes into the space it came from.
+				const already = await context.driver.all(
+					`SELECT s."id", m."user_id" FROM "spaces" s
+					 LEFT JOIN "space_members" m ON m."space_id" = s."id" AND m."user_id" = ?
+					   AND m."state" = 'active' AND m."deleted_at" IS NULL
+					 WHERE s."id" = ?`,
+					[actor.userId, space.id],
+				);
+
+				const theirsAlready = already.length > 0 && already[0]?.user_id !== null;
+				const intoExisting = (space.kind === "personal" && mine.length > 0) || theirsAlready;
+
+				const spaceId =
+					space.kind === "personal" && mine.length > 0
+						? String(mine[0]?.id)
+						: theirsAlready
+							? space.id
+							: // Somebody else's copy of the same space: it is a copy from here on.
+								already.length > 0
+								? uuidV7()
+								: space.id;
 
 				const skipped = new Map<string, number>();
+				// Old identifier to new one, for the rows that had to be given another.
+				const renamed = new Map<string, string>();
 				let written = 0;
 
 				await context.driver.transaction(async (tx) => {
@@ -390,29 +427,40 @@ export function createBackupRepository(context: RepositoryContext) {
 						const rows = space.tables?.[table.name] ?? [];
 						if (rows.length === 0) continue;
 
-						const here = new Set<string>();
+						// An identifier already in this space means the row is back where it
+						// came from. The same identifier in another space means something
+						// else entirely, so the two are counted apart.
+						const inThisSpace = new Set<string>();
+						const elsewhere = new Set<string>();
 						for (const part of chunk(
 							rows.map((row) => String(row.id)),
 							400,
 						)) {
 							const found = await tx.all(
-								`SELECT "id" FROM "${table.name}" WHERE "id" IN (${marks(part.length)})`,
+								`SELECT "id", "space_id" FROM "${table.name}" WHERE "id" IN (${marks(part.length)})`,
 								part,
 							);
-							for (const row of found) here.add(String(row.id));
+							for (const row of found) {
+								if (String(row.space_id) === spaceId) inThisSpace.add(String(row.id));
+								else elsewhere.add(String(row.id));
+							}
 						}
 
 						const names = peopleColumns(table);
+						const pointers = pointerColumns(table);
 
 						for (const row of rows) {
 							const id = String(row.id);
-							if (here.has(id)) {
+							if (inThisSpace.has(id)) {
 								skipped.set(
 									`${table.name}|alreadyHere`,
 									(skipped.get(`${table.name}|alreadyHere`) ?? 0) + 1,
 								);
 								continue;
 							}
+
+							if (elsewhere.has(id)) renamed.set(id, uuidV7());
+							const writtenId = renamed.get(id) ?? id;
 
 							const values: Record<string, SqlValue> = {};
 							let lost = false;
@@ -435,7 +483,12 @@ export function createBackupRepository(context: RepositoryContext) {
 										continue;
 									}
 								}
-								values[name] = value;
+								// A row that points at another row of the backup follows it
+								// when that row had to be given a new identifier.
+								values[name] =
+									pointers.includes(name) && typeof value === "string"
+										? (renamed.get(value) ?? value)
+										: value;
 							}
 
 							if (lost) {
@@ -446,7 +499,7 @@ export function createBackupRepository(context: RepositoryContext) {
 								continue;
 							}
 
-							await insertRow(write, { table, spaceId, id, values });
+							await insertRow(write, { table, spaceId, id: writtenId, values });
 							written += 1;
 						}
 					}

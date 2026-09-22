@@ -13,3 +13,53 @@
 
 /* The design system lives in another package, so Tailwind has to look there too. */
 @source "../../../../packages/ui/src";
+
+/*
+ * On paper.
+ *
+ * A report somebody prints, or saves as a PDF from the print dialogue, is the same
+ * report they were looking at: the same sentences, the same tables, the same drawings.
+ * What goes away is everything that only works on a screen, which is every control.
+ *
+ * Ink on paper is black on white whatever the theme, because a dark theme sent to a
+ * printer is a page of toner and an unhappy person.
+ */
+@media print {
+	:root,
+	:root[data-theme="dark"] {
+		--paper: #ffffff;
+		--raised: #ffffff;
+		--ink: #000000;
+		--graphite: #333333;
+		--rule: #999999;
+		--cedar: #1f4d38;
+		--seal: #7a2415;
+		--amber: #8a6210;
+		--ochre: #8a6210;
+	}
+
+	@page {
+		margin: 16mm;
+	}
+
+	body {
+		background: #ffffff;
+	}
+
+	/* A row split across two pages is a row nobody can read. */
+	tr,
+	img,
+	svg {
+		break-inside: avoid;
+	}
+
+	h1,
+	h2,
+	h3 {
+		break-after: avoid;
+	}
+
+	section {
+		break-inside: avoid-page;
+	}
+}

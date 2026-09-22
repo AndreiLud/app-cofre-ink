@@ -188,6 +188,57 @@ const transactionPatch = z.object({
 /** A selection, kept small enough that one request cannot lock the database. */
 const selection = z.array(z.string().min(1)).min(1).max(500);
 
+/**
+ * One line of a file. The amount is signed here, unlike everywhere else, because that
+ * is what a statement says and turning it around before the person has looked at it is
+ * how a credit becomes a debit.
+ */
+const importedRecord = z.object({
+	happenedOn: calendarDate,
+	amount: z.number().int(),
+	description: z.string().trim().min(1).max(200),
+	notes: z.string().trim().max(2000).nullable().optional(),
+	externalId: z.string().trim().max(120).nullable().optional(),
+	categoryId: z.string().min(1).nullable().optional(),
+	priority: priority.nullable().optional(),
+});
+
+const importInput = z.object({
+	accountId: z.string().min(1),
+	// A statement of a whole year fits. Anything larger is two files.
+	records: z.array(importedRecord).min(1).max(3000),
+});
+
+/**
+ * A backup as it arrives from a file the person chose. The rows are not described
+ * further: the repository knows which tables and columns exist and writes nothing it
+ * does not recognise, which is a better guard than a schema repeated here.
+ */
+const backupInput = z.object({
+	format: z.literal("cofre.backup"),
+	version: z.number().int().positive(),
+	// Restoring never reads it, so a file that lost it still comes back.
+	exportedAt: z.number().int().nonnegative().default(0),
+	spaces: z
+		.array(
+			z.object({
+				id: z.string().min(1),
+				kind: z.enum(["personal", "shared"]),
+				name: z.string().trim().min(1).max(60),
+				colour: z.string().trim().max(20),
+				icon: z.string().trim().max(20),
+				baseCurrency: z.string().trim().length(3),
+				timezone: z.string().trim().max(60),
+				tables: z.record(
+					z.string(),
+					z.array(z.record(z.string(), z.union([z.string(), z.number(), z.null()]))),
+				),
+			}),
+		)
+		.max(50),
+	people: z.array(z.object({ id: z.string().min(1), name: z.string().max(120) })).max(500),
+});
+
 const savedFilterInput = z.object({
 	name: z.string().trim().min(1).max(60),
 	// Whatever the screen puts in it. The repository stores it and gives it back.
@@ -864,6 +915,56 @@ export function createApp({ config, database, auth }: AppDependencies) {
 				after: after === undefined ? undefined : after,
 			}),
 		);
+	});
+
+	/** What the space already has around the days a file covers, to spot a repeat. */
+	app.get("/api/spaces/:id/imports/existing", async (context) => {
+		const query = z
+			.object({
+				from: calendarDate.optional(),
+				to: calendarDate.optional(),
+				accountId: z.string().min(1).optional(),
+			})
+			.parse(context.req.query());
+
+		return context.json(
+			await context.get("session").imports.existing(context.req.param("id"), query),
+		);
+	});
+
+	app.post("/api/spaces/:id/imports", async (context) => {
+		const input = importInput.parse(await context.req.json());
+		const written = await context
+			.get("session")
+			.imports.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(written, 201);
+	});
+
+	app.get("/api/spaces/:id/backup", async (context) =>
+		context.json(await context.get("session").backup.exportSpace(context.req.param("id"))),
+	);
+
+	app.get("/api/backup", async (context) =>
+		context.json(await context.get("session").backup.exportEverything()),
+	);
+
+	app.get("/api/spaces/:id/records", async (context) => {
+		const query = z
+			.object({ from: calendarDate.optional(), to: calendarDate.optional() })
+			.parse(context.req.query());
+		return context.json(
+			await context.get("session").backup.recordsForExport(context.req.param("id"), query),
+		);
+	});
+
+	/**
+	 * Restoring writes into spaces that do not exist yet, so it is the one route that
+	 * cannot check a space first. What guards it is the session: whoever is signed in
+	 * becomes the owner of what they restore, and of nothing else.
+	 */
+	app.post("/api/backup/restore", async (context) => {
+		const backup = backupInput.parse(await context.req.json());
+		return context.json(await context.get("session").backup.restore(backup));
 	});
 
 	// One place turns a rule of the model into a status code, so no route repeats it.

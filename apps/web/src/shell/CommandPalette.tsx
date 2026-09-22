@@ -127,6 +127,18 @@ export function CommandPalette({ state }: { state: PaletteState }) {
 				run: go(ROUTES.members),
 			},
 			{
+				id: "goData",
+				group: t("palette.navigate"),
+				label: t("nav.data"),
+				run: go(ROUTES.data),
+			},
+			{
+				id: "goImport",
+				group: t("palette.navigate"),
+				label: t("importing.title"),
+				run: go(ROUTES.import),
+			},
+			{
 				id: "goDesignSystem",
 				group: t("palette.navigate"),
 				label: t("designSystem.title"),

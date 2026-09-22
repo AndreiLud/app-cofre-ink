@@ -25,6 +25,8 @@ const SCREENS = [
 	"/contas",
 	"/espacos",
 	"/membros",
+	"/dados",
+	"/importar",
 ];
 
 async function widerThanTheWindow(page: Page): Promise<number> {

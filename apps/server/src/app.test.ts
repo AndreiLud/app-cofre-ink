@@ -628,6 +628,159 @@ describe("the api", () => {
 		});
 	});
 
+	describe("reading a file in and taking everything out", () => {
+		/** A space with an account, which is all an import needs on the other side. */
+		async function spaceWithAccount(client: Client) {
+			const space = await client.json<{ id: string }>("/api/spaces", {
+				method: "POST",
+				body: JSON.stringify({ name: "Casa" }),
+			});
+			const account = await client.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+				method: "POST",
+				body: JSON.stringify({ kind: "checking", name: "Conta" }),
+			});
+			return { space, account };
+		}
+
+		it("writes a whole statement and then knows it is there", async () => {
+			const ana = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			const { space, account } = await spaceWithAccount(ana);
+
+			const written = await ana.json<{ written: number }>(`/api/spaces/${space.id}/imports`, {
+				method: "POST",
+				body: JSON.stringify({
+					accountId: account.id,
+					records: [
+						{
+							happenedOn: "2026-09-10",
+							amount: -4290,
+							description: "Mercado",
+							externalId: "abc",
+						},
+						{ happenedOn: "2026-09-05", amount: 500_000, description: "Salario" },
+					],
+				}),
+			});
+			expect(written.written).toBe(2);
+
+			const known = await ana.json<Array<{ externalId: string | null; amount: number }>>(
+				`/api/spaces/${space.id}/imports/existing?from=2026-09-01&to=2026-09-30`,
+			);
+			expect(known).toHaveLength(2);
+			expect(known.find((row) => row.externalId === "abc")?.amount).toBe(-4290);
+		});
+
+		it("refuses the whole file when one line has no day", async () => {
+			const ana = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			const { space, account } = await spaceWithAccount(ana);
+
+			const response = await ana.request(`/api/spaces/${space.id}/imports`, {
+				method: "POST",
+				body: JSON.stringify({
+					accountId: account.id,
+					records: [
+						{ happenedOn: "2026-09-10", amount: -1000, description: "Padaria" },
+						{ happenedOn: "sem data", amount: -1000, description: "Outra" },
+					],
+				}),
+			});
+			expect(response.status).toBe(400);
+			expect(await ana.json(`/api/spaces/${space.id}/imports/existing`)).toEqual([]);
+		});
+
+		it("hands the space over as a file and takes it back", async () => {
+			const ana = createClient(app);
+			const joao = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			await joao.signUp({ name: "Joao", email: "joao@exemplo.com" });
+
+			const { space, account } = await spaceWithAccount(ana);
+			await ana.request(`/api/spaces/${space.id}/transactions`, {
+				method: "POST",
+				body: JSON.stringify({
+					kind: "expense",
+					amount: 4290,
+					happenedOn: "2026-09-10",
+					description: "Mercado do bairro",
+					accountId: account.id,
+				}),
+			});
+
+			const backup = await ana.json<{ format: string; spaces: Array<{ name: string }> }>(
+				`/api/spaces/${space.id}/backup`,
+			);
+			expect(backup.format).toBe("cofre.backup");
+			expect(backup.spaces[0]?.name).toBe("Casa");
+
+			// Somebody else, with the file in their hands, becomes the owner of the copy.
+			const restored = await joao.json<{ spaces: Array<{ created: boolean; written: number }> }>(
+				"/api/backup/restore",
+				{ method: "POST", body: JSON.stringify(backup) },
+			);
+			expect(restored.spaces[0]?.created).toBe(true);
+			expect(restored.spaces[0]?.written).toBeGreaterThan(0);
+
+			const mine = await joao.json<Array<{ name: string }>>("/api/spaces");
+			expect(mine.map((found) => found.name)).toEqual(["Casa"]);
+		});
+
+		it("refuses a file that is not a backup", async () => {
+			const ana = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+
+			const response = await ana.request("/api/backup/restore", {
+				method: "POST",
+				body: JSON.stringify({ format: "outra coisa" }),
+			});
+			expect(response.status).toBe(400);
+		});
+
+		it("gives a spreadsheet the names of what a record points at", async () => {
+			const ana = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			const { space, account } = await spaceWithAccount(ana);
+
+			await ana.request(`/api/spaces/${space.id}/transactions`, {
+				method: "POST",
+				body: JSON.stringify({
+					kind: "expense",
+					amount: 1000,
+					happenedOn: "2026-09-10",
+					description: "Cafe",
+					accountId: account.id,
+				}),
+			});
+
+			const rows = await ana.json<Array<{ account: string; amount: number }>>(
+				`/api/spaces/${space.id}/records`,
+			);
+			expect(rows).toEqual([expect.objectContaining({ account: "Conta", amount: -1000 })]);
+		});
+
+		it("keeps a space away from somebody who is not in it", async () => {
+			const ana = createClient(app);
+			const joao = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			await joao.signUp({ name: "Joao", email: "joao@exemplo.com" });
+
+			const { space, account } = await spaceWithAccount(ana);
+
+			expect((await joao.request(`/api/spaces/${space.id}/backup`)).status).toBe(404);
+			expect((await joao.request(`/api/spaces/${space.id}/records`)).status).toBe(404);
+
+			const sneak = await joao.request(`/api/spaces/${space.id}/imports`, {
+				method: "POST",
+				body: JSON.stringify({
+					accountId: account.id,
+					records: [{ happenedOn: "2026-09-10", amount: -1000, description: "Nao" }],
+				}),
+			});
+			expect(sneak.status).toBe(404);
+		});
+	});
+
 	describe("invitations", () => {
 		async function invite(client: Client, spaceId: string, role = "editor") {
 			return client.json<{ token: string; link: string }>(`/api/spaces/${spaceId}/invitations`, {
