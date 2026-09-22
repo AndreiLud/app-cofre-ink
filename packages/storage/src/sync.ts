@@ -146,6 +146,19 @@ async function rowExists(driver: Driver, table: string, id: string): Promise<boo
 }
 
 /**
+ * Which space a row already belongs to, for the tables that belong to one.
+ *
+ * Null means the row is not here. It is read before anything is written over it,
+ * because a row is found by its identifier alone and an identifier says nothing about
+ * who owns it.
+ */
+async function spaceOfRow(driver: Driver, table: string, id: string): Promise<string | null> {
+	const rows = await driver.all(`SELECT "space_id" FROM ${quoted(table)} WHERE "id" = ?`, [id]);
+	const found = rows[0]?.space_id;
+	return found === undefined || found === null ? null : String(found);
+}
+
+/**
  * Writes the entries into the local log and rebuilds what they touch.
  *
  * Nothing here goes through the writer that the repositories use, on purpose: applying
@@ -173,6 +186,12 @@ export async function applyChanges(
 			});
 			continue;
 		}
+		// The row of a space is the space, so an entry that says it is about space A
+		// while naming space B is an entry trying to reach somewhere it was not sent.
+		if (change.entity === "spaces" && change.entityId !== change.spaceId) {
+			rejected.push({ changeId: change.id, entity: change.entity, reason: "wrongSpace" });
+			continue;
+		}
 		accepted.push(change);
 	}
 
@@ -181,6 +200,8 @@ export async function applyChanges(
 	let applied = 0;
 	let skipped = 0;
 	let deferred = 0;
+	/** Entries turned away once the row they name turned out to belong elsewhere. */
+	const refused = new Set<string>();
 
 	await driver.transaction(async (tx) => {
 		// A space nobody here knows about cannot receive anything, and the entry itself
@@ -229,12 +250,16 @@ export async function applyChanges(
 		// Group by row, and rebuild in the order the rows were born. A change log entry
 		// points at its space, and a row points at the rows it depends on, so writing
 		// them out of order would break a reference. The stamp is that order.
-		const groups = new Map<string, { entity: string; entityId: string; changes: Change[] }>();
+		const groups = new Map<
+			string,
+			{ entity: string; entityId: string; spaceId: string; changes: Change[] }
+		>();
 		for (const change of fresh) {
 			const key = `${change.entity}:${change.entityId}`;
 			const group = groups.get(key) ?? {
 				entity: change.entity,
 				entityId: change.entityId,
+				spaceId: change.spaceId,
 				changes: [],
 			};
 			group.changes.push(change);
@@ -253,6 +278,22 @@ export async function applyChanges(
 			const known = new Set(table.columns.map((column) => column.name));
 			const history = [...(await historyOf(tx, group.entity, group.entityId)), ...group.changes];
 			const folded = fold(history);
+
+			// Which space a row belongs to is decided by the entry that carried it and
+			// never by what the entry contains. Without this, somebody who is in one
+			// space can name another in a payload and write a row into it, and somebody
+			// who was removed from a space can keep writing to the rows they remember.
+			if (table.scope === "space") {
+				const owner = await spaceOfRow(tx, group.entity, group.entityId);
+				if (owner !== null && owner !== group.spaceId) {
+					for (const change of group.changes) {
+						rejected.push({ changeId: change.id, entity: change.entity, reason: "wrongSpace" });
+						refused.add(change.id);
+					}
+					continue;
+				}
+				folded.space_id = group.spaceId;
+			}
 
 			const columns = Object.keys(folded).filter((column) => known.has(column));
 			if (columns.length === 0) continue;
@@ -289,7 +330,9 @@ export async function applyChanges(
 			}
 		}
 
-		for (const change of fresh) {
+		// An entry that was refused above never enters the log, or this device would
+		// hand it on to the next one as if it had been accepted.
+		for (const change of fresh.filter((one) => !refused.has(one.id))) {
 			await tx.run(
 				`INSERT INTO "changes" (${CHANGE_COLUMNS.map(quoted).join(", ")})
 				 VALUES (${CHANGE_COLUMNS.map(() => "?").join(", ")})`,

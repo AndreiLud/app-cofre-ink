@@ -5,6 +5,7 @@
 // the situations that make that hard, which are two people writing at once, a deletion
 // crossing an edit, and an entry that tries to grant itself a role.
 
+import { stampAt, uuidV7 } from "@cofre/core";
 import { describe, expect, it } from "vitest";
 import type { Driver } from "../driver.ts";
 import { NotFoundError } from "../errors.ts";
@@ -60,6 +61,145 @@ export function runSyncConformance(adapter: AdapterUnderTest): void {
 		await applyPeople(to, await peopleInSpace(from, spaceId));
 		return applyChanges(to, await changesToPush(from, spaceId, null), { spaceId });
 	}
+
+	describe("an entry that reaches for a space it was not sent to", () => {
+		it("cannot write a row into another space by naming it in the payload", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const mine = await fixture.asAna.spaces.create({ name: "Minha" });
+				const theirs = await fixture.asJoao.spaces.create({ name: "Deles" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: mine.id,
+					kind: "checking",
+					name: "Conta",
+				});
+
+				// A real record, written properly, and then its own entry replayed with one
+				// word changed. Built this way rather than by hand so the payload is
+				// exactly what the product writes, and the only difference is the attack.
+				await fixture.asAna.transactions.create({
+					spaceId: mine.id,
+					kind: "expense",
+					amount: 100_000,
+					happenedOn: "2026-09-10",
+					description: "Mercado",
+					accountId: account.id,
+				});
+
+				const [honest] = (await changesSince(fixture.driver, mine.id, null)).filter(
+					(change) => change.entity === "transactions",
+				);
+				expect(honest).toBeDefined();
+
+				const done = await applyChanges(
+					fixture.driver,
+					[
+						{
+							...(honest as NonNullable<typeof honest>),
+							id: uuidV7(),
+							entityId: uuidV7(),
+							// The entry still says it is about my space, and the gate lets
+							// it through, because the entry is honest. What it carries is not.
+							payload: { ...(honest?.payload ?? {}), space_id: theirs.id },
+							hlc: stampAt(Date.now() + 1000),
+						},
+					],
+					{ spaceId: mine.id },
+				);
+
+				expect(done.applied).toBe(1);
+
+				// It landed in the space the entry was about, and nothing reached theirs.
+				const intruders = await fixture.driver.all(
+					`SELECT "id" FROM "transactions" WHERE "space_id" = ?`,
+					[theirs.id],
+				);
+				expect(intruders).toHaveLength(0);
+				expect(await fixture.asAna.transactions.list({ spaceId: mine.id })).toHaveLength(2);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("cannot write over a row that belongs to another space", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const mine = await fixture.asAna.spaces.create({ name: "Minha" });
+				const theirs = await fixture.asJoao.spaces.create({ name: "Deles" });
+				const account = await fixture.asJoao.accounts.create({
+					spaceId: theirs.id,
+					kind: "checking",
+					name: "Conta deles",
+				});
+				const [record] = await fixture.asJoao.transactions.create({
+					spaceId: theirs.id,
+					kind: "expense",
+					amount: 4290,
+					happenedOn: "2026-09-10",
+					description: "Mercado",
+					accountId: account.id,
+				});
+
+				// Somebody who once knew this row, pushing an entry about it under their
+				// own space. This is what a removed member has: the identifiers.
+				const done = await applyChanges(
+					fixture.driver,
+					[
+						{
+							id: uuidV7(),
+							spaceId: mine.id,
+							entity: "transactions",
+							entityId: record?.id ?? "",
+							operation: "update",
+							payload: { amount: -1, amount_in_base: -1, description: "Mexido" },
+							hlc: stampAt(Date.now() + 1000),
+							deviceId: "deviceAna",
+							actorId: fixture.ana.id,
+							createdAt: Date.now(),
+						},
+					],
+					{ spaceId: mine.id },
+				);
+
+				expect(done.applied).toBe(0);
+				expect(done.rejected[0]?.reason).toBe("wrongSpace");
+
+				const kept = await fixture.asJoao.transactions.get(record?.id ?? "");
+				expect(kept).toMatchObject({ description: "Mercado", amount: -4290 });
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("refuses an entry about one space that names another as the row", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const mine = await fixture.asAna.spaces.create({ name: "Minha" });
+				const theirs = await fixture.asJoao.spaces.create({ name: "Deles" });
+
+				const done = await applyChanges(fixture.driver, [
+					{
+						id: uuidV7(),
+						spaceId: mine.id,
+						entity: "spaces",
+						entityId: theirs.id,
+						operation: "update",
+						payload: { name: "Tomado" },
+						hlc: stampAt(Date.now() + 1000),
+						deviceId: "deviceAna",
+						actorId: fixture.ana.id,
+						createdAt: Date.now(),
+					},
+				]);
+
+				expect(done.applied).toBe(0);
+				expect(done.rejected[0]?.reason).toBe("wrongSpace");
+				expect((await fixture.asJoao.spaces.get(theirs.id)).name).toBe("Deles");
+			} finally {
+				await fixture.close();
+			}
+		});
+	});
 
 	describe("replication", () => {
 		it("carries a space and everything in it to another database", async () => {
