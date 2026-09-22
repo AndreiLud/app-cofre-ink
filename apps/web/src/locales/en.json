@@ -97,6 +97,13 @@
 		"investments": "Investments",
 		"data": "Data"
 	},
+	"install": {
+		"title": "This can be installed on your device",
+		"body": "Installed, Cofre opens from its icon, with no address bar and no connection. It is the same application and the same data, which stay on this device.",
+		"byHand": "On an iPhone or an iPad: tap share, then add to home screen. Cofre then opens from its icon, with no connection.",
+		"action": "Install",
+		"later": "Not now"
+	},
 	"projection": {
 		"headlineLasts": "In {{month}} you would have {{amount}}",
 		"headlineShort": "The money runs out in {{month}}",

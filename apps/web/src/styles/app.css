@@ -15,6 +15,31 @@
 @source "../../../../packages/ui/src";
 
 /*
+ * On a phone.
+ *
+ * Installed to a home screen, the page reaches the edges of the screen, which on a
+ * phone with a notch or a home bar means the top and bottom of the interface would sit
+ * under them. The safe area is what the device says about that, and the header and the
+ * page keep their distance from it.
+ *
+ * Nothing here runs on a desktop: the insets are zero and the rules cost nothing.
+ */
+@layer base {
+	body {
+		padding-left: env(safe-area-inset-left);
+		padding-right: env(safe-area-inset-right);
+	}
+
+	header {
+		padding-top: env(safe-area-inset-top);
+	}
+
+	main {
+		padding-bottom: calc(env(safe-area-inset-bottom) + 2rem);
+	}
+}
+
+/*
  * On paper.
  *
  * A report somebody prints, or saves as a PDF from the print dialogue, is the same

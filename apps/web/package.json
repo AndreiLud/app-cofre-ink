@@ -6,7 +6,8 @@
 	"description": "Cofre in the browser",
 	"scripts": {
 		"dev": "vite",
-		"build": "tsc --noEmit && vite build",
+		"icons": "node ../../scripts/makeIcons.mjs",
+		"build": "tsc --noEmit && vite build && node ../../scripts/buildServiceWorker.mjs",
 		"preview": "vite preview --port 5174",
 		"typecheck": "tsc --noEmit",
 		"test:e2e": "playwright test"

@@ -97,6 +97,13 @@
 		"investments": "Investimentos",
 		"data": "Dados"
 	},
+	"install": {
+		"title": "Dá para instalar no seu aparelho",
+		"body": "Instalado, o Cofre abre pelo ícone, sem barra de endereço e sem internet. É o mesmo aplicativo e os mesmos dados, que continuam só neste aparelho.",
+		"byHand": "No iPhone e no iPad: toque em compartilhar e depois em adicionar à tela de início. O Cofre passa a abrir pelo ícone, sem internet.",
+		"action": "Instalar",
+		"later": "Agora não"
+	},
 	"projection": {
 		"headlineLasts": "Em {{month}} você teria {{amount}}",
 		"headlineShort": "O dinheiro acaba em {{month}}",

@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { keepWorkingOffline } from "./lib/install.ts";
 import { router } from "./router.tsx";
 import { CofreProvider } from "./storage/CofreProvider.tsx";
 import "./i18n/index.ts";
@@ -23,6 +24,9 @@ const container = document.querySelector("#root");
 if (!container) {
 	throw new Error("the root element is missing from index.html");
 }
+
+// What makes it open on a phone with no connection. It does nothing in development.
+keepWorkingOffline();
 
 createRoot(container).render(
 	<StrictMode>

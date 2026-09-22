@@ -1,0 +1,39 @@
+{
+	"id": "/",
+	"name": "Cofre",
+	"short_name": "Cofre",
+	"description": "As suas finanças, no seu dispositivo.",
+	"start_url": "/",
+	"scope": "/",
+	"display": "standalone",
+	"orientation": "portrait-primary",
+	"background_color": "#f4efe4",
+	"theme_color": "#f4efe4",
+	"lang": "pt-BR",
+	"dir": "ltr",
+	"categories": ["finance", "productivity"],
+	"icons": [
+		{ "src": "/icons/icon192.png", "sizes": "192x192", "type": "image/png" },
+		{ "src": "/icons/icon512.png", "sizes": "512x512", "type": "image/png" },
+		{
+			"src": "/icons/maskable512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "maskable"
+		}
+	],
+	"shortcuts": [
+		{
+			"name": "Novo lançamento",
+			"short_name": "Lançar",
+			"url": "/lancamentos",
+			"icons": [{ "src": "/icons/icon192.png", "sizes": "192x192" }]
+		},
+		{
+			"name": "Importar extrato",
+			"short_name": "Importar",
+			"url": "/importar",
+			"icons": [{ "src": "/icons/icon192.png", "sizes": "192x192" }]
+		}
+	]
+}

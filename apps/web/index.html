@@ -2,9 +2,19 @@
 <html lang="pt">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!-- The cover fit is for a phone with a notch: the page reaches the edges and the
+		     layout keeps its distance from them with the safe area instead. -->
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<meta name="color-scheme" content="light dark" />
+		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4efe4" />
+		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1815" />
+		<meta name="description" content="Cofre: as suas finanças, no seu dispositivo." />
 		<title>Cofre</title>
+		<link rel="manifest" href="/manifest.webmanifest" />
+		<link rel="icon" href="/icons/favicon32.png" sizes="32x32" />
+		<link rel="apple-touch-icon" href="/icons/apple180.png" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-title" content="Cofre" />
 		<script>
 			// Applies the stored theme before the first paint, so the page never flashes.
 			try {

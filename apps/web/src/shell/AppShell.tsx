@@ -17,6 +17,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { LanguageToggle, PrivacyToggle, ThemeToggle } from "../components/Controls.tsx";
+import { Install } from "../components/Install.tsx";
 import { useTheme } from "../lib/theme.ts";
 import { ModeChooserPage } from "../pages/ModeChooserPage.tsx";
 import { OnboardingPage } from "../pages/OnboardingPage.tsx";
@@ -198,6 +199,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 			</header>
 
 			<main className="mx-auto max-w-5xl px-4 py-8 print:max-w-none print:px-0 print:py-0">
+				<Install />
 				{cofre.persistent ? null : (
 					<Callout
 						tone="attention"

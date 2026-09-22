@@ -2,6 +2,14 @@ import { defineConfig, devices } from "@playwright/test";
 
 const PORT = 5175;
 const API_PORT = 4399;
+/**
+ * The built application, served the way it is served in the world.
+ *
+ * The flows use the dev server, which is faster and reloads. The one thing that cannot
+ * be checked there is the part that only exists in a build: the manifest, the icons and
+ * the worker that makes it open with no connection.
+ */
+const BUILT_PORT = 5176;
 
 export default defineConfig({
 	testDir: "./e2e",
@@ -33,6 +41,13 @@ export default defineConfig({
 			timeout: 120_000,
 		},
 		{
+			// The build itself, for the one test that is about the build.
+			command: `pnpm exec vite preview --port ${BUILT_PORT} --strictPort`,
+			url: `http://localhost:${BUILT_PORT}/manifest.webmanifest`,
+			reuseExistingServer: !process.env.CI,
+			timeout: 120_000,
+		},
+		{
 			// The server mode flows need a real server. It keeps everything in memory,
 			// so a run leaves nothing behind.
 			command: "node --experimental-sqlite --experimental-strip-types ../server/src/main.ts",
@@ -52,3 +67,4 @@ export default defineConfig({
 });
 
 export const API_ADDRESS = `http://localhost:${API_PORT}`;
+export const BUILT_ADDRESS = `http://localhost:${BUILT_PORT}`;
