@@ -130,7 +130,8 @@ nothing.
 | 2 block A. Transaction model, invoice cycle, installments, balances | done |
 | 2 block B. The screens: register, list with filters, balances on the overview | done |
 | 2 block C. Card invoice screen, quick entry by free text, bulk edit, saved filters | done |
-| 3. Categories, priorities, rules, recurrences, calendar | next |
+| 3 block A. Categories with two levels, spending priority, the screens that use them | done |
+| 3 block B. Rules that sort on their own, recurrences, the calendar | next |
 | 4. Budget, savings rule, goals, expense splitting, alerts | planned |
 | 5. Dashboard, consolidated view, reports and charts | planned |
 | 6. Import, export, backup, migration, sync engine | planned |
