@@ -24,15 +24,23 @@ export const ACCOUNT_KINDS = [
 ] as const;
 
 /**
- * Which pot a voucher account is, when it is one. VR and VA are not the same money:
- * one buys a meal already made and the other buys the shopping, and a shop that takes
- * one may refuse the other. VT is a third pot again, and Caju and Flash hand out
- * several of them behind a single card.
+ * Which pot a voucher account is, when it is one. VA and VR are one pot here: the law
+ * that kept them apart stopped mattering to somebody adding up their month, the same
+ * card usually carries both, and two options that nobody could tell apart is worse than
+ * one. VT is a different pot, and so are culture and mobility, and Caju and Flash hand
+ * out several of them behind a single card.
  *
  * Empty on every account that is not a voucher, which is why it is a column of its own
  * rather than six more account kinds: the kind says what the money is, this says which
  * flavour of the same thing, and widening a list a database already checks is a table
  * rebuild in SQLite.
+ *
+ * "food" is here and nowhere else. It was the separate VA, and migration 0012 turned
+ * every row carrying it into "meal". It stays in the list a database checks because
+ * narrowing that check is the same table rebuild, and because a row arriving from a
+ * device that has not migrated yet has to be accepted rather than refused. Nothing
+ * writes it: the type in `packages/storage` does not have it, and what is read is
+ * folded into "meal" there.
  */
 export const BENEFIT_KINDS = ["meal", "food", "transport", "culture", "mobility"] as const;
 

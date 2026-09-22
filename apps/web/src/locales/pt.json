@@ -418,7 +418,7 @@
 		"emptyTitle": "Nenhuma conta por aqui ainda",
 		"emptyBody": "Comece pela conta onde cai o seu salário. Dá para adicionar cartão, dinheiro e investimento depois.",
 		"benefit": "Qual benefício",
-		"benefitHint": "VR compra refeição pronta, VA compra mercado, VT paga transporte. Loja que aceita um pode recusar o outro.",
+		"benefitHint": "VA e VR são o mesmo bolso aqui, que é como o cartão costuma vir. VT é outro, e vale cultura e mobilidade também.",
 		"cardComesWithIt": "O cartão desta conta é criado junto. Pode deixar em branco.",
 		"cardWorks": "Como ele funciona",
 		"debitMakesNoAccount": "O cartão de débito gasta o saldo de uma conta que já existe, então ele não cria conta nova. Só o cartão é cadastrado."
@@ -996,8 +996,7 @@
 		"betterThanUsual": "Este mês você gastou {{saved}} a menos que o normal. Foram {{expense}} contra os {{usual}} de sempre."
 	},
 	"benefitKind": {
-		"meal": "Vale refeição (VR)",
-		"food": "Vale alimentação (VA)",
+		"meal": "VA/VR",
 		"transport": "Vale transporte (VT)",
 		"culture": "Vale cultura",
 		"mobility": "Mobilidade"

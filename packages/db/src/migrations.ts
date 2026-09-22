@@ -131,6 +131,18 @@ export const MIGRATIONS: readonly Migration[] = [
 			...createIndexSql(transactions, context.dialect),
 		],
 	},
+	{
+		/**
+		 * VA and VR became one pot, so the rows that said VA now say the one that is
+		 * left. A data migration rather than a schema one, and the only one so far: it
+		 * changes what a row says, not what a row can say.
+		 *
+		 * It does not travel. Every device runs its own migrations, and an entry in the
+		 * change log about this would be a write nobody made.
+		 */
+		id: "0012_one_food_benefit",
+		statements: () => [`UPDATE "accounts" SET "benefit" = 'meal' WHERE "benefit" = 'food'`],
+	},
 ];
 
 export const MIGRATIONS_TABLE = "schema_migrations";

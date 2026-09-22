@@ -33,7 +33,7 @@ import { Value } from "../components/Value.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 
 const KINDS: AccountKind[] = ["checking", "savings", "cash", "credit", "voucher", "investment"];
-const BENEFITS: BenefitKind[] = ["meal", "food", "transport", "culture", "mobility"];
+const BENEFITS: BenefitKind[] = ["meal", "transport", "culture", "mobility"];
 
 export function AccountsPage() {
 	const { t } = useTranslation();

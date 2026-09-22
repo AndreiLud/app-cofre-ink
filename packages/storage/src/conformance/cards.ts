@@ -8,6 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 import { NotFoundError, RuleError } from "../errors.ts";
+import { migrate } from "../migrate.ts";
 import { type AdapterUnderTest, prepare } from "./setup.ts";
 
 export function runCardConformance(adapter: AdapterUnderTest): void {
@@ -408,6 +409,45 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 					"Cartao",
 				]);
 				expect((await fixture.asAna.transactions.get(record?.id ?? "")).amount).toBe(-2_000);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		/**
+		 * VA and VR became one pot. Two things have to be true of that, and only one of
+		 * them is about code somebody will read again: the rows that already said VA have
+		 * to say the one that is left, and a row that arrives afterwards still saying VA,
+		 * from a device running an older build, has to be read as the one that is left
+		 * rather than as a value nothing knows how to show.
+		 */
+		it("folds the benefit that was retired into the one that replaced it", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "voucher",
+					name: "Vale",
+					benefit: "meal",
+				});
+
+				// A row as an older build would have written it, straight into the table.
+				await fixture.driver.run(`UPDATE "accounts" SET "benefit" = 'food' WHERE "id" = ?`, [
+					account.id,
+				]);
+				expect((await fixture.asAna.accounts.get(account.id)).benefit).toBe("meal");
+
+				// And the migration itself, run again over a row that has it.
+				await fixture.driver.run(`DELETE FROM "schema_migrations" WHERE "id" = ?`, [
+					"0012_one_food_benefit",
+				]);
+				expect(await migrate(fixture.driver)).toEqual(["0012_one_food_benefit"]);
+
+				const rows = await fixture.driver.all(`SELECT "benefit" FROM "accounts" WHERE "id" = ?`, [
+					account.id,
+				]);
+				expect(rows[0]?.benefit).toBe("meal");
 			} finally {
 				await fixture.close();
 			}

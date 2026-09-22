@@ -62,7 +62,14 @@ const accountInput = z.object({
 	closingDay: z.number().int().min(1).max(31).nullable().optional(),
 	dueDay: z.number().int().min(1).max(31).nullable().optional(),
 	creditLimit: z.number().int().nonnegative().nullable().optional(),
-	benefit: z.enum(["meal", "food", "transport", "culture", "mobility"]).nullable().optional(),
+	// "food" was the separate VA before it and VR became one pot. It is still taken so
+	// that an older build talking to a newer server is answered rather than refused,
+	// and it arrives as the value that replaced it.
+	benefit: z
+		.enum(["meal", "food", "transport", "culture", "mobility"])
+		.transform((value) => (value === "food" ? "meal" : value))
+		.nullable()
+		.optional(),
 });
 
 /**

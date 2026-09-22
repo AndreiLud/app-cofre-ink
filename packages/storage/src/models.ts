@@ -6,8 +6,15 @@ import { asJson, asNumber, asOptionalNumber, asOptionalText, asText, type Row } 
 
 export type SpaceKind = "personal" | "shared";
 export type AccountKind = "checking" | "savings" | "cash" | "credit" | "voucher" | "investment";
-/** Which pot a voucher account is. Empty on every other kind. */
-export type BenefitKind = "meal" | "food" | "transport" | "culture" | "mobility";
+/**
+ * Which pot a voucher account is. Empty on every other kind.
+ *
+ * "meal" is VA and VR together, which used to be two. The database still accepts the
+ * old value, because narrowing a check it already carries is a table rebuild and
+ * because a row from a device that has not migrated has to be taken rather than
+ * refused, and `toAccount` folds it into this one on the way in.
+ */
+export type BenefitKind = "meal" | "transport" | "culture" | "mobility";
 export type CardKind = "credit" | "debit" | "multiple" | "benefit" | "prepaid";
 export type ChangeOperation = "insert" | "update" | "delete";
 export type TransactionKind = "income" | "expense" | "transfer";
@@ -340,6 +347,17 @@ export function toSpaceMember(row: Row): SpaceMember {
 	};
 }
 
+/**
+ * The benefit a row carries, with the one value that was retired folded into the one
+ * that replaced it. Migration 0012 did this to the rows that were already here; this is
+ * for the ones that arrive afterwards, from a device still running an older build.
+ */
+function asBenefit(value: unknown): BenefitKind | null {
+	const kind = asOptionalText(value);
+	if (kind === null) return null;
+	return (kind === "food" ? "meal" : kind) as BenefitKind;
+}
+
 export function toAccount(row: Row): Account {
 	return {
 		id: asText(row.id),
@@ -353,7 +371,7 @@ export function toAccount(row: Row): Account {
 		closingDay: asOptionalNumber(row.closing_day),
 		dueDay: asOptionalNumber(row.due_day),
 		creditLimit: asOptionalNumber(row.credit_limit),
-		benefit: asOptionalText(row.benefit) as BenefitKind | null,
+		benefit: asBenefit(row.benefit),
 		createdBy: asText(row.created_by),
 		createdAt: asNumber(row.created_at),
 		updatedAt: asNumber(row.updated_at),

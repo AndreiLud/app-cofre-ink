@@ -73,6 +73,15 @@ would have to travel to every other device to mean anything.
 `accounts` gains `benefit`, nullable: meal, food, transport, culture or mobility. It is
 filled only on a voucher account, and the repository refuses it anywhere else.
 
+**Amended on 22 September 2026.** VA and VR became one pot, called VA/VR on screen and
+`meal` in the database, because the card usually carries both and two options nobody
+could tell apart is worse than one. Migration 0012 turned every row that said `food`
+into `meal`. The value stays in the list the database checks, for the reason the rest of
+this section gives: narrowing that list is the same table rebuild as widening it, and a
+row arriving from a device that has not migrated has to be accepted rather than refused.
+`toAccount` folds it into `meal` on the way in, so nothing above the storage layer has
+ever heard of it.
+
 The reason it is a column instead of six more values of `kind` is a migration one, and
 worth writing down. The kind of an account carries a CHECK constraint listing the six
 values it was created with. Widening that list means rebuilding the table in SQLite,

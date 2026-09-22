@@ -418,7 +418,7 @@
 		"emptyTitle": "No accounts here yet",
 		"emptyBody": "Start with the account your salary lands in. Cards, cash and investments can come later.",
 		"benefit": "Which benefit",
-		"benefitHint": "VR buys a meal already made, VA buys the shopping, VT pays for transport. A shop that takes one may refuse the other.",
+		"benefitHint": "VA and VR are one pot here, which is how the card usually comes. VT is another one, and so are culture and mobility.",
 		"cardComesWithIt": "The card of this account is made with it. You can leave it empty.",
 		"cardWorks": "How it works",
 		"debitMakesNoAccount": "A debit card spends the balance of an account that already exists, so it makes no new account. Only the card is added."
@@ -996,8 +996,7 @@
 		"betterThanUsual": "This month you spent {{saved}} less than usual: {{expense}} against the usual {{usual}}."
 	},
 	"benefitKind": {
-		"meal": "Meal voucher (VR)",
-		"food": "Food voucher (VA)",
+		"meal": "Meal or food voucher",
 		"transport": "Transport voucher (VT)",
 		"culture": "Culture voucher",
 		"mobility": "Mobility"
