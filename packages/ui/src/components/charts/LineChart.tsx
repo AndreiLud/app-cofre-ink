@@ -30,8 +30,14 @@ export type LineChartProps = {
 	className?: string;
 };
 
-const WIDTH = 720;
-const HEIGHT = 200;
+// Two shapes of the same drawing, chosen by a class and not by measuring anything.
+//
+// A chart is coordinates inside a viewBox, so a browser given a box 360 pixels wide
+// draws the 720 wide version at half size, and a label of ten units comes out at five
+// pixels, which nobody reads. The narrow shape is the same drawing with fewer units
+// across, so on a telephone the label comes out at ten pixels.
+const WIDE = { width: 720, height: 200 };
+const NARROW = { width: 360, height: 220 };
 const PADDING = 8;
 /** Room under the line for the first and last label. */
 const FOOT = 18;
@@ -44,7 +50,19 @@ const STROKE: Record<LineTone, string> = {
 	graphite: "stroke-graphite",
 };
 
-export function LineChart({ labels, series, description, format, className }: LineChartProps) {
+type Size = { width: number; height: number };
+
+function Drawing({
+	labels,
+	series,
+	description,
+	format,
+	className,
+	size,
+}: LineChartProps & { size: Size }) {
+	const WIDTH = size.width;
+	const HEIGHT = size.height;
+
 	const every = series.flatMap((one) => [...one.points]);
 	const highest = Math.max(0, ...every);
 	const lowest = Math.min(0, ...every);
@@ -129,5 +147,21 @@ export function LineChart({ labels, series, description, format, className }: Li
 				);
 			})}
 		</svg>
+	);
+}
+
+/**
+ * The same chart twice, and the screen keeps the one that fits.
+ *
+ * Both are in the page and one of them is hidden, which costs a few nodes and buys a
+ * drawing that never has to be measured. The hidden one is out of the accessibility
+ * tree as well, so the description is announced once.
+ */
+export function LineChart(props: LineChartProps) {
+	return (
+		<>
+			<Drawing {...props} size={NARROW} className={cn(props.className, "md:hidden")} />
+			<Drawing {...props} size={WIDE} className={cn(props.className, "hidden md:block")} />
+		</>
 	);
 }
