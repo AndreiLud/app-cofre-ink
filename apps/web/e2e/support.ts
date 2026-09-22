@@ -47,3 +47,12 @@ export function nav(page: Page, label: string) {
 export function total(page: Page) {
 	return page.locator("main p.font-mono").first();
 }
+
+/**
+ * The row of the list that shows one record. Asking for a cell would match twice,
+ * because the checkbox that selects the row is labelled with the same description, on
+ * purpose: somebody using a screen reader has to know which record they are ticking.
+ */
+export function record(page: Page, description: string) {
+	return page.getByRole("row").filter({ hasText: description });
+}

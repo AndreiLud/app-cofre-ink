@@ -27,6 +27,12 @@ test.describe("accounts", () => {
 		await page.getByRole("button", { name: "Ações da conta" }).first().click();
 		await page.getByRole("menuitem", { name: "Arquivar" }).click();
 
+		// The same menu now offers the opposite, which is how this knows the write
+		// landed before it goes looking for the consequence on another screen.
+		await page.getByRole("button", { name: "Ações da conta" }).first().click();
+		await expect(page.getByRole("menuitem", { name: "Desarquivar" })).toBeVisible();
+		await page.keyboard.press("Escape");
+
 		await page.getByRole("link", { name: "Painel" }).click();
 		await expect(page.getByRole("listitem").filter({ hasText: "Carteira" })).toHaveCount(0);
 	});

@@ -6,6 +6,7 @@ import { monthOf, todayIn } from "@cofre/core";
 import type { Transaction, TransactionKind, TransactionStatus } from "@cofre/storage";
 import {
 	Button,
+	Callout,
 	EmptyState,
 	Field,
 	Icon,
@@ -25,6 +26,8 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { QuickEntry } from "../components/QuickEntry.tsx";
+import { type FilterQuery, SavedFilters } from "../components/SavedFilters.tsx";
 import { TransactionForm } from "../components/TransactionForm.tsx";
 import { Value } from "../components/Value.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -36,6 +39,18 @@ type Filters = {
 	search: string;
 	month: string;
 };
+
+/** A saved filter is stored as it was written, so an old one may not have every key. */
+function filtersFrom(query: FilterQuery, fallbackMonth: string): Filters {
+	const text = (name: string) => (typeof query[name] === "string" ? (query[name] as string) : "");
+	return {
+		kind: text("kind") as TransactionKind | "",
+		status: text("status") as TransactionStatus | "",
+		accountId: text("accountId"),
+		search: text("search"),
+		month: "month" in query ? text("month") : fallbackMonth,
+	};
+}
 
 export function TransactionsPage() {
 	const { t } = useTranslation();
@@ -52,11 +67,15 @@ export function TransactionsPage() {
 	});
 	const [isOpen, setOpen] = useState(false);
 	const [editing, setEditing] = useState<Transaction | null>(null);
+	const [picked, setPicked] = useState<string[]>([]);
+	const [moveTo, setMoveTo] = useState("");
+	const [problem, setProblem] = useState<string | null>(null);
 
 	const spaceId = currentSpace?.id ?? "";
 
 	const accounts = useQuery({
-		queryKey: ["accounts", spaceId],
+		// Archived accounts are here so that an old record still says where it happened.
+		queryKey: ["accounts", spaceId, "includingArchived"],
 		enabled: Boolean(session && currentSpace),
 		queryFn: () => session?.accounts.list(spaceId, { includeArchived: true }) ?? [],
 	});
@@ -90,6 +109,41 @@ export function TransactionsPage() {
 		void queries.invalidateQueries({ queryKey: ["balances"] });
 	};
 
+	/** A change over a selection either goes through or says why, and then clears it. */
+	const afterBulk = () => {
+		setPicked([]);
+		setMoveTo("");
+		setProblem(null);
+		invalidate();
+	};
+
+	const complain = (error: unknown) => {
+		const rule =
+			error !== null && typeof error === "object" && "rule" in error
+				? String((error as { rule: unknown }).rule)
+				: null;
+		setProblem(
+			rule === null
+				? error instanceof Error
+					? error.message
+					: String(error)
+				: t(`rules.${rule}`, { defaultValue: t("rules.unknown") }),
+		);
+	};
+
+	const changeMany = useMutation({
+		mutationFn: async (patch: { status?: TransactionStatus; accountId?: string }) =>
+			session?.transactions.updateMany(picked, patch),
+		onSuccess: afterBulk,
+		onError: complain,
+	});
+
+	const removeManyPicked = useMutation({
+		mutationFn: async () => session?.transactions.removeMany(picked),
+		onSuccess: afterBulk,
+		onError: complain,
+	});
+
 	const settle = useMutation({
 		mutationFn: async (id: string) => session?.transactions.settle(id),
 		onSuccess: invalidate,
@@ -116,6 +170,13 @@ export function TransactionsPage() {
 
 	const total = rows.reduce((sum, row) => (row.kind === "transfer" ? sum : sum + row.amount), 0);
 
+	const visible = rows.map((row) => row.id);
+	const allPicked = visible.length > 0 && visible.every((id) => picked.includes(id));
+	const toggle = (id: string) =>
+		setPicked((current) =>
+			current.includes(id) ? current.filter((kept) => kept !== id) : [...current, id],
+		);
+
 	return (
 		<div className="space-y-6">
 			<SectionTitle
@@ -136,6 +197,17 @@ export function TransactionsPage() {
 			>
 				{t("transactions.title", { space: currentSpace.name })}
 			</SectionTitle>
+
+			<QuickEntry spaceId={spaceId} accounts={accounts.data ?? []} today={today} />
+
+			<SavedFilters
+				spaceId={spaceId}
+				current={filters as unknown as FilterQuery}
+				onApply={(query) => {
+					setFilters(filtersFrom(query, monthOf(today)));
+					setPicked([]);
+				}}
+			/>
 
 			<div className="grid grid-cols-2 gap-3 md:grid-cols-5">
 				<Field
@@ -211,11 +283,70 @@ export function TransactionsPage() {
 				/>
 			) : null}
 
+			{problem ? <Callout tone="problem">{problem}</Callout> : null}
+
+			{picked.length > 0 ? (
+				<div className="flex flex-wrap items-center gap-3 border-y border-ink py-2 text-sm">
+					<span className="text-ink">{t("transactions.picked", { count: picked.length })}</span>
+					<Button
+						size="small"
+						variant="secondary"
+						onClick={() => changeMany.mutate({ status: "settled" })}
+						disabled={changeMany.isPending}
+					>
+						{t("transactions.settle")}
+					</Button>
+					<label className="flex items-center gap-2 text-graphite">
+						{t("transactions.moveTo")}
+						<select
+							value={moveTo}
+							aria-label={t("transactions.moveTo")}
+							onChange={(event) => {
+								setMoveTo(event.target.value);
+								if (event.target.value !== "") {
+									changeMany.mutate({ accountId: event.target.value });
+								}
+							}}
+							className="h-8 rounded-sm border border-rule bg-raised px-2 text-sm text-ink"
+						>
+							<option value="">{t("transactions.pickAccount")}</option>
+							{(accounts.data ?? [])
+								.filter((account) => account.archivedAt === null)
+								.map((account) => (
+									<option key={account.id} value={account.id}>
+										{account.name}
+									</option>
+								))}
+						</select>
+					</label>
+					<Button
+						size="small"
+						variant="destructive"
+						onClick={() => removeManyPicked.mutate()}
+						disabled={removeManyPicked.isPending}
+					>
+						{t("actions.delete")}
+					</Button>
+					<Button size="small" variant="quiet" onClick={() => setPicked([])}>
+						{t("transactions.clearPicked")}
+					</Button>
+				</div>
+			) : null}
+
 			{rows.length > 0 ? (
 				<>
 					<Table caption={t("transactions.caption", { space: currentSpace.name })}>
 						<TableHead>
 							<TableRow>
+								<TableHeader>
+									<input
+										type="checkbox"
+										checked={allPicked}
+										aria-label={t("transactions.pickAll")}
+										onChange={(event) => setPicked(event.target.checked ? visible : [])}
+										className="size-4 accent-[var(--ink)]"
+									/>
+								</TableHeader>
 								<TableHeader>{t("transactions.day")}</TableHeader>
 								<TableHeader>{t("transactions.description")}</TableHeader>
 								<TableHeader>{t("transactions.account")}</TableHeader>
@@ -228,6 +359,15 @@ export function TransactionsPage() {
 						<TableBody>
 							{rows.map((row) => (
 								<TableRow key={row.id}>
+									<TableCell>
+										<input
+											type="checkbox"
+											checked={picked.includes(row.id)}
+											aria-label={t("transactions.pick", { description: row.description })}
+											onChange={() => toggle(row.id)}
+											className="size-4 accent-[var(--ink)]"
+										/>
+									</TableCell>
 									<TableCell className="whitespace-nowrap font-mono text-graphite">
 										{row.happenedOn.slice(8)}/{row.happenedOn.slice(5, 7)}
 									</TableCell>

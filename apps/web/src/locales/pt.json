@@ -87,7 +87,8 @@
 		"accounts": "Contas",
 		"spaces": "Espaços",
 		"members": "Membros",
-		"transactions": "Lançamentos"
+		"transactions": "Lançamentos",
+		"invoices": "Faturas"
 	},
 	"shell": {
 		"opening": "Abrindo o seu banco de dados neste dispositivo.",
@@ -218,7 +219,58 @@
 		"deleteGroup": "Apagar o parcelamento inteiro",
 		"countedIn_one": "{{count}} lançamento no período",
 		"countedIn_other": "{{count}} lançamentos no período",
-		"amountMissing": "Escreva um valor maior que zero."
+		"amountMissing": "Escreva um valor maior que zero.",
+		"picked_one": "{{count}} selecionado",
+		"picked_other": "{{count}} selecionados",
+		"pick": "Selecionar {{description}}",
+		"pickAll": "Selecionar tudo que está na tela",
+		"clearPicked": "Limpar seleção",
+		"moveTo": "Mover para"
+	},
+	"quick": {
+		"label": "Lançamento rápido",
+		"hint": "Escreva numa linha só: o que foi, quanto, quando e onde. Entendo hoje, ontem, 15/09, 3x e o nome da conta.",
+		"placeholder": "ifood 42,90 ontem nubank",
+		"add": "Lançar",
+		"amountMissing": "Falta o valor.",
+		"descriptionMissing": "Falta dizer o que foi.",
+		"written": "Lancei {{description}}.",
+		"writtenInParts": "Lancei {{description}} em {{count}} parcelas.",
+		"undo": "Desfazer"
+	},
+	"savedFilters": {
+		"keep": "Salvar este filtro",
+		"keepTitle": "Salvar este filtro",
+		"keepDescription": "Fica guardado com o espaço e aparece em qualquer aparelho seu. Só você enxerga.",
+		"name": "Nome",
+		"namePlaceholder": "Cartão deste mês",
+		"forget": "Apagar o filtro {{name}}"
+	},
+	"invoice": {
+		"noCardTitle": "Nenhum cartão de crédito neste espaço",
+		"noCardBody": "Cadastre o cartão com o dia do fechamento e o do vencimento. A partir daí cada compra já entra na fatura certa, inclusive as parceladas.",
+		"noCycleTitle": "Este cartão está sem ciclo",
+		"noCycleBody": "Sem o dia do fechamento e o do vencimento não dá para dizer em que fatura cada compra entra.",
+		"goToAccounts": "Editar a conta",
+		"card": "Cartão",
+		"previous": "Fatura anterior",
+		"previousShort": "Anterior",
+		"next": "Próxima fatura",
+		"nextShort": "Próxima",
+		"openHeadline_one": "A fatura de {{month}} fecha amanhã",
+		"openHeadline_other": "A fatura de {{month}} fecha em {{count}} dias",
+		"closedHeadline_one": "A fatura de {{month}} fechou e vence amanhã",
+		"closedHeadline_other": "A fatura de {{month}} fechou e vence em {{count}} dias",
+		"dueTodayHeadline": "A fatura de {{month}} vence hoje",
+		"pastHeadline_one": "A fatura de {{month}} venceu ontem",
+		"pastHeadline_other": "A fatura de {{month}} venceu há {{count}} dias",
+		"period": "Compras de {{from}} a {{to}}",
+		"toPay": "a pagar,",
+		"inCredit": "de crédito a seu favor,",
+		"dueOn": "vence em {{day}}",
+		"limit": "Limite do cartão:",
+		"empty": "Nenhuma compra nesta fatura.",
+		"caption": "Compras do cartão {{card}} na fatura de {{month}}, com dia, descrição e valor"
 	},
 	"transactionKind": {
 		"expense": "Despesa",

@@ -87,7 +87,8 @@
 		"accounts": "Accounts",
 		"spaces": "Spaces",
 		"members": "Members",
-		"transactions": "Records"
+		"transactions": "Records",
+		"invoices": "Card invoices"
 	},
 	"shell": {
 		"opening": "Opening your database on this device.",
@@ -218,7 +219,58 @@
 		"deleteGroup": "Delete every installment",
 		"countedIn_one": "{{count}} record in the period",
 		"countedIn_other": "{{count}} records in the period",
-		"amountMissing": "Write an amount greater than zero."
+		"amountMissing": "Write an amount greater than zero.",
+		"picked_one": "{{count}} selected",
+		"picked_other": "{{count}} selected",
+		"pick": "Select {{description}}",
+		"pickAll": "Select everything on screen",
+		"clearPicked": "Clear the selection",
+		"moveTo": "Move to"
+	},
+	"quick": {
+		"label": "Quick record",
+		"hint": "Write it in one line: what it was, how much, when and where. It reads today, yesterday, 15/09, 3x and the name of the account.",
+		"placeholder": "coffee 4.20 yesterday wallet",
+		"add": "Record it",
+		"amountMissing": "The amount is missing.",
+		"descriptionMissing": "Say what it was.",
+		"written": "Recorded {{description}}.",
+		"writtenInParts": "Recorded {{description}} in {{count}} parts.",
+		"undo": "Undo"
+	},
+	"savedFilters": {
+		"keep": "Save this filter",
+		"keepTitle": "Save this filter",
+		"keepDescription": "It is kept with the space and shows up on any device of yours. Nobody else sees it.",
+		"name": "Name",
+		"namePlaceholder": "The card this month",
+		"forget": "Delete the filter {{name}}"
+	},
+	"invoice": {
+		"noCardTitle": "No credit card in this space",
+		"noCardBody": "Add the card with the day it closes and the day it falls due. From then on every purchase lands on the right invoice, including the ones split into parts.",
+		"noCycleTitle": "This card has no cycle",
+		"noCycleBody": "Without the closing day and the due day there is no way to say which invoice a purchase belongs to.",
+		"goToAccounts": "Edit the account",
+		"card": "Card",
+		"previous": "Previous invoice",
+		"previousShort": "Previous",
+		"next": "Next invoice",
+		"nextShort": "Next",
+		"openHeadline_one": "The {{month}} invoice closes tomorrow",
+		"openHeadline_other": "The {{month}} invoice closes in {{count}} days",
+		"closedHeadline_one": "The {{month}} invoice is closed and falls due tomorrow",
+		"closedHeadline_other": "The {{month}} invoice is closed and falls due in {{count}} days",
+		"dueTodayHeadline": "The {{month}} invoice falls due today",
+		"pastHeadline_one": "The {{month}} invoice fell due yesterday",
+		"pastHeadline_other": "The {{month}} invoice fell due {{count}} days ago",
+		"period": "Purchases from {{from}} to {{to}}",
+		"toPay": "to pay,",
+		"inCredit": "in credit for you,",
+		"dueOn": "falls due on {{day}}",
+		"limit": "Card limit:",
+		"empty": "No purchases on this invoice.",
+		"caption": "Purchases on the card {{card}} in the {{month}} invoice, with day, description and amount"
 	},
 	"transactionKind": {
 		"expense": "Expense",

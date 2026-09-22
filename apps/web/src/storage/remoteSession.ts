@@ -9,12 +9,15 @@ import type {
 	Account,
 	AccountBalance,
 	Change,
+	CreateSavedFilterInput,
 	CreateTransactionInput,
 	Invitation,
+	SavedFilter,
 	Space,
 	SpaceMember,
 	Transaction,
 	TransactionFilter,
+	UpdateSavedFilterInput,
 	UpdateTransactionInput,
 	User,
 } from "@cofre/storage";
@@ -223,13 +226,33 @@ export function createRemoteSession(
 			},
 			update: (id: string, input: UpdateTransactionInput) =>
 				send<Transaction>(`/api/transactions/${id}`, "PATCH", input),
+			updateMany: async (ids: string[], input: UpdateTransactionInput) =>
+				ids.length === 0
+					? 0
+					: (await send<{ changed: number }>("/api/transactions", "PATCH", { ids, patch: input }))
+							.changed,
 			settle: (id: string) => send<Transaction>(`/api/transactions/${id}/settle`, "POST", {}),
 			reconcile: (id: string, reconciled: boolean) =>
 				send<Transaction>(`/api/transactions/${id}/reconcile`, "POST", { reconciled }),
 			remove: (id: string) => send<void>(`/api/transactions/${id}`, "DELETE"),
+			removeMany: async (ids: string[]) =>
+				ids.length === 0
+					? 0
+					: (await send<{ removed: number }>("/api/transactions/remove", "POST", { ids })).removed,
 			removeGroup: async (groupId: string) =>
 				(await send<{ removed: number }>(`/api/installments/${groupId}`, "DELETE")).removed,
 			balances: (spaceId: string) => get<AccountBalance[]>(`/api/spaces/${spaceId}/balances`),
+		},
+
+		savedFilters: {
+			list: (spaceId: string) => get<SavedFilter[]>(`/api/spaces/${spaceId}/filters`),
+			create: (input: CreateSavedFilterInput) => {
+				const { spaceId, ...rest } = input;
+				return send<SavedFilter>(`/api/spaces/${spaceId}/filters`, "POST", rest);
+			},
+			update: (id: string, input: UpdateSavedFilterInput) =>
+				send<SavedFilter>(`/api/filters/${id}`, "PATCH", input),
+			remove: (id: string) => send<void>(`/api/filters/${id}`, "DELETE"),
 		},
 
 		changes: {

@@ -9,13 +9,16 @@ import type {
 	AccountBalance,
 	AccountKind,
 	Change,
+	CreateSavedFilterInput,
 	CreateTransactionInput,
 	Role,
+	SavedFilter,
 	Space,
 	SpaceKind,
 	SpaceMember,
 	Transaction,
 	TransactionFilter,
+	UpdateSavedFilterInput,
 	UpdateTransactionInput,
 	User,
 } from "@cofre/storage";
@@ -76,11 +79,20 @@ export type CofreSession = {
 		list: (filter?: TransactionFilter) => Promise<Transaction[]>;
 		create: (input: CreateTransactionInput) => Promise<Transaction[]>;
 		update: (id: string, input: UpdateTransactionInput) => Promise<Transaction>;
+		/** The same change over a selection, all of it or none of it. */
+		updateMany: (ids: string[], input: UpdateTransactionInput) => Promise<number>;
 		settle: (id: string) => Promise<Transaction>;
 		reconcile: (id: string, reconciled: boolean) => Promise<Transaction>;
 		remove: (id: string) => Promise<void>;
+		removeMany: (ids: string[]) => Promise<number>;
 		removeGroup: (groupId: string) => Promise<number>;
 		balances: (spaceId: string) => Promise<AccountBalance[]>;
+	};
+	savedFilters: {
+		list: (spaceId: string) => Promise<SavedFilter[]>;
+		create: (input: CreateSavedFilterInput) => Promise<SavedFilter>;
+		update: (id: string, input: UpdateSavedFilterInput) => Promise<SavedFilter>;
+		remove: (id: string) => Promise<void>;
 	};
 	changes: {
 		list: (input: { spaceId: string; after?: string }) => Promise<Change[]>;

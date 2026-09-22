@@ -46,7 +46,10 @@ export function AccountsPage() {
 	const spaceId = currentSpace?.id ?? "";
 
 	const accounts = useQuery({
-		queryKey: ["accounts", spaceId],
+		// The archived ones are part of what this screen asks for, so they are part of
+		// the key too. Two screens asking the same question in different words would
+		// otherwise share one answer, and whichever asked last would win.
+		queryKey: ["accounts", spaceId, "includingArchived"],
 		enabled: Boolean(session && currentSpace),
 		queryFn: () => session?.accounts.list(spaceId, { includeArchived: true }) ?? [],
 	});

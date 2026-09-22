@@ -86,7 +86,7 @@ scripts/
 | `pnpm test` | Vitest across packages |
 | `pnpm test:e2e` | Playwright flows in a real browser |
 | `pnpm check:writing` | writing rule over Markdown and translations |
-| `docker compose up -d` | the server and the interface in one container |
+| `docker compose up -d` | the server and the interface in one container, built and run on 21 September 2026 |
 | `pnpm run configurar` | setup wizard that asks the mode and writes the config, still to be written |
 
 The server needs `.env`. Copy `.env.example` and fill `COFRE_SECRET`. On Node 22 it
@@ -128,8 +128,8 @@ nothing.
 | 1 block E. The interface in server mode: sign in, invitation screen, mode switch | done |
 | 2 block A. Transaction model, invoice cycle, installments, balances | done |
 | 2 block B. The screens: register, list with filters, balances on the overview | done |
-| 2 block C. Card invoice screen, quick entry by free text, bulk edit, saved filters | next |
-| 3. Categories, priorities, rules, recurrences, calendar | planned |
+| 2 block C. Card invoice screen, quick entry by free text, bulk edit, saved filters | done |
+| 3. Categories, priorities, rules, recurrences, calendar | next |
 | 4. Budget, savings rule, goals, expense splitting, alerts | planned |
 | 5. Dashboard, consolidated view, reports and charts | planned |
 | 6. Import, export, backup, migration, sync engine | planned |
@@ -152,3 +152,4 @@ nothing.
 | [0008](docs/adr/0008_storage_implementation.md) | how the storage layer is actually built |
 | [0009](docs/adr/0009_authentication_and_identity.md) | authentication, identity and invitations |
 | [0010](docs/adr/0010_shape_of_a_transaction.md) | the shape of a transaction |
+| [0011](docs/adr/0011_reading_one_line_of_text.md) | reading a record from one line of text |
