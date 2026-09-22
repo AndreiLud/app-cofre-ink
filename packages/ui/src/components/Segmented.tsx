@@ -38,7 +38,7 @@ export function Segmented<T extends string>({
 					<label
 						key={option.value}
 						className={cn(
-							"flex flex-1 cursor-pointer items-center justify-center rounded-sm px-3 py-1.5 text-sm",
+							"flex flex-1 cursor-pointer items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm",
 							"transition-colors duration-150",
 							"has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent",
 							option.value === value

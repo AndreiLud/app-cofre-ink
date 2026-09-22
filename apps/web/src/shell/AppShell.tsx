@@ -87,7 +87,7 @@ function Navigation() {
 		<nav aria-label={t("nav.label")}>
 			{/* The section you are in is filled, not underlined. An underline is the same
 			    weight as every other line on the page and disappears into it. */}
-			<div className="hidden flex-wrap gap-1 pb-2 lg:flex">
+			<div className="hidden flex-wrap gap-1 pb-2 md:flex">
 				{sections.map((section) => (
 					<Link
 						key={section.label}
@@ -106,7 +106,7 @@ function Navigation() {
 			{/* The screens inside the section you are in. It only appears where there is
 			    more than one, so a section with a single screen adds no furniture. */}
 			{inside.length > 1 ? (
-				<div className="hidden flex-wrap items-center gap-1 pb-2 lg:flex">
+				<div className="hidden flex-wrap items-center gap-1 pb-2 md:flex">
 					{inside.map((child) => (
 						<Link
 							key={child.to}
@@ -124,7 +124,7 @@ function Navigation() {
 			) : null}
 
 			{/* On a phone the two levels are one menu, with the grouping kept. */}
-			<div className="py-1 lg:hidden">
+			<div className="py-1 md:hidden">
 				<Menu
 					align="start"
 					trigger={

@@ -11,6 +11,7 @@ import {
 	Icon,
 	Menu,
 	MenuItem,
+	Panel,
 	SectionTitle,
 	Select,
 	Skeleton,
@@ -133,7 +134,7 @@ export function AccountsPage() {
 					</Button>
 				}
 			>
-				{t("accounts.title", { space: currentSpace.name })}
+				{t("accounts.title")}
 			</SectionTitle>
 
 			{accounts.isPending ? <Skeleton lines={4} /> : null}
@@ -152,58 +153,64 @@ export function AccountsPage() {
 			) : null}
 
 			{rows.length > 0 ? (
-				<Table caption={t("accounts.caption", { space: currentSpace.name })}>
-					<TableHead>
-						<TableRow>
-							<TableHeader>{t("accounts.name")}</TableHeader>
-							<TableHeader>{t("accounts.kind")}</TableHeader>
-							<TableHeader>{t("accounts.institution")}</TableHeader>
-							<TableHeader numeric={true}>{t("accounts.balance")}</TableHeader>
-							<TableHeader numeric={true}>
-								<span className="sr-only">{t("accounts.actions")}</span>
-							</TableHeader>
-						</TableRow>
-					</TableHead>
-					<TableBody>
-						{rows.map((account) => (
-							<TableRow key={account.id}>
-								<TableCell>
-									<span className={account.archivedAt ? "text-quiet line-through" : ""}>
-										{account.name}
-									</span>
-								</TableCell>
-								<TableCell className="text-quiet">{t(`accountKind.${account.kind}`)}</TableCell>
-								<TableCell className="text-quiet">{account.institution ?? ""}</TableCell>
-								<TableCell numeric={true}>
-									<Value amount={account.initialBalance} currency={account.currency} tone="auto" />
-								</TableCell>
-								<TableCell numeric={true}>
-									<Menu
-										align="end"
-										trigger={
-											<Button size="small" variant="quiet" aria-label={t("accounts.actions")}>
-												<Icon name="settings" />
-											</Button>
-										}
-									>
-										{account.archivedAt ? (
-											<MenuItem onSelect={() => unarchive.mutate(account.id)}>
-												{t("accounts.unarchive")}
-											</MenuItem>
-										) : (
-											<MenuItem onSelect={() => archive.mutate(account.id)}>
-												{t("accounts.archive")}
-											</MenuItem>
-										)}
-										<MenuItem onSelect={() => remove.mutate(account.id)}>
-											{t("actions.delete")}
-										</MenuItem>
-									</Menu>
-								</TableCell>
+				<Panel flush>
+					<Table caption={t("accounts.caption", { space: currentSpace.name })}>
+						<TableHead>
+							<TableRow>
+								<TableHeader>{t("accounts.name")}</TableHeader>
+								<TableHeader>{t("accounts.kind")}</TableHeader>
+								<TableHeader>{t("accounts.institution")}</TableHeader>
+								<TableHeader numeric={true}>{t("accounts.balance")}</TableHeader>
+								<TableHeader numeric={true}>
+									<span className="sr-only">{t("accounts.actions")}</span>
+								</TableHeader>
 							</TableRow>
-						))}
-					</TableBody>
-				</Table>
+						</TableHead>
+						<TableBody>
+							{rows.map((account) => (
+								<TableRow key={account.id}>
+									<TableCell>
+										<span className={account.archivedAt ? "text-quiet line-through" : ""}>
+											{account.name}
+										</span>
+									</TableCell>
+									<TableCell className="text-quiet">{t(`accountKind.${account.kind}`)}</TableCell>
+									<TableCell className="text-quiet">{account.institution ?? ""}</TableCell>
+									<TableCell numeric={true}>
+										<Value
+											amount={account.initialBalance}
+											currency={account.currency}
+											tone="auto"
+										/>
+									</TableCell>
+									<TableCell numeric={true}>
+										<Menu
+											align="end"
+											trigger={
+												<Button size="small" variant="quiet" aria-label={t("accounts.actions")}>
+													<Icon name="settings" />
+												</Button>
+											}
+										>
+											{account.archivedAt ? (
+												<MenuItem onSelect={() => unarchive.mutate(account.id)}>
+													{t("accounts.unarchive")}
+												</MenuItem>
+											) : (
+												<MenuItem onSelect={() => archive.mutate(account.id)}>
+													{t("accounts.archive")}
+												</MenuItem>
+											)}
+											<MenuItem onSelect={() => remove.mutate(account.id)}>
+												{t("actions.delete")}
+											</MenuItem>
+										</Menu>
+									</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+				</Panel>
 			) : null}
 
 			<Dialog

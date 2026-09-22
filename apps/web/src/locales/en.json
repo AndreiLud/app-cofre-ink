@@ -396,7 +396,7 @@
 		"clearSplit": "Undo the division"
 	},
 	"accounts": {
-		"title": "Accounts in {{space}}",
+		"title": "Accounts",
 		"create": "New account",
 		"createDescription": "The account goes into the {{space}} space.",
 		"caption": "Accounts of the {{space}} space, with name, kind, institution and balance",

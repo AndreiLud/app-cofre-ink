@@ -244,7 +244,7 @@ export function BudgetPage() {
 				{savings.isPending ? <Skeleton lines={2} /> : null}
 
 				{!savings.isPending && !savings.data?.rule ? (
-					<p className="max-w-[60ch] text-sm text-quiet">{t("budget.savingsExplain")}</p>
+					<EmptyState description={t("budget.savingsExplain")} />
 				) : null}
 
 				{savings.data?.rule ? (
@@ -294,10 +294,10 @@ export function BudgetPage() {
 				{goals.isPending ? <Skeleton lines={2} /> : null}
 
 				{!goals.isPending && (goals.data ?? []).length === 0 ? (
-					<p className="max-w-[60ch] text-sm text-quiet">{t("budget.goalsExplain")}</p>
+					<EmptyState description={t("budget.goalsExplain")} />
 				) : null}
 
-				<ul className="divide-y divide-rule">
+				<ul className="divide-y divide-line">
 					{(goals.data ?? []).map((goal) => (
 						<li key={goal.id} className="space-y-1 py-3">
 							<div className="flex items-baseline justify-between gap-4">
@@ -369,25 +369,10 @@ export function BudgetPage() {
 				{limits.isPending ? <Skeleton lines={4} /> : null}
 
 				{!limits.isPending && rows.length === 0 ? (
-					<EmptyState
-						icon="wallet"
-						title={t("budget.emptyTitle")}
-						description={t("budget.emptyBody")}
-						action={
-							<Button
-								variant="primary"
-								onClick={() => {
-									setCategoryId(sorted[0]?.id ?? "");
-									setOpen(true);
-								}}
-							>
-								{t("budget.newLimit")}
-							</Button>
-						}
-					/>
+					<EmptyState icon="wallet" description={t("budget.emptyBody")} />
 				) : null}
 
-				<ul className="divide-y divide-rule">
+				<ul className="divide-y divide-line">
 					{rows.map((limit) => (
 						<li key={limit.id} className="space-y-1 py-3">
 							<div className="flex items-baseline justify-between gap-4">

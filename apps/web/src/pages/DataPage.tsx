@@ -8,7 +8,7 @@
 import { mirrorToSheet } from "@cofre/cloud";
 import { writeAmount, writeCsv } from "@cofre/importers";
 import type { Backup, RecordForExport, RestoreResult } from "@cofre/storage";
-import { Button, Callout, Field, SectionTitle } from "@cofre/ui";
+import { Button, Callout, Field, Panel, SectionTitle } from "@cofre/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
@@ -35,11 +35,9 @@ function Section({
 	children: ReactNode;
 }) {
 	return (
-		<section className="space-y-3 border-t border-line pt-5">
-			<h2 className="font-serif text-lg">{title}</h2>
-			<p className="max-w-[60ch] text-sm text-quiet">{description}</p>
+		<Panel title={title} description={description}>
 			{children}
-		</section>
+		</Panel>
 	);
 }
 
@@ -215,9 +213,9 @@ export function DataPage() {
 	});
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-5">
 			<SectionTitle level="h1">{t("data.title")}</SectionTitle>
-			<p className="max-w-[60ch] text-sm text-quiet">{t("data.explain")}</p>
+			<p className="-mt-3 max-w-[62ch] text-sm leading-relaxed text-quiet">{t("data.explain")}</p>
 
 			{problem ? <Callout tone="problem">{problem}</Callout> : null}
 

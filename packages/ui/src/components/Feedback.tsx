@@ -3,7 +3,11 @@ import { cn } from "../lib/cn.ts";
 import { Icon, type IconName } from "./Icon.tsx";
 
 export type EmptyStateProps = {
-	title: ReactNode;
+	/**
+	 * Left out inside a panel that already carries one. A heading repeated two lines
+	 * under itself is the thing this whole redesign was meant to stop.
+	 */
+	title?: ReactNode;
 	/** Says what this place is for, in one line. */
 	description: ReactNode;
 	/** The way out, because an empty screen with no exit is a dead end. */
@@ -24,7 +28,7 @@ export function EmptyState({ title, description, action, icon, className }: Empt
 		>
 			{icon ? <Icon name={icon} size="medium" className="text-quiet" /> : null}
 			<div className="space-y-1">
-				<p className="font-serif text-lg text-ink">{title}</p>
+				{title ? <p className="font-serif text-lg text-ink">{title}</p> : null}
 				<p className="mx-auto max-w-[46ch] text-sm leading-relaxed text-quiet">{description}</p>
 			</div>
 			{action ? <div className="pt-1">{action}</div> : null}

@@ -396,7 +396,7 @@
 		"clearSplit": "Desfazer a divisão"
 	},
 	"accounts": {
-		"title": "Contas de {{space}}",
+		"title": "Contas",
 		"create": "Nova conta",
 		"createDescription": "A conta vai para o espaço {{space}}.",
 		"caption": "Contas do espaço {{space}}, com nome, tipo, instituição e saldo",

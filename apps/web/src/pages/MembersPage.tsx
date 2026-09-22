@@ -13,6 +13,7 @@ import {
 	Icon,
 	Menu,
 	MenuItem,
+	Panel,
 	SectionTitle,
 	Select,
 	Skeleton,
@@ -195,83 +196,87 @@ export function MembersPage() {
 			) : null}
 
 			{rows.length > 0 ? (
-				<Table caption={t("members.caption", { space: currentSpace.name })}>
-					<TableHead>
-						<TableRow>
-							<TableHeader>{t("members.person")}</TableHeader>
-							<TableHeader>{t("members.role")}</TableHeader>
-							<TableHeader>{t("members.state")}</TableHeader>
-							{isPersonal ? null : <TableHeader numeric={true}>{t("members.income")}</TableHeader>}
-							<TableHeader numeric={true}>
-								<span className="sr-only">{t("accounts.actions")}</span>
-							</TableHeader>
-						</TableRow>
-					</TableHead>
-					<TableBody>
-						{rows.map((member) => (
-							<TableRow key={member.id}>
-								<TableCell>{nameOf(member.userId)}</TableCell>
-								<TableCell className="text-quiet">{t(`role.${member.role}`)}</TableCell>
-								<TableCell className="text-quiet">{t(`memberState.${member.state}`)}</TableCell>
+				<Panel flush>
+					<Table caption={t("members.caption", { space: currentSpace.name })}>
+						<TableHead>
+							<TableRow>
+								<TableHeader>{t("members.person")}</TableHeader>
+								<TableHeader>{t("members.role")}</TableHeader>
+								<TableHeader>{t("members.state")}</TableHeader>
 								{isPersonal ? null : (
+									<TableHeader numeric={true}>{t("members.income")}</TableHeader>
+								)}
+								<TableHeader numeric={true}>
+									<span className="sr-only">{t("accounts.actions")}</span>
+								</TableHeader>
+							</TableRow>
+						</TableHead>
+						<TableBody>
+							{rows.map((member) => (
+								<TableRow key={member.id}>
+									<TableCell>{nameOf(member.userId)}</TableCell>
+									<TableCell className="text-quiet">{t(`role.${member.role}`)}</TableCell>
+									<TableCell className="text-quiet">{t(`memberState.${member.state}`)}</TableCell>
+									{isPersonal ? null : (
+										<TableCell numeric={true}>
+											{/* Only the division that follows income reads this, and only the
+											    person themselves or whoever runs the space may set it. */}
+											{member.userId === user?.id || canManage ? (
+												<Button
+													size="small"
+													variant="quiet"
+													onClick={() => {
+														setIncomeFor(member.userId);
+														setIncome(
+															member.monthlyIncome === null
+																? ""
+																: String(member.monthlyIncome / 100).replace(".", ","),
+														);
+													}}
+												>
+													{member.monthlyIncome === null
+														? t("members.sayIncome")
+														: new Intl.NumberFormat("pt-BR", {
+																style: "currency",
+																currency: currentSpace.baseCurrency,
+															}).format(member.monthlyIncome / 100)}
+												</Button>
+											) : (
+												<span className="text-quiet">{t("members.incomeHidden")}</span>
+											)}
+										</TableCell>
+									)}
 									<TableCell numeric={true}>
-										{/* Only the division that follows income reads this, and only the
-										    person themselves or whoever runs the space may set it. */}
-										{member.userId === user?.id || canManage ? (
-											<Button
-												size="small"
-												variant="quiet"
-												onClick={() => {
-													setIncomeFor(member.userId);
-													setIncome(
-														member.monthlyIncome === null
-															? ""
-															: String(member.monthlyIncome / 100).replace(".", ","),
-													);
-												}}
+										{member.role === "owner" || member.userId === user?.id ? null : (
+											<Menu
+												align="end"
+												trigger={
+													<Button size="small" variant="quiet" aria-label={t("accounts.actions")}>
+														<Icon name="settings" />
+													</Button>
+												}
 											>
-												{member.monthlyIncome === null
-													? t("members.sayIncome")
-													: new Intl.NumberFormat("pt-BR", {
-															style: "currency",
-															currency: currentSpace.baseCurrency,
-														}).format(member.monthlyIncome / 100)}
-											</Button>
-										) : (
-											<span className="text-quiet">{t("members.incomeHidden")}</span>
+												{ASSIGNABLE.filter((option) => option !== member.role).map((option) => (
+													<MenuItem
+														key={option}
+														onSelect={() =>
+															changeRole.mutate({ userId: member.userId, role: option })
+														}
+													>
+														{t("members.makeRole", { role: t(`role.${option}`) })}
+													</MenuItem>
+												))}
+												<MenuItem onSelect={() => remove.mutate(member.userId)}>
+													{t("members.remove")}
+												</MenuItem>
+											</Menu>
 										)}
 									</TableCell>
-								)}
-								<TableCell numeric={true}>
-									{member.role === "owner" || member.userId === user?.id ? null : (
-										<Menu
-											align="end"
-											trigger={
-												<Button size="small" variant="quiet" aria-label={t("accounts.actions")}>
-													<Icon name="settings" />
-												</Button>
-											}
-										>
-											{ASSIGNABLE.filter((option) => option !== member.role).map((option) => (
-												<MenuItem
-													key={option}
-													onSelect={() =>
-														changeRole.mutate({ userId: member.userId, role: option })
-													}
-												>
-													{t("members.makeRole", { role: t(`role.${option}`) })}
-												</MenuItem>
-											))}
-											<MenuItem onSelect={() => remove.mutate(member.userId)}>
-												{t("members.remove")}
-											</MenuItem>
-										</Menu>
-									)}
-								</TableCell>
-							</TableRow>
-						))}
-					</TableBody>
-				</Table>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+				</Panel>
 			) : null}
 
 			{!isPersonal && rows.find((member) => member.userId === user?.id)?.role !== "owner" ? (

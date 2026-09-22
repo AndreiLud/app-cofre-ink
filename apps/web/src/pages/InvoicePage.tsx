@@ -20,6 +20,7 @@ import {
 	Callout,
 	EmptyState,
 	InsightTitle,
+	Panel,
 	Select,
 	Skeleton,
 	Table,
@@ -225,28 +226,30 @@ export function InvoicePage() {
 			) : null}
 
 			{rows.length > 0 ? (
-				<Table caption={t("invoice.caption", { card: card?.name ?? "", month: monthName })}>
-					<TableHead>
-						<TableRow>
-							<TableHeader>{t("transactions.day")}</TableHeader>
-							<TableHeader>{t("transactions.description")}</TableHeader>
-							<TableHeader numeric={true}>{t("transactions.amount")}</TableHeader>
-						</TableRow>
-					</TableHead>
-					<TableBody>
-						{rows.map((row) => (
-							<TableRow key={row.id}>
-								<TableCell className="whitespace-nowrap font-mono text-quiet">
-									{dayAndMonth(row.happenedOn)}
-								</TableCell>
-								<TableCell>{row.description}</TableCell>
-								<TableCell numeric={true}>
-									<Value amount={row.amount} currency={row.currency} tone="auto" />
-								</TableCell>
+				<Panel flush>
+					<Table caption={t("invoice.caption", { card: card?.name ?? "", month: monthName })}>
+						<TableHead>
+							<TableRow>
+								<TableHeader>{t("transactions.day")}</TableHeader>
+								<TableHeader>{t("transactions.description")}</TableHeader>
+								<TableHeader numeric={true}>{t("transactions.amount")}</TableHeader>
 							</TableRow>
-						))}
-					</TableBody>
-				</Table>
+						</TableHead>
+						<TableBody>
+							{rows.map((row) => (
+								<TableRow key={row.id}>
+									<TableCell className="whitespace-nowrap font-mono text-quiet">
+										{dayAndMonth(row.happenedOn)}
+									</TableCell>
+									<TableCell>{row.description}</TableCell>
+									<TableCell numeric={true}>
+										<Value amount={row.amount} currency={row.currency} tone="auto" />
+									</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+				</Panel>
 			) : null}
 		</div>
 	);
