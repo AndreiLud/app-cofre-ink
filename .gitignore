@@ -34,3 +34,6 @@ Thumbs.db
 apps/web/playwright-report/
 apps/web/test-results/
 
+
+# Throwaway pictures taken for a review.
+apps/web/shots/
