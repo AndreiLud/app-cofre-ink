@@ -61,7 +61,7 @@ settle up flow. The app works offline and syncs when it can reach a server.
 apps/
   web/        React, Vite, TanStack Router and Query, Tailwind, PWA
   server/     Hono, Zod, Better Auth, scheduled jobs
-  desktop/    Tauri 2 wrapping the web build with local SQLite
+  desktop/    Tauri 2 around the same web build, for a computer and for a telephone
 packages/
   core/       business rules, pure TypeScript, no framework
   db/         schema described once, generated for SQLite and PostgreSQL, migrations
@@ -71,9 +71,13 @@ packages/
   ui/         design tokens, components, charts drawn as SVG
 docs/
   produto.md  product brief in Portuguese
+  instalar.md how to run, publish and package it, in Portuguese
   adr/        architecture decision records
 scripts/
   checkWriting.mjs
+  makeIcons.mjs           draws the mark and writes every icon format
+  buildServiceWorker.mjs  writes the worker from what the build produced
+  copyFallback.mjs        the page a static host serves for an unknown address
 ```
 
 ## Commands
@@ -89,7 +93,15 @@ scripts/
 | `pnpm test:e2e` | Playwright flows in a real browser |
 | `pnpm check:writing` | writing rule over Markdown and translations |
 | `docker compose up -d` | the server and the interface in one container, built and run on 21 September 2026 |
+| `pnpm --filter @cofre/web icons` | redraws every icon, for the browser and for the shell |
+| `pnpm --filter @cofre/desktop app` | the shell in a window, with the interface reloading |
+| `pnpm --filter @cofre/desktop app:build` | the installer for this computer, never run here |
+| `pnpm --filter @cofre/desktop android` | the same build on a telephone, never run here |
 | `pnpm run configurar` | setup wizard that asks the mode and writes the config, still to be written |
+
+Anything under `apps/desktop` needs Rust and the platform toolchain, which the machine
+this was written on does not have. `docs/instalar.md` says what to install and says
+plainly what was never compiled.
 
 The server needs `.env`. Copy `.env.example` and fill `COFRE_SECRET`. On Node 22 it
 runs with `--experimental-sqlite`, which the scripts already pass. Node 24 needs
@@ -141,9 +153,10 @@ nothing.
 | 6 block D. Destinations: a file, WebDAV, Dropbox, Drive, a spreadsheet as a mirror | done |
 | 7. Statement and receipt recognition: the PDF reader, the recogniser, the review | done |
 | 7 pending. Hints per institution, once real statements are in hand | waiting on samples |
-| 8. Projections, scenarios, investments, simulators | next |
-| 9. Desktop, PWA, demo deploy, deployment guides | planned |
-| 10. Accessibility audit, copy review, performance, README | planned |
+| 8. Projections, scenarios, investments, simulators | done |
+| 9. Installed on a telephone, the shell, publishing anywhere, the guides | done |
+| 9 pending. Compiling the shell, once a machine with Rust is in hand | waiting on a toolchain |
+| 10. Accessibility audit, copy review, performance, README | next |
 
 ## Architecture decision records
 
@@ -163,6 +176,12 @@ nothing.
 | [0012](docs/adr/0012_rules_and_recurrences.md) | rules that sort, and series that write |
 | [0013](docs/adr/0013_budget_goals_and_splitting.md) | limits, goals and the division between people |
 | [0014](docs/adr/0014_charts_and_sizes.md) | charts drawn by hand, and screens that survive a resize |
+| [0015](docs/adr/0015_import_export_and_sync.md) | reading files in, taking everything out, meeting a server |
+| [0016](docs/adr/0016_reading_a_document.md) | reading a card invoice and a receipt out of a PDF |
+| [0017](docs/adr/0017_where_a_copy_lives.md) | where a copy of a space can live, and what it costs |
+| [0018](docs/adr/0018_making_the_history_smaller.md) | folding the change log, and packing what travels |
+| [0019](docs/adr/0019_the_months_ahead.md) | projections, scenarios, interest and what is put aside |
+| [0020](docs/adr/0020_an_application_in_a_window.md) | installed on a telephone, wrapped for a desktop |
 | [0015](docs/adr/0015_import_export_and_sync.md) | reading files in, taking everything out, and meeting a server |
 | [0016](docs/adr/0016_reading_a_document.md) | reading a card invoice and a receipt out of a PDF |
 | [0017](docs/adr/0017_where_a_copy_lives.md) | where a copy of a space can live, and what each place costs |

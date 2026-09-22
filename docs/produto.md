@@ -69,9 +69,16 @@ você escolher e o código aberto para qualquer um auditar.
 | Navegador | no próprio dispositivo, em OPFS | quem quer testar em um clique, e a demo pública |
 | Servidor próprio | SQLite ou PostgreSQL em casa ou numa VPS | quem já tem servidor e quer sincronizar com outras pessoas |
 | Nuvem | PostgreSQL gerenciado, frontend hospedado | quem não quer manter servidor |
+| Celular | o mesmo armazenamento do navegador em que foi instalado | quem lança a despesa na fila do caixa |
 | Desktop | SQLite local, aplicativo instalado | quem quer um aplicativo de verdade, offline |
 
 Migrar de um modo para outro é exportação e importação, sem perda.
+
+No celular são dois caminhos para a mesma coisa. Instalar pelo próprio navegador, que
+põe o ícone na tela inicial, tira a barra de endereço e abre sem internet, e é o caminho
+que funciona em qualquer aparelho hoje. Ou o aplicativo nativo, Android e iOS, feito do
+mesmo código pelo mesmo projeto que gera o de computador. O passo a passo de cada um
+está em [instalar.md](instalar.md).
 
 ## Papéis dentro de um espaço
 
@@ -158,8 +165,12 @@ não entrou: nenhum dado sai do aparelho sem que a pessoa mande.
 investimentos, comparação com CDI, Selic e IPCA, juros compostos e independência
 financeira.
 
-**Fase 9.** Aplicativo desktop com Tauri, PWA instalável, publicação da demo e guias
-de implantação dos quatro modos.
+**Fase 9.** Aplicativo instalável pelo navegador, no celular e no computador, que abre
+sem conexão nenhuma. A mesma build embrulhada pelo Tauri 2 numa janela do sistema, e o
+mesmo projeto gera as versões de Android e iOS. Publicação em qualquer hospedagem de
+arquivos, na raiz de um domínio ou dentro de uma pasta dele, e o guia de implantação de
+todos os modos em [instalar.md](instalar.md). O registro 0020 explica cada escolha, e
+diz também o que não foi compilado aqui e por quê.
 
 **Fase 10.** Auditoria de acessibilidade, revisão de todos os textos, desempenho,
 README, LEIAME, screenshots e o GIF de abertura.
@@ -178,4 +189,4 @@ README, LEIAME, screenshots e o GIF de abertura.
 ## Registros de decisão
 
 Os detalhes técnicos e as alternativas descartadas estão em `docs/adr`, do 0001 ao
-0017.
+0020.

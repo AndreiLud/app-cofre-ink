@@ -24,3 +24,6 @@ new one.
 | [0015](0015_import_export_and_sync.md) | reading files in, taking everything out, and meeting a server | accepted |
 | [0016](0016_reading_a_document.md) | reading a card invoice and a receipt out of a PDF | accepted |
 | [0017](0017_where_a_copy_lives.md) | where a copy of a space can live, and what each place costs | accepted |
+| [0018](0018_making_the_history_smaller.md) | folding the change log up to a watermark, and packing what travels | accepted |
+| [0019](0019_the_months_ahead.md) | projections, scenarios, compound interest and what is put aside | accepted |
+| [0020](0020_an_application_in_a_window.md) | installed on a telephone, wrapped for a desktop, served from anywhere | accepted |
