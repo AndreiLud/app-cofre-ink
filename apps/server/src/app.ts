@@ -70,6 +70,48 @@ const categoryInput = z.object({
 	position: z.number().int().min(0).max(999).optional(),
 });
 
+const budgetInput = z.object({
+	scope: z.enum(["total", "priority", "category"]),
+	amount: z.number().int().positive(),
+	categoryId: z.string().min(1).nullable().optional(),
+	priority: priority.nullable().optional(),
+	month: z
+		.string()
+		.regex(/^\d{4}-\d{2}$/)
+		.nullable()
+		.optional(),
+});
+
+const goalInput = z.object({
+	name: z.string().trim().min(1).max(80),
+	targetAmount: z.number().int().positive(),
+	accountId: z.string().min(1),
+	targetDate: calendarDate.nullable().optional(),
+	notes: z.string().trim().max(2000).nullable().optional(),
+});
+
+const savingsInput = z.object({
+	mode: z.enum(["percent", "fixed"]),
+	/** Hundredths of a percent, or minor units, depending on the mode. */
+	value: z.number().int().positive(),
+	accountId: z.string().min(1).nullable().optional(),
+});
+
+const splitInput = z.object({
+	method: z.enum(["evenly", "shares", "income"]),
+	userIds: z.array(z.string().min(1)).max(20).optional(),
+	weights: z.array(z.number().int().min(0).max(1_000_000)).max(20).optional(),
+	paidBy: z.string().min(1).nullable().optional(),
+});
+
+const settlementInput = z.object({
+	fromUserId: z.string().min(1),
+	toUserId: z.string().min(1),
+	amount: z.number().int().positive(),
+	happenedOn: calendarDate,
+	note: z.string().trim().max(200).nullable().optional(),
+});
+
 const ruleInput = z.object({
 	matchText: z.string().trim().min(2).max(80),
 	categoryId: z.string().min(1),
@@ -221,10 +263,21 @@ export function createApp({ config, database, auth }: AppDependencies) {
 	);
 
 	app.patch("/api/spaces/:id/members/:userId", async (context) => {
-		const input = z.object({ role: roleInput }).parse(await context.req.json());
-		await context
-			.get("session")
-			.members.changeRole(context.req.param("id"), context.req.param("userId"), input.role);
+		const input = z
+			.object({
+				role: roleInput.optional(),
+				monthlyIncome: z.number().int().nonnegative().nullable().optional(),
+			})
+			.parse(await context.req.json());
+
+		const session = context.get("session");
+		const spaceId = context.req.param("id");
+		const userId = context.req.param("userId");
+
+		if (input.role !== undefined) await session.members.changeRole(spaceId, userId, input.role);
+		if (input.monthlyIncome !== undefined) {
+			await session.members.setIncome(spaceId, userId, input.monthlyIncome);
+		}
 		return context.body(null, 204);
 	});
 
@@ -538,6 +591,154 @@ export function createApp({ config, database, auth }: AppDependencies) {
 			.get("session")
 			.recurrences.remove(context.req.param("id"), { keepPlanned });
 		return context.json({ removed });
+	});
+
+	app.get("/api/spaces/:id/budgets", async (context) =>
+		context.json(await context.get("session").budgets.list(context.req.param("id"))),
+	);
+
+	app.post("/api/spaces/:id/budgets", async (context) => {
+		const input = budgetInput.parse(await context.req.json());
+		const budget = await context
+			.get("session")
+			.budgets.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(budget, 201);
+	});
+
+	app.get("/api/spaces/:id/budgets/progress", async (context) => {
+		const query = context.req.query();
+		return context.json(
+			await context.get("session").budgets.progress({
+				spaceId: context.req.param("id"),
+				month: query.month ?? "",
+				today: query.today,
+			}),
+		);
+	});
+
+	app.patch("/api/budgets/:id", async (context) => {
+		const input = budgetInput.partial().pick({ amount: true, month: true });
+		return context.json(
+			await context
+				.get("session")
+				.budgets.update(context.req.param("id"), input.parse(await context.req.json())),
+		);
+	});
+
+	app.delete("/api/budgets/:id", async (context) => {
+		await context.get("session").budgets.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/goals", async (context) =>
+		context.json(await context.get("session").goals.list(context.req.param("id"))),
+	);
+
+	app.post("/api/spaces/:id/goals", async (context) => {
+		const input = goalInput.parse(await context.req.json());
+		const goal = await context
+			.get("session")
+			.goals.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(goal, 201);
+	});
+
+	app.get("/api/spaces/:id/goals/progress", async (context) =>
+		context.json(
+			await context.get("session").goals.progress({
+				spaceId: context.req.param("id"),
+				today: context.req.query("today") ?? "",
+			}),
+		),
+	);
+
+	app.patch("/api/goals/:id", async (context) => {
+		const input = goalInput
+			.partial()
+			.omit({ accountId: true })
+			.extend({ archived: z.boolean().optional() });
+		return context.json(
+			await context
+				.get("session")
+				.goals.update(context.req.param("id"), input.parse(await context.req.json())),
+		);
+	});
+
+	app.post("/api/goals/:id/achieved", async (context) =>
+		context.json(await context.get("session").goals.markAchieved(context.req.param("id"))),
+	);
+
+	app.delete("/api/goals/:id", async (context) => {
+		await context.get("session").goals.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/savings", async (context) =>
+		context.json(await context.get("session").goals.readRule(context.req.param("id"))),
+	);
+
+	app.post("/api/spaces/:id/savings", async (context) => {
+		const input = savingsInput.parse(await context.req.json());
+		const rule = await context
+			.get("session")
+			.goals.setRule({ spaceId: context.req.param("id"), ...input });
+		return context.json(rule);
+	});
+
+	app.delete("/api/spaces/:id/savings", async (context) => {
+		await context.get("session").goals.clearRule(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/savings/progress", async (context) =>
+		context.json(
+			await context.get("session").goals.savings({
+				spaceId: context.req.param("id"),
+				month: context.req.query("month") ?? "",
+			}),
+		),
+	);
+
+	app.get("/api/transactions/:id/splits", async (context) =>
+		context.json(await context.get("session").sharing.splitsOf(context.req.param("id"))),
+	);
+
+	app.post("/api/transactions/:id/splits", async (context) => {
+		const input = splitInput.parse(await context.req.json());
+		return context.json(
+			await context
+				.get("session")
+				.sharing.split({ transactionId: context.req.param("id"), ...input }),
+		);
+	});
+
+	app.delete("/api/transactions/:id/splits", async (context) => {
+		await context.get("session").sharing.clearSplit(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/sharing/balances", async (context) =>
+		context.json(await context.get("session").sharing.balances(context.req.param("id"))),
+	);
+
+	app.get("/api/spaces/:id/sharing/suggested", async (context) =>
+		context.json(await context.get("session").sharing.suggestSettlements(context.req.param("id"))),
+	);
+
+	app.get("/api/spaces/:id/sharing/settlements", async (context) =>
+		context.json(await context.get("session").sharing.settlements(context.req.param("id"))),
+	);
+
+	app.post("/api/spaces/:id/sharing/settlements", async (context) => {
+		const input = settlementInput.parse(await context.req.json());
+		const settled = await context
+			.get("session")
+			.sharing.settle({ spaceId: context.req.param("id"), ...input });
+		return context.json(settled, 201);
+	});
+
+	app.delete("/api/settlements/:id", async (context) => {
+		await context.get("session").sharing.forgetSettlement(context.req.param("id"));
+		return context.body(null, 204);
 	});
 
 	app.get("/api/spaces/:id/changes", async (context) => {

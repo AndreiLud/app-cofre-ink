@@ -14,11 +14,13 @@
 import { addColumnSql, createIndexSql, createSchemaSql, type Dialect } from "./ddl.ts";
 import { AUTH_TABLES } from "./schema/authTables.ts";
 import { CATEGORY_TABLES } from "./schema/categoryTables.ts";
+import { MEMBER_INCOME_COLUMNS, PLAN_TABLES } from "./schema/planTables.ts";
 import { RULE_TABLES } from "./schema/ruleTables.ts";
 import { SCHEMA } from "./schema/tables.ts";
 import {
 	CARD_COLUMNS,
 	TRANSACTION_CATEGORY_COLUMNS,
+	TRANSACTION_PAYER_COLUMNS,
 	TRANSACTION_RECURRENCE_COLUMNS,
 	TRANSACTION_TABLES,
 	transactions,
@@ -78,6 +80,18 @@ export const MIGRATIONS: readonly Migration[] = [
 				(column) => !context.hasColumn("transactions", column.name),
 			).map((column) => addColumnSql("transactions", column, context.dialect)),
 			...createIndexSql(transactions, context.dialect),
+		],
+	},
+	{
+		id: "0007_budgets_goals_and_splitting",
+		statements: (context) => [
+			...TRANSACTION_PAYER_COLUMNS.filter(
+				(column) => !context.hasColumn("transactions", column.name),
+			).map((column) => addColumnSql("transactions", column, context.dialect)),
+			...MEMBER_INCOME_COLUMNS.filter(
+				(column) => !context.hasColumn("space_members", column.name),
+			).map((column) => addColumnSql("space_members", column, context.dialect)),
+			...createSchemaSql([...PLAN_TABLES], context.dialect),
 		],
 	},
 ];

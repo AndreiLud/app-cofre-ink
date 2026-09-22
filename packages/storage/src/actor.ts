@@ -53,6 +53,14 @@ export const PERMISSIONS = {
 	"rule.write": ["owner", "admin", "editor"],
 	"recurrence.read": ["owner", "admin", "editor", "viewer", "logger"],
 	"recurrence.write": ["owner", "admin", "editor"],
+	// The plan of the space: limits, goals and the promise to save first. Everybody
+	// sees it, because a limit nobody knows about is not a limit.
+	"plan.read": ["owner", "admin", "editor", "viewer", "logger"],
+	"plan.write": ["owner", "admin", "editor"],
+	// Who owes whom. A logger records what they spent and is part of the count, so
+	// they read it, and the settling is done by the people who run the space.
+	"sharing.read": ["owner", "admin", "editor", "viewer", "logger"],
+	"sharing.write": ["owner", "admin", "editor"],
 	// A saved filter is a person's own shortcut. Everybody who can read a space can
 	// keep one, and the repository only ever shows somebody their own.
 	"filter.read": ["owner", "admin", "editor", "viewer", "logger"],

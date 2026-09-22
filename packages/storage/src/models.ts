@@ -42,6 +42,8 @@ export type SpaceMember = {
 	state: MemberState;
 	invitedBy: string | null;
 	acceptedAt: number | null;
+	/** Only used by the split that follows income, and only when somebody fills it in. */
+	monthlyIncome: number | null;
 	createdAt: number;
 	updatedAt: number;
 };
@@ -106,6 +108,8 @@ export type Transaction = {
 	priority: SpendingPriority | null;
 	/** Set on the records a recurrence wrote, so the series can be followed. */
 	recurrenceId: string | null;
+	/** Who put the money in, which in a shared space is not always who wrote it down. */
+	paidBy: string | null;
 	createdBy: string;
 	createdAt: number;
 	updatedAt: number;
@@ -179,6 +183,78 @@ export type Recurrence = {
 	updatedAt: number;
 };
 
+export type BudgetScope = "total" | "priority" | "category";
+export type SavingsMode = "percent" | "fixed";
+
+/** A limit somebody set, on everything, on a priority or on one category. */
+export type Budget = {
+	id: string;
+	spaceId: string;
+	scope: BudgetScope;
+	categoryId: string | null;
+	priority: SpendingPriority | null;
+	/** Empty means every month. A month of its own overrides the standing one. */
+	month: string | null;
+	amount: number;
+	createdBy: string;
+	createdAt: number;
+	updatedAt: number;
+};
+
+export type Goal = {
+	id: string;
+	spaceId: string;
+	name: string;
+	targetAmount: number;
+	targetDate: string | null;
+	accountId: string;
+	notes: string | null;
+	achievedAt: number | null;
+	archivedAt: number | null;
+	createdBy: string;
+	createdAt: number;
+	updatedAt: number;
+};
+
+/** Put money aside before anything else. One rule per space. */
+export type SavingsRule = {
+	id: string;
+	spaceId: string;
+	mode: SavingsMode;
+	/** Hundredths of a percent, or minor units, depending on the mode. */
+	value: number;
+	accountId: string | null;
+	createdBy: string;
+	createdAt: number;
+	updatedAt: number;
+};
+
+/** The part of one expense that belongs to one person. */
+export type ExpenseSplit = {
+	id: string;
+	spaceId: string;
+	transactionId: string;
+	userId: string;
+	amount: number;
+	createdBy: string;
+	createdAt: number;
+	updatedAt: number;
+};
+
+export type Settlement = {
+	id: string;
+	spaceId: string;
+	fromUserId: string;
+	toUserId: string;
+	amount: number;
+	currency: string;
+	happenedOn: string;
+	note: string | null;
+	createdBy: string;
+	createdAt: number;
+	updatedAt: number;
+};
+
 export type Change = {
 	id: string;
 	spaceId: string;
@@ -227,6 +303,7 @@ export function toSpaceMember(row: Row): SpaceMember {
 		state: asText(row.state) as MemberState,
 		invitedBy: asOptionalText(row.invited_by),
 		acceptedAt: asOptionalNumber(row.accepted_at),
+		monthlyIncome: asOptionalNumber(row.monthly_income),
 		createdAt: asNumber(row.created_at),
 		updatedAt: asNumber(row.updated_at),
 	};
@@ -292,6 +369,7 @@ export function toTransaction(row: Row): Transaction {
 		categoryId: asOptionalText(row.category_id),
 		priority: asOptionalText(row.priority) as SpendingPriority | null,
 		recurrenceId: asOptionalText(row.recurrence_id),
+		paidBy: asOptionalText(row.paid_by),
 		createdBy: asText(row.created_by),
 		createdAt: asNumber(row.created_at),
 		updatedAt: asNumber(row.updated_at),
@@ -349,6 +427,80 @@ export function toRecurrence(row: Row): Recurrence {
 		endsOn: asOptionalText(row.ends_on),
 		notes: asOptionalText(row.notes),
 		pausedAt: asOptionalNumber(row.paused_at),
+		createdBy: asText(row.created_by),
+		createdAt: asNumber(row.created_at),
+		updatedAt: asNumber(row.updated_at),
+	};
+}
+
+export function toBudget(row: Row): Budget {
+	return {
+		id: asText(row.id),
+		spaceId: asText(row.space_id),
+		scope: asText(row.scope) as BudgetScope,
+		categoryId: asOptionalText(row.category_id),
+		priority: asOptionalText(row.priority) as SpendingPriority | null,
+		month: asOptionalText(row.month),
+		amount: asNumber(row.amount),
+		createdBy: asText(row.created_by),
+		createdAt: asNumber(row.created_at),
+		updatedAt: asNumber(row.updated_at),
+	};
+}
+
+export function toGoal(row: Row): Goal {
+	return {
+		id: asText(row.id),
+		spaceId: asText(row.space_id),
+		name: asText(row.name),
+		targetAmount: asNumber(row.target_amount),
+		targetDate: asOptionalText(row.target_date),
+		accountId: asText(row.account_id),
+		notes: asOptionalText(row.notes),
+		achievedAt: asOptionalNumber(row.achieved_at),
+		archivedAt: asOptionalNumber(row.archived_at),
+		createdBy: asText(row.created_by),
+		createdAt: asNumber(row.created_at),
+		updatedAt: asNumber(row.updated_at),
+	};
+}
+
+export function toSavingsRule(row: Row): SavingsRule {
+	return {
+		id: asText(row.id),
+		spaceId: asText(row.space_id),
+		mode: asText(row.mode) as SavingsMode,
+		value: asNumber(row.value),
+		accountId: asOptionalText(row.account_id),
+		createdBy: asText(row.created_by),
+		createdAt: asNumber(row.created_at),
+		updatedAt: asNumber(row.updated_at),
+	};
+}
+
+export function toExpenseSplit(row: Row): ExpenseSplit {
+	return {
+		id: asText(row.id),
+		spaceId: asText(row.space_id),
+		transactionId: asText(row.transaction_id),
+		userId: asText(row.user_id),
+		amount: asNumber(row.amount),
+		createdBy: asText(row.created_by),
+		createdAt: asNumber(row.created_at),
+		updatedAt: asNumber(row.updated_at),
+	};
+}
+
+export function toSettlement(row: Row): Settlement {
+	return {
+		id: asText(row.id),
+		spaceId: asText(row.space_id),
+		fromUserId: asText(row.from_user_id),
+		toUserId: asText(row.to_user_id),
+		amount: asNumber(row.amount),
+		currency: asText(row.currency),
+		happenedOn: asText(row.happened_on),
+		note: asOptionalText(row.note),
 		createdBy: asText(row.created_by),
 		createdAt: asNumber(row.created_at),
 		updatedAt: asNumber(row.updated_at),

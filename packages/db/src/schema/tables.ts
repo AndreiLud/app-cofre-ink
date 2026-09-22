@@ -3,6 +3,7 @@
 
 import { AUTH_TABLES } from "./authTables.ts";
 import { CATEGORY_TABLES } from "./categoryTables.ts";
+import { PLAN_TABLES } from "./planTables.ts";
 import { RULE_TABLES } from "./ruleTables.ts";
 import { TRANSACTION_TABLES } from "./transactionTables.ts";
 import { defineTable, type Table } from "./types.ts";
@@ -75,6 +76,9 @@ export const spaceMembers = defineTable({
 		{ name: "state", type: "text", notNull: true, check: inList("state", MEMBER_STATES) },
 		{ name: "invited_by", type: "text" },
 		{ name: "accepted_at", type: "bigint" },
+		// What this person earns in a month, used only by the split that follows income.
+		// Nobody has to fill it in, and it is never shown as a number about a person.
+		{ name: "monthly_income", type: "bigint" },
 	],
 	indexes: [{ name: "space_members_by_user", columns: ["user_id"] }],
 	uniqueTogether: [["space_id", "user_id"]],
@@ -146,6 +150,8 @@ export const SCHEMA: readonly Table[] = [
 	...CATEGORY_TABLES,
 	...RULE_TABLES,
 	...TRANSACTION_TABLES,
+	// These point at transactions, so they come after them.
+	...PLAN_TABLES,
 	...VIEW_TABLES,
 ];
 

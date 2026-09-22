@@ -386,6 +386,110 @@ describe("the api", () => {
 		});
 	});
 
+	describe("the plan and the division", () => {
+		it("keeps a limit and says how it is doing", async () => {
+			const ana = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+
+			const space = await ana.json<{ id: string }>("/api/spaces", {
+				method: "POST",
+				body: JSON.stringify({ name: "Casa" }),
+			});
+			const account = await ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+				method: "POST",
+				body: JSON.stringify({ kind: "checking", name: "Conta" }),
+			});
+
+			await ana.request(`/api/spaces/${space.id}/budgets`, {
+				method: "POST",
+				body: JSON.stringify({ scope: "total", amount: 200_000 }),
+			});
+			await ana.request(`/api/spaces/${space.id}/transactions`, {
+				method: "POST",
+				body: JSON.stringify({
+					kind: "expense",
+					amount: 50_000,
+					happenedOn: "2026-09-10",
+					description: "Mercado",
+					accountId: account.id,
+				}),
+			});
+
+			const progress = await ana.json<Array<{ progress: { spent: number; left: number } }>>(
+				`/api/spaces/${space.id}/budgets/progress?month=2026-09&today=2026-09-30`,
+			);
+			expect(progress[0]?.progress.spent).toBe(50_000);
+			expect(progress[0]?.progress.left).toBe(150_000);
+		});
+
+		it("divides an expense between two people and clears it when one pays back", async () => {
+			const ana = createClient(app);
+			const joao = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			await joao.signUp({ name: "Joao", email: "joao@exemplo.com" });
+
+			const space = await ana.json<{ id: string }>("/api/spaces", {
+				method: "POST",
+				body: JSON.stringify({ name: "Casa" }),
+			});
+			const invitation = await ana.json<{ token: string }>(`/api/spaces/${space.id}/invitations`, {
+				method: "POST",
+				body: JSON.stringify({ role: "editor" }),
+			});
+			await joao.request(`/api/invitations/${invitation.token}/accept`, { method: "POST" });
+
+			const account = await ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+				method: "POST",
+				body: JSON.stringify({ kind: "checking", name: "Conta conjunta" }),
+			});
+			const [expense] = await ana.json<Array<{ id: string }>>(
+				`/api/spaces/${space.id}/transactions`,
+				{
+					method: "POST",
+					body: JSON.stringify({
+						kind: "expense",
+						amount: 20_000,
+						happenedOn: "2026-09-10",
+						description: "Conta de luz",
+						accountId: account.id,
+					}),
+				},
+			);
+
+			const parts = await ana.json<Array<{ amount: number }>>(
+				`/api/transactions/${expense?.id}/splits`,
+				{ method: "POST", body: JSON.stringify({ method: "evenly" }) },
+			);
+			expect(parts).toHaveLength(2);
+
+			const suggested = await ana.json<Array<{ amount: number }>>(
+				`/api/spaces/${space.id}/sharing/suggested`,
+			);
+			expect(suggested[0]?.amount).toBe(10_000);
+
+			// The other person sees the same thing, because it is their debt.
+			const seen = await joao.json<Array<{ userId: string; amount: number }>>(
+				`/api/spaces/${space.id}/sharing/balances`,
+			);
+			expect(seen.length).toBe(2);
+
+			const owes = seen.find((one) => one.amount < 0);
+			const owed = seen.find((one) => one.amount > 0);
+
+			await ana.request(`/api/spaces/${space.id}/sharing/settlements`, {
+				method: "POST",
+				body: JSON.stringify({
+					fromUserId: owes?.userId,
+					toUserId: owed?.userId,
+					amount: 10_000,
+					happenedOn: "2026-09-12",
+				}),
+			});
+
+			expect(await ana.json(`/api/spaces/${space.id}/sharing/balances`)).toEqual([]);
+		});
+	});
+
 	describe("saved filters", () => {
 		it("keeps a filter for the person who wrote it, and for nobody else", async () => {
 			const ana = createClient(app);

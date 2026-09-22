@@ -12,7 +12,7 @@ export type InviteInput = {
 };
 
 const SELECT = `SELECT "id", "space_id", "user_id", "role", "state", "invited_by", "accepted_at",
-	"created_at", "updated_at"
+	"monthly_income", "created_at", "updated_at"
 	FROM "space_members"`;
 
 export function createMembersRepository(context: RepositoryContext) {
@@ -123,6 +123,34 @@ export function createMembersRepository(context: RepositoryContext) {
 			const saved = await rowOf(spaceId, actor.userId);
 			if (!saved) throw new NotFoundError("member", actor.userId);
 			return saved;
+		},
+
+		/**
+		 * What somebody earns in a month, used by nothing except the division that
+		 * follows income. Anybody may set their own, and the people who run the space may
+		 * set anybody's, because the division is a decision of the house.
+		 */
+		async setIncome(spaceId: string, userId: string, monthlyIncome: number | null): Promise<void> {
+			const actor = context.actor();
+			if (userId !== actor.userId) assertCan(actor, spaceId, "member.changeRole");
+			else assertCan(actor, spaceId, "member.read");
+
+			if (monthlyIncome !== null && (!Number.isSafeInteger(monthlyIncome) || monthlyIncome < 0)) {
+				throw new RuleError(
+					"amountIsInteger",
+					"what somebody earns is an integer of minor units, never a fractional number",
+				);
+			}
+
+			const membership = await rowOf(spaceId, userId);
+			if (!membership) throw new NotFoundError("member", userId);
+
+			await updateRow(context.write(), {
+				table: spaceMembers,
+				spaceId,
+				id: membership.id,
+				values: { monthly_income: monthlyIncome },
+			});
 		},
 
 		async changeRole(spaceId: string, userId: string, role: Exclude<Role, "owner">): Promise<void> {

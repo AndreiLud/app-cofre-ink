@@ -45,6 +45,18 @@ export const TRANSACTION_RECURRENCE_COLUMNS = [
 	},
 ];
 
+/**
+ * Added by migration 0007. Who actually put the money in, which in a shared space is
+ * not always who wrote the record down, and is the whole basis of who owes whom.
+ */
+export const TRANSACTION_PAYER_COLUMNS = [
+	{
+		name: "paid_by",
+		type: "text" as const,
+		references: { table: "users", column: "id", onDelete: "setNull" as const },
+	},
+];
+
 export const transactions = defineTable({
 	name: "transactions",
 	scope: "space",
@@ -89,6 +101,7 @@ export const transactions = defineTable({
 		{ name: "invoice_month", type: "text" },
 		...TRANSACTION_CATEGORY_COLUMNS,
 		...TRANSACTION_RECURRENCE_COLUMNS,
+		...TRANSACTION_PAYER_COLUMNS,
 		{
 			name: "created_by",
 			type: "text",

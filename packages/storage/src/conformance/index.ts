@@ -20,6 +20,7 @@ import { migrate } from "../migrate.ts";
 import { createUser } from "../repositories/users.ts";
 import type { Session } from "../session.ts";
 import { runCategoryConformance } from "./categories.ts";
+import { runPlanConformance } from "./plan.ts";
 import { runRuleConformance } from "./rules.ts";
 import { runSavedFilterConformance } from "./savedFilters.ts";
 import { type AdapterUnderTest, type Fixture, prepare } from "./setup.ts";
@@ -139,6 +140,24 @@ const PROBES: Probe[] = [
 				frequency: "monthly",
 				startsOn: "2026-09-10",
 			}),
+	},
+	{
+		permission: "plan.read",
+		run: (session, where) => session.budgets.list(where.spaceId),
+	},
+	{
+		permission: "plan.write",
+		run: (session, where) =>
+			session.budgets.create({ spaceId: where.spaceId, scope: "total", amount: 100_000 }),
+	},
+	{
+		permission: "sharing.read",
+		run: (session, where) => session.sharing.balances(where.spaceId),
+	},
+	{
+		permission: "sharing.write",
+		run: (session, where) =>
+			session.sharing.split({ transactionId: where.transactionId, method: "evenly" }),
 	},
 	{
 		permission: "filter.read",
@@ -551,6 +570,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 		runTransactionConformance(adapter);
 		runCategoryConformance(adapter);
 		runRuleConformance(adapter);
+		runPlanConformance(adapter);
 		runSavedFilterConformance(adapter);
 
 		describe("the permission matrix", () => {

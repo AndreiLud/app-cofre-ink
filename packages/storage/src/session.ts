@@ -5,14 +5,17 @@ import { createHybridClock, type HybridClock } from "@cofre/core";
 import { type Actor, can, type Membership, type Permission } from "./actor.ts";
 import type { Driver } from "./driver.ts";
 import { createAccountsRepository } from "./repositories/accounts.ts";
+import { createBudgetsRepository } from "./repositories/budgets.ts";
 import { createCategoriesRepository } from "./repositories/categories.ts";
 import { createChangesRepository } from "./repositories/changes.ts";
 import type { RepositoryContext } from "./repositories/context.ts";
+import { createGoalsRepository } from "./repositories/goals.ts";
 import { createInvitationsRepository } from "./repositories/invitations.ts";
 import { createMembersRepository } from "./repositories/members.ts";
 import { createRecurrencesRepository } from "./repositories/recurrences.ts";
 import { createRulesRepository } from "./repositories/rules.ts";
 import { createSavedFiltersRepository } from "./repositories/savedFilters.ts";
+import { createSharingRepository } from "./repositories/sharing.ts";
 import { createSpacesRepository } from "./repositories/spaces.ts";
 import { createTransactionsRepository } from "./repositories/transactions.ts";
 import { createUsersRepository } from "./repositories/users.ts";
@@ -39,6 +42,9 @@ export type Session = {
 	transactions: ReturnType<typeof createTransactionsRepository>;
 	rules: ReturnType<typeof createRulesRepository>;
 	recurrences: ReturnType<typeof createRecurrencesRepository>;
+	budgets: ReturnType<typeof createBudgetsRepository>;
+	goals: ReturnType<typeof createGoalsRepository>;
+	sharing: ReturnType<typeof createSharingRepository>;
 	savedFilters: ReturnType<typeof createSavedFiltersRepository>;
 	changes: ReturnType<typeof createChangesRepository>;
 	users: ReturnType<typeof createUsersRepository>;
@@ -108,6 +114,9 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 		transactions: createTransactionsRepository(context),
 		rules: createRulesRepository(context),
 		recurrences: createRecurrencesRepository(context),
+		budgets: createBudgetsRepository(context),
+		goals: createGoalsRepository(context),
+		sharing: createSharingRepository(context),
 		savedFilters: createSavedFiltersRepository(context),
 		changes: createChangesRepository(context),
 		users: createUsersRepository(context),
