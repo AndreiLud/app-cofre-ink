@@ -36,6 +36,15 @@ export const TRANSACTION_CATEGORY_COLUMNS = [
 	{ name: "priority", type: "text" as const, check: inList("priority", PRIORITIES) },
 ];
 
+/** Added to the transactions table by migration 0006, and declared below as well. */
+export const TRANSACTION_RECURRENCE_COLUMNS = [
+	{
+		name: "recurrence_id",
+		type: "text" as const,
+		references: { table: "recurrences", column: "id", onDelete: "setNull" as const },
+	},
+];
+
 export const transactions = defineTable({
 	name: "transactions",
 	scope: "space",
@@ -79,6 +88,7 @@ export const transactions = defineTable({
 		 */
 		{ name: "invoice_month", type: "text" },
 		...TRANSACTION_CATEGORY_COLUMNS,
+		...TRANSACTION_RECURRENCE_COLUMNS,
 		{
 			name: "created_by",
 			type: "text",
@@ -88,6 +98,7 @@ export const transactions = defineTable({
 	],
 	indexes: [
 		{ name: "transactions_by_category", columns: ["category_id"] },
+		{ name: "transactions_by_recurrence", columns: ["recurrence_id", "happened_on"] },
 		{ name: "transactions_by_space_and_date", columns: ["space_id", "happened_on"] },
 		{ name: "transactions_by_account", columns: ["account_id", "happened_on"] },
 		{ name: "transactions_by_invoice", columns: ["account_id", "invoice_month"] },

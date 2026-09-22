@@ -14,10 +14,12 @@
 import { addColumnSql, createIndexSql, createSchemaSql, type Dialect } from "./ddl.ts";
 import { AUTH_TABLES } from "./schema/authTables.ts";
 import { CATEGORY_TABLES } from "./schema/categoryTables.ts";
+import { RULE_TABLES } from "./schema/ruleTables.ts";
 import { SCHEMA } from "./schema/tables.ts";
 import {
 	CARD_COLUMNS,
 	TRANSACTION_CATEGORY_COLUMNS,
+	TRANSACTION_RECURRENCE_COLUMNS,
 	TRANSACTION_TABLES,
 	transactions,
 } from "./schema/transactionTables.ts";
@@ -65,6 +67,16 @@ export const MIGRATIONS: readonly Migration[] = [
 			).map((column) => addColumnSql("transactions", column, context.dialect)),
 			// A database from before this migration never saw the index over the column
 			// that was just added. Creating them all again costs nothing.
+			...createIndexSql(transactions, context.dialect),
+		],
+	},
+	{
+		id: "0006_rules_and_recurrences",
+		statements: (context) => [
+			...createSchemaSql([...RULE_TABLES], context.dialect),
+			...TRANSACTION_RECURRENCE_COLUMNS.filter(
+				(column) => !context.hasColumn("transactions", column.name),
+			).map((column) => addColumnSql("transactions", column, context.dialect)),
 			...createIndexSql(transactions, context.dialect),
 		],
 	},

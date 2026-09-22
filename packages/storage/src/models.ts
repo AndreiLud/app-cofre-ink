@@ -104,6 +104,8 @@ export type Transaction = {
 	categoryId: string | null;
 	/** Empty means the priority of its category, which is the usual case. */
 	priority: SpendingPriority | null;
+	/** Set on the records a recurrence wrote, so the series can be followed. */
+	recurrenceId: string | null;
 	createdBy: string;
 	createdAt: number;
 	updatedAt: number;
@@ -128,6 +130,50 @@ export type SavedFilter = {
 	name: string;
 	query: Record<string, unknown>;
 	position: number;
+	createdBy: string;
+	createdAt: number;
+	updatedAt: number;
+};
+
+export type RecurrenceFrequency = "weekly" | "monthly" | "yearly";
+
+/** A rule that sorts a record into a category without anybody being asked. */
+export type CategorizationRule = {
+	id: string;
+	spaceId: string;
+	matchText: string;
+	accountId: string | null;
+	kind: TransactionKind | null;
+	categoryId: string;
+	priority: SpendingPriority | null;
+	position: number;
+	disabledAt: number | null;
+	createdBy: string;
+	createdAt: number;
+	updatedAt: number;
+};
+
+/** Something that happens again: rent, a subscription, a salary. */
+export type Recurrence = {
+	id: string;
+	spaceId: string;
+	description: string;
+	kind: TransactionKind;
+	amount: number;
+	currency: string;
+	accountId: string;
+	counterAccountId: string | null;
+	categoryId: string | null;
+	priority: SpendingPriority | null;
+	frequency: RecurrenceFrequency;
+	intervalCount: number;
+	dayOfMonth: number | null;
+	weekday: number | null;
+	monthOfYear: number | null;
+	startsOn: string;
+	endsOn: string | null;
+	notes: string | null;
+	pausedAt: number | null;
 	createdBy: string;
 	createdAt: number;
 	updatedAt: number;
@@ -245,6 +291,7 @@ export function toTransaction(row: Row): Transaction {
 		invoiceMonth: asOptionalText(row.invoice_month),
 		categoryId: asOptionalText(row.category_id),
 		priority: asOptionalText(row.priority) as SpendingPriority | null,
+		recurrenceId: asOptionalText(row.recurrence_id),
 		createdBy: asText(row.created_by),
 		createdAt: asNumber(row.created_at),
 		updatedAt: asNumber(row.updated_at),
@@ -258,6 +305,50 @@ export function toSavedFilter(row: Row): SavedFilter {
 		name: asText(row.name),
 		query: asJson<Record<string, unknown>>(row.query),
 		position: asNumber(row.position),
+		createdBy: asText(row.created_by),
+		createdAt: asNumber(row.created_at),
+		updatedAt: asNumber(row.updated_at),
+	};
+}
+
+export function toCategorizationRule(row: Row): CategorizationRule {
+	return {
+		id: asText(row.id),
+		spaceId: asText(row.space_id),
+		matchText: asText(row.match_text),
+		accountId: asOptionalText(row.account_id),
+		kind: asOptionalText(row.kind) as TransactionKind | null,
+		categoryId: asText(row.category_id),
+		priority: asOptionalText(row.priority) as SpendingPriority | null,
+		position: asNumber(row.position),
+		disabledAt: asOptionalNumber(row.disabled_at),
+		createdBy: asText(row.created_by),
+		createdAt: asNumber(row.created_at),
+		updatedAt: asNumber(row.updated_at),
+	};
+}
+
+export function toRecurrence(row: Row): Recurrence {
+	return {
+		id: asText(row.id),
+		spaceId: asText(row.space_id),
+		description: asText(row.description),
+		kind: asText(row.kind) as TransactionKind,
+		amount: asNumber(row.amount),
+		currency: asText(row.currency),
+		accountId: asText(row.account_id),
+		counterAccountId: asOptionalText(row.counter_account_id),
+		categoryId: asOptionalText(row.category_id),
+		priority: asOptionalText(row.priority) as SpendingPriority | null,
+		frequency: asText(row.frequency) as RecurrenceFrequency,
+		intervalCount: asNumber(row.interval_count),
+		dayOfMonth: asOptionalNumber(row.day_of_month),
+		weekday: asOptionalNumber(row.weekday),
+		monthOfYear: asOptionalNumber(row.month_of_year),
+		startsOn: asText(row.starts_on),
+		endsOn: asOptionalText(row.ends_on),
+		notes: asOptionalText(row.notes),
+		pausedAt: asOptionalNumber(row.paused_at),
 		createdBy: asText(row.created_by),
 		createdAt: asNumber(row.created_at),
 		updatedAt: asNumber(row.updated_at),

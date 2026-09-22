@@ -322,6 +322,70 @@ describe("the api", () => {
 		});
 	});
 
+	describe("rules and recurrences", () => {
+		it("sorts a new record by a rule, and writes what a series owes", async () => {
+			const ana = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+
+			const space = await ana.json<{ id: string }>("/api/spaces", {
+				method: "POST",
+				body: JSON.stringify({ name: "Casa" }),
+			});
+			const account = await ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+				method: "POST",
+				body: JSON.stringify({ kind: "checking", name: "Conta" }),
+			});
+			const category = await ana.json<{ id: string }>(`/api/spaces/${space.id}/categories`, {
+				method: "POST",
+				body: JSON.stringify({ name: "Delivery", kind: "expense", priority: "superfluous" }),
+			});
+
+			await ana.request(`/api/spaces/${space.id}/rules`, {
+				method: "POST",
+				body: JSON.stringify({ matchText: "ifood", categoryId: category.id }),
+			});
+
+			const [written] = await ana.json<Array<{ categoryId: string }>>(
+				`/api/spaces/${space.id}/transactions`,
+				{
+					method: "POST",
+					body: JSON.stringify({
+						kind: "expense",
+						amount: 4290,
+						happenedOn: "2026-09-10",
+						description: "iFood da noite",
+						accountId: account.id,
+					}),
+				},
+			);
+			expect(written?.categoryId).toBe(category.id);
+
+			await ana.request(`/api/spaces/${space.id}/recurrences`, {
+				method: "POST",
+				body: JSON.stringify({
+					description: "Aluguel",
+					kind: "expense",
+					amount: 145_000,
+					accountId: account.id,
+					frequency: "monthly",
+					startsOn: "2026-09-05",
+				}),
+			});
+
+			const first = await ana.json<{ written: number }>(
+				`/api/spaces/${space.id}/recurrences/materialize`,
+				{ method: "POST", body: JSON.stringify({ until: "2026-12-31" }) },
+			);
+			expect(first.written).toBeGreaterThan(0);
+
+			const again = await ana.json<{ written: number }>(
+				`/api/spaces/${space.id}/recurrences/materialize`,
+				{ method: "POST", body: JSON.stringify({ until: "2026-12-31" }) },
+			);
+			expect(again.written).toBe(0);
+		});
+	});
+
 	describe("saved filters", () => {
 		it("keeps a filter for the person who wrote it, and for nobody else", async () => {
 			const ana = createClient(app);

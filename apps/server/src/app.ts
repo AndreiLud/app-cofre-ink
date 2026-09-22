@@ -70,6 +70,33 @@ const categoryInput = z.object({
 	position: z.number().int().min(0).max(999).optional(),
 });
 
+const ruleInput = z.object({
+	matchText: z.string().trim().min(2).max(80),
+	categoryId: z.string().min(1),
+	accountId: z.string().min(1).nullable().optional(),
+	kind: z.enum(["income", "expense", "transfer"]).nullable().optional(),
+	priority: priority.nullable().optional(),
+	position: z.number().int().min(0).max(999).optional(),
+	disabled: z.boolean().optional(),
+});
+
+const recurrenceInput = z.object({
+	description: z.string().trim().min(1).max(200),
+	kind: z.enum(["income", "expense", "transfer"]),
+	amount: z.number().int().positive(),
+	accountId: z.string().min(1),
+	counterAccountId: z.string().min(1).nullable().optional(),
+	categoryId: z.string().min(1).nullable().optional(),
+	priority: priority.nullable().optional(),
+	frequency: z.enum(["weekly", "monthly", "yearly"]),
+	intervalCount: z.number().int().min(1).max(60).optional(),
+	dayOfMonth: z.number().int().min(1).max(31).nullable().optional(),
+	monthOfYear: z.number().int().min(1).max(12).nullable().optional(),
+	startsOn: calendarDate,
+	endsOn: calendarDate.nullable().optional(),
+	notes: z.string().trim().max(2000).nullable().optional(),
+});
+
 const transactionInput = z.object({
 	kind: z.enum(["income", "expense", "transfer"]),
 	// Always positive: the direction comes from the kind, as registry 0010 says.
@@ -436,6 +463,81 @@ export function createApp({ config, database, auth }: AppDependencies) {
 	app.delete("/api/filters/:id", async (context) => {
 		await context.get("session").savedFilters.remove(context.req.param("id"));
 		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/rules", async (context) =>
+		context.json(await context.get("session").rules.list(context.req.param("id"))),
+	);
+
+	app.post("/api/spaces/:id/rules", async (context) => {
+		const input = ruleInput.omit({ disabled: true }).parse(await context.req.json());
+		const rule = await context
+			.get("session")
+			.rules.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(rule, 201);
+	});
+
+	/** Runs the rules over the records that were never sorted by anybody. */
+	app.post("/api/spaces/:id/rules/apply", async (context) => {
+		const input = z
+			.object({ from: calendarDate.optional(), to: calendarDate.optional() })
+			.parse(await context.req.json().catch(() => ({})));
+		const sorted = await context
+			.get("session")
+			.rules.applyToExisting({ spaceId: context.req.param("id"), ...input });
+		return context.json({ sorted });
+	});
+
+	app.patch("/api/rules/:id", async (context) => {
+		const input = ruleInput.partial().parse(await context.req.json());
+		return context.json(await context.get("session").rules.update(context.req.param("id"), input));
+	});
+
+	app.delete("/api/rules/:id", async (context) => {
+		await context.get("session").rules.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/recurrences", async (context) =>
+		context.json(await context.get("session").recurrences.list(context.req.param("id"))),
+	);
+
+	app.post("/api/spaces/:id/recurrences", async (context) => {
+		const input = recurrenceInput.parse(await context.req.json());
+		const series = await context
+			.get("session")
+			.recurrences.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(series, 201);
+	});
+
+	/** Writes the planned records the series owe, up to the horizon. */
+	app.post("/api/spaces/:id/recurrences/materialize", async (context) => {
+		const input = z
+			.object({ until: calendarDate.optional() })
+			.parse(await context.req.json().catch(() => ({})));
+		const written = await context
+			.get("session")
+			.recurrences.materialize({ spaceId: context.req.param("id"), until: input.until });
+		return context.json({ written });
+	});
+
+	app.patch("/api/recurrences/:id", async (context) => {
+		const input = recurrenceInput
+			.partial()
+			.omit({ kind: true })
+			.extend({ paused: z.boolean().optional() })
+			.parse(await context.req.json());
+		return context.json(
+			await context.get("session").recurrences.update(context.req.param("id"), input),
+		);
+	});
+
+	app.delete("/api/recurrences/:id", async (context) => {
+		const keepPlanned = context.req.query("keepPlanned") === "true";
+		const removed = await context
+			.get("session")
+			.recurrences.remove(context.req.param("id"), { keepPlanned });
+		return context.json({ removed });
 	});
 
 	app.get("/api/spaces/:id/changes", async (context) => {

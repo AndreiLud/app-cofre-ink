@@ -10,6 +10,8 @@ import { createChangesRepository } from "./repositories/changes.ts";
 import type { RepositoryContext } from "./repositories/context.ts";
 import { createInvitationsRepository } from "./repositories/invitations.ts";
 import { createMembersRepository } from "./repositories/members.ts";
+import { createRecurrencesRepository } from "./repositories/recurrences.ts";
+import { createRulesRepository } from "./repositories/rules.ts";
 import { createSavedFiltersRepository } from "./repositories/savedFilters.ts";
 import { createSpacesRepository } from "./repositories/spaces.ts";
 import { createTransactionsRepository } from "./repositories/transactions.ts";
@@ -35,6 +37,8 @@ export type Session = {
 	accounts: ReturnType<typeof createAccountsRepository>;
 	categories: ReturnType<typeof createCategoriesRepository>;
 	transactions: ReturnType<typeof createTransactionsRepository>;
+	rules: ReturnType<typeof createRulesRepository>;
+	recurrences: ReturnType<typeof createRecurrencesRepository>;
 	savedFilters: ReturnType<typeof createSavedFiltersRepository>;
 	changes: ReturnType<typeof createChangesRepository>;
 	users: ReturnType<typeof createUsersRepository>;
@@ -102,6 +106,8 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 		accounts: createAccountsRepository(context),
 		categories: createCategoriesRepository(context),
 		transactions: createTransactionsRepository(context),
+		rules: createRulesRepository(context),
+		recurrences: createRecurrencesRepository(context),
 		savedFilters: createSavedFiltersRepository(context),
 		changes: createChangesRepository(context),
 		users: createUsersRepository(context),

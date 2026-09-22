@@ -20,6 +20,7 @@ import { migrate } from "../migrate.ts";
 import { createUser } from "../repositories/users.ts";
 import type { Session } from "../session.ts";
 import { runCategoryConformance } from "./categories.ts";
+import { runRuleConformance } from "./rules.ts";
 import { runSavedFilterConformance } from "./savedFilters.ts";
 import { type AdapterUnderTest, type Fixture, prepare } from "./setup.ts";
 import { runTransactionConformance } from "./transactions.ts";
@@ -113,6 +114,31 @@ const PROBES: Probe[] = [
 		permission: "category.write",
 		run: (session, where) =>
 			session.categories.create({ spaceId: where.spaceId, name: "Padaria", kind: "expense" }),
+	},
+	{
+		permission: "rule.read",
+		run: (session, where) => session.rules.list(where.spaceId),
+	},
+	{
+		permission: "rule.write",
+		run: (session, where) => session.rules.applyToExisting({ spaceId: where.spaceId }),
+	},
+	{
+		permission: "recurrence.read",
+		run: (session, where) => session.recurrences.list(where.spaceId),
+	},
+	{
+		permission: "recurrence.write",
+		run: (session, where) =>
+			session.recurrences.create({
+				spaceId: where.spaceId,
+				description: "Assinatura",
+				kind: "expense",
+				amount: 2000,
+				accountId: where.accountId,
+				frequency: "monthly",
+				startsOn: "2026-09-10",
+			}),
 	},
 	{
 		permission: "filter.read",
@@ -524,6 +550,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 
 		runTransactionConformance(adapter);
 		runCategoryConformance(adapter);
+		runRuleConformance(adapter);
 		runSavedFilterConformance(adapter);
 
 		describe("the permission matrix", () => {

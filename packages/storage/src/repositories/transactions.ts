@@ -11,6 +11,7 @@ import {
 	invoiceMonthOf,
 	money,
 	parseCalendarDate,
+	pickRule,
 	planInstallments,
 	uuidV7,
 } from "@cofre/core";
@@ -26,6 +27,7 @@ import {
 	type TransactionKind,
 	type TransactionStatus,
 	toAccount,
+	toCategorizationRule,
 	toTransaction,
 } from "../models.ts";
 import { marks } from "../sql.ts";
@@ -35,7 +37,8 @@ import type { RepositoryContext } from "./context.ts";
 const SELECT = `SELECT "id", "space_id", "kind", "status", "amount", "currency", "fx_rate",
 	"amount_in_base", "happened_on", "description", "account_id", "counter_account_id", "notes",
 	"reconciled_at", "installment_group", "installment_number", "installment_count",
-	"invoice_month", "category_id", "priority", "created_by", "created_at", "updated_at"
+	"invoice_month", "category_id", "priority", "recurrence_id", "created_by", "created_at",
+	"updated_at"
 	FROM "transactions"`;
 
 export type CreateTransactionInput = {
@@ -120,6 +123,31 @@ export function createTransactionsRepository(context: RepositoryContext) {
 		);
 		if (rows.length === 0) throw new NotFoundError("category", categoryId);
 		return categoryId;
+	}
+
+	/**
+	 * What the rules of the space would do with a record that arrives with no category.
+	 * A transfer is never sorted, because moving your own money between your own
+	 * accounts is not spending.
+	 */
+	async function suggestFor(
+		spaceId: string,
+		record: { description: string; accountId: string; kind: TransactionKind },
+	): Promise<{ categoryId: string | null; priority: SpendingPriority | null }> {
+		if (record.kind === "transfer") return { categoryId: null, priority: null };
+
+		const rows = await context.driver.all(
+			`SELECT "id", "space_id", "match_text", "account_id", "kind", "category_id", "priority",
+			 "position", "disabled_at", "created_by", "created_at", "updated_at"
+			 FROM "categorization_rules"
+			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "disabled_at" IS NULL
+			 ORDER BY "position", "created_at"`,
+			[spaceId],
+		);
+		if (rows.length === 0) return { categoryId: null, priority: null };
+
+		const found = pickRule(rows.map(toCategorizationRule), record);
+		return { categoryId: found?.categoryId ?? null, priority: found?.priority ?? null };
 	}
 
 	async function accountIn(spaceId: string, accountId: string): Promise<Account> {
@@ -332,9 +360,16 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			});
 
 			const group = count > 1 ? uuidV7() : null;
-			const categoryId = input.categoryId
-				? await categoryIn(input.spaceId, input.categoryId)
-				: null;
+			// A category chosen by hand wins. When there is none, the rules of the space
+			// get their say, which is the whole point of writing a rule.
+			const sorted = input.categoryId
+				? { categoryId: await categoryIn(input.spaceId, input.categoryId), priority: null }
+				: await suggestFor(input.spaceId, {
+						description: input.description,
+						accountId: input.accountId,
+						kind: input.kind,
+					});
+			const categoryId = sorted.categoryId;
 
 			const written = await context.driver.transaction(async (tx) => {
 				const write = { ...context.write(), driver: tx };
@@ -366,7 +401,7 @@ export function createTransactionsRepository(context: RepositoryContext) {
 							installment_count: count > 1 ? part.count : null,
 							invoice_month: part.invoiceMonth ?? null,
 							category_id: categoryId,
-							priority: input.priority ?? null,
+							priority: input.priority ?? sorted.priority,
 							created_by: context.actor().userId,
 						},
 					});

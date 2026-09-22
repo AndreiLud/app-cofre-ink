@@ -3,6 +3,7 @@ export * from "./introspection.ts";
 export * from "./migrations.ts";
 export * from "./schema/authTables.ts";
 export * from "./schema/categoryTables.ts";
+export * from "./schema/ruleTables.ts";
 export * from "./schema/tables.ts";
 export * from "./schema/transactionTables.ts";
 export * from "./schema/types.ts";

@@ -47,6 +47,12 @@ export const PERMISSIONS = {
 	// pick one. Changing the list itself is a decision about the whole space.
 	"category.read": ["owner", "admin", "editor", "viewer", "logger"],
 	"category.write": ["owner", "admin", "editor"],
+	// A rule and a recurrence write records into the space, so they are set by the
+	// people who may write records, and read by everybody who sees them.
+	"rule.read": ["owner", "admin", "editor", "viewer", "logger"],
+	"rule.write": ["owner", "admin", "editor"],
+	"recurrence.read": ["owner", "admin", "editor", "viewer", "logger"],
+	"recurrence.write": ["owner", "admin", "editor"],
 	// A saved filter is a person's own shortcut. Everybody who can read a space can
 	// keep one, and the repository only ever shows somebody their own.
 	"filter.read": ["owner", "admin", "editor", "viewer", "logger"],
