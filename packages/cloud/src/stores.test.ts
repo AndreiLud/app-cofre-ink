@@ -292,6 +292,22 @@ describe("packing the file", () => {
 	});
 });
 
+describe("a service that does not answer at all", () => {
+	it("is a failure with a name and a place, not the words a browser uses", async () => {
+		// What a browser throws when there is no connection, no such host, or a
+		// certificate it refuses. All of them arrive here as one thing.
+		const offline = (() => Promise.reject(new TypeError("Failed to fetch"))) as typeof fetch;
+
+		const store = createDropboxStore({ token: "t", fetcher: offline, name: "Dropbox" });
+		const failed = await store.read("espaco1").catch((error: unknown) => error);
+
+		expect(failed).toBeInstanceOf(CloudError);
+		expect((failed as CloudError).status).toBe(0);
+		expect((failed as CloudError).where).toBe("Dropbox");
+		expect((failed as CloudError).message).toBe("Dropbox did not answer");
+	});
+});
+
 describe("a file the person moves themselves", () => {
 	it("reads what they gave it and hands back what came out", async () => {
 		let handed: SyncBundle | null = null;

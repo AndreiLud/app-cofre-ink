@@ -198,7 +198,12 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			   AND a."happened_on" >= ? AND a."happened_on" <= ?
 			   AND a."installment_number" IS NULL AND b."installment_number" IS NULL
 			   AND SUBSTR(LOWER(a."description"), 1, 8) = SUBSTR(LOWER(b."description"), 1, 8)
-			 ORDER BY a."happened_on" DESC`,
+			 ORDER BY a."happened_on" DESC
+			 -- Somebody who buys the same coffee every day for the same price produces a
+			 -- great many of these pairs. Only the newest few are ever shown, and the
+			 -- days filter below throws most of them away anyway, so the database is
+			 -- asked to stop rather than to hand over a month of coincidences.
+			 LIMIT 100`,
 			[spaceId, from, to],
 		);
 

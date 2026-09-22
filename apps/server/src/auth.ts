@@ -30,6 +30,29 @@ export function createAuth(config: Config, database: OpenedDatabase) {
 			requireEmailVerification: false,
 		},
 
+		/**
+		 * Said out loud rather than left to a default.
+		 *
+		 * The library turns this on by itself when it believes it is in production, and
+		 * a server at home is very often not started that way. Guessing a password is
+		 * the one attack a Cofre on the open internet actually faces, so the limit is
+		 * written here where somebody can read it and change it.
+		 *
+		 * Five attempts a minute at signing in, five accounts an hour, and sixty of
+		 * anything else. It counts per address, which is why the header a proxy sets has
+		 * to be named in the configuration: without it, everybody behind the proxy
+		 * counts as one caller.
+		 */
+		rateLimit: {
+			enabled: config.NODE_ENV !== "test",
+			window: 60,
+			max: 60,
+			customRules: {
+				"/sign-in/email": { window: 60, max: 5 },
+				"/sign-up/email": { window: 60 * 60, max: 5 },
+			},
+		},
+
 		advanced: {
 			database: {
 				generateId: () => uuidV7(),

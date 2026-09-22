@@ -852,7 +852,10 @@
 		"personalFromAnotherDevice": "This file carries the personal space of another device, and you already have one. Syncing joins the same space in two places, not two different personal spaces. To bring that money life here, export a backup there and use Restore here: it merges with yours.",
 		"bringIn": "Bring this space in",
 		"broughtIn": "{{name}} arrived and is yours now.",
-		"alreadyAgreed": "Everything already agreed in {{where}}."
+		"alreadyAgreed": "Everything already agreed in {{where}}.",
+		"unreachable": "I could not reach {{where}}. Check that you are online and that the address is right.",
+		"refused": "{{where}} refused the access. The token may have expired: sign in to the service again.",
+		"answered": "{{where}} answered {{status}} and did not finish. Try again in a few minutes."
 	},
 	"importing": {
 		"title": "Import a statement",

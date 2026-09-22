@@ -6,13 +6,17 @@
 // thing an application can say.
 
 export class CloudError extends Error {
+	/** What the other side answered, or zero when it did not answer at all. */
 	readonly status: number;
 	readonly body: string;
+	/** The name of the place, so the interface can put it in a sentence. */
+	readonly where: string;
 
 	constructor(where: string, status: number, body: string) {
-		super(`${where} answered ${status}`);
+		super(status === 0 ? `${where} did not answer` : `${where} answered ${status}`);
 		this.name = "CloudError";
 		this.status = status;
+		this.where = where;
 		this.body = body.slice(0, 500);
 	}
 }
@@ -37,11 +41,21 @@ export type CallOptions = {
 
 export async function call(url: string, options: CallOptions): Promise<Response> {
 	const fetcher = options.fetcher ?? globalThis.fetch;
-	const response = await fetcher(url, {
-		method: options.method ?? "GET",
-		headers: options.headers,
-		body: (options.body ?? undefined) as BodyInit | undefined,
-	});
+
+	let response: Response;
+	try {
+		response = await fetcher(url, {
+			method: options.method ?? "GET",
+			headers: options.headers,
+			body: (options.body ?? undefined) as BodyInit | undefined,
+		});
+	} catch (reason) {
+		// No answer at all: no connection, a name that does not resolve, a certificate
+		// the browser refused, a server that is not there, or a browser refusing the
+		// call for its own reasons. From here they are one thing, and the raw message a
+		// browser gives for it is "Failed to fetch", which helps nobody.
+		throw new CloudError(options.where, 0, reason instanceof Error ? reason.message : "");
+	}
 
 	if (response.ok || (options.allow ?? []).includes(response.status)) return response;
 

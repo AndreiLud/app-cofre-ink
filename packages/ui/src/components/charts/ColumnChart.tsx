@@ -5,6 +5,7 @@
 // when the box changes, so nothing is stretched and the labels stay readable.
 
 import { cn } from "../../lib/cn.ts";
+import { type ChartSize, TwoShapes } from "./shapes.tsx";
 
 export type ColumnGroup = {
 	key: string;
@@ -19,11 +20,15 @@ export type ColumnChartProps = {
 	className?: string;
 };
 
-const WIDTH = 720;
-const PLOT = 200;
+const WIDE: ChartSize = { width: 720, height: 200 };
+/** Half the units across, so a month under a column comes out twice the size. */
+const NARROW: ChartSize = { width: 360, height: 180 };
 const LABELS = 24;
 
-export function ColumnChart({ groups, description, className }: ColumnChartProps) {
+function Drawing({ groups, description, className, size }: ColumnChartProps & { size: ChartSize }) {
+	const WIDTH = size.width;
+	const PLOT = size.height;
+
 	const most = Math.max(1, ...groups.flatMap((group) => [group.income, group.expense]));
 	const slot = WIDTH / Math.max(1, groups.length);
 	const barWidth = Math.min(28, slot * 0.32);
@@ -79,5 +84,17 @@ export function ColumnChart({ groups, description, className }: ColumnChartProps
 				/>
 			</g>
 		</svg>
+	);
+}
+
+export function ColumnChart(props: ColumnChartProps) {
+	return (
+		<TwoShapes
+			narrow={NARROW}
+			wide={WIDE}
+			draw={(size, shown) => (
+				<Drawing {...props} size={size} className={cn(props.className, shown)} />
+			)}
+		/>
 	);
 }

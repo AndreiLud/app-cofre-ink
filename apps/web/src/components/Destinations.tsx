@@ -9,6 +9,7 @@
 import {
 	BUNDLE_MEDIA_TYPE,
 	bundleFileName,
+	CloudError,
 	createDropboxStore,
 	createFileStore,
 	createGoogleDriveStore,
@@ -47,6 +48,26 @@ const SERVICE_OF: Partial<Record<DestinationKind, OAuthService>> = {
 	dropbox: "dropbox",
 	googleDrive: "googleDrive",
 };
+
+/**
+ * What went wrong, in words.
+ *
+ * A drive answers with a number and a browser answers "Failed to fetch". Neither tells
+ * the person what to do, and the three things that actually happen are always the same
+ * three: no connection, a token that is no longer any good, or the service refusing for
+ * a reason of its own.
+ */
+function saidWhy(error: unknown, t: (key: string, values?: Record<string, unknown>) => string) {
+	if (error instanceof CloudError) {
+		if (error.status === 0) return t("destination.unreachable", { where: error.where });
+		if (error.status === 401 || error.status === 403) {
+			return t("destination.refused", { where: error.where });
+		}
+		return t("destination.answered", { where: error.where, status: error.status });
+	}
+	if (error instanceof SyncError) return error.message;
+	return error instanceof Error ? error.message : String(error);
+}
 
 type Outcome = {
 	sent: number;
@@ -114,9 +135,7 @@ export function Destinations() {
 				setSettings(merged);
 				rememberDestination(merged);
 			})
-			.catch((error: unknown) =>
-				setProblem(error instanceof Error ? error.message : String(error)),
-			);
+			.catch((error: unknown) => setProblem(saidWhy(error, t)));
 	}, [t]);
 
 	function storeFor(): SyncStore {
@@ -173,7 +192,7 @@ export function Destinations() {
 			});
 			window.location.assign(started.url);
 		},
-		onError: (error: unknown) => setProblem(error instanceof Error ? error.message : String(error)),
+		onError: (error: unknown) => setProblem(saidWhy(error, t)),
 	});
 
 	const signIn = useMutation({
@@ -187,7 +206,7 @@ export function Destinations() {
 			setSignedIn(true);
 			change({ secret: "" });
 		},
-		onError: (error: unknown) => setProblem(error instanceof Error ? error.message : String(error)),
+		onError: (error: unknown) => setProblem(saidWhy(error, t)),
 	});
 
 	const sync = useMutation({
@@ -253,7 +272,7 @@ export function Destinations() {
 				setProblem(t("destination.personalFromAnotherDevice"));
 				return;
 			}
-			setProblem(error instanceof Error ? error.message : String(error));
+			setProblem(saidWhy(error, t));
 		},
 	});
 

@@ -852,7 +852,10 @@
 		"personalFromAnotherDevice": "Este arquivo traz o espaço pessoal de outro aparelho, e você já tem um. Sincronizar junta o mesmo espaço em dois lugares, não dois espaços pessoais diferentes. Para trazer essa vida financeira para cá, exporte um backup lá e use Restaurar aqui: ele junta com o seu.",
 		"bringIn": "Trazer este espaço para cá",
 		"broughtIn": "{{name}} chegou e agora é seu.",
-		"alreadyAgreed": "Já estava tudo igual em {{where}}."
+		"alreadyAgreed": "Já estava tudo igual em {{where}}.",
+		"unreachable": "Não consegui falar com {{where}}. Veja se você está conectado e se o endereço está certo.",
+		"refused": "O {{where}} recusou o acesso. O token pode ter expirado: entre no serviço de novo.",
+		"answered": "O {{where}} respondeu {{status}} e não completou. Tente de novo em alguns minutos."
 	},
 	"importing": {
 		"title": "Importar extrato",
