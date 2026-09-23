@@ -24,6 +24,13 @@ services:
       COFRE_SECRET: ${COFRE_SECRET:?set COFRE_SECRET in .env}
       COFRE_WEB_ORIGIN: ${COFRE_WEB_ORIGIN:-http://localhost:4321}
       COFRE_PUBLIC_URL: ${COFRE_PUBLIC_URL:-http://localhost:4321}
+      # The rest of what .env.example offers. Without these lines a person fills the
+      # file, brings the container up and finds the widget they asked for is not there,
+      # which is worse than not offering it: they think something is guarding the door.
+      COFRE_PROOF_BITS: ${COFRE_PROOF_BITS:-18}
+      COFRE_CLIENT_IP_HEADER: ${COFRE_CLIENT_IP_HEADER:-}
+      COFRE_TURNSTILE_SITE_KEY: ${COFRE_TURNSTILE_SITE_KEY:-}
+      COFRE_TURNSTILE_SECRET: ${COFRE_TURNSTILE_SECRET:-}
       NODE_ENV: production
     volumes:
       - cofreData:/data

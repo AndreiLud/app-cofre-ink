@@ -6,10 +6,14 @@ WORKDIR /app
 RUN corepack enable
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
+# Every workspace package, because the lockfile describes all of them and an install
+# that is missing one resolves a different tree than the one that was locked.
 COPY apps/web/package.json apps/web/
 COPY apps/server/package.json apps/server/
+COPY packages/cloud/package.json packages/cloud/
 COPY packages/core/package.json packages/core/
 COPY packages/db/package.json packages/db/
+COPY packages/importers/package.json packages/importers/
 COPY packages/storage/package.json packages/storage/
 COPY packages/ui/package.json packages/ui/
 
@@ -28,13 +32,17 @@ ENV NODE_ENV=production
 
 COPY --from=build /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
 COPY --from=build /app/apps/server/package.json apps/server/
+COPY --from=build /app/packages/cloud/package.json packages/cloud/
 COPY --from=build /app/packages/core/package.json packages/core/
 COPY --from=build /app/packages/db/package.json packages/db/
 COPY --from=build /app/packages/storage/package.json packages/storage/
 
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts --filter @cofre/server...
 
+# The four the server imports. Node reads the TypeScript straight from here, so what is
+# missing is not a build that fails, it is a container that starts and dies.
 COPY --from=build /app/apps/server/src apps/server/src
+COPY --from=build /app/packages/cloud/src packages/cloud/src
 COPY --from=build /app/packages/core/src packages/core/src
 COPY --from=build /app/packages/db/src packages/db/src
 COPY --from=build /app/packages/storage/src packages/storage/src
