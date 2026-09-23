@@ -76,9 +76,11 @@ packages/
   cloud/      where a copy can live: a file, WebDAV, an online database, a spreadsheet
   ui/         design tokens, components, charts drawn as SVG
 docs/
-  produto.md  product brief in Portuguese
-  instalar.md how to run, publish and package it, in Portuguese
-  adr/        architecture decision records
+  en/         architecture, data model, flows, API, authentication, configuration,
+              deploy, troubleshooting, contributing. Written first
+  pt-BR/      the same documents, same file names, in Portuguese
+  adr/        architecture decision records, in English, one per decision
+  imagens/    the pictures the README uses
 scripts/
   checkWriting.mjs
   makeIcons.mjs           draws the mark and writes every icon format

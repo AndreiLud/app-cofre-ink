@@ -208,6 +208,13 @@ scripts/        the writing rule, the translations check, the icons, the service
                 worker, the fallback page, the Git hooks
 ```
 
+### Documentation
+
+The full documentation is in [docs/en](docs/en): architecture, data model, flows, every
+endpoint, authentication, configuration, deploy and troubleshooting, plus how to
+contribute. The same documents exist in [Portuguese](docs/pt-BR), under the same file
+names.
+
 ### Decisions
 
 Every decision that is expensive to reverse is written down in
@@ -437,6 +444,13 @@ docs/
 scripts/        a regra de escrita, a checagem de traduções, os ícones, o service
                 worker, a página de fallback, os ganchos do Git
 ```
+
+### Documentação
+
+A documentação completa está em [`docs/pt-BR`](docs/pt-BR): arquitetura, modelo de dados,
+fluxos, cada rota, autenticação, configuração, publicação e problemas, mais como
+contribuir. Os mesmos documentos existem em [inglês](docs/en), com os mesmos nomes de
+arquivo.
 
 ### Decisões
 

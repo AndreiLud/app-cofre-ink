@@ -1,8 +1,16 @@
 # ADR 0020: An application in a window, on a telephone and on a computer
 
-**Status:** Accepted
+**Status:** Partly superseded by
+[0021](0021_a_web_application_that_tidies_itself.md)
 **Date:** 22 September 2026
 **Deciders:** Andrei Ludescher (owner), Claude (implementation)
+
+> **What is still true and what is not.** The telephone application is this build
+> installed from the browser, and that is what shipped and what remains. The desktop
+> shell described below, a window of its own built with Tauri, was dropped: the next
+> record says why, and nothing in the repository builds one any more. The parts of this
+> record about the manifest, the icons, the service worker and the way every address is
+> written against the base of the build are the ones still in force.
 
 ## Context
 
@@ -66,8 +74,9 @@ choosing it over Electron.
 **Nothing in it was built on the machine where it was written.** Rust, the MSVC build
 tools and the Android SDK are all absent there. What is verified is the configuration,
 which the Tauri command line reads and validates, and the icons, which Windows itself
-decodes. What is not verified is the compilation. `docs/instalar.md` says exactly what
-has to be installed and what to expect, and says this too.
+decodes. What is not verified is the compilation. The guide of the day said exactly what
+had to be installed and what to expect, and said this too. That part of the guide went
+with the shell.
 
 ### Every address is written against the base of the build
 
