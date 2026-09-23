@@ -81,14 +81,13 @@ painel, e esse arquivo é o `wrangler.jsonc` na raiz deste repositório. Não h�
 Worker dentro dele: isto é uma pasta de arquivos, então a Cloudflare serve os arquivos e
 responde qualquer endereço que não seja um deles com a própria página.
 
-Duas coisas precisam estar certas, e nenhuma delas mora neste repositório:
+O build também está declarado nesse arquivo, então o `wrangler deploy` compila antes de
+enviar e o painel não precisa de comando de build nenhum. Um clone deste repositório
+publica do mesmo jeito, que é o motivo de isso morar aqui.
 
-1. **O comando de build no painel é `pnpm build`.** O comando de deploy roda depois dele
-   e só envia o que o build produziu. Sem comando de build não existe pasta para enviar,
-   e o deploy falha dizendo isso.
-2. **O `name` no `wrangler.jsonc` é o nome do Worker** a que o repositório está
-   conectado. Com um nome diferente, um deploy cria em silêncio um segundo Worker e o
-   endereço continua apontando para o primeiro.
+Uma coisa não está neste repositório e não tem como estar: **o `name` precisa ser o
+nome do Worker** a que o repositório está conectado. Com um nome diferente, um deploy
+cria em silêncio um segundo Worker e o endereço continua apontando para o primeiro.
 
 ### GitHub Pages
 
