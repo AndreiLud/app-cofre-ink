@@ -29,8 +29,6 @@
 		"check": "biome check . && turbo run typecheck && node scripts/checkWriting.mjs && node scripts/checkTranslations.mjs",
 		"check:writing": "node scripts/checkWriting.mjs",
 		"check:translations": "node scripts/checkTranslations.mjs",
-		"spike:prepare": "node scripts/prepareSpike.mjs",
-		"spike:opfs": "node scripts/prepareSpike.mjs && node scripts/spikeServer.mjs",
 		"prepare": "node scripts/installHooks.mjs"
 	},
 	"simple-git-hooks": {
@@ -39,7 +37,6 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.14",
-		"@sqlite.org/sqlite-wasm": "3.53.4-build1",
 		"@types/node": "^26.6.2",
 		"simple-git-hooks": "^2.14.0",
 		"turbo": "^2.11.2",

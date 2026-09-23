@@ -58,7 +58,7 @@
 			}
 		},
 		{
-			"includes": ["scripts/**", "spike/**", "apps/server/src/main.ts"],
+			"includes": ["scripts/**", "apps/server/src/main.ts"],
 			"linter": {
 				"rules": {
 					"suspicious": {

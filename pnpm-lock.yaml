@@ -169,9 +169,6 @@ importers:
       '@biomejs/biome':
         specifier: ^2.5.14
         version: 2.5.14
-      '@sqlite.org/sqlite-wasm':
-        specifier: 3.53.4-build1
-        version: 3.53.4-build1
       '@types/node':
         specifier: ^26.6.2
         version: 26.6.2

@@ -6,12 +6,6 @@
 			"runtimeExecutable": "pnpm",
 			"runtimeArgs": ["--filter", "@cofre/web", "dev"],
 			"port": 5174
-		},
-		{
-			"name": "spikeOpfs",
-			"runtimeExecutable": "node",
-			"runtimeArgs": ["scripts/spikeServer.mjs"],
-			"port": 5183
 		}
 	]
 }

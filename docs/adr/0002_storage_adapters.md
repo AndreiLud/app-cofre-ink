@@ -68,9 +68,16 @@ spike is green.
 isolation headers and no `SharedArrayBuffer`, SQLite 3.53.4 opened a database through
 the pool backend, wrote five thousand rows in 195 milliseconds and read them back
 after a reload. Aggregating ten thousand rows by month took 63 milliseconds inside the
-worker. Numbers and method are in `docs/spikeOpfs.md`, and the code stays in
-`spike/opfsSqlite` as evidence. Firefox and Safari are still to be checked when the
-demo goes live, with a runtime capability check choosing the fallback if needed.
+worker. Firefox and Safari are still to be checked when the demo goes live, with a
+runtime capability check choosing the fallback if needed.
+
+**Removed on 23 September 2026.** The spike page, its server and the note holding its
+numbers were deleted before the repository was published. They were kept as the
+evidence for the paragraph above, and what now stands in their place is better
+evidence: `packages/storage/src/adapters/sqliteWasm.ts` is the same backend in the
+real product, and the conformance suite runs the same tests against it and against the
+other three adapters. The measurements above are the record of what the spike showed,
+and this paragraph is the record that it existed.
 
 Fallbacks, in the order they would be taken:
 

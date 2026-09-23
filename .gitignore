@@ -24,8 +24,6 @@ apps/desktop/src-tauri/target/
 *.sqlite
 *.sqlite3
 
-spike/opfsSqlite/vendor/
-
 .DS_Store
 Thumbs.db
 .idea/
