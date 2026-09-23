@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 21 September 2026
-**Deciders:** Andrei Ludescher (owner), Claude (implementation)
+**Deciders:** Andrei Ludescher (owner)
 
 ## Context
 
@@ -136,7 +136,7 @@ To revisit:
 ## Action items
 
 1. [ ] Enable corepack and pin the pnpm version in `package.json`.
-2. [ ] Create the workspace with the packages listed in `CLAUDE.md`.
+2. [ ] Create the workspace with the packages listed in the layout of the repository.
 3. [ ] Configure Biome, TypeScript project references and Turborepo pipelines.
 4. [ ] Set up GitHub Actions with lint, types, tests, build and the writing rule.
 5. [ ] Install Git for Windows so that git is on the PATH outside GitHub Desktop.

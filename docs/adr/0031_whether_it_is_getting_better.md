@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 23 September 2026
-**Deciders:** Andrei Ludescher (owner), Claude (implementation)
+**Deciders:** Andrei Ludescher (owner)
 
 ## Context
 

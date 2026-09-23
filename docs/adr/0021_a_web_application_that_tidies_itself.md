@@ -3,7 +3,7 @@
 **Status:** Accepted. Supersedes the shell of registry 0020 and the manual fold of
 registry 0018.
 **Date:** 22 September 2026
-**Deciders:** Andrei Ludescher (owner), Claude (implementation)
+**Deciders:** Andrei Ludescher (owner)
 
 ## Context
 

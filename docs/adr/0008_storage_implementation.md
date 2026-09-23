@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 21 September 2026
-**Deciders:** Andrei Ludescher (owner), Claude (implementation)
+**Deciders:** Andrei Ludescher (owner)
 **Supersedes:** the implementation choices inside registry 0002, whose structure and
 reasoning stand unchanged
 

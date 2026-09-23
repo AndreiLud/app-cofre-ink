@@ -3,7 +3,7 @@
 **Status:** Partly superseded by
 [0021](0021_a_web_application_that_tidies_itself.md)
 **Date:** 22 September 2026
-**Deciders:** Andrei Ludescher (owner), Claude (implementation)
+**Deciders:** Andrei Ludescher (owner)
 
 > **What is still true and what is not.** The telephone application is this build
 > installed from the browser, and that is what shipped and what remains. The desktop

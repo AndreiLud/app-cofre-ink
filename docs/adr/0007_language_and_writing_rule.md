@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 21 September 2026
-**Deciders:** Andrei Ludescher (owner), Claude (implementation)
+**Deciders:** Andrei Ludescher (owner)
 
 ## Context
 
@@ -25,7 +25,7 @@ program that checks it.
 | database tables and columns | English, snake_case |
 | API routes and payload fields | English |
 | commit messages, pull requests, changelog | English |
-| architecture decision records, `CLAUDE.md` | English |
+| architecture decision records | English |
 | `README.md` | English first, Portuguese after it, in one file |
 | documents for people who are not working on the code | both, side by side in `docs/` |
 | interface copy | Portuguese and English, through i18n, Portuguese as the default |
