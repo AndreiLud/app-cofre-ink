@@ -1,0 +1,116 @@
+name: release
+
+# A tag, and nothing else. Pushing to main publishes nothing: a release is a decision
+# somebody makes, and the tag is how they make it.
+#
+#   pnpm version 0.1.0 --no-git-tag-version   then write the section in CHANGELOG.md
+#   git tag v0.1.0 && git push origin v0.1.0
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ github.ref }}
+
+jobs:
+  verify:
+    name: the tag is coherent, and the code still passes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: install
+        run: pnpm install --frozen-lockfile
+
+      # Before anything is built or published: the tag, the version in package.json and
+      # the section in the changelog all say the same thing, or this stops here.
+      - name: the tag, the version and the changelog agree
+        run: node scripts/releaseNotes.mjs "${{ github.ref_name }}"
+
+      - name: lint, types, the writing rule and the two languages
+        run: pnpm run check
+
+      # The flows in a browser are not repeated here. They ran on this commit when it
+      # landed on main, and they take eight minutes that would be spent proving the
+      # same thing twice.
+      - name: tests
+        run: pnpm run test
+
+      - name: build
+        run: pnpm run build
+
+  image:
+    name: the container, on the registry of this repository
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Two architectures, because the guide says a Raspberry Pi is a place to run this
+      # and a Pi is not an Intel machine. The second one is emulated and slow, which is
+      # a price worth paying on a tag and not on every push.
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # It writes the lower case name the registry insists on, and the set of tags: the
+      # full version, the major and minor, and latest for a version that is not a
+      # preview of something.
+      - id: names
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.names.outputs.tags }}
+          labels: ${{ steps.names.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  release:
+    name: the release, with the notes somebody wrote
+    needs: image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # The notes are the section of the changelog for this version, so the file in the
+      # repository and the page on the release say the same thing and only one of them
+      # has to be written.
+      - name: the notes
+        run: node scripts/releaseNotes.mjs "${{ github.ref_name }}" > notes.md
+
+      - name: publish it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --notes-file notes.md

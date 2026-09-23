@@ -184,6 +184,15 @@ the data in a named volume that survives an update of the image. For PostgreSQL 
 of SQLite, uncomment the database service in `compose.yaml` and point `COFRE_DATABASE`
 at it.
 
+Every release also publishes an image built for Intel and for ARM, so there is nothing
+to clone:
+
+```bash
+docker run -d -p 4321:4321 -v cofre:/data -e COFRE_SECRET=... ghcr.io/andreilud/app-cofre-ink:latest
+```
+
+[The changelog](CHANGELOG.md) says what changed in each version.
+
 ### What is in each folder
 
 ```
@@ -421,6 +430,15 @@ precisa ser o mesmo nome do Worker a que o repositório está conectado.
 dados num volume nomeado que sobrevive a uma atualização da imagem. Para PostgreSQL em
 vez de SQLite, descomente o serviço de banco no `compose.yaml` e aponte o
 `COFRE_DATABASE` para ele.
+
+Toda versão também publica uma imagem construída para Intel e para ARM, então não há
+nada para clonar:
+
+```bash
+docker run -d -p 4321:4321 -v cofre:/data -e COFRE_SECRET=... ghcr.io/andreilud/app-cofre-ink:latest
+```
+
+[O changelog](CHANGELOG.md) diz o que mudou em cada versão.
 
 ### O que existe em cada pasta
 

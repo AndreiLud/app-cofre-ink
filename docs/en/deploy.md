@@ -183,6 +183,24 @@ pnpm --filter @cofre/web exec vite preview --port 5174
 Accounts, invitations and shared spaces for real. A machine of yours, a Raspberry Pi, a
 cheap virtual machine, whatever you have.
 
+### Without cloning anything
+
+Every release publishes an image, built for Intel and for ARM, so a Raspberry Pi runs
+the same one:
+
+```bash
+docker run -d --name cofre -p 4321:4321 -v cofre:/data \
+  -e COFRE_SECRET=$(node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))") \
+  -e COFRE_PUBLIC_URL=https://your.address \
+  -e COFRE_WEB_ORIGIN=https://your.address \
+  ghcr.io/andreilud/app-cofre-ink:latest
+```
+
+Pin the version rather than following `latest` if you want to decide when to update.
+[The changelog](../../CHANGELOG.md) says what changed in each one.
+
+### From the source
+
 ```bash
 cp .env.example .env
 ```
