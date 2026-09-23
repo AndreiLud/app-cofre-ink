@@ -8,9 +8,12 @@
 	"author": "Andrei Ludescher",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/AndreiLud/open-cofre.git"
+		"url": "git+https://github.com/AndreiLud/app-cofre-ink.git"
 	},
-	"homepage": "https://github.com/AndreiLud/open-cofre",
+	"bugs": {
+		"url": "https://github.com/AndreiLud/app-cofre-ink/issues"
+	},
+	"homepage": "https://cofre.ink",
 	"packageManager": "pnpm@12.5.1",
 	"engines": {
 		"node": ">=22"

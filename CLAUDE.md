@@ -44,7 +44,7 @@ settle up flow. The app works offline and syncs when it can reach a server.
    colon, a period, parentheses, or rewrite. Lists are numbered or become prose. File
    names, folders and routes avoid the character too (underscore or camelCase), as a
    preference and not as a rule: the rule is about writing, so a name that identifies
-   something may carry it, as the repository `AndreiLud/open-cofre` does, and syntax
+   something may carry it, as the repository `AndreiLud/app-cofre-ink` does, and syntax
    that requires it (command line flags, third party package names) always may.
    `node scripts/checkWriting.mjs` enforces this in CI and before every commit.
 2. **Money is always an integer number of cents.** Never a floating point number.

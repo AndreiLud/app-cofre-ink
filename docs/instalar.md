@@ -82,11 +82,11 @@ lá dentro.
 
 ### GitHub Pages
 
-O GitHub Pages serve um projeto dentro de uma pasta (`https://usuario.github.io/open-cofre/`),
+O GitHub Pages serve um projeto dentro de uma pasta (`https://usuario.github.io/app-cofre-ink/`),
 então o build precisa saber disso:
 
 ```bash
-pnpm --filter @cofre/web exec vite build --base=/open-cofre/
+pnpm --filter @cofre/web exec vite build --base=/app-cofre-ink/
 node scripts/buildServiceWorker.mjs
 node scripts/copyFallback.mjs
 ```
