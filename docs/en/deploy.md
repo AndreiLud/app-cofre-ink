@@ -81,14 +81,13 @@ and `wrangler.jsonc` at the root of this repository is it. There is no Worker co
 it: this is a folder of files, so Cloudflare serves the files and answers anything that
 is not one with the page itself.
 
-Two things have to be right, and neither of them lives in this repository:
+The build is named in that file too, so `wrangler deploy` builds before it uploads and
+the dashboard needs no build command of its own. A clone of this repository deploys the
+same way, which is the point of keeping it here.
 
-1. **The build command in the dashboard is `pnpm build`.** The deploy command runs
-   after it and only uploads what the build produced. With no build command there is no
-   folder to upload, and the deploy fails saying so.
-2. **The `name` in `wrangler.jsonc` is the name of the Worker** the repository is
-   connected to. With a different name, a deploy quietly creates a second Worker and
-   the address carries on pointing at the first one.
+One thing is not in this repository and cannot be: **the `name` has to be the name of
+the Worker** the repository is connected to. With a different name, a deploy quietly
+creates a second Worker and the address carries on pointing at the first one.
 
 ### GitHub Pages
 

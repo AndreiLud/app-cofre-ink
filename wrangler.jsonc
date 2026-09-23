@@ -11,6 +11,12 @@
 {
 	"name": "app-cofre-ink",
 	"compatibility_date": "2026-09-23",
+	// Said here rather than in a field of a dashboard, so that what gets published is
+	// decided by the repository and a clone of it deploys the same way. Wrangler runs
+	// this before it looks at the folder below.
+	"build": {
+		"command": "pnpm build"
+	},
 	"assets": {
 		"directory": "./apps/web/dist",
 		"not_found_handling": "single-page-application"
