@@ -50,11 +50,25 @@
 	--seal: #9c2f1c;
 	--amber: #b5821f;
 	--ochre: #7d5810;
+
+	/*
+	 * The grain of the paper, which is the page and never the panels laid on it.
+	 *
+	 * Three and a half per cent of a grey noise, tiled. At that weight it is not seen,
+	 * it is felt: the canvas stops being a flat fill and starts being a surface, which
+	 * is the one thing a screen cannot borrow from paper for free. It is a token so
+	 * that the dark theme can say "none" without a second rule anywhere.
+	 */
+	--grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)' opacity='0.035'/%3E%3C/svg%3E");
 }
 
 @media (prefers-color-scheme: dark) {
 	:root:not([data-theme="light"]) {
 		color-scheme: dark;
+
+		/* A lit screen is not paper, and grain on near black reads as a fault in the
+		   panel rather than as a surface. */
+		--grain: none;
 
 		--canvas: #131210;
 		--panel: #1e1c18;
@@ -80,6 +94,7 @@
 :root[data-theme="dark"] {
 	color-scheme: dark;
 
+	--grain: none;
 	--canvas: #131210;
 	--panel: #1e1c18;
 	--sunken: #0d0c0a;
@@ -148,6 +163,7 @@
 
 	body {
 		background-color: var(--canvas);
+		background-image: var(--grain);
 		color: var(--ink);
 		font-family: var(--font-sans);
 		font-size: var(--text-base);
@@ -173,6 +189,60 @@
 	::selection {
 		background-color: var(--accent);
 		color: var(--accentInk);
+	}
+}
+
+/*
+ * On paper.
+ *
+ * A screen in the dark theme is cream ink on a black page, and a printer does not paint
+ * the page: it prints the cream and leaves the paper white, which is a sheet with
+ * nothing readable on it. Somebody pressing the button on the reports screen at night
+ * got exactly that.
+ *
+ * So the palette is said again here, once, in the only terms paper has. It is not the
+ * light theme: a printer has no grey to spare for a faint rule and no reason to spend
+ * ink on a panel, so the surfaces all become the page and the lines get darker to make
+ * up for it. The two colours money uses stay apart, because a minus sign and a colour
+ * saying the same thing is how a black and white printer keeps one of them.
+ */
+@media print {
+	:root,
+	:root[data-theme="dark"],
+	:root[data-theme="light"] {
+		color-scheme: light;
+
+		--canvas: #ffffff;
+		--panel: #ffffff;
+		--sunken: #ffffff;
+
+		--line: #b9b2a4;
+		--lineStrong: #6b655a;
+
+		--ink: #12110d;
+		--quiet: #434039;
+
+		--accent: #12110d;
+		--accentInk: #ffffff;
+		--accentSoft: #eeeae0;
+
+		--cedar: #14432c;
+		--seal: #6d2214;
+		--amber: #5f4410;
+		--ochre: #5f4410;
+
+		--grain: none;
+		--shadow-lifted: none;
+	}
+
+	body {
+		background: #ffffff;
+	}
+
+	/* Nothing that floats belongs on a page that cannot be scrolled. */
+	[role="dialog"],
+	[role="menu"] {
+		display: none !important;
 	}
 }
 
