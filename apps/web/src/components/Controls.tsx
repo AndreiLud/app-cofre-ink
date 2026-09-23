@@ -54,6 +54,11 @@ export function LanguageToggle() {
  * An anchor and not a button, because it goes somewhere, and it says out loud that it
  * opens a tab of its own: a control that moves the ground under somebody without
  * warning them is the kind that gets pressed once and never again.
+ *
+ * It wears an edge while everything beside it is a bare word or a bare icon, which is
+ * the whole of the emphasis: in a row of things that change the screen, this is the one
+ * that does something else. Not the filled colour, which is spoken for by the action
+ * each screen is actually for.
  */
 export function DonateLink() {
 	const { t } = useTranslation();
@@ -62,8 +67,9 @@ export function DonateLink() {
 			href={DONATE}
 			target="_blank"
 			rel="noreferrer noopener"
-			className={buttonClasses({ variant: "quiet", size: "small" })}
+			className={buttonClasses({ variant: "secondary", size: "small" })}
 		>
+			<Icon name="heart" />
 			{t("donate.label")}
 			<span className="sr-only">{t("donate.newTab")}</span>
 		</a>
