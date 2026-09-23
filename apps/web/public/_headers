@@ -1,0 +1,15 @@
+# What the host sends, on Cloudflare and on Netlify, which both read this file.
+#
+# The page carries its own content security policy inside it, and that works on any
+# host. The one rule that cannot come from inside a page is the one that refuses to be
+# framed, because a browser ignores it when it arrives that way. So it comes from here.
+
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+
+# Everything the build named with a hash in it. The name changes when the file does,
+# so the old one is never asked for again and a year is a safe thing to promise.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

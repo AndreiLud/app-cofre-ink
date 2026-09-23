@@ -71,8 +71,24 @@ understand: it writes a `404.html` that is the page itself, and it carries a
 
 ### Netlify, Cloudflare Pages, Vercel and the like
 
-Build command `pnpm build`, published folder `apps/web/dist`. The `_redirects` is
-already in there.
+Build command `pnpm build`, published folder `apps/web/dist`. The `_redirects` and the
+`_headers` are already in there and need no configuration.
+
+### Cloudflare Workers
+
+Workers deploys with a configuration file rather than with two fields in a dashboard,
+and `wrangler.jsonc` at the root of this repository is it. There is no Worker code in
+it: this is a folder of files, so Cloudflare serves the files and answers anything that
+is not one with the page itself.
+
+Two things have to be right, and neither of them lives in this repository:
+
+1. **The build command in the dashboard is `pnpm build`.** The deploy command runs
+   after it and only uploads what the build produced. With no build command there is no
+   folder to upload, and the deploy fails saying so.
+2. **The `name` in `wrangler.jsonc` is the name of the Worker** the repository is
+   connected to. With a different name, a deploy quietly creates a second Worker and
+   the address carries on pointing at the first one.
 
 ### GitHub Pages
 
@@ -91,19 +107,22 @@ disappears from the address and the plain `pnpm build` is right again.
 There is a workflow for this in `.github/workflows/demo.yml`, which runs only when
 somebody presses the button in the Actions tab.
 
-### One header worth adding
+### The header the page cannot send itself
 
 The page carries its own security rules inside it, and they work on any host. Only one
 of them does not work from inside the page, and it is the one that stops Cofre Ink
 being opened inside a frame on somebody else's site, which is how a person is fooled
-into pressing the wrong button. If your host lets you add a header, add this one:
+into pressing the wrong button.
+
+So the build carries a `_headers` file, which Cloudflare and Netlify read and apply:
 
 ```
-X-Frame-Options: DENY
+/*
+  X-Frame-Options: DENY
 ```
 
-The Cofre Ink server sends it by itself. This is only for publishing the folder of
-files somewhere else.
+The Cofre Ink server sends the header by itself. A host that reads neither that file
+nor the server, such as Nginx or Caddy, is configured by hand, as below.
 
 ### Nginx
 

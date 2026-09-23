@@ -1,0 +1,18 @@
+// How Cloudflare serves the browser mode.
+//
+// There is no Worker code here on purpose: this is a folder of static files and
+// nothing else, which is the whole point of the browser mode. Cloudflare serves the
+// files, and any address that is not a file is answered with the page itself, because
+// the routes live in the browser rather than on a server.
+//
+// The name below has to be the name of the Worker this repository is connected to in
+// the Cloudflare dashboard. With a different name, a deploy quietly creates a second
+// Worker and the address carries on pointing at the first one.
+{
+	"name": "app-cofre-ink",
+	"compatibility_date": "2026-09-23",
+	"assets": {
+		"directory": "./apps/web/dist",
+		"not_found_handling": "single-page-application"
+	}
+}

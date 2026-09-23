@@ -71,8 +71,24 @@ página, e leva um arquivo `_redirects`. Na prática, a maioria funciona sem con
 
 ### Netlify, Cloudflare Pages, Vercel e parecidos
 
-Comando de build `pnpm build`, pasta publicada `apps/web/dist`. O `_redirects` já está
-lá dentro.
+Comando de build `pnpm build`, pasta publicada `apps/web/dist`. O `_redirects` e o
+`_headers` já estão lá dentro e não precisam de configuração.
+
+### Cloudflare Workers
+
+A Workers publica a partir de um arquivo de configuração, e não de dois campos num
+painel, e esse arquivo é o `wrangler.jsonc` na raiz deste repositório. Não há código de
+Worker dentro dele: isto é uma pasta de arquivos, então a Cloudflare serve os arquivos e
+responde qualquer endereço que não seja um deles com a própria página.
+
+Duas coisas precisam estar certas, e nenhuma delas mora neste repositório:
+
+1. **O comando de build no painel é `pnpm build`.** O comando de deploy roda depois dele
+   e só envia o que o build produziu. Sem comando de build não existe pasta para enviar,
+   e o deploy falha dizendo isso.
+2. **O `name` no `wrangler.jsonc` é o nome do Worker** a que o repositório está
+   conectado. Com um nome diferente, um deploy cria em silêncio um segundo Worker e o
+   endereço continua apontando para o primeiro.
 
 ### GitHub Pages
 
@@ -91,19 +107,23 @@ endereço e aí vale o `pnpm build` normal.
 Existe um workflow para isso em `.github/workflows/demo.yml`, que roda só quando alguém
 aperta o botão na aba Actions.
 
-### Um cabeçalho que vale a pena adicionar
+### O cabeçalho que a página não consegue mandar sozinha
 
 A página já traz as próprias regras de segurança dentro dela, e elas funcionam em
 qualquer hospedagem. Só uma não funciona vindo de dentro da página, e é a que impede o
 Cofre Ink de ser aberto dentro de um quadro em outro site, que é como se engana alguém a
-clicar no lugar errado. Se a sua hospedagem deixa adicionar um cabeçalho, adicione este:
+clicar no lugar errado.
+
+Por isso o build leva um arquivo `_headers`, que a Cloudflare e a Netlify leem e
+aplicam:
 
 ```
-X-Frame-Options: DENY
+/*
+  X-Frame-Options: DENY
 ```
 
-O servidor do Cofre Ink já manda esse cabeçalho sozinho. Isto é só para quando você
-publica a pasta de arquivos em outro lugar.
+O servidor do Cofre Ink manda o cabeçalho sozinho. Uma hospedagem que não lê nem esse
+arquivo nem o servidor, como Nginx ou Caddy, se configura à mão, como abaixo.
 
 ### Nginx
 
