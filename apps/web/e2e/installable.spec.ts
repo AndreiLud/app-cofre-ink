@@ -8,8 +8,14 @@
 // And then the thing that matters most on a phone, which is opening it on the
 // underground: the connection is cut and the application still opens.
 
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import { BUILT_ADDRESS } from "../playwright.config.ts";
+
+/** The folder the preview server above is serving, for the checks about the build. */
+const BUILT_DIRECTORY = join(dirname(fileURLToPath(import.meta.url)), "..", "dist");
 
 type Manifest = {
 	name: string;
@@ -56,16 +62,25 @@ test.describe("the built application", () => {
 		expect(drawn).toEqual({ width: 512, height: 512 });
 	});
 
-	test("carries the two files a static host reads to answer every address", async ({ request }) => {
+	test("carries the page a static host sends when it finds nothing", async ({ request }) => {
 		// A host that only knows about files is asked for /importar and finds nothing.
-		// These two say, in the two dialects hosts speak, that the answer is the page.
+		// This is what it sends instead, and it is the application, so the router reads
+		// the address and the person lands where they meant to.
 		const fallback = await request.get(`${BUILT_ADDRESS}/404.html`);
 		expect(fallback.status()).toBe(200);
 		expect(await fallback.text()).toContain('id="root"');
+	});
 
-		const redirects = await request.get(`${BUILT_ADDRESS}/_redirects`);
-		expect(redirects.status()).toBe(200);
-		expect(await redirects.text()).toContain("/index.html   200");
+	test("does not write a redirects file, which Cloudflare refuses", () => {
+		// It used to. The one rule in it said that every address is the page, which is
+		// what the Workers configuration already says, and Cloudflare reads the pair as
+		// a loop and rejects the whole deploy, after uploading every file. Anybody
+		// publishing to Netlify adds the line themselves, and the guide has it.
+		//
+		// Asked of the folder rather than of the preview server, because that server
+		// answers every address with the page and would say 200 either way.
+		expect(existsSync(join(BUILT_DIRECTORY, "_redirects"))).toBe(false);
+		expect(existsSync(join(BUILT_DIRECTORY, "404.html"))).toBe(true);
 	});
 
 	test("takes over the page, and opens again with no connection", async ({ page, context }) => {

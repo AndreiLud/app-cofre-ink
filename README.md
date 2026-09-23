@@ -169,12 +169,12 @@ space to each other through a file, and one that cuts the connection and reloads
 ### Building and deploying
 
 **The browser mode is a folder of static files.** `pnpm build` writes
-`apps/web/dist`, and any host that can serve files will serve it. Three files in there
-are for the host rather than for the browser: `_redirects` and `404.html`, which are the
-two dialects hosts speak for "every address is the page", and `_headers`, which carries
-the one security rule a page cannot state from inside itself, the refusal to be framed.
-Cloudflare and Netlify read them with no configuration. For Nginx and Caddy there is an
-example in [docs/en/deploy.md](docs/en/deploy.md).
+`apps/web/dist`, and any host that can serve files will serve it. Two files in there are
+for the host rather than for the browser: `404.html`, which is the page a host sends
+when it finds nothing, so every address ends up at the application, and `_headers`,
+which carries the one security rule a page cannot state from inside itself, the refusal
+to be framed. For Nginx, Caddy and Netlify there is a line each in
+[docs/en/deploy.md](docs/en/deploy.md).
 
 Cloudflare Workers is configured by `wrangler.jsonc` at the root. The `name` in it has
 to match the Worker the repository is connected to.
@@ -407,13 +407,12 @@ corta a conexão e recarrega a página.
 ### Build e publicação
 
 **O modo navegador é uma pasta de arquivos estáticos.** O `pnpm build` escreve
-`apps/web/dist`, e qualquer hospedagem que sirva arquivos serve isso. Três arquivos lá
-dentro são para a hospedagem e não para o navegador: `_redirects` e `404.html`, que são
-os dois dialetos que as hospedagens falam para dizer "todo endereço é a página", e o
+`apps/web/dist`, e qualquer hospedagem que sirva arquivos serve isso. Dois arquivos lá
+dentro são para a hospedagem e não para o navegador: o `404.html`, que é a página que a
+hospedagem manda quando não acha nada, de modo que todo endereço acaba na aplicação, e o
 `_headers`, que carrega a única regra de segurança que uma página não consegue declarar
-de dentro de si mesma, a recusa de ser enquadrada. Cloudflare e Netlify leem os três sem
-configuração. Para Nginx e Caddy há exemplo em
-[`docs/pt-BR/deploy.md`](docs/pt-BR/deploy.md).
+de dentro de si mesma, a recusa de ser enquadrada. Para Nginx, Caddy e Netlify há uma
+linha para cada em [`docs/pt-BR/deploy.md`](docs/pt-BR/deploy.md).
 
 A Cloudflare Workers é configurada pelo `wrangler.jsonc` na raiz. O `name` dentro dele
 precisa ser o mesmo nome do Worker a que o repositório está conectado.

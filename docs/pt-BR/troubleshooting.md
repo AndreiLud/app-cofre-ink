@@ -86,10 +86,10 @@ troca que este modo faz. Exporte em Dados, Exportar tudo, antes de mexer nisso.
 
 ### Um endereço de dentro do aplicativo responde 404
 
-Uma hospedagem de arquivos que não conhece as rotas. O build leva as duas soluções,
-`404.html` e `_redirects`. Se a sua não lê nenhuma das duas, aponte todo endereço que
-não seja um arquivo para `index.html`. Há exemplo de Nginx e de Caddy em
-[Publicar](deploy.md).
+Uma hospedagem de arquivos que não conhece as rotas. O build leva o `404.html`, que é a
+própria página, e a maioria das hospedagens manda ele. Se a sua não manda, aponte todo
+endereço que não seja um arquivo para `index.html`. Há exemplo de Nginx, de Caddy e de
+Netlify em [Publicar](deploy.md).
 
 ### Uma versão antiga fica aparecendo
 

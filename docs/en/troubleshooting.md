@@ -86,9 +86,9 @@ trade this mode makes. Export from Data, Export everything, before touching that
 
 ### An address inside the application answers 404
 
-A static host that does not know the routes. The build carries both fixes,
-`404.html` and `_redirects`. If yours reads neither, point every address that is not a
-file at `index.html`. There is an example for Nginx and for Caddy in
+A static host that does not know the routes. The build carries `404.html`, which is the
+page itself, and most hosts send it. If yours does not, point every address that is not
+a file at `index.html`. There is an example for Nginx, for Caddy and for Netlify in
 [Deploy](deploy.md).
 
 ### An old version keeps appearing
