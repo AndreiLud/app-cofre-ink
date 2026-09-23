@@ -86,8 +86,15 @@ of one, which is what a project page on GitHub Pages is. The worker learns the b
 reading the page the build just wrote, so there is no setting to pass twice and get
 wrong.
 
-The build also writes `404.html` and carries `_redirects`, which are the two dialects
-static hosts speak for "every address is the page".
+The build also writes `404.html`, which is how a static host is told that every address
+is the page: it finds nothing and sends that, and that is the application.
+
+**Amended on 23 September 2026.** A `_redirects` file was written beside it, the
+dialect Netlify and Cloudflare Pages read, saying the same thing with a status of 200.
+It was taken out when the interface went to Cloudflare Workers, which parses that file
+and rejects its only rule as a loop, because the Workers configuration already says
+every address is the page. The guide carries the line for anybody who wants it on a
+host that reads it.
 
 ### The shell cannot sign in to a drive, and the screen says so
 

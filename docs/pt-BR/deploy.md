@@ -65,14 +65,24 @@ pnpm build
 O resultado fica em `apps/web/dist`. É só isso: copie essa pasta para onde quiser.
 
 A aplicação responde a vários endereços (`/lancamentos`, `/importar`, e assim por
-diante) e uma hospedagem de arquivos não conhece nenhum deles. O build já resolve isso
-dos dois jeitos que as hospedagens entendem: escreve um `404.html` que é a própria
-página, e leva um arquivo `_redirects`. Na prática, a maioria funciona sem configuração.
+diante) e uma hospedagem de arquivos não conhece nenhum deles. O build escreve um
+`404.html` que é a própria página, então uma hospedagem que não acha nada manda a
+aplicação e o roteador lê o endereço. A maioria funciona sem configuração nenhuma.
 
-### Netlify, Cloudflare Pages, Vercel e parecidos
+### Netlify, Vercel e parecidos
 
-Comando de build `pnpm build`, pasta publicada `apps/web/dist`. O `_redirects` e o
-`_headers` já estão lá dentro e não precisam de configuração.
+Comando de build `pnpm build`, pasta publicada `apps/web/dist`. O `_headers` já está lá
+dentro e não precisa de configuração.
+
+A Netlify e a Cloudflare Pages leem um arquivo `_redirects`, que diz a mesma coisa que o
+`404.html` acima, mas com status 200 em vez de 404. O build não escreve um, porque a
+Cloudflare Workers analisa esse arquivo e recusa a única regra que ele teria. Se você
+publicar numa dessas duas e quiser o 200, adicione um arquivo `_redirects` na pasta
+publicada com esta linha dentro:
+
+```
+/*    /index.html   200
+```
 
 ### Cloudflare Workers
 

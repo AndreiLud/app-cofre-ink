@@ -65,14 +65,24 @@ The result is in `apps/web/dist`. That is all of it: copy that folder wherever y
 want.
 
 The application answers at several addresses (`/lancamentos`, `/importar`, and so on)
-and a file host knows none of them. The build already handles that in both ways hosts
-understand: it writes a `404.html` that is the page itself, and it carries a
-`_redirects` file. In practice most hosts work with no configuration.
+and a file host knows none of them. The build writes a `404.html` that is the page
+itself, so a host that finds nothing sends the application and the router reads the
+address. Most hosts work with no configuration at all.
 
-### Netlify, Cloudflare Pages, Vercel and the like
+### Netlify, Vercel and the like
 
-Build command `pnpm build`, published folder `apps/web/dist`. The `_redirects` and the
-`_headers` are already in there and need no configuration.
+Build command `pnpm build`, published folder `apps/web/dist`. The `_headers` is already
+in there and needs no configuration.
+
+Netlify and Cloudflare Pages read a `_redirects` file, which says the same thing as the
+`404.html` above but with a status of 200 instead of 404. The build does not write one,
+because Cloudflare Workers parses that file and refuses the only rule it would contain.
+If you publish to one of those two and want the 200, add a file called `_redirects` to
+the published folder with this line in it:
+
+```
+/*    /index.html   200
+```
 
 ### Cloudflare Workers
 
