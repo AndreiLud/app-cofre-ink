@@ -26,13 +26,16 @@ export type SpaceMarkProps = {
  */
 export function SpaceMark({ name, colour, description, className }: SpaceMarkProps) {
 	return (
-		<span className={cn("inline-flex items-center gap-2 text-sm text-ink", className)}>
+		// It can be made narrow. A space called "Casa da praia com a familia" in a header
+		// that also holds five controls has to give way somewhere, and the last letters
+		// of the name are the cheapest thing in that row to lose.
+		<span className={cn("inline-flex min-w-0 items-center gap-2 text-sm text-ink", className)}>
 			<span
 				aria-hidden="true"
 				className="size-2.5 shrink-0 rounded-full"
 				style={{ backgroundColor: SPACE_COLOURS[colour] }}
 			/>
-			<span className="font-medium">{name}</span>
+			<span className="truncate font-medium">{name}</span>
 			{description ? <span className="sr-only">{description}</span> : null}
 		</span>
 	);

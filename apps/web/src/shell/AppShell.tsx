@@ -292,14 +292,25 @@ export function AppShell({ children }: { children: ReactNode }) {
 			{/* On the panel surface rather than the page, so the header is a thing the
 			    page scrolls under instead of a piece of the page that happens to stay. */}
 			<header className="sticky top-0 z-20 border-b border-line bg-panel print:hidden">
-				<div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3">
+				{/* It wraps, and that is the whole of it.
+				    On a telephone the name of the space and five controls come to more than
+				    the width of the screen, and the three ways out of that are to cut the
+				    name, to take controls away, or to let the row become two rows. The first
+				    two both lose something somebody put there on purpose, so it becomes two
+				    rows: the name on the first, the controls under it. Nothing is hidden at
+				    any width. */}
+				<div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-3">
 					<div className="flex min-w-0 items-center gap-2 sm:gap-3">
 						<Link to={ROUTES.dashboard} className="shrink-0">
 							<Wordmark className="font-serif text-lg font-semibold" />
 						</Link>
 						<SpaceSwitcher />
 					</div>
-					<div className="flex shrink-0 items-center gap-1">
+					{/* On its own line it takes the whole of it, first control on the left
+					    margin and last on the right, so the second row is a row and not the
+					    leftovers of the first. Above the wrap it is only as wide as what is in
+					    it, at the far end of a line it shares with the name. */}
+					<div className="flex w-full shrink-0 items-center justify-between gap-1 sm:w-auto sm:justify-end">
 						<Button
 							size="small"
 							variant="quiet"

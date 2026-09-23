@@ -75,6 +75,44 @@ test("a long form on a short window scrolls inside its dialog", async ({ page })
 	expect(await widerThanTheWindow(page)).toBeLessThanOrEqual(1);
 });
 
+/**
+ * The overflow check above never sees this one.
+ *
+ * When everything in the top row refuses to give way, the row does not grow and the
+ * page does not slide: the controls end up drawn on top of the name of the space.
+ * The way out was to let the row become two rows on a narrow screen rather than to
+ * take anything out of it, so this is what is checked here: on a telephone the name
+ * reads in full and every control is still on the screen.
+ */
+test("nothing in the header is given up on a telephone", async ({ page }) => {
+	await page.setViewportSize({ width: 360, height: 720 });
+	await openCofre(page);
+
+	await expect(page.getByRole("button", { name: /Você está no espaço/ })).toBeVisible();
+	await expect(page.getByRole("button", { name: "O que você quer fazer?" })).toBeVisible();
+	await expect(page.getByRole("button", { name: "Esconder valores" })).toBeVisible();
+	await expect(page.getByRole("button", { name: "Idioma" })).toBeVisible();
+	await expect(page.getByRole("button", { name: "Tema escuro" })).toBeVisible();
+
+	// The word and not only the heart: a shape alone does not say what it is for.
+	await expect(page.getByRole("link", { name: /^Doar/ })).toContainText("Doar");
+
+	const cut = await page.evaluate(() => {
+		const trigger = document.querySelector("header button");
+		// The name of the space is the one piece of the header allowed to be cut short,
+		// which is how it is found here: it is the only thing wearing an ellipsis.
+		const label = [...(trigger?.querySelectorAll("span") ?? [])].find(
+			(span) => getComputedStyle(span).textOverflow === "ellipsis",
+		);
+		return label ? label.scrollWidth - label.clientWidth : -1;
+	});
+
+	// An ordinary space name reads in full. A long one is still cut, on purpose: it is
+	// the only thing in the header that gives way, and it gives way last.
+	expect(cut).toBeGreaterThanOrEqual(0);
+	expect(cut).toBeLessThanOrEqual(1);
+});
+
 test("the sections are reachable on a telephone without opening anything", async ({ page }) => {
 	await page.setViewportSize({ width: 360, height: 720 });
 	await openCofre(page);

@@ -53,7 +53,10 @@ export function SpaceSwitcher() {
 			<Menu
 				align="start"
 				trigger={
-					<Button size="small" variant="quiet" className="min-w-0">
+					// A button does not give way by default, and this one has to: it shares
+					// the row with the controls, and the controls cannot be made narrower
+					// than they are. Without this the name runs underneath them.
+					<Button size="small" variant="quiet" className="min-w-0 shrink">
 						<SpaceMark
 							name={currentSpace.name}
 							colour={currentSpace.colour as SpaceColour}
