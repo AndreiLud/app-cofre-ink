@@ -169,14 +169,15 @@ space to each other through a file, and one that cuts the connection and reloads
 ### Building and deploying
 
 **The browser mode is a folder of static files.** `pnpm build` writes
-`apps/web/dist`, and any host that can serve files will serve it. A `_redirects` file is
-already in there for Netlify and Cloudflare Pages, and a `404.html` for hosts that read
-that instead. The one thing worth adding by hand is a header, because a page cannot
-refuse to be framed from inside itself:
+`apps/web/dist`, and any host that can serve files will serve it. Three files in there
+are for the host rather than for the browser: `_redirects` and `404.html`, which are the
+two dialects hosts speak for "every address is the page", and `_headers`, which carries
+the one security rule a page cannot state from inside itself, the refusal to be framed.
+Cloudflare and Netlify read them with no configuration. For Nginx and Caddy there is an
+example in [docs/en/deploy.md](docs/en/deploy.md).
 
-```
-X-Frame-Options: DENY
-```
+Cloudflare Workers is configured by `wrangler.jsonc` at the root. The `name` in it has
+to match the Worker the repository is connected to.
 
 **The server mode is one container.** `docker compose up -d` builds it and runs it, with
 the data in a named volume that survives an update of the image. For PostgreSQL instead
@@ -406,14 +407,16 @@ corta a conexão e recarrega a página.
 ### Build e publicação
 
 **O modo navegador é uma pasta de arquivos estáticos.** O `pnpm build` escreve
-`apps/web/dist`, e qualquer hospedagem que sirva arquivos serve isso. O `_redirects` já
-está lá dentro para Netlify e Cloudflare Pages, e um `404.html` para as hospedagens que
-leem isso. A única coisa que vale adicionar à mão é um cabeçalho, porque uma página não
-consegue se recusar a ser enquadrada de dentro de si mesma:
+`apps/web/dist`, e qualquer hospedagem que sirva arquivos serve isso. Três arquivos lá
+dentro são para a hospedagem e não para o navegador: `_redirects` e `404.html`, que são
+os dois dialetos que as hospedagens falam para dizer "todo endereço é a página", e o
+`_headers`, que carrega a única regra de segurança que uma página não consegue declarar
+de dentro de si mesma, a recusa de ser enquadrada. Cloudflare e Netlify leem os três sem
+configuração. Para Nginx e Caddy há exemplo em
+[`docs/pt-BR/deploy.md`](docs/pt-BR/deploy.md).
 
-```
-X-Frame-Options: DENY
-```
+A Cloudflare Workers é configurada pelo `wrangler.jsonc` na raiz. O `name` dentro dele
+precisa ser o mesmo nome do Worker a que o repositório está conectado.
 
 **O modo servidor é um container.** O `docker compose up -d` constrói e sobe, com os
 dados num volume nomeado que sobrevive a uma atualização da imagem. Para PostgreSQL em
