@@ -65,6 +65,7 @@ const SECTION_OF: Record<string, string> = {
 	Faturas: "Lançamentos",
 	Calendário: "Lançamentos",
 	Orçamento: "Planejamento",
+	Diagnóstico: "Planejamento",
 	Projeção: "Planejamento",
 	Investimentos: "Planejamento",
 	Contas: "Ajustes",

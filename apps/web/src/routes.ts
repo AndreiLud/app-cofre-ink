@@ -18,6 +18,7 @@ export const ROUTES = {
 	accounts: "/contas",
 	projection: "/projecao",
 	investments: "/investimentos",
+	advisor: "/diagnostico",
 	data: "/dados",
 	import: "/importar",
 	designSystem: "/designSystem",

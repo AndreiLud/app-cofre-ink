@@ -12,6 +12,9 @@ import { Value } from "../components/Value.tsx";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 
+/** Lines about the months behind, here. The rest of them have a screen of their own. */
+const SHOWN = 4;
+
 export function DashboardPage() {
 	const { t, i18n } = useTranslation();
 	const { session, currentSpace, spaces } = useCofre();
@@ -24,9 +27,6 @@ export function DashboardPage() {
 	// only exists when there is more than one to add.
 	const [across, setAcross] = useState<"space" | "everything">("space");
 	const consolidated = across === "everything" && spaces.length > 1;
-
-	// Four lines is what somebody reads. The rest is one click away and stays open.
-	const [all, setAll] = useState(false);
 
 	const accounts = useQuery({
 		queryKey: ["accounts", spaceId],
@@ -167,7 +167,6 @@ export function DashboardPage() {
 	});
 
 	const found = findings.data ?? [];
-	const shown = all ? found.length : 4;
 
 	const money = (value: unknown) =>
 		new Intl.NumberFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
@@ -233,12 +232,16 @@ export function DashboardPage() {
 			{notices.length > 0 || found.length > 0 ? (
 				<Panel
 					title={t("dashboard.attention")}
+					// It used to lengthen the list in place. What somebody wants after
+					// reading three lines about their money is not four more lines: it is
+					// the screen that says what shape the money is in and where the three
+					// lines came from.
 					action={
-						found.length > shown ? (
-							<Button size="small" variant="quiet" onClick={() => setAll(true)}>
-								{t("dashboard.seeEverything", { count: found.length - shown })}
+						<Link to={ROUTES.advisor}>
+							<Button size="small" variant="quiet">
+								{t("dashboard.seeMore")}
 							</Button>
-						) : null
+						</Link>
 					}
 				>
 					{/* Today first, because a bill due today is not a pattern, it is today. */}
@@ -266,7 +269,7 @@ export function DashboardPage() {
 						))}
 					</ul>
 
-					<Findings findings={found} money={money} limit={shown} />
+					<Findings findings={found} money={money} limit={SHOWN} />
 				</Panel>
 			) : null}
 

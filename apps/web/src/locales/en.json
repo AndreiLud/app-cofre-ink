@@ -108,6 +108,7 @@
 		"reports": "Reports",
 		"projection": "Projection",
 		"investments": "Investments",
+		"advisor": "Check up",
 		"data": "Data",
 		"allRecords": "List",
 		"planning": "Planning",
@@ -314,8 +315,7 @@
 		"seeBudget": "See the budget",
 		"headlineEverywhere": "This is what you have, every space added together",
 		"across": "Show",
-		"seeEverything_one": "See 1 more",
-		"seeEverything_other": "See {{count}} more"
+		"seeMore": "See more"
 	},
 	"notice": {
 		"budgetOver": "{{name}} went over its limit by {{over}}.",
@@ -1027,6 +1027,70 @@
 		"goalStalled_other": "{{subject}} has had nothing put into it for {{count}} days. {{still}} to go, or {{everyMonth}} a month to arrive on time.",
 		"idleCash": "You have {{spare}} beyond three months of cover. Worth keeping that apart from the money you spend.",
 		"betterThanUsual": "This month you spent {{saved}} less than usual: {{expense}} against the usual {{usual}}."
+	},
+	"sign": {
+		"savingRate": "What is left over",
+		"reserve": "Reserve",
+		"committed": "Due right now",
+		"repeatingLoad": "Already spoken for"
+	},
+	"signState": {
+		"good": "Good",
+		"fair": "Could be better",
+		"poor": "Poor",
+		"unknown": "Not enough yet"
+	},
+	"signTarget": {
+		"savingRate": "Reference: 10 per cent left over or more",
+		"reserve": "Reference: 3 months of spending",
+		"committed": "Reference: up to half of what you have",
+		"repeatingLoad": "Reference: up to half of what comes in"
+	},
+	"advisor": {
+		"reading": "Reading your figures",
+		"verdict": {
+			"tight": "Your money is tight",
+			"steady": "Your money is steady",
+			"comfortable": "Your money is comfortable",
+			"tooSoon": "Too soon to say"
+		},
+		"detail": {
+			"tight": "At least one of the four signs is poor. Start with the first one on the list, which is the one with the most money at stake.",
+			"steady": "Nothing is poor and something could still be better.",
+			"comfortable": "All four signs are good.",
+			"tooSoon": "Not enough records yet. Three full months is what it takes to read all four signs, and until then only what is due right now has an answer."
+		},
+		"noReading": "No reading",
+		"percent": "{{value}}%",
+		"monthsCovered_one": "{{value}} month",
+		"monthsCovered_other": "{{value}} months",
+		"needMonths": "This sign needs three full months, with what comes in and what goes out written down.",
+		"signsTitle": "The four signs",
+		"signsBody": "Each one is a division between two figures you have seen on another screen. The reference sits under every reading.",
+		"said": {
+			"savingRate": "{{income}} comes in each month and {{expense}} goes out. That leaves {{left}}.",
+			"reserve": "You have {{onHand}} and spend {{usualExpense}} a month. Three months would be {{wanted}}.",
+			"committed_one": "One bill falls due in the next {{days}} days, of {{due}}, against the {{onHand}} you have.",
+			"committed_other": "{{count}} bills fall due in the next {{days}} days and add up to {{due}}, against the {{onHand}} you have.",
+			"committedNone": "Nothing falls due in the next {{days}} days.",
+			"repeatingLoad_one": "One charge repeats every month and takes {{everyMonth}} of the {{income}} that comes in.",
+			"repeatingLoad_other": "{{count}} charges repeat every month and add up to {{everyMonth}} of the {{income}} that comes in.",
+			"repeatingLoadNone": "Nothing in your records repeats every month."
+		},
+		"firstTitle": "Where to start",
+		"firstBody_one": "The one thing with the most money at stake.",
+		"firstBody_other": "The {{count}} things with the most money at stake, in order.",
+		"goTo": "Go to {{screen}}",
+		"allTitle": "Everything the figures said",
+		"allBody": "In the order of what has the most money at stake.",
+		"nothingTitle": "Nothing to point at",
+		"nothingBody": "There is nothing out of place in your records. That is good news, not a fault.",
+		"nothingYetTitle": "Nothing to point at yet",
+		"nothingYetBody": "There are not enough months to compare against. As you write things down, the findings turn up here on their own.",
+		"howTitle": "How this was worked out",
+		"how_one": "All of this is arithmetic over your own records, one month of them, done on this device. There is no model, no score and no opinion about what you ought to want: every line carries the figures it was made from, so you can check it by hand.",
+		"how_other": "All of this is arithmetic over your own records, {{count}} months of them, done on this device. There is no model, no score and no opinion about what you ought to want: every line carries the figures it was made from, so you can check it by hand.",
+		"notAdvice": "This is not investment advice. Cofre reads what you wrote down and says what it found. Telling somebody where to put their money is a different job, done by people who are licensed to do it."
 	},
 	"benefitKind": {
 		"meal": "Meal or food voucher",

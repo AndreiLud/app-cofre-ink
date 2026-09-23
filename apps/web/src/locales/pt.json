@@ -108,6 +108,7 @@
 		"reports": "Relatórios",
 		"projection": "Projeção",
 		"investments": "Investimentos",
+		"advisor": "Diagnóstico",
 		"data": "Dados",
 		"allRecords": "Lista",
 		"planning": "Planejamento",
@@ -314,8 +315,7 @@
 		"seeBudget": "Ver orçamento",
 		"headlineEverywhere": "Você tem isto somando todos os espaços",
 		"across": "Mostrar",
-		"seeEverything_one": "Ver mais 1",
-		"seeEverything_other": "Ver mais {{count}}"
+		"seeMore": "Ver mais"
 	},
 	"notice": {
 		"budgetOver": "{{name}} passou do limite em {{over}}.",
@@ -1027,6 +1027,70 @@
 		"goalStalled_other": "{{subject}} não recebe nada há {{count}} dias. Faltam {{still}}, ou {{everyMonth}} por mês para chegar na data.",
 		"idleCash": "Você tem {{spare}} além dos três meses de reserva. Vale separar esse dinheiro do que você usa no dia a dia.",
 		"betterThanUsual": "Este mês você gastou {{saved}} a menos que o normal. Foram {{expense}} contra os {{usual}} de sempre."
+	},
+	"sign": {
+		"savingRate": "Quanto sobra",
+		"reserve": "Reserva",
+		"committed": "O que vence agora",
+		"repeatingLoad": "O que já está comprometido"
+	},
+	"signState": {
+		"good": "Bom",
+		"fair": "Dá para melhorar",
+		"poor": "Ruim",
+		"unknown": "Sem dados ainda"
+	},
+	"signTarget": {
+		"savingRate": "Referência: sobrar 10% ou mais",
+		"reserve": "Referência: 3 meses de gasto",
+		"committed": "Referência: até metade do que você tem",
+		"repeatingLoad": "Referência: até metade do que entra"
+	},
+	"advisor": {
+		"reading": "Lendo os seus números",
+		"verdict": {
+			"tight": "A sua situação está apertada",
+			"steady": "A sua situação está equilibrada",
+			"comfortable": "A sua situação está confortável",
+			"tooSoon": "Ainda não dá para dizer"
+		},
+		"detail": {
+			"tight": "Pelo menos um dos quatro sinais está ruim. Comece pelo primeiro da lista, que é o que tem mais dinheiro em jogo.",
+			"steady": "Nada está ruim e alguma coisa ainda dá para melhorar.",
+			"comfortable": "Os quatro sinais estão bons.",
+			"tooSoon": "Faltam registros. Com três meses fechados dá para ler os quatro sinais, e até lá só o que vence agora tem resposta."
+		},
+		"noReading": "Sem leitura",
+		"percent": "{{value}}%",
+		"monthsCovered_one": "{{value}} mês",
+		"monthsCovered_other": "{{value}} meses",
+		"needMonths": "Este sinal precisa de três meses fechados, com o que entra e o que sai anotados.",
+		"signsTitle": "Os quatro sinais",
+		"signsBody": "Cada um é a divisão entre dois números que você já viu em outra tela. A referência está embaixo de cada leitura.",
+		"said": {
+			"savingRate": "Entram {{income}} por mês e saem {{expense}}. Sobram {{left}}.",
+			"reserve": "Você tem {{onHand}} e gasta {{usualExpense}} por mês. Três meses seriam {{wanted}}.",
+			"committed_one": "Uma conta vence nos próximos {{days}} dias, de {{due}}, contra os {{onHand}} que você tem.",
+			"committed_other": "{{count}} contas vencem nos próximos {{days}} dias e somam {{due}}, contra os {{onHand}} que você tem.",
+			"committedNone": "Nada vence nos próximos {{days}} dias.",
+			"repeatingLoad_one": "Uma cobrança se repete todo mês e come {{everyMonth}} dos {{income}} que entram.",
+			"repeatingLoad_other": "{{count}} cobranças se repetem todo mês e somam {{everyMonth}} dos {{income}} que entram.",
+			"repeatingLoadNone": "Nada nos seus registros se repete todo mês."
+		},
+		"firstTitle": "Por onde começar",
+		"firstBody_one": "A coisa com mais dinheiro em jogo.",
+		"firstBody_other": "As {{count}} coisas com mais dinheiro em jogo, na ordem.",
+		"goTo": "Ir para {{screen}}",
+		"allTitle": "Tudo o que os números disseram",
+		"allBody": "Na ordem do que tem mais dinheiro em jogo.",
+		"nothingTitle": "Nada a apontar",
+		"nothingBody": "Os seus registros não têm nada fora do lugar. Isso é uma boa notícia, não um erro.",
+		"nothingYetTitle": "Nada a apontar ainda",
+		"nothingYetBody": "Faltam meses de registro para comparar. Conforme você for anotando, as constatações aparecem sozinhas aqui.",
+		"howTitle": "Como isto foi calculado",
+		"how_one": "Tudo aqui é conta feita sobre os seus próprios registros, um mês deles, neste aparelho. Não existe modelo, nem nota, nem opinião sobre o que você deveria querer: cada linha carrega os números que a produziram, para você conferir na mão.",
+		"how_other": "Tudo aqui é conta feita sobre os seus próprios registros, {{count}} meses deles, neste aparelho. Não existe modelo, nem nota, nem opinião sobre o que você deveria querer: cada linha carrega os números que a produziram, para você conferir na mão.",
+		"notAdvice": "Isto não é recomendação de investimento. O Cofre lê o que você escreveu e diz o que encontrou. Dizer onde colocar dinheiro é outro trabalho, de quem tem registro para fazer isso."
 	},
 	"benefitKind": {
 		"meal": "VA/VR",

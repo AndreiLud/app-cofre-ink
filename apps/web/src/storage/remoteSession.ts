@@ -47,6 +47,7 @@ import type {
 	PersonBalance,
 	PriorityTotal,
 	Projection,
+	Reading,
 	RecordForExport,
 	Recurrence,
 	ReportRange,
@@ -555,6 +556,8 @@ export function createRemoteSession(
 		advice: {
 			findings: (input: { spaceId: string; today: string }) =>
 				get<Finding[]>(`/api/spaces/${input.spaceId}/advice?today=${input.today}`),
+			reading: (input: { spaceId: string; today: string }) =>
+				get<Reading>(`/api/spaces/${input.spaceId}/reading?today=${input.today}`),
 		},
 
 		projections: {

@@ -157,6 +157,7 @@ nothing.
 | 13. VA and VR as one, a database destination, the data screen redrawn | done |
 | 14. More than one person per device, and a gate in front of the sign in | done |
 | 15. The front door: two doors, nothing asked, and the defaults made correctable | done |
+| 16. The check up: four signs, a verdict, and what to do first | done |
 | Next. Real statements for the recogniser, and whatever the owner asks for | waiting |
 
 ## Architecture decision records
@@ -191,3 +192,4 @@ nothing.
 | [0026](docs/adr/0026_a_copy_that_is_a_database.md) | a copy that is a database, and a screen ordered by how often |
 | [0027](docs/adr/0027_a_cost_before_a_password.md) | a cost before a password, and no captcha from anybody else |
 | [0028](docs/adr/0028_the_front_door.md) | the front door of an address anybody can open |
+| [0029](docs/adr/0029_four_signs_and_a_verdict.md) | four signs, and a word for the state of the money |

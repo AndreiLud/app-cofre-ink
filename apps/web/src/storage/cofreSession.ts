@@ -46,6 +46,7 @@ import type {
 	PersonBalance,
 	PriorityTotal,
 	Projection,
+	Reading,
 	RecordForExport,
 	Recurrence,
 	ReportRange,
@@ -283,6 +284,8 @@ export type CofreSession = {
 	advice: {
 		/** Everything the figures of a space have to say, heaviest first. */
 		findings: (input: { spaceId: string; today: string }) => Promise<Finding[]>;
+		/** The same, with the four signs and the state of the money in front of it. */
+		reading: (input: { spaceId: string; today: string }) => Promise<Reading>;
 	};
 	projections: {
 		monthsAhead: (input: {

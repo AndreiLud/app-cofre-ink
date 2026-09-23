@@ -31,10 +31,9 @@ test.describe("what the figures have to say", () => {
 
 		await go(page, "Painel");
 
-		// The screen shows four lines and keeps the rest one click away.
-		const more = page.getByRole("button", { name: /Ver mais/ });
-		if (await more.isVisible()) await more.click();
-
+		// The overview keeps four lines, and this one is heavy enough to be among them.
+		// The rest of them, and the state of the money they add up to, are on the check
+		// up, which advisor.spec.ts is about.
 		const line = page.getByText(/aparece duas vezes de/);
 		await expect(line).toBeVisible();
 		await expect(line).toContainText("189,90");

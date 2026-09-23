@@ -127,6 +127,12 @@ export function CommandPalette({ state }: { state: PaletteState }) {
 				run: go(ROUTES.members),
 			},
 			{
+				id: "goAdvisor",
+				group: t("palette.navigate"),
+				label: t("nav.advisor"),
+				run: go(ROUTES.advisor),
+			},
+			{
 				id: "goProjection",
 				group: t("palette.navigate"),
 				label: t("nav.projection"),

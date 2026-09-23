@@ -1202,6 +1202,16 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		);
 	});
 
+	app.get("/api/spaces/:id/reading", async (context) => {
+		const query = z.object({ today: calendarDate }).parse(context.req.query());
+		return context.json(
+			await context.get("session").advice.reading({
+				spaceId: context.req.param("id"),
+				today: query.today,
+			}),
+		);
+	});
+
 	app.get("/api/spaces/:id/projection", async (context) => {
 		const query = z
 			.object({

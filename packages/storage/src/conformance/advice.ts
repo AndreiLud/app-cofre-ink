@@ -168,6 +168,63 @@ export function runAdviceConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		it("reads the four signs out of what is actually written down", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Casa" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+					initialBalance: 500_000,
+				});
+
+				// Six thousand in and four thousand out, three months running. The expense
+				// is described differently each month on purpose, so that none of it counts
+				// as a thing that repeats and the fourth sign stays out of the way.
+				for (const month of ["2026-06", "2026-07", "2026-08"]) {
+					await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "income",
+						amount: 600_000,
+						happenedOn: `${month}-05`,
+						description: "Salario",
+						accountId: account.id,
+					});
+					await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "expense",
+						amount: 400_000,
+						happenedOn: `${month}-12`,
+						description: `Gastos de ${month}`,
+						accountId: account.id,
+					});
+				}
+
+				const reading = await fixture.asAna.advice.reading({ spaceId: space.id, today: TODAY });
+				expect(reading.monthsRead).toBe(3);
+
+				const signs = new Map(reading.signs.map((sign) => [sign.code, sign]));
+				// A third of what comes in is left over.
+				expect(signs.get("savingRate")?.value).toBe(33);
+				expect(signs.get("savingRate")?.state).toBe("good");
+
+				// Five hundred to start plus six hundred kept is eleven thousand on hand,
+				// which is two months and three quarters of ordinary spending.
+				expect(signs.get("reserve")?.amounts.onHand).toBe(1_100_000);
+				expect(signs.get("reserve")?.value).toBe(28);
+				expect(signs.get("reserve")?.state).toBe("fair");
+
+				expect(signs.get("committed")?.state).toBe("good");
+				expect(signs.get("repeatingLoad")?.amounts.count).toBe(0);
+
+				// Nothing poor, and one thing not yet good.
+				expect(reading.verdict).toBe("steady");
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		it("tells somebody who is not in the space that there is no such space", async () => {
 			const fixture = await prepare(adapter);
 			try {
@@ -176,6 +233,9 @@ export function runAdviceConformance(adapter: AdapterUnderTest): void {
 				// every other read in this layer follows.
 				await expect(
 					fixture.asJoao.advice.findings({ spaceId: space.id, today: TODAY }),
+				).rejects.toBeInstanceOf(NotFoundError);
+				await expect(
+					fixture.asJoao.advice.reading({ spaceId: space.id, today: TODAY }),
 				).rejects.toBeInstanceOf(NotFoundError);
 			} finally {
 				await fixture.close();

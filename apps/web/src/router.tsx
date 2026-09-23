@@ -100,6 +100,12 @@ const investmentsRoute = createRoute({
 	component: lazyRouteComponent(() => import("./pages/InvestmentsPage.tsx"), "InvestmentsPage"),
 });
 
+const advisorRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/diagnostico",
+	component: lazyRouteComponent(() => import("./pages/AdvisorPage.tsx"), "AdvisorPage"),
+});
+
 const dataRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/dados",
@@ -137,6 +143,7 @@ const routeTree = rootRoute.addChildren([
 	accountsRoute,
 	projectionRoute,
 	investmentsRoute,
+	advisorRoute,
 	dataRoute,
 	importRoute,
 	invitationRoute,

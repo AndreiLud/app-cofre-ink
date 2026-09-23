@@ -14,7 +14,9 @@ import {
 	findEverything,
 	monthOf,
 	type PendingCharge,
+	type Reading,
 	type RepeatingCharge,
+	readingOf,
 	type Snapshot,
 } from "@cofre/core";
 import { assertCan } from "../actor.ts";
@@ -34,7 +36,17 @@ const SOON = 15;
 /** Two charges this far apart, for the same amount, in the same account, look like one. */
 const REPEAT_DAYS = 3;
 
-export type { Finding, FindingCode, FindingWeight, Snapshot } from "@cofre/core";
+export type {
+	Finding,
+	FindingCode,
+	FindingWeight,
+	Reading,
+	SignCode,
+	SignState,
+	Snapshot,
+	Verdict,
+	VitalSign,
+} from "@cofre/core";
 
 export type AdviceInput = {
 	spaceId: string;
@@ -252,6 +264,16 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 		 */
 		async findings(input: AdviceInput): Promise<Finding[]> {
 			return findEverything(await this.snapshot(input));
+		},
+
+		/**
+		 * The same reading, with the four signs and the state of the money in front of it.
+		 *
+		 * One call rather than two, because the screen that asks for this wants all of it
+		 * at once and the snapshot behind it is the expensive half.
+		 */
+		async reading(input: AdviceInput): Promise<Reading> {
+			return readingOf(await this.snapshot(input));
 		},
 
 		/** The figures themselves, for a screen that wants to show the working. */

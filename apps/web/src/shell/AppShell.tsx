@@ -45,6 +45,7 @@ function sectionsOf(t: (key: string) => string) {
 			icon: "target" as const,
 			children: [
 				{ to: ROUTES.budget, label: t("nav.budget") },
+				{ to: ROUTES.advisor, label: t("nav.advisor") },
 				{ to: ROUTES.projection, label: t("nav.projection") },
 				{ to: ROUTES.investments, label: t("nav.investments") },
 			],
