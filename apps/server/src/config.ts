@@ -4,6 +4,19 @@
 
 import { z } from "zod";
 
+/**
+ * Something that may be absent, where absent and empty are the same thing.
+ *
+ * `compose.yaml` passes every optional setting through whether it was filled in or not,
+ * so what arrives for one nobody set is an empty string rather than nothing at all. An
+ * empty string is not a header name and not a key, and reading it as one is how a
+ * setting that looks unset behaves as if it were set.
+ */
+const optionalText = z.preprocess(
+	(value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+	z.string().optional(),
+);
+
 const schema = z.object({
 	COFRE_PORT: z.coerce.number().int().positive().default(4321),
 	/**
@@ -19,7 +32,7 @@ const schema = z.object({
 	/** The address the invitation links point at. */
 	COFRE_PUBLIC_URL: z.string().url().default("http://localhost:4321"),
 	/** Where the built interface sits, when the same process serves it. */
-	COFRE_STATIC_DIR: z.string().optional(),
+	COFRE_STATIC_DIR: optionalText,
 	/**
 	 * The header a reverse proxy uses to say who is really calling. Without it every
 	 * request behind a proxy looks like the same client, and the limit that protects
@@ -27,7 +40,7 @@ const schema = z.object({
 	 * never assumed, because a header anyone can set is a header anyone can lie about.
 	 * See .env.example for the usual value.
 	 */
-	COFRE_CLIENT_IP_HEADER: z.string().optional(),
+	COFRE_CLIENT_IP_HEADER: optionalText,
 	/**
 	 * How much work a caller does before the server reads a password, in leading zero
 	 * bits. Eighteen is a moment in a browser and a wall for anything trying passwords
@@ -43,8 +56,8 @@ const schema = z.object({
 	 * everybody who opens the sign in page of a private server, which is a thing to
 	 * choose rather than a thing to inherit.
 	 */
-	COFRE_TURNSTILE_SITE_KEY: z.string().optional(),
-	COFRE_TURNSTILE_SECRET: z.string().optional(),
+	COFRE_TURNSTILE_SITE_KEY: optionalText,
+	COFRE_TURNSTILE_SECRET: optionalText,
 	NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 
@@ -56,6 +69,27 @@ export class ConfigError extends Error {
 	constructor(message: string) {
 		super(message);
 		this.name = "ConfigError";
+	}
+}
+
+/**
+ * Where the data is, said in a way that is safe to print.
+ *
+ * A file path is itself. A connection string carries the password of the database in
+ * the middle of it, and the line at boot that says which database this is would
+ * otherwise put that password in the logs of the container, where anybody who can read
+ * logs reads it and whatever collects them keeps it. The address stays, the secret goes.
+ */
+export function withoutTheSecret(database: string): string {
+	if (!database.startsWith("postgres")) return database;
+	try {
+		const address = new URL(database);
+		if (address.password !== "") address.password = "***";
+		return address.toString();
+	} catch {
+		// Not an address this can read. Saying nothing beats guessing which part of it
+		// is the password.
+		return "the configured database";
 	}
 }
 
@@ -71,6 +105,26 @@ export function readConfig(source: NodeJS.ProcessEnv = process.env): Config {
 	}
 
 	const value = parsed.data;
+
+	/**
+	 * One of the two keys and not the other is the worst of both.
+	 *
+	 * The secret is what makes the server demand an answer from Cloudflare. The site key
+	 * is what makes the browser draw the widget that produces one. With only the secret,
+	 * every sign in is refused for a captcha that was never shown, and nobody gets in.
+	 * With only the site key, people solve a puzzle that nothing checks. Neither shows up
+	 * until somebody tries to sign in, so it is settled here, at boot, where it is read.
+	 */
+	const site = value.COFRE_TURNSTILE_SITE_KEY !== undefined;
+	const secret = value.COFRE_TURNSTILE_SECRET !== undefined;
+	if (site !== secret) {
+		throw new ConfigError(
+			site
+				? "COFRE_TURNSTILE_SITE_KEY is set without COFRE_TURNSTILE_SECRET. The widget would be drawn and nothing would check the answer. Set both, or neither."
+				: "COFRE_TURNSTILE_SECRET is set without COFRE_TURNSTILE_SITE_KEY. Every sign in would be refused for a captcha nobody was shown. Set both, or neither.",
+		);
+	}
+
 	return {
 		...value,
 		// In a test the gate is still in the way and merely cheap. What those tests are

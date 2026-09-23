@@ -7,7 +7,7 @@ import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { createApp } from "./app.ts";
 import { createAuth } from "./auth.ts";
-import { ConfigError, readConfig } from "./config.ts";
+import { ConfigError, readConfig, withoutTheSecret } from "./config.ts";
 import { openDatabase } from "./database.ts";
 
 async function main(): Promise<void> {
@@ -31,7 +31,7 @@ async function main(): Promise<void> {
 
 	const server = serve({ fetch: app.fetch, port: config.COFRE_PORT }, (address) => {
 		console.log(`Cofre Ink is listening on http://localhost:${address.port}`);
-		console.log(`storing data in ${config.COFRE_DATABASE}`);
+		console.log(`storing data in ${withoutTheSecret(config.COFRE_DATABASE)}`);
 	});
 
 	// Housekeeping, on a schedule, because a server is the one place where nobody is
