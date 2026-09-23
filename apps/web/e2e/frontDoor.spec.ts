@@ -12,9 +12,9 @@ test.describe("the front door", () => {
 	test("asks how they want to use it, and then asks nothing else", async ({ page }) => {
 		await page.goto("/");
 
-		await expect(page.getByRole("heading", { name: "Como você quer usar o Cofre?" })).toBeVisible({
-			timeout: 20_000,
-		});
+		await expect(
+			page.getByRole("heading", { name: "Como você quer usar o Cofre Ink?" }),
+		).toBeVisible({ timeout: 20_000 });
 
 		await page.getByRole("button", { name: "Usar só neste navegador" }).click();
 
@@ -22,7 +22,7 @@ test.describe("the front door", () => {
 		await expect(page.getByRole("navigation", { name: "Seções do aplicativo" })).toBeVisible({
 			timeout: 20_000,
 		});
-		await expect(page.getByText("Vamos abrir o seu Cofre")).toHaveCount(0);
+		await expect(page.getByText("Vamos abrir o seu Cofre Ink")).toHaveCount(0);
 		await expect(page.getByRole("heading", { level: 1 })).toContainText("Pessoal");
 
 		// And the answer is remembered, so coming back is coming back to the application.
@@ -30,9 +30,9 @@ test.describe("the front door", () => {
 		await expect(page.getByRole("navigation", { name: "Seções do aplicativo" })).toBeVisible({
 			timeout: 20_000,
 		});
-		await expect(page.getByRole("heading", { name: "Como você quer usar o Cofre?" })).toHaveCount(
-			0,
-		);
+		await expect(
+			page.getByRole("heading", { name: "Como você quer usar o Cofre Ink?" }),
+		).toHaveCount(0);
 	});
 
 	test("the name nobody was asked for can be corrected", async ({ page }) => {
@@ -63,7 +63,9 @@ test.describe("the front door", () => {
 		await go(page, "Dados");
 		await page.getByRole("button", { name: "Mudar onde ficam os dados" }).click();
 
-		await expect(page.getByRole("heading", { name: "Como você quer usar o Cofre?" })).toBeVisible();
+		await expect(
+			page.getByRole("heading", { name: "Como você quer usar o Cofre Ink?" }),
+		).toBeVisible();
 	});
 
 	test("syncing through a database of theirs lands on the screen that asks for it", async ({

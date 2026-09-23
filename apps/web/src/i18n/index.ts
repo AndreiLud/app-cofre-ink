@@ -12,6 +12,16 @@ import pt from "../locales/pt.json";
 export const LANGUAGES = ["pt", "en"] as const;
 export type Language = (typeof LANGUAGES)[number];
 
+/**
+ * What the product is called, in one place.
+ *
+ * It used to be written out inside eighteen sentences in each language, which meant
+ * thirty six places to remember and two languages to get out of step. Every one of
+ * those sentences now says {{app}}, and this is what fills it in, without a single
+ * screen having to pass it.
+ */
+export const APP_NAME = "Cofre Ink";
+
 /** The interface language and the formatting locale are two different choices. */
 export const LOCALE_OF: Record<Language, string> = {
 	pt: "pt-BR",
@@ -42,7 +52,7 @@ void i18next.use(initReactI18next).init({
 	resources: { pt: { translation: pt } },
 	lng: "pt",
 	fallbackLng: "pt",
-	interpolation: { escapeValue: false },
+	interpolation: { escapeValue: false, defaultVariables: { app: APP_NAME } },
 });
 
 /**

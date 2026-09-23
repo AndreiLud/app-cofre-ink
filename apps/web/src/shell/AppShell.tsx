@@ -7,6 +7,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { LanguageToggle, PrivacyToggle, ThemeToggle } from "../components/Controls.tsx";
+import { Wordmark } from "../components/Wordmark.tsx";
 import { useTheme } from "../lib/theme.ts";
 import { useDocumentTitle } from "../lib/title.ts";
 import { ModeChooserPage } from "../pages/ModeChooserPage.tsx";
@@ -293,8 +294,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 			<header className="sticky top-0 z-20 border-b border-line bg-panel print:hidden">
 				<div className="mx-auto flex max-w-5xl items-center justify-between gap-2 px-4 py-3">
 					<div className="flex min-w-0 items-center gap-2 sm:gap-3">
-						<Link to={ROUTES.dashboard} className="shrink-0 font-serif text-lg font-semibold">
-							{t("app.name")}
+						<Link to={ROUTES.dashboard} className="shrink-0">
+							<Wordmark className="font-serif text-lg font-semibold" />
 						</Link>
 						<SpaceSwitcher />
 					</div>

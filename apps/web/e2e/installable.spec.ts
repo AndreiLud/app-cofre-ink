@@ -27,7 +27,7 @@ test.describe("the built application", () => {
 
 		const where = `${BUILT_ADDRESS}/manifest.webmanifest`;
 		const manifest = (await (await request.get(where)).json()) as Manifest;
-		expect(manifest.name).toBe("Cofre");
+		expect(manifest.name).toBe("Cofre Ink");
 		expect(manifest.display).toBe("standalone");
 		// Written against the manifest itself, so the same build works at the root of a
 		// domain and inside a folder of one.

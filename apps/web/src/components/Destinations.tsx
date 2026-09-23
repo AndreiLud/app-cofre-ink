@@ -271,7 +271,7 @@ export function Destinations() {
 								})
 								.catch(() => setProblem(t("destination.notABundle")));
 						}}
-						className="block w-full max-w-md text-sm text-ink file:mr-3 file:rounded-sm file:border file:border-line file:bg-panel file:px-3 file:py-2 file:text-sm file:text-ink"
+						className="block w-full max-w-md text-sm text-ink file:mr-3 file:rounded-sm file:border file:border-lineStrong file:bg-sunken file:px-3 file:py-2 file:text-sm file:text-ink"
 					/>
 					<p className="text-xs text-quiet">{t("destination.pickFileHint")}</p>
 					{incoming ? (

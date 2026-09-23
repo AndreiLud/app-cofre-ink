@@ -1,6 +1,6 @@
 {
 	"app": {
-		"name": "Cofre",
+		"name": "Cofre Ink",
 		"tagline": "Suas finanças, na sua infraestrutura"
 	},
 	"actions": {
@@ -13,7 +13,7 @@
 		"done": "Pronto"
 	},
 	"mode": {
-		"title": "Como você quer usar o Cofre?",
+		"title": "Como você quer usar o {{app}}?",
 		"subtitle": "Responda uma vez. Dá para trocar depois, e o que você já tiver escrito vai junto.",
 		"browserTitle": "Só neste navegador",
 		"browserBody": "O banco de dados fica aqui dentro, sem conta e sem senha. Funciona sem internet e nada sai deste aparelho.",
@@ -25,15 +25,15 @@
 		"defaultName": "Você",
 		"opening": "Abrindo",
 		"syncTitle": "Sincronizar entre os meus aparelhos",
-		"syncBody": "Os mesmos dados no celular e no computador. Você escolhe onde eles ficam, e não é aqui: o Cofre não guarda dado de ninguém.",
+		"syncBody": "Os mesmos dados no celular e no computador. Você escolhe onde eles ficam, e não é aqui: o {{app}} não guarda dado de ninguém.",
 		"syncAction": "Ver as duas formas",
 		"serverWay": "Um servidor meu",
-		"serverWayBody": "Você sobe o Cofre com Docker, na sua máquina ou numa VPS, e entra com email e senha de qualquer aparelho. É o que também permite dividir contas com outras pessoas.",
+		"serverWayBody": "Você sobe o {{app}} com Docker, na sua máquina ou numa VPS, e entra com email e senha de qualquer aparelho. É o que também permite dividir contas com outras pessoas.",
 		"databaseWay": "Um banco na nuvem",
 		"databaseWayBody": "Sem servidor nenhum. Você cria um banco de dados seu em serviços como o Turso, cola o endereço e o token na tela seguinte, e cada aparelho passa a sincronizar por ali.",
 		"databaseAction": "Continuar",
 		"serverAddress": "Endereço do servidor",
-		"serverAddressHint": "O mesmo endereço que aparece quando você sobe o Cofre com Docker.",
+		"serverAddressHint": "O mesmo endereço que aparece quando você sobe o {{app}} com Docker.",
 		"connect": "Conectar",
 		"connecting": "Conectando",
 		"changeLater": "A sua escolha fica guardada neste navegador. Para mudar depois, vá em Dados.",
@@ -261,7 +261,7 @@
 		"failedBody": "Isso costuma acontecer quando o navegador está com o armazenamento bloqueado. Tente sair da janela anônima ou liberar dados de sites.",
 		"notPersistentTitle": "Os dados estão só na memória",
 		"notPersistentBody": "Este navegador não deixou gravar em disco, então tudo some ao fechar a aba. Funciona para experimentar, não para usar de verdade.",
-		"busyTitle": "O Cofre já está aberto em outra aba",
+		"busyTitle": "O {{app}} já está aberto em outra aba",
 		"busyBody": "O banco de dados neste modo fica reservado para uma aba só, para nenhuma escrita se perder. Use a aba que já está aberta, ou feche ela e tente de novo aqui.",
 		"tryAgain": "Tentar de novo",
 		"skipToContent": "Ir para o conteúdo",
@@ -280,7 +280,7 @@
 		"changeMode": "Trocar onde os dados ficam"
 	},
 	"onboarding": {
-		"title": "Vamos abrir o seu Cofre",
+		"title": "Vamos abrir o seu {{app}}",
 		"subtitle": "Três campos e você já está dentro. Nada disso sai deste dispositivo.",
 		"name": "Como você se chama",
 		"namePlaceholder": "Seu nome",
@@ -335,7 +335,7 @@
 		"noneYet": "Um limite transforma um número em uma decisão.",
 		"detail": "Contando o que você gastou em {{month}}.",
 		"savingsTitle": "Guardar primeiro",
-		"savingsExplain": "A ideia é simples: quando entra dinheiro, uma parte sai da frente antes de qualquer gasto. Diga quanto e o Cofre acompanha.",
+		"savingsExplain": "A ideia é simples: quando entra dinheiro, uma parte sai da frente antes de qualquer gasto. Diga quanto e o {{app}} acompanha.",
 		"savingsDescription": "Quanto sai da frente toda vez que entra dinheiro.",
 		"setRule": "Definir a regra",
 		"changeRule": "Mudar a regra",
@@ -346,7 +346,7 @@
 		"percentOfIncome": "Porcentagem do que entra",
 		"fixedAmount": "Valor por mês",
 		"ruleAccount": "Vai para",
-		"ruleAccountHint": "A conta onde o dinheiro guardado fica. Serve para o Cofre saber se você cumpriu.",
+		"ruleAccountHint": "A conta onde o dinheiro guardado fica. Serve para o {{app}} saber se você cumpriu.",
 		"noAccount": "Nenhuma conta ainda",
 		"ruleIsPercent": "A regra é guardar {{percent}} por cento do que entra.",
 		"ruleIsFixed": "A regra é guardar",
@@ -361,7 +361,7 @@
 		"goalNamePlaceholder": "Reserva de emergência",
 		"goalAmount": "Quanto",
 		"goalDate": "Até quando",
-		"goalDateHint": "Opcional. Com uma data, o Cofre diz quanto por mês.",
+		"goalDateHint": "Opcional. Com uma data, o {{app}} diz quanto por mês.",
 		"goalAccount": "Onde o dinheiro fica",
 		"goalAccountHint": "Uma conta guarda uma meta por vez, senão o mesmo dinheiro contaria duas vezes.",
 		"goalActions": "Ações da meta",
@@ -565,7 +565,7 @@
 	},
 	"recurrences": {
 		"title": "O que se repete",
-		"explain": "Aluguel, assinatura, salário. O Cofre escreve esses lançamentos como previstos nos dias certos, e eles só mexem no saldo quando você marca como pago.",
+		"explain": "Aluguel, assinatura, salário. O {{app}} escreve esses lançamentos como previstos nos dias certos, e eles só mexem no saldo quando você marca como pago.",
 		"create": "Nova recorrência",
 		"createDescription": "Diga o que se repete, quanto e a partir de quando.",
 		"edit": "Editar",
@@ -822,7 +822,7 @@
 			"unknownPerson_other": "{{count}} registros em {{table}} apontavam para alguém que este banco de dados não conhece e ficaram de fora."
 		},
 		"sheetTitle": "Espelhar numa planilha do Google",
-		"sheetBody": "Uma cópia dos lançamentos numa planilha sua, reescrita a cada vez. É só de ida: a planilha mostra, e quem manda continua sendo o Cofre. Para trazer dados de volta, salve a planilha em XLSX ou CSV e use a importação.",
+		"sheetBody": "Uma cópia dos lançamentos numa planilha sua, reescrita a cada vez. É só de ida: a planilha mostra, e quem manda continua sendo o {{app}}. Para trazer dados de volta, salve a planilha em XLSX ou CSV e use a importação.",
 		"sheetToken": "Token da conta do Google",
 		"sheetId": "Identificador da planilha",
 		"sheetIdHint": "Deixe em branco para eu criar uma. Depois da primeira vez, esse campo se preenche sozinho.",
@@ -831,7 +831,7 @@
 		"syncTitle": "Manter uma cópia em outro lugar",
 		"syncBody": "Um arquivo, um servidor seu, um banco de dados online ou uma pasta WebDAV. Nada sai daqui sozinho.",
 		"server": "Endereço do servidor",
-		"serverHint": "O mesmo endereço que você usaria para abrir o Cofre no servidor.",
+		"serverHint": "O mesmo endereço que você usaria para abrir o {{app}} no servidor.",
 		"connect": "Conectar",
 		"syncNow": "Sincronizar {{name}} agora",
 		"syncDone": "Enviados {{sent}}, recebidos {{received}}.",
@@ -886,17 +886,17 @@
 	"destination": {
 		"where": "Onde guardar a cópia",
 		"file": "Um arquivo que você move",
-		"fileHint": "Funciona sempre e não depende de ninguém. O arquivo vai para os seus downloads, e você o deixa na pasta que já sincroniza: Drive, OneDrive, Dropbox, rede ou pendrive.",
+		"fileHint": "Funciona sempre e não depende de ninguém. O arquivo vai para os seus downloads, e você o deixa na pasta que já sincroniza: uma nuvem sua, uma pasta de rede ou um pendrive.",
 		"server": "Um servidor seu",
-		"serverHint": "O Cofre rodando no seu servidor ou na sua nuvem, com um banco de dados seu. É o modo mais completo: vários dispositivos e várias pessoas no mesmo espaço.",
+		"serverHint": "O {{app}} rodando no seu servidor ou na sua nuvem, com um banco de dados seu. É o modo mais completo: vários dispositivos e várias pessoas no mesmo espaço.",
 		"webdav": "Uma pasta WebDAV",
 		"webdavHint": "Nextcloud, ownCloud, Synology e a maioria dos painéis de hospedagem falam WebDAV. Guarda a versão de cada arquivo, então dois aparelhos salvando junto não se atropelam.",
 		"notSafeTogether": "Este lugar não sabe dizer se o arquivo mudou enquanto você escrevia. Dois aparelhos salvando no mesmo segundo podem perder uma das duas gravações. Sincronize um de cada vez.",
-		"needsPermission": "Um navegador só fala com este lugar se o servidor de lá permitir. Se der erro de permissão, é isso: libere o endereço do Cofre lá, ou use o aplicativo para computador.",
+		"needsPermission": "Um navegador só fala com este lugar se o servidor de lá permitir. Se der erro de permissão, é isso: libere o endereço do {{app}} lá, ou use o arquivo, que não depende da permissão de ninguém.",
 		"pickFile": "Arquivo do outro aparelho",
 		"pickFileHint": "Opcional. Se você já tem o arquivo de sincronização de outro aparelho, escolha ele para juntar os dois lados. Se não, é só gravar e levar o arquivo daqui para lá.",
 		"fileHolds": "{{name}} traz {{count}} mudanças.",
-		"notABundle": "Esse arquivo não é um arquivo de sincronização do Cofre.",
+		"notABundle": "Esse arquivo não é um arquivo de sincronização do {{app}}.",
 		"folderAddress": "Endereço da pasta",
 		"user": "Usuário",
 		"appPassword": "Senha de aplicativo",
@@ -916,7 +916,7 @@
 	},
 	"importing": {
 		"title": "Importar extrato",
-		"explain": "Escolha o arquivo, confira o que o Cofre entendeu e só então grave. Nada é escrito antes disso.",
+		"explain": "Escolha o arquivo, confira o que o {{app}} entendeu e só então grave. Nada é escrito antes disso.",
 		"pick": "Arquivo do banco",
 		"pickHint": "PDF de fatura ou comprovante, CSV, OFX, QIF, XLSX ou um backup em JSON. O arquivo não sai deste dispositivo.",
 		"kind": {
@@ -1159,7 +1159,7 @@
 		"how_one": "Tudo aqui é conta feita sobre os seus próprios registros, um mês deles, neste aparelho. Não existe modelo, nem nota, nem opinião sobre o que você deveria querer: cada linha carrega os números que a produziram, para você conferir na mão.",
 		"how_other": "Tudo aqui é conta feita sobre os seus próprios registros, {{count}} meses deles, neste aparelho. Não existe modelo, nem nota, nem opinião sobre o que você deveria querer: cada linha carrega os números que a produziram, para você conferir na mão.",
 		"assumes": "A única opinião é a ordem do plano: uma reserva antes de uma meta, porque quem não tem reserva paga a próxima semana ruim no cartão. Fora isso, a conta assume que os próximos meses se parecem com os que passaram, e as datas se refazem sozinhas conforme você anota.",
-		"notAdvice": "Isto não é recomendação de investimento. O Cofre lê o que você escreveu e diz o que encontrou. Dizer onde colocar dinheiro é outro trabalho, de quem tem registro para fazer isso."
+		"notAdvice": "Isto não é recomendação de investimento. O {{app}} lê o que você escreveu e diz o que encontrou. Dizer onde colocar dinheiro é outro trabalho, de quem tem registro para fazer isso."
 	},
 	"benefitKind": {
 		"meal": "VA/VR",
@@ -1222,7 +1222,7 @@
 		"personalKeeps": "Apaga tudo que está dentro. O espaço pessoal continua existindo, vazio.",
 		"sharedGoes": "Apaga tudo que está dentro, e o espaço deixa de existir aqui.",
 		"everythingTitle": "Apagar tudo",
-		"everythingHereBody": "Apaga o banco de dados inteiro deste navegador: todos os espaços, o seu perfil e as preferências. O Cofre volta como se fosse a primeira vez.",
+		"everythingHereBody": "Apaga o banco de dados inteiro deste navegador: todos os espaços, o seu perfil e as preferências. O {{app}} volta como se fosse a primeira vez.",
 		"everythingServerBody": "Apaga todos os espaços que são seus. Espaços de outras pessoas você só deixa, porque os lançamentos deles não são seus para apagar.",
 		"eraseEverything": "Apagar tudo",
 		"confirmWord": "APAGAR TUDO",

@@ -18,7 +18,7 @@ export async function openCofre(
 	await page.evaluate(() => localStorage.setItem("cofreMode", "browser"));
 	await page.reload();
 
-	await expect(page.getByRole("heading", { name: "Vamos abrir o seu Cofre" })).toBeVisible({
+	await expect(page.getByRole("heading", { name: "Vamos abrir o seu Cofre Ink" })).toBeVisible({
 		timeout: 20_000,
 	});
 

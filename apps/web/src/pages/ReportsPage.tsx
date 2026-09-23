@@ -187,11 +187,15 @@ export function ReportsPage() {
 				<div className="flex flex-wrap items-end gap-3 print:hidden">
 					<label className="flex flex-col gap-1.5 text-sm">
 						<span className="font-medium text-ink">{t("reports.month")}</span>
+						{/* The same shape every other control in the product has: sunken, with
+						    the strong edge. It used to be shorter, lighter and drawn with the
+						    line that separates table rows, which is the one thing the design
+						    says never to enclose a control with. */}
 						<input
 							type="month"
 							value={month}
 							onChange={(event) => setMonth(event.target.value)}
-							className="h-10 rounded-sm border border-line bg-panel px-3 text-sm text-ink"
+							className="h-11 rounded-sm border border-lineStrong bg-sunken px-3 text-base text-ink transition-colors duration-150 focus:border-accent focus:bg-panel"
 						/>
 					</label>
 					{spaces.length > 1 ? (

@@ -30,7 +30,7 @@ async function main(): Promise<void> {
 	}
 
 	const server = serve({ fetch: app.fetch, port: config.COFRE_PORT }, (address) => {
-		console.log(`Cofre is listening on http://localhost:${address.port}`);
+		console.log(`Cofre Ink is listening on http://localhost:${address.port}`);
 		console.log(`storing data in ${config.COFRE_DATABASE}`);
 	});
 

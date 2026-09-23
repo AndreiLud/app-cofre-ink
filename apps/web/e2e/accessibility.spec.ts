@@ -22,13 +22,13 @@ test.describe("the keyboard and the screen reader", () => {
 
 	test("calls the tab after the screen, the space and the product", async ({ page }) => {
 		await openCofre(page, { name: "Andrei", space: "Meu dinheiro" });
-		await expect(page).toHaveTitle("Painel | Meu dinheiro | Cofre");
+		await expect(page).toHaveTitle("Painel | Meu dinheiro | Cofre Ink");
 
 		await go(page, "Lançamentos");
-		await expect(page).toHaveTitle("Lançamentos | Meu dinheiro | Cofre");
+		await expect(page).toHaveTitle("Lançamentos | Meu dinheiro | Cofre Ink");
 
 		await go(page, "Orçamento");
-		await expect(page).toHaveTitle("Orçamento | Meu dinheiro | Cofre");
+		await expect(page).toHaveTitle("Orçamento | Meu dinheiro | Cofre Ink");
 	});
 
 	test("gives every screen exactly one first level heading", async ({ page }) => {

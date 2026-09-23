@@ -17,6 +17,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LanguageToggle, ThemeToggle } from "../components/Controls.tsx";
+import { Wordmark } from "../components/Wordmark.tsx";
 import { useTheme } from "../lib/theme.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -85,7 +86,7 @@ export function ModeChooserPage() {
 	return (
 		<div className="mx-auto min-h-dvh max-w-2xl px-4 py-10">
 			<div className="flex items-center justify-between gap-4">
-				<p className="font-serif text-lg text-quiet">{t("app.name")}</p>
+				<Wordmark className="font-serif text-lg text-quiet" />
 				<div className="flex items-center gap-1">
 					<LanguageToggle />
 					<ThemeToggle choice={choice} isDark={isDark} onChange={setChoice} />

@@ -38,13 +38,22 @@ export function SpaceMark({ name, colour, description, className }: SpaceMarkPro
 	);
 }
 
-/** The hairline under the top bar, tinted with the colour of the current space. */
+/**
+ * The line under the top bar, tinted with the colour of the current space.
+ *
+ * Laid like a stroke rather than ruled like a border: it carries its full weight across
+ * the middle and lifts at both ends, which is what a pen does and what a border never
+ * does. The same one pixel of height, so nothing below it moves.
+ */
 export function SpaceRule({ colour, className }: { colour: SpaceColour; className?: string }) {
+	const ink = SPACE_COLOURS[colour];
 	return (
 		<div
 			aria-hidden="true"
 			className={cn("h-px w-full", className)}
-			style={{ backgroundColor: SPACE_COLOURS[colour] }}
+			style={{
+				backgroundImage: `linear-gradient(to right, transparent, ${ink} 8%, ${ink} 92%, transparent)`,
+			}}
 		/>
 	);
 }

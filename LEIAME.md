@@ -1,4 +1,4 @@
-# Cofre
+# Cofre Ink
 
 Finanças pessoais para uma pessoa, um casal, uma família ou um grupo de amigos. Você
 clona, você roda, e o banco de dados é seu: dentro do seu navegador, num servidor seu ou
@@ -59,7 +59,7 @@ pnpm dev
 Isso é o modo navegador: o banco é um arquivo SQLite dentro do seu navegador, não existe
 conta e nada sai da máquina. Também não existe senha, então quem abrir o seu navegador vê
 os seus dados. Se o endereço for público, isso não expõe nada: cada pessoa que abrir
-recebe um Cofre vazio, dentro do navegador dela.
+recebe um Cofre Ink vazio, dentro do navegador dela.
 
 Para um servidor, com pessoas e espaços compartilhados:
 

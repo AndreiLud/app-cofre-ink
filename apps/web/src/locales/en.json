@@ -1,6 +1,6 @@
 {
 	"app": {
-		"name": "Cofre",
+		"name": "Cofre Ink",
 		"tagline": "Your money, on your own infrastructure"
 	},
 	"actions": {
@@ -13,7 +13,7 @@
 		"done": "Done"
 	},
 	"mode": {
-		"title": "How do you want to use Cofre?",
+		"title": "How do you want to use {{app}}?",
 		"subtitle": "Answer once. You can change later, and whatever you have written by then comes with you.",
 		"browserTitle": "In this browser only",
 		"browserBody": "The database sits in here, with no account and no password. It works with no internet and nothing leaves this device.",
@@ -25,15 +25,15 @@
 		"defaultName": "You",
 		"opening": "Opening",
 		"syncTitle": "Sync between my devices",
-		"syncBody": "The same data on the phone and on the computer. You choose where it lives, and it is not here: Cofre holds nobody's data.",
+		"syncBody": "The same data on the phone and on the computer. You choose where it lives, and it is not here: {{app}} holds nobody's data.",
 		"syncAction": "See both ways",
 		"serverWay": "A server of mine",
-		"serverWayBody": "You bring Cofre up with Docker, on your own machine or on a rented one, and sign in with email and password from any device. It is also what lets you split bills with other people.",
+		"serverWayBody": "You bring {{app}} up with Docker, on your own machine or on a rented one, and sign in with email and password from any device. It is also what lets you split bills with other people.",
 		"databaseWay": "A database in the cloud",
 		"databaseWayBody": "No server at all. You create a database of your own on a service like Turso, paste the address and the token on the next screen, and every device syncs through it.",
 		"databaseAction": "Carry on",
 		"serverAddress": "Address of the server",
-		"serverAddressHint": "The same address that shows up when you bring Cofre up with Docker.",
+		"serverAddressHint": "The same address that shows up when you bring {{app}} up with Docker.",
 		"connect": "Connect",
 		"connecting": "Connecting",
 		"changeLater": "Your choice is kept in this browser. To change it later, go to Data.",
@@ -261,7 +261,7 @@
 		"failedBody": "This usually means the browser is blocking storage. Try leaving the private window, or allowing site data.",
 		"notPersistentTitle": "The data is only in memory",
 		"notPersistentBody": "This browser would not let anything be written to disk, so everything goes away when the tab closes. Fine for a look around, not for real use.",
-		"busyTitle": "Cofre is already open in another tab",
+		"busyTitle": "{{app}} is already open in another tab",
 		"busyBody": "In this mode the database is held by one tab at a time, so that no write is lost. Use the tab that is already open, or close it and try again here.",
 		"tryAgain": "Try again",
 		"skipToContent": "Skip to the content",
@@ -280,7 +280,7 @@
 		"changeMode": "Change where the data lives"
 	},
 	"onboarding": {
-		"title": "Let us open your Cofre",
+		"title": "Let us open your {{app}}",
 		"subtitle": "Three fields and you are in. None of this leaves this device.",
 		"name": "What you are called",
 		"namePlaceholder": "Your name",
@@ -335,7 +335,7 @@
 		"noneYet": "A limit turns a number into a decision.",
 		"detail": "Counting what you spent in {{month}}.",
 		"savingsTitle": "Save first",
-		"savingsExplain": "The idea is simple: when money comes in, a part of it steps aside before any spending. Say how much and Cofre keeps track.",
+		"savingsExplain": "The idea is simple: when money comes in, a part of it steps aside before any spending. Say how much and {{app}} keeps track.",
 		"savingsDescription": "How much steps aside every time money comes in.",
 		"setRule": "Set the rule",
 		"changeRule": "Change the rule",
@@ -346,7 +346,7 @@
 		"percentOfIncome": "Share of what comes in",
 		"fixedAmount": "Amount a month",
 		"ruleAccount": "It goes to",
-		"ruleAccountHint": "The account the saved money sits in, so Cofre can tell whether it went.",
+		"ruleAccountHint": "The account the saved money sits in, so {{app}} can tell whether it went.",
 		"noAccount": "No account yet",
 		"ruleIsPercent": "The rule is to save {{percent}} percent of what comes in.",
 		"ruleIsFixed": "The rule is to save",
@@ -361,7 +361,7 @@
 		"goalNamePlaceholder": "Emergency fund",
 		"goalAmount": "How much",
 		"goalDate": "By when",
-		"goalDateHint": "Optional. With a date, Cofre says how much a month.",
+		"goalDateHint": "Optional. With a date, {{app}} says how much a month.",
 		"goalAccount": "Where the money sits",
 		"goalAccountHint": "One account holds one goal at a time, otherwise the same money would count twice.",
 		"goalActions": "Goal actions",
@@ -565,7 +565,7 @@
 	},
 	"recurrences": {
 		"title": "What happens again",
-		"explain": "Rent, a subscription, a salary. Cofre writes these as planned records on the right days, and they only touch the balance when you mark them as paid.",
+		"explain": "Rent, a subscription, a salary. {{app}} writes these as planned records on the right days, and they only touch the balance when you mark them as paid.",
 		"create": "New recurrence",
 		"createDescription": "Say what repeats, how much and from when.",
 		"edit": "Edit",
@@ -822,7 +822,7 @@
 			"unknownPerson_other": "{{count}} rows in {{table}} pointed at somebody this database does not know and were left out."
 		},
 		"sheetTitle": "Mirror into a Google spreadsheet",
-		"sheetBody": "A copy of the records in a spreadsheet of yours, rewritten every time. One way only: the sheet shows, and Cofre remains where the records live. To bring data back, save the sheet as XLSX or CSV and use the import.",
+		"sheetBody": "A copy of the records in a spreadsheet of yours, rewritten every time. One way only: the sheet shows, and {{app}} remains where the records live. To bring data back, save the sheet as XLSX or CSV and use the import.",
 		"sheetToken": "Token of the Google account",
 		"sheetId": "Spreadsheet identifier",
 		"sheetIdHint": "Leave it empty and one is made. After the first time this field fills itself in.",
@@ -831,7 +831,7 @@
 		"syncTitle": "Keep a copy somewhere else",
 		"syncBody": "A file, a server of yours, an online database or a WebDAV folder. Nothing leaves here on its own.",
 		"server": "Server address",
-		"serverHint": "The same address you would use to open Cofre on the server.",
+		"serverHint": "The same address you would use to open {{app}} on the server.",
 		"connect": "Connect",
 		"syncNow": "Sync {{name}} now",
 		"syncDone": "Sent {{sent}}, received {{received}}.",
@@ -886,17 +886,17 @@
 	"destination": {
 		"where": "Where to keep the copy",
 		"file": "A file you move yourself",
-		"fileHint": "Always works and depends on nobody. The file goes to your downloads, and you leave it in the folder you already sync: a drive, a network share, a memory stick.",
+		"fileHint": "Always works and depends on nobody. The file goes to your downloads, and you leave it in the folder you already sync: a cloud folder of yours, a network share, a memory stick.",
 		"server": "A server of yours",
-		"serverHint": "Cofre running on your own server or cloud, against a database of yours. It is the fullest mode: several devices and several people in one space.",
+		"serverHint": "{{app}} running on your own server or cloud, against a database of yours. It is the fullest mode: several devices and several people in one space.",
 		"webdav": "A WebDAV folder",
 		"webdavHint": "Nextcloud, ownCloud, Synology and most hosting panels speak WebDAV. It keeps a version of every file, so two devices saving at once do not run each other over.",
 		"notSafeTogether": "This place cannot say whether the file changed while you were writing it. Two devices saving in the same second can lose one of the two writes. Sync one at a time.",
-		"needsPermission": "A browser only talks to this place if the server there allows it. A permission error means exactly that: allow the address of Cofre there, or use the desktop application.",
+		"needsPermission": "A browser only talks to this place if the server there allows it. A permission error means exactly that: allow the address of {{app}} there, or use the file, which needs nobody's permission.",
 		"pickFile": "File from the other device",
 		"pickFileHint": "Optional. If you already have the sync file from another device, pick it to bring the two sides together. If not, just write and carry this one over.",
 		"fileHolds": "{{name}} carries {{count}} changes.",
-		"notABundle": "That file is not a Cofre sync file.",
+		"notABundle": "That file is not a {{app}} sync file.",
 		"folderAddress": "Address of the folder",
 		"user": "User",
 		"appPassword": "Application password",
@@ -916,7 +916,7 @@
 	},
 	"importing": {
 		"title": "Import a statement",
-		"explain": "Pick the file, check what Cofre understood, and only then write it down. Nothing is written before that.",
+		"explain": "Pick the file, check what {{app}} understood, and only then write it down. Nothing is written before that.",
 		"pick": "File from the bank",
 		"pickHint": "A PDF invoice or receipt, CSV, OFX, QIF, XLSX or a JSON backup. The file does not leave this device.",
 		"kind": {
@@ -1159,7 +1159,7 @@
 		"how_one": "All of this is arithmetic over your own records, one month of them, done on this device. There is no model, no score and no opinion about what you ought to want: every line carries the figures it was made from, so you can check it by hand.",
 		"how_other": "All of this is arithmetic over your own records, {{count}} months of them, done on this device. There is no model, no score and no opinion about what you ought to want: every line carries the figures it was made from, so you can check it by hand.",
 		"assumes": "The one opinion is the order of the plan: cover before a goal, because a household with no cover pays for the next bad week with a card. Beyond that, the arithmetic assumes the months ahead look like the months behind, and the dates redraw themselves as you write things down.",
-		"notAdvice": "This is not investment advice. Cofre reads what you wrote down and says what it found. Telling somebody where to put their money is a different job, done by people who are licensed to do it."
+		"notAdvice": "This is not investment advice. {{app}} reads what you wrote down and says what it found. Telling somebody where to put their money is a different job, done by people who are licensed to do it."
 	},
 	"benefitKind": {
 		"meal": "Meal or food voucher",
@@ -1222,7 +1222,7 @@
 		"personalKeeps": "Erases everything inside. The personal space stays, empty.",
 		"sharedGoes": "Erases everything inside, and the space stops existing here.",
 		"everythingTitle": "Erase everything",
-		"everythingHereBody": "Erases the whole database of this browser: every space, your profile and the preferences. Cofre comes back as if it were the first time.",
+		"everythingHereBody": "Erases the whole database of this browser: every space, your profile and the preferences. {{app}} comes back as if it were the first time.",
 		"everythingServerBody": "Erases every space that is yours. A space of somebody else you only leave, because their records are not yours to erase.",
 		"eraseEverything": "Erase everything",
 		"confirmWord": "ERASE EVERYTHING",

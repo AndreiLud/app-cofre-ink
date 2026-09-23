@@ -36,6 +36,6 @@ test.describe("opening Cofre for the first time", () => {
 		await page.reload();
 
 		await page.getByRole("button", { name: "Começar" }).click();
-		await expect(page.getByRole("heading", { name: "Vamos abrir o seu Cofre" })).toBeVisible();
+		await expect(page.getByRole("heading", { name: "Vamos abrir o seu Cofre Ink" })).toBeVisible();
 	});
 });

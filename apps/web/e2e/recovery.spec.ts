@@ -29,7 +29,7 @@ test.describe("state from before", () => {
 
 		// And the way out is on the same screen.
 		await page.getByRole("button", { name: "Prefiro guardar só neste dispositivo" }).click();
-		await expect(page.getByRole("heading", { name: "Vamos abrir o seu Cofre" })).toBeVisible({
+		await expect(page.getByRole("heading", { name: "Vamos abrir o seu Cofre Ink" })).toBeVisible({
 			timeout: 20_000,
 		});
 	});

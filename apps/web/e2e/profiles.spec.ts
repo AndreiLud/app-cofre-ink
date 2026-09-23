@@ -22,7 +22,7 @@ test.describe("more than one person on this device", () => {
 		await expect(page.getByText("Você é Andrei")).toBeVisible();
 		await page.getByRole("menuitem", { name: "Adicionar outra pessoa neste aparelho" }).click();
 
-		await expect(page.getByRole("heading", { name: "Vamos abrir o seu Cofre" })).toBeVisible({
+		await expect(page.getByRole("heading", { name: "Vamos abrir o seu Cofre Ink" })).toBeVisible({
 			timeout: 20_000,
 		});
 		await page.getByLabel("Como você se chama").fill("Bia");

@@ -5,9 +5,13 @@
 // the mark is in the repository as the description of itself, and changing it is
 // changing a number.
 //
-// The mark is a safe door seen from the front, in the two colours of the project: a
-// square of paper, a ring of ink, and the dial. It reads at sixteen pixels, which is
-// the only test an icon has to pass.
+// The mark is the door of a safe seen from the front, with a drop of ink where the dial
+// would be: the two halves of the name, in the two colours of the project. It reads at
+// sixteen pixels, which is the only test an icon has to pass, and it reads there because
+// it is two shapes and not three.
+//
+// The dial and its handle used to be in the middle. They were the right idea for a
+// product called Cofre and three small shapes at sixteen pixels, which is one too many.
 
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -112,7 +116,15 @@ function paint(size, { bleed = false } = {}) {
 	const middle = (size - 1) / 2;
 	const door = bleed ? size * 0.3 : size * 0.38;
 	const stroke = Math.max(1, size * 0.055);
-	const dial = bleed ? size * 0.13 : size * 0.16;
+
+	// The drop: a circle sitting a little below the middle, with a point drawn up out of
+	// it. The widest part is the circle, and the taper reaches zero exactly at the tip,
+	// so the two meet without a seam at any size.
+	const belly = bleed ? size * 0.115 : size * 0.15;
+	const centre = belly * 0.5;
+	// A taper about twice the belly. Longer than that and the drop starts to read as a
+	// flame, which is a different thing to have in the middle of a safe.
+	const tip = -(bleed ? size * 0.215 : size * 0.27);
 
 	for (let y = 0; y < size; y += 1) {
 		for (let x = 0; x < size; x += 1) {
@@ -125,13 +137,14 @@ function paint(size, { bleed = false } = {}) {
 			const inDoor = Math.max(Math.abs(dx), Math.abs(dy)) <= door && distance <= door * 1.32;
 			const inDoorEdge = inDoor && Math.max(Math.abs(dx), Math.abs(dy)) >= door - stroke;
 
-			const inDial = distance <= dial;
-			const inDialRing = inDial && distance >= dial - stroke * 0.8;
-			// The handle, a short bar to the right of the dial.
-			const inHandle =
-				Math.abs(dy) <= stroke * 0.35 && dx >= dial + stroke * 0.4 && dx <= door - stroke * 1.2;
+			const fromBelly = Math.sqrt(dx * dx + (dy - centre) * (dy - centre));
+			const inBelly = fromBelly <= belly;
+			// Above the belly, how wide the drop is allowed to be, falling to nothing at
+			// the tip.
+			const along = (dy - tip) / (centre - tip);
+			const inPoint = dy < centre && dy >= tip && Math.abs(dx) <= belly * along;
 
-			put(x, y, inDoorEdge || inDialRing || inHandle ? foreground : background);
+			put(x, y, inDoorEdge || inBelly || inPoint ? foreground : background);
 		}
 	}
 

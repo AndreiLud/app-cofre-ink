@@ -1,6 +1,6 @@
-# Instalar e publicar o Cofre
+# Instalar e publicar o Cofre Ink
 
-Este documento é o passo a passo de cada jeito de rodar o Cofre. Não precisa ler tudo:
+Este documento é o passo a passo de cada jeito de rodar o Cofre Ink. Não precisa ler tudo:
 escolha o seu caso e leia só aquela seção.
 
 | quero | vá para |
@@ -10,7 +10,7 @@ escolha o seu caso e leia só aquela seção.
 | usar no celular | [Só o navegador](#só-o-navegador) |
 | um servidor meu, com contas e espaços compartilhados | [Servidor seu](#servidor-seu) |
 
-O Cofre é um endereço que você abre no navegador, e nada além disso. No celular, o
+O Cofre Ink é um endereço que você abre no navegador, e nada além disso. No celular, o
 próprio navegador oferece guardar na tela inicial, e a partir daí ele abre pelo ícone e
 sem internet, com os mesmos dados. Não existe aplicativo para instalar de loja nenhuma.
 
@@ -47,7 +47,7 @@ qualquer hospedagem serve, inclusive as gratuitas.
 Neste modo não existe login. Duas consequências, e as duas importam.
 
 A primeira é boa: **o endereço pode ser público sem expor nada seu**. Cada pessoa que
-abrir recebe um Cofre vazio, dentro do navegador dela. Não existe banco de dados
+abrir recebe um Cofre Ink vazio, dentro do navegador dela. Não existe banco de dados
 compartilhado para alguém entrar, porque não existe banco de dados nenhum no servidor.
 O que está publicado são arquivos estáticos, os mesmos para todo mundo.
 
@@ -58,7 +58,7 @@ o perfil do navegador, o bloqueio do celular.
 Uma senha aqui seria cadeado em porta de vidro. O arquivo do banco está no
 armazenamento do site, e qualquer pessoa com o aparelho na mão e o console do navegador
 aberto lê ele de qualquer jeito. Proteger de verdade seria cifrar o arquivo com uma
-chave derivada de uma frase, e é uma coisa que o Cofre ainda não faz. Enquanto não
+chave derivada de uma frase, e é uma coisa que o Cofre Ink ainda não faz. Enquanto não
 fizer, o guia prefere dizer a verdade a vender uma tranca que não tranca.
 
 Se você quer senha de verdade, é o modo [Servidor seu](#servidor-seu).
@@ -98,7 +98,7 @@ endereço e aí vale o `pnpm build` normal.
 
 A página já traz as próprias regras de segurança dentro dela, e elas funcionam em
 qualquer hospedagem. Só uma não funciona vindo de dentro da página, e é a que impede o
-Cofre de ser aberto dentro de um quadro em outro site, que é como se engana alguém a
+Cofre Ink de ser aberto dentro de um quadro em outro site, que é como se engana alguém a
 clicar no lugar errado. Se a sua hospedagem deixa você adicionar um cabeçalho, adicione
 este:
 
@@ -106,7 +106,7 @@ este:
 X-Frame-Options: DENY
 ```
 
-O servidor do Cofre já manda esse cabeçalho sozinho. Isto aqui é só para quando você
+O servidor do Cofre Ink já manda esse cabeçalho sozinho. Isto aqui é só para quando você
 publica a pasta de arquivos em outro lugar.
 
 ### Nginx
@@ -191,7 +191,7 @@ só desconecta quem estiver conectado.
 Quem abrir o endereço depois disso vê a tela de entrar. **Cadastrar continua aberto**, ou
 seja, quem chegar ao endereço pode criar uma conta. A conta nova nasce vazia e não vê
 nada do que é seu, mas se o seu endereço é público e você quer que só quem for convidado
-entre, deixe o Cofre atrás de uma autenticação do proxy ou de uma rede privada.
+entre, deixe o Cofre Ink atrás de uma autenticação do proxy ou de uma rede privada.
 
 ### O que segura um robô
 
@@ -237,7 +237,7 @@ docker compose start
 ```
 
 Também dá para exportar tudo pela própria interface, em Dados, que gera um arquivo que
-qualquer instalação do Cofre consegue ler de volta.
+qualquer instalação do Cofre Ink consegue ler de volta.
 
 ## Onde ficam os dados
 
@@ -250,7 +250,7 @@ qualquer instalação do Cofre consegue ler de volta.
 Nos dois primeiros, limpar os dados do site apaga o banco. Exporte um backup antes de
 mexer nisso, em Dados, Exportar tudo.
 
-O Cofre não precisa de nenhuma manutenção. O histórico que ele usa para sincronizar é
+O Cofre Ink não precisa de nenhuma manutenção. O histórico que ele usa para sincronizar é
 compactado sozinho, no máximo uma vez por dia, e nenhum lançamento seu muda com isso:
 some só a versão intermediária de linhas com mais de trinta dias, que nada no produto
 lê. No servidor isso acontece de hora em hora, no navegador logo depois que a primeira

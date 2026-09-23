@@ -1,4 +1,4 @@
-# Cofre
+# Cofre Ink
 
 Personal finance app that anyone can clone and run with their own database, in the
 browser, on their own server or in a cloud. Shared spaces let a
@@ -18,7 +18,12 @@ settle up flow. The app works offline and syncs when it can reach a server.
 
 ## Decisions already taken
 
-1. Name: Cofre. Package scope: `@cofre/*`.
+1. Name: Cofre Ink, which is what a person sees: the interface, the tab, the icon, the
+   manifest and the documents. The code keeps the shorter one, because a package scope
+   and an environment variable are names for a reader of the source and renaming them
+   would be a day of churn for nobody: `@cofre/*`, `COFRE_*`, `cofre.db`. The interface
+   never writes the name out: it says `{{app}}` and `APP_NAME` in
+   `apps/web/src/i18n/index.ts` fills it in.
 2. Code, schema, routes, commits, ADRs and this file are written in English. Product
    documents for the owner (`docs/produto.md`, `LEIAME.md`) and the interface are in
    Portuguese, with English available through i18n.
@@ -161,6 +166,7 @@ nothing.
 | 17. The plan: an order, a month on each step, and where the money comes from | done |
 | 18. The trend against the months before, and what the card has already spent | done |
 | 19. If the income stops, the dearer months of the year, and idle money | done |
+| 20. Cofre Ink: the name in one place, a drop for a mark, and the copy audited | done |
 | Next. Real statements for the recogniser, and whatever the owner asks for | waiting |
 
 ## Architecture decision records
@@ -199,3 +205,4 @@ nothing.
 | [0030](docs/adr/0030_a_plan_with_a_month_on_it.md) | a plan with a month on it, and a target they have already hit |
 | [0031](docs/adr/0031_whether_it_is_getting_better.md) | whether it is getting better, and the months already spent |
 | [0032](docs/adr/0032_the_year_ahead_and_the_one_income.md) | the year ahead, the one income, and what standing still costs |
+| [0033](docs/adr/0033_the_name_and_the_drop.md) | the name, the drop, and the one place the name lives |

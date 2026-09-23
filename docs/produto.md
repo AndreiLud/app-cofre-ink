@@ -1,4 +1,4 @@
-# Cofre: briefing do produto
+# Cofre Ink: briefing do produto
 
 Documento de referência da Fase 0. Descreve o que o produto é, para quem, o que ele
 não é, como está organizado e em que ordem vai ser construído. As decisões técnicas
@@ -6,7 +6,7 @@ ficam nos registros em `docs/adr`.
 
 ## Em uma frase
 
-Cofre é um painel de finanças pessoais que você hospeda onde quiser, com espaços
+Cofre Ink é um painel de finanças pessoais que você hospeda onde quiser, com espaços
 separados para o seu dinheiro e para o dinheiro que você divide com outras pessoas.
 
 ## Para quem
@@ -27,7 +27,7 @@ serviço e raramente separam bem o que é seu do que é do casal ou da casa. As 
 resolvem a privacidade e falham em tudo o mais: não avisam de vencimento, não importam
 extrato, não projetam o mês que vem e quebram quando duas pessoas mexem juntas.
 
-O Cofre fica no meio: a profundidade de um aplicativo bom, com os dados no lugar que
+O Cofre Ink fica no meio: a profundidade de um aplicativo bom, com os dados no lugar que
 você escolher e o código aberto para qualquer um auditar.
 
 ## Princípios
@@ -73,7 +73,7 @@ você escolher e o código aberto para qualquer um auditar.
 
 Migrar de um modo para outro é exportação e importação, sem perda.
 
-O Cofre é um endereço que se abre no navegador, e nada além disso. No celular o próprio
+O Cofre Ink é um endereço que se abre no navegador, e nada além disso. No celular o próprio
 navegador oferece guardar na tela inicial, e a partir daí ele abre pelo ícone, sem barra
 de endereço e sem internet, com os mesmos dados. Não existe aplicativo de loja, nem
 programa para instalar num computador: o registro 0021 explica por quê. O passo a passo
@@ -89,7 +89,7 @@ de cada modo está em [instalar.md](instalar.md).
 | leitor | somente visualizar |
 | registrador | apenas criar lançamentos e ver os próprios, pensado para filhos e para quem ajuda com a casa |
 
-## O que o Cofre não é
+## O que o Cofre Ink não é
 
 1. Não é agregador bancário. Não pede senha do seu banco e não usa Open Finance por
    enquanto. A entrada de dados é por importação de arquivo, por leitura de fatura ou
@@ -169,7 +169,7 @@ guardar na tela inicial. Publicação em qualquer hospedagem de arquivos, na rai
 domínio ou dentro de uma pasta dele, e o guia de implantação de todos os modos em
 [instalar.md](instalar.md).
 
-**Fase 9, revisada.** O embrulho nativo foi retirado: o Cofre é web e servidor, e nada
+**Fase 9, revisada.** O embrulho nativo foi retirado: o Cofre Ink é web e servidor, e nada
 mais. O histórico passou a ser compactado sozinho, sem botão e sem aviso. E o produto
 ganhou a parte que faltava, que é ler os números de volta para a pessoa: quinze achados
 sobre os próprios lançamentos, cada um com as contas que o produziram dentro da frase.
