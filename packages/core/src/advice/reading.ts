@@ -21,6 +21,7 @@
 
 import { median } from "../plan/projection.ts";
 import { type CalendarDate, daysBetween } from "../time/calendar.ts";
+import { type Commitments, commitmentsFrom } from "./commitments.ts";
 import {
 	type Finding,
 	findEverything,
@@ -29,6 +30,7 @@ import {
 	THIN_SAVING,
 } from "./findings.ts";
 import { type Levers, leversIn, type Plan, planFrom } from "./plan.ts";
+import { type Trend, trendOf } from "./trend.ts";
 
 export type SignCode =
 	/** What is left over each month, as a share of what comes in. */
@@ -80,6 +82,10 @@ export type Reading = {
 	plan: Plan;
 	/** Where an ordinary month goes, and what their own quietest month in each was. */
 	levers: Levers;
+	/** Whether it is getting better, or null until there are six months to compare. */
+	trend: Trend | null;
+	/** What the card takes, and what it has taken from the months ahead. */
+	commitments: Commitments | null;
 };
 
 /** Left over, as hundredths of what came in. Under the second one is worth saying. */
@@ -273,5 +279,7 @@ export function readingOf(snapshot: Snapshot): Reading {
 		findings: findEverything(snapshot),
 		plan: planFrom(snapshot),
 		levers: leversIn(snapshot),
+		trend: trendOf(snapshot),
+		commitments: commitmentsFrom(snapshot),
 	};
 }

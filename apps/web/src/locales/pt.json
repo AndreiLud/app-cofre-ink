@@ -1064,6 +1064,17 @@
 			"undated": "Faltam {{amount}}. Sem sobra no mês, isto não tem data."
 		}
 	},
+	"movement": {
+		"income": "O que entra",
+		"expense": "O que sai",
+		"kept": "O que sobra",
+		"onHand": "O que você tem"
+	},
+	"movementDirection": {
+		"better": "melhor",
+		"worse": "pior",
+		"same": "igual"
+	},
 	"advisor": {
 		"reading": "Lendo os seus números",
 		"verdict": {
@@ -1103,6 +1114,22 @@
 		"until": "até {{month}}",
 		"late": "Isso passa da data que você marcou para esta meta.",
 		"planDone": "Nesta ordem, tudo isto fica pronto em {{month}}.",
+		"trendTitle": "O que mudou",
+		"trendBody": "Os {{count}} meses fechados mais recentes contra os {{count}} de antes deles.",
+		"fromTo": "de {{before}} para {{now}}",
+		"trendCover": "Desde {{month}}, o que você tem saiu de {{before}} para {{now}} de gasto normal.",
+		"cardTitle": "O cartão",
+		"cardUsual": "Uma fatura comum é {{usual}}, {{share}}% do que entra.",
+		"cardNoInvoices": "Nenhuma fatura fechada ainda.",
+		"cardDirection": {
+			"rising": "A última fechou em {{latest}}, acima do comum.",
+			"falling": "A última fechou em {{latest}}, abaixo do comum.",
+			"steady": "A última fechou em {{latest}}, na média das outras."
+		},
+		"aheadTotal": "Você já tem {{total}} comprometido em parcelas, até {{month}}.",
+		"overSurplus": "mais do que sobra num mês",
+		"aheadTight_one": "Um desses meses já está gasto além do que um mês normal deixa sobrar, antes mesmo de começar.",
+		"aheadTight_other": "{{count}} desses meses já estão gastos além do que um mês normal deixa sobrar, antes mesmo de começarem.",
 		"leversTitle": "Para onde vai o mês",
 		"leversBody_one": "A categoria que mais pesa num mês normal, e o mês mais barato que você já teve nela.",
 		"leversBody_other": "As {{count}} categorias que mais pesam num mês normal, e o mês mais barato que você já teve em cada uma.",

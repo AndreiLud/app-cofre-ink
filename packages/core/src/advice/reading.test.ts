@@ -25,6 +25,9 @@ function healthy(): Snapshot {
 		repeating: [],
 		pending: [],
 		possibleRepeats: [],
+		netByMonth: [],
+		invoices: [],
+		instalments: [],
 	};
 }
 

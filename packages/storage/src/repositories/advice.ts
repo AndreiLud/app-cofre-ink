@@ -21,6 +21,7 @@ import {
 } from "@cofre/core";
 import { assertCan } from "../actor.ts";
 import { asNumber } from "../driver.ts";
+import { marks } from "../sql.ts";
 import type { AccountsRepository } from "./accounts.ts";
 import type { BudgetsRepository } from "./budgets.ts";
 import type { RepositoryContext } from "./context.ts";
@@ -36,12 +37,19 @@ const SOON = 15;
 /** Two charges this far apart, for the same amount, in the same account, look like one. */
 const REPEAT_DAYS = 3;
 
+/** How many months ahead of instalments to read. Two years is longer than anybody buys. */
+const AHEAD = 24;
+
 export type {
+	Commitments,
 	Finding,
 	FindingCode,
 	FindingWeight,
 	Lever,
 	Levers,
+	MonthAhead,
+	Movement,
+	MovementCode,
 	Plan,
 	PlanStep,
 	Reading,
@@ -49,6 +57,7 @@ export type {
 	SignState,
 	Snapshot,
 	StepCode,
+	Trend,
 	Verdict,
 	VitalSign,
 } from "@cofre/core";
@@ -239,6 +248,93 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			.slice(0, 5);
 	}
 
+	/**
+	 * What the accounts somebody spends from moved, per month.
+	 *
+	 * The two halves are the two ways a row touches an account, and they are the same
+	 * two the balance itself is made of: the account it came out of, where a transfer
+	 * counts the other way round, and the account it went into. A transfer between two
+	 * accounts in the set cancels itself out, which is right, because nothing left.
+	 */
+	async function netByMonth(
+		spaceId: string,
+		spendable: readonly string[],
+		from: string,
+		to: string,
+	): Promise<{ month: string; net: number }[]> {
+		if (spendable.length === 0) return [];
+
+		const inside = marks(spendable.length);
+		const rows = await context.driver.all(
+			`SELECT "month", SUM("moved") AS net FROM (
+			   SELECT SUBSTR("happened_on", 1, 7) AS "month",
+			     SUM(CASE WHEN "kind" = 'transfer' THEN -"amount" ELSE "amount" END) AS "moved"
+			   FROM "transactions"
+			   WHERE "space_id" = ? AND "deleted_at" IS NULL AND "status" = 'settled'
+			     AND "happened_on" >= ? AND "happened_on" <= ? AND "account_id" IN (${inside})
+			   GROUP BY SUBSTR("happened_on", 1, 7)
+			   UNION ALL
+			   SELECT SUBSTR("happened_on", 1, 7) AS "month", SUM("amount") AS "moved"
+			   FROM "transactions"
+			   WHERE "space_id" = ? AND "deleted_at" IS NULL AND "status" = 'settled'
+			     AND "happened_on" >= ? AND "happened_on" <= ?
+			     AND "counter_account_id" IN (${inside})
+			   GROUP BY SUBSTR("happened_on", 1, 7)
+			 ) AS moved
+			 GROUP BY "month"
+			 ORDER BY "month" DESC`,
+			[spaceId, from, to, ...spendable, spaceId, from, to, ...spendable],
+		);
+
+		return rows.map((row) => ({ month: String(row.month), net: asNumber(row.net) }));
+	}
+
+	/** Card invoices that have closed, which is every one before the month in hand. */
+	async function closedInvoices(
+		spaceId: string,
+		from: string,
+		thisMonth: string,
+	): Promise<{ month: string; amount: number }[]> {
+		const rows = await context.driver.all(
+			`SELECT "invoice_month" AS month, COALESCE(SUM("amount"), 0) AS total
+			 FROM "transactions"
+			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "kind" = 'expense'
+			   AND "invoice_month" IS NOT NULL AND "invoice_month" >= ? AND "invoice_month" < ?
+			 GROUP BY "invoice_month"
+			 ORDER BY month DESC`,
+			[spaceId, from, thisMonth],
+		);
+
+		return rows.map((row) => ({ month: String(row.month), amount: Math.abs(asNumber(row.total)) }));
+	}
+
+	/**
+	 * What is already bought, month by month, out into the future.
+	 *
+	 * The day decides and not the status. A purchase in six parts is written as six
+	 * rows dated a month apart, carrying whatever status the purchase had, so a part
+	 * dated in February is money that will leave in February however it is marked
+	 * today. Read by the day it falls rather than by the invoice it lands on, because a
+	 * household without a card buys in instalments too.
+	 */
+	async function instalmentsAhead(
+		spaceId: string,
+		after: CalendarDate,
+	): Promise<{ month: string; amount: number }[]> {
+		const rows = await context.driver.all(
+			`SELECT SUBSTR("happened_on", 1, 7) AS month, COALESCE(SUM("amount"), 0) AS total
+			 FROM "transactions"
+			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "kind" = 'expense'
+			   AND "installment_number" IS NOT NULL AND "happened_on" > ?
+			 GROUP BY SUBSTR("happened_on", 1, 7)
+			 ORDER BY month
+			 LIMIT ${AHEAD}`,
+			[spaceId, after],
+		);
+
+		return rows.map((row) => ({ month: String(row.month), amount: Math.abs(asNumber(row.total)) }));
+	}
+
 	async function categoryNames(spaceId: string): Promise<Map<string, string>> {
 		const rows = await context.driver.all(
 			`SELECT "id", "name" FROM "categories" WHERE "space_id" = ? AND "deleted_at" IS NULL`,
@@ -303,6 +399,8 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 				accounts,
 				names,
 				lastSaved,
+				invoices,
+				instalments,
 			] = await Promise.all([
 				monthlyTotals(input.spaceId, from, to),
 				spendingByCategory(input.spaceId, from, to),
@@ -315,6 +413,8 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 				needs.accounts.list(input.spaceId),
 				categoryNames(input.spaceId),
 				lastPaidIn(input.spaceId),
+				closedInvoices(input.spaceId, firstMonth, thisMonth),
+				instalmentsAhead(input.spaceId, input.today),
 			]);
 
 			// Money on hand is what is in the accounts somebody spends from. What is put
@@ -325,6 +425,10 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			const onHand = balances
 				.filter((balance) => spendable.has(balance.accountId))
 				.reduce((total, balance) => total + balance.settled, 0);
+
+			// After the others, because it is the one that needs to know which accounts
+			// those are. A balance from before is this walked backwards from today.
+			const moved = await netByMonth(input.spaceId, [...spendable], from, to);
 
 			const current = months.find((month) => month.month === thisMonth) ?? {
 				month: thisMonth,
@@ -374,6 +478,9 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 				repeating,
 				pending,
 				possibleRepeats: repeats,
+				netByMonth: moved,
+				invoices,
+				instalments,
 			};
 		},
 	};

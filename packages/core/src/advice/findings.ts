@@ -136,6 +136,12 @@ export type ChargePair = {
 	account: string;
 };
 
+/** A month of something, for the series the reading reads: invoices, instalments, moves. */
+export type MonthlyAmount = {
+	month: string;
+	amount: number;
+};
+
 export type Snapshot = {
 	/** The day the reading is made on, which decides how much of the month is left. */
 	today: CalendarDate;
@@ -151,6 +157,18 @@ export type Snapshot = {
 	pending: readonly PendingCharge[];
 	/** Pairs that already look like the same charge twice. */
 	possibleRepeats: readonly ChargePair[];
+	/**
+	 * What the accounts somebody spends from moved, per month, most recent first.
+	 *
+	 * The records hold what they have now, never what they had in June, so a balance
+	 * from before is this walked backwards. It counts transfers as well as spending,
+	 * because money moved into an investment left the balance without being spent.
+	 */
+	netByMonth: readonly { month: string; net: number }[];
+	/** Card invoices that have closed, most recent first. */
+	invoices: readonly MonthlyAmount[];
+	/** What instalments already bought take out of each month ahead, soonest first. */
+	instalments: readonly MonthlyAmount[];
 };
 
 /** Under this, a difference is not worth a line on a screen. Fifty units of currency. */

@@ -24,6 +24,9 @@ function household(): Snapshot {
 		repeating: [],
 		pending: [],
 		possibleRepeats: [],
+		netByMonth: [],
+		invoices: [],
+		instalments: [],
 	};
 }
 

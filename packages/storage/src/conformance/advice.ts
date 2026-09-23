@@ -286,6 +286,122 @@ export function runAdviceConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		/**
+		 * The balance from before is the only figure on the check up that cannot be read
+		 * out of the records: they hold what somebody has now. So it is walked backwards
+		 * through every movement, and a transfer is a movement even though nothing was
+		 * spent.
+		 */
+		it("reads a balance from before by undoing what moved, transfers and all", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Casa" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+					initialBalance: 100_000,
+				});
+				const broker = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "investment",
+					name: "Corretora",
+				});
+
+				// Six closed months, which is what the comparison needs, and a transfer
+				// out to the broker in the middle of the recent window.
+				for (const month of ["2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08"]) {
+					await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "income",
+						amount: 600_000,
+						happenedOn: `${month}-05`,
+						description: "Salario",
+						accountId: account.id,
+					});
+					await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "expense",
+						amount: 400_000,
+						happenedOn: `${month}-12`,
+						description: `Gastos de ${month}`,
+						accountId: account.id,
+					});
+				}
+				await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "transfer",
+					amount: 500_000,
+					happenedOn: "2026-07-20",
+					description: "Para a corretora",
+					accountId: account.id,
+					counterAccountId: broker.id,
+				});
+
+				const reading = await fixture.asAna.advice.reading({ spaceId: space.id, today: TODAY });
+				const trend = reading.trend;
+				expect(trend?.since).toBe("2026-06");
+
+				// The end of May: what they started with plus three months of two hundred
+				// kept. Since then they kept six hundred more and moved five of it to the
+				// broker, which is a hundred more on hand and not six.
+				const onHand = trend?.movements.find((one) => one.code === "onHand");
+				expect(onHand?.before).toBe(700_000);
+				expect(onHand?.now).toBe(800_000);
+				expect(onHand?.difference).toBe(100_000);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("adds up the invoices behind and the instalments still to come", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Casa" });
+				const card = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "credit",
+					name: "Cartao",
+					closingDay: 28,
+					dueDay: 5,
+					creditLimit: 5_000_000,
+				});
+
+				// Two closed invoices behind, and a purchase in six parts ahead.
+				for (const month of ["2026-07", "2026-08"]) {
+					await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "expense",
+						amount: 30_000,
+						happenedOn: `${month}-10`,
+						description: "Compra",
+						accountId: card.id,
+					});
+				}
+				await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 120_000,
+					happenedOn: "2026-09-10",
+					description: "Geladeira",
+					accountId: card.id,
+					installments: 6,
+				});
+
+				const card_ = (await fixture.asAna.advice.reading({ spaceId: space.id, today: TODAY }))
+					.commitments;
+
+				expect(card_?.usual).toBe(30_000);
+				// The first part falls this month and is already behind today, so five of
+				// the six are still ahead.
+				expect(card_?.ahead).toHaveLength(5);
+				expect(card_?.aheadTotal).toBe(100_000);
+				expect(card_?.lastMonth).toBe("2027-02");
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		it("tells somebody who is not in the space that there is no such space", async () => {
 			const fixture = await prepare(adapter);
 			try {

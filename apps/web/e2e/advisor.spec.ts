@@ -68,6 +68,70 @@ test.describe("the check up", () => {
 		await expect(step).toContainText("até");
 	});
 
+	/**
+	 * Six months of records written by hand, which is the least this can read: three
+	 * closed months on each side of the comparison. The months are counted back from
+	 * today rather than written down, so that this still means the same thing next year.
+	 */
+	test("compares the months just gone with the ones before, and the card ahead", async ({
+		page,
+	}) => {
+		const months = [1, 2, 3, 4, 5, 6].map((back) => {
+			const when = new Date();
+			when.setUTCDate(1);
+			when.setUTCMonth(when.getUTCMonth() - back);
+			return `${when.getUTCFullYear()}-${String(when.getUTCMonth() + 1).padStart(2, "0")}`;
+		});
+
+		await openCofre(page, { name: "Andrei", demo: false });
+
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		await page.getByLabel("Nome").fill("Banco");
+		await page.getByLabel("Saldo de abertura").fill("1.000,00");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Banco", exact: true })).toBeVisible();
+
+		await go(page, "Lançamentos");
+		const quick = page.getByLabel("Lançamento rápido");
+		const write = async (line: string) => {
+			await quick.fill(line);
+			await page.getByRole("button", { name: "Lançar", exact: true }).click();
+			await expect(page.getByRole("button", { name: "Desfazer" })).toBeVisible();
+		};
+
+		for (const [index, month] of months.entries()) {
+			// "recebi" is what marks money coming in. The description has to be a word
+			// the reader does not already spend on something else, and "salario" is one
+			// of the words that mean income: a line of nothing but keywords has no
+			// description left and cannot be written.
+			await write(`recebi Trabalho 6000,00 ${month}-05 banco`);
+			// The three months just gone are the cheaper ones, so there is a direction.
+			await write(`Mercado ${index < 3 ? "3500,00" : "4000,00"} ${month}-12 banco`);
+		}
+
+		// Something bought in parts, which is what spends a month before it arrives.
+		await write("Geladeira 1200,00 6x banco");
+
+		await go(page, "Diagnóstico");
+
+		await expect(page.getByRole("heading", { name: "O que mudou" })).toBeVisible();
+		const kept = page.getByRole("listitem").filter({ hasText: "O que sobra" });
+		await expect(kept).toContainText("R$ 2.000,00");
+		await expect(kept).toContainText("R$ 2.500,00");
+		await expect(kept).toContainText("melhor");
+		await expect(page.getByText(/o que você tem saiu de/i)).toBeVisible();
+
+		// And the card panel, which here is the instalments rather than an invoice.
+		await expect(page.getByRole("heading", { name: "O cartão" })).toBeVisible();
+		await expect(page.getByText(/comprometido em parcelas/)).toBeVisible();
+
+		// Five parts of two hundred still to come, which a month that leaves two and a
+		// half thousand over covers without trouble.
+		await expect(page.getByRole("listitem").filter({ hasText: "2027" })).toHaveCount(2);
+		await expect(page.getByText("mais do que sobra num mês")).toHaveCount(0);
+	});
+
 	test("is in the planning section, and reads a space with no history honestly", async ({
 		page,
 	}) => {

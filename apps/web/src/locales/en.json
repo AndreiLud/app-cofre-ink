@@ -1064,6 +1064,17 @@
 			"undated": "{{amount}} to go. With nothing left over in the month, this carries no date."
 		}
 	},
+	"movement": {
+		"income": "What comes in",
+		"expense": "What goes out",
+		"kept": "What is left over",
+		"onHand": "What you have"
+	},
+	"movementDirection": {
+		"better": "better",
+		"worse": "worse",
+		"same": "the same"
+	},
 	"advisor": {
 		"reading": "Reading your figures",
 		"verdict": {
@@ -1103,6 +1114,22 @@
 		"until": "by {{month}}",
 		"late": "That is past the date you set for this goal.",
 		"planDone": "In this order, all of it is done by {{month}}.",
+		"trendTitle": "What changed",
+		"trendBody": "The {{count}} most recent closed months against the {{count}} before them.",
+		"fromTo": "from {{before}} to {{now}}",
+		"trendCover": "Since {{month}}, what you have went from {{before}} to {{now}} of ordinary spending.",
+		"cardTitle": "The card",
+		"cardUsual": "An ordinary invoice is {{usual}}, {{share}}% of what comes in.",
+		"cardNoInvoices": "No invoice has closed yet.",
+		"cardDirection": {
+			"rising": "The last one closed at {{latest}}, above the ordinary one.",
+			"falling": "The last one closed at {{latest}}, below the ordinary one.",
+			"steady": "The last one closed at {{latest}}, in line with the others."
+		},
+		"aheadTotal": "You already have {{total}} committed in instalments, out to {{month}}.",
+		"overSurplus": "more than a month leaves over",
+		"aheadTight_one": "One of those months is already spent past what an ordinary month leaves over, before it has begun.",
+		"aheadTight_other": "{{count}} of those months are already spent past what an ordinary month leaves over, before they have begun.",
 		"leversTitle": "Where the month goes",
 		"leversBody_one": "The category that weighs most in an ordinary month, and the cheapest month you have had in it.",
 		"leversBody_other": "The {{count}} categories that weigh most in an ordinary month, and the cheapest month you have had in each.",

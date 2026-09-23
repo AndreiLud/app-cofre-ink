@@ -12,7 +12,7 @@
 // thing it will not do: there is no recommendation here about where to put money.
 
 import { todayIn } from "@cofre/core";
-import type { Finding, PlanStep, VitalSign } from "@cofre/storage";
+import type { Finding, Movement, PlanStep, VitalSign } from "@cofre/storage";
 import { Button, Callout, EmptyState, InsightTitle, Panel, Skeleton } from "@cofre/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -35,6 +35,13 @@ const INK: Record<VitalSign["state"], string> = {
 	fair: "text-ochre",
 	poor: "text-seal",
 	unknown: "text-quiet",
+};
+
+/** Which way a figure went. A word as well as a colour, for the same reason. */
+const WENT: Record<Movement["direction"], string> = {
+	better: "text-cedar",
+	worse: "text-seal",
+	same: "text-quiet",
 };
 
 /** The screen where each finding is actually dealt with. */
@@ -95,15 +102,17 @@ export function AdvisorPage() {
 	const levers = reading.data?.levers.levers ?? [];
 	const months = reading.data?.monthsRead ?? 0;
 
+	/** Months of cover, kept in tenths until they reach a screen, which is here. */
+	const cover = (tenths: number) =>
+		t("advisor.monthsCovered", {
+			count: Math.round(tenths / 10),
+			value: new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(tenths / 10),
+		});
+
 	/** The reading itself: a share in whole per cent, or months with one decimal. */
 	const shownValue = (sign: VitalSign) => {
 		if (sign.state === "unknown") return t("advisor.noReading");
-		if (sign.code === "reserve") {
-			const value = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(
-				sign.value / 10,
-			);
-			return t("advisor.monthsCovered", { count: Math.round(sign.value / 10), value });
-		}
+		if (sign.code === "reserve") return cover(sign.value);
 		return t("advisor.percent", { value: sign.value });
 	};
 
@@ -226,6 +235,44 @@ export function AdvisorPage() {
 						</div>
 					</Panel>
 
+					{reading.data.trend ? (
+						<Panel
+							title={t("advisor.trendTitle")}
+							description={t("advisor.trendBody", { count: reading.data.trend.months })}
+						>
+							<ul className="divide-y divide-line">
+								{reading.data.trend.movements.map((moved) => (
+									<li
+										key={moved.code}
+										className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3 first:pt-0 last:pb-0"
+									>
+										<span className="font-medium text-ink">{t(`movement.${moved.code}`)}</span>
+										<span className="flex flex-wrap items-baseline gap-x-3">
+											<span className="font-mono text-sm text-ink">
+												{t("advisor.fromTo", {
+													before: money(moved.before),
+													now: money(moved.now),
+												})}
+											</span>
+											<span className={`text-xs ${WENT[moved.direction]}`}>
+												{t(`movementDirection.${moved.direction}`)}
+											</span>
+										</span>
+									</li>
+								))}
+							</ul>
+
+							{/* The one sentence somebody repeats to themselves afterwards. */}
+							<p className="mt-4 border-t border-line pt-4 text-sm leading-relaxed text-ink">
+								{t("advisor.trendCover", {
+									month: monthName(reading.data.trend.since),
+									before: cover(reading.data.trend.coverBefore),
+									now: cover(reading.data.trend.coverNow),
+								})}
+							</p>
+						</Panel>
+					) : null}
+
 					{levers.length > 0 ? (
 						<Panel
 							title={t("advisor.leversTitle")}
@@ -259,6 +306,64 @@ export function AdvisorPage() {
 								<p className="mt-4 border-t border-line pt-4 text-sm leading-relaxed text-ink">
 									{t("advisor.leversTotal", { frees: money(reading.data.levers.frees) })}
 								</p>
+							) : null}
+						</Panel>
+					) : null}
+
+					{reading.data.commitments ? (
+						<Panel
+							title={t("advisor.cardTitle")}
+							description={
+								reading.data.commitments.usual > 0
+									? t("advisor.cardUsual", {
+											usual: money(reading.data.commitments.usual),
+											share: reading.data.commitments.shareOfIncome,
+										})
+									: t("advisor.cardNoInvoices")
+							}
+						>
+							{reading.data.commitments.usual > 0 ? (
+								<p className="text-sm leading-relaxed text-quiet">
+									{t(`advisor.cardDirection.${reading.data.commitments.direction}`, {
+										latest: money(reading.data.commitments.latest),
+									})}
+								</p>
+							) : null}
+
+							{/* The part of a card nothing else in the product says: months that
+							    were spent before they began. */}
+							{reading.data.commitments.ahead.length > 0 ? (
+								<div className="mt-4 space-y-3 border-t border-line pt-4">
+									<p className="text-sm leading-relaxed text-ink">
+										{t("advisor.aheadTotal", {
+											total: money(reading.data.commitments.aheadTotal),
+											month: monthName(reading.data.commitments.lastMonth ?? ""),
+										})}
+									</p>
+
+									<ul className="divide-y divide-line">
+										{reading.data.commitments.ahead.map((month) => (
+											<li
+												key={month.month}
+												className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2 first:pt-0 last:pb-0"
+											>
+												<span className="text-sm text-ink">{monthName(month.month)}</span>
+												<span className="flex flex-wrap items-baseline gap-x-3">
+													<span className="font-mono text-sm text-ink">{money(month.amount)}</span>
+													{month.overSurplus ? (
+														<span className="text-xs text-seal">{t("advisor.overSurplus")}</span>
+													) : null}
+												</span>
+											</li>
+										))}
+									</ul>
+
+									{reading.data.commitments.tight > 0 ? (
+										<p className="text-sm leading-relaxed text-seal">
+											{t("advisor.aheadTight", { count: reading.data.commitments.tight })}
+										</p>
+									) : null}
+								</div>
 							) : null}
 						</Panel>
 					) : null}
