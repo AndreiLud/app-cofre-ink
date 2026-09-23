@@ -10,6 +10,49 @@ import { betterAuth } from "better-auth";
 import type { Config } from "./config.ts";
 import type { OpenedDatabase } from "./database.ts";
 
+/**
+ * Whether the interface and this server are two different sites, as a browser counts
+ * them, and not merely two addresses.
+ *
+ * The same host is the same site. A subdomain of the other is the same site too, which
+ * is what `app.cofre.ink` and `cofre.ink` are. Anything else is treated as a different
+ * site, including two subdomains of one domain, because deciding that properly needs
+ * the list of public suffixes and being too careful here only loosens a cookie that
+ * would otherwise have been thrown away.
+ */
+export function differentSites(one: string, other: string): boolean {
+	try {
+		const here = new URL(one).hostname.toLowerCase();
+		const there = new URL(other).hostname.toLowerCase();
+		if (here === there) return false;
+		return !here.endsWith(`.${there}`) && !there.endsWith(`.${here}`);
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * How the session cookie has to be written for it to come back.
+ *
+ * A browser sends a Lax cookie only on requests to the site that set it, and that is
+ * the right default: it is what makes a session immune to being ridden from somebody
+ * else's page. It is also exactly wrong for the way this product is most often used,
+ * where the interface is a static build on one site and the server is somebody's own
+ * machine on another. There the sign in succeeds, the cookie is stored, and the very
+ * next call arrives with nothing attached: signed in and signed out at the same time.
+ *
+ * So when the two are genuinely different sites, the cookie says so. It costs the Lax
+ * protection, which is why the proof of work and the limit in front of the sign in
+ * matter, and it needs a certificate, because no browser keeps a None cookie without
+ * one. Over plain http nothing is changed: a cookie marked Secure on an http server is
+ * dropped on arrival, which would be a worse failure than the one it was fixing.
+ */
+export function cookiePolicy(config: Config): { sameSite: "none"; secure: true } | undefined {
+	if (!differentSites(config.COFRE_WEB_ORIGIN, config.COFRE_PUBLIC_URL)) return undefined;
+	if (!config.COFRE_PUBLIC_URL.startsWith("https://")) return undefined;
+	return { sameSite: "none", secure: true };
+}
+
 export function createAuth(config: Config, database: OpenedDatabase) {
 	const store = database.postgres ?? database.sqlite;
 	if (!store) throw new Error("the database was opened without a handle for authentication");
@@ -57,6 +100,9 @@ export function createAuth(config: Config, database: OpenedDatabase) {
 			database: {
 				generateId: () => uuidV7(),
 			},
+			// Only when the interface lives on another site, and only over https. See
+			// cookiePolicy above for why, and for why it is left alone otherwise.
+			...(cookiePolicy(config) ? { defaultCookieAttributes: cookiePolicy(config) } : {}),
 			// Behind a proxy, and inside a container, the address of the socket is the
 			// proxy. The owner names the header their proxy sets, and only then is it
 			// believed.
