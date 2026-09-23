@@ -69,12 +69,26 @@ export async function applyLanguage(language: Language): Promise<void> {
 	}
 	await i18next.changeLanguage(language);
 	rememberLanguage(language);
+	speakTheDocument(language);
+}
+
+/**
+ * Says which language the page is written in, on the page itself.
+ *
+ * A screen reader picks its pronunciation from this attribute and from nothing else, so
+ * a document that still claims Portuguese while every word on it is English is read out
+ * in Portuguese vowels. The strings changing without this changing is the whole of the
+ * defect, and it is what WCAG names as the language of the page.
+ */
+function speakTheDocument(language: Language): void {
+	document.documentElement.lang = LOCALE_OF[language];
 }
 
 // The language chosen last time, applied once the first screen is up rather than before
 // it: a person who reads Portuguese waits for nothing, and a person who chose English
 // sees one repaint instead of a blank page.
 const chosen = storedLanguage();
-if (chosen !== "pt") void applyLanguage(chosen);
+if (chosen === "pt") speakTheDocument(chosen);
+else void applyLanguage(chosen);
 
 export default i18next;

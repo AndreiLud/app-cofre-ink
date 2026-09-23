@@ -54,10 +54,18 @@ test.describe("the interface language", () => {
 	test("switches to English and stays after a reload", async ({ page }) => {
 		await openCofre(page);
 
+		const document = page.locator("html");
+		await expect(document).toHaveAttribute("lang", /^pt/);
+
 		await page.getByRole("button", { name: "Idioma" }).click();
 		await expect(page.getByRole("link", { name: "Overview" })).toBeVisible();
 
+		// The page says which language it is in, and it is the only thing a screen reader
+		// reads to decide how to pronounce the words on it.
+		await expect(document).toHaveAttribute("lang", /^en/);
+
 		await page.reload();
 		await expect(page.getByRole("link", { name: "Overview" })).toBeVisible({ timeout: 20_000 });
+		await expect(document).toHaveAttribute("lang", /^en/);
 	});
 });
