@@ -60,6 +60,10 @@ yarn-debug.log*
 .netlify/
 .wrangler/
 
+# Notes to the tooling, not to the product.
+CLAUDE.md
+.claude/
+
 # Editors and operating systems.
 .idea/
 .vscode/*
