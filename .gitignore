@@ -60,6 +60,13 @@ yarn-debug.log*
 .netlify/
 .wrangler/
 
+# The assistant this was built with. Its entry point document, the folder holding its
+# settings and the preview configuration are notes to a tool, not part of the product,
+# and they stay on the machine that uses them.
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+
 # Editors and operating systems.
 .idea/
 .vscode/*
