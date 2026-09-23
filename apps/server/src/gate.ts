@@ -6,11 +6,23 @@
 // costs the caller rather than the server: a number they have to search for, checked
 // here in one hash.
 //
-// The challenges live in memory and only here. They are single use and short lived, so
-// the list is small by construction, and a machine asking for a million of them finds
-// the oldest ones thrown away rather than a server out of memory.
+// Nothing is stored to hand a challenge out. The challenge carries its own salt and its
+// own expiry, signed with the secret of this server, so asking for one costs this
+// process a signature and nothing else: no entry, no list, no room to run out of.
+//
+// What is stored is the other half, and only the half that was earned. A proof that
+// checks out has its salt written down until it expires, because a challenge is single
+// use and that is the only way to know a salt has been spent. Filling that list means
+// actually doing the work, over and over, which is precisely the cost this file exists
+// to charge.
+//
+// The earlier shape kept every challenge it ever issued, capped the list and threw away
+// the oldest when it overflowed. Those were the ones somebody was in the middle of
+// answering, so anybody could have kept the list full and quietly stopped other people
+// from signing in, for free.
 
-import { checkWork, freshSalt, uuidV7 } from "@cofre/core";
+import { createHmac, timingSafeEqual } from "node:crypto";
+import { checkWork, freshSalt } from "@cofre/core";
 
 export type Challenge = { id: string; salt: string; bits: number };
 
@@ -18,10 +30,11 @@ export type Challenge = { id: string; salt: string; bits: number };
 const GOOD_FOR = 5 * 60 * 1000;
 
 /**
- * How many are kept. A challenge is a hundred bytes or so, and a caller that wants more
- * than this many at once is not somebody signing in.
+ * How many spent salts are kept at once. Every one of them cost somebody the work, so
+ * this is not a number anybody reaches by asking: it is here so that a bug upstream
+ * cannot turn into memory that only grows.
  */
-const MOST = 5_000;
+const MOST = 50_000;
 
 export type Gate = {
 	issue: () => Challenge;
@@ -31,20 +44,30 @@ export type Gate = {
 	readonly bits: number;
 };
 
-export function createGate(bits: number, now: () => number = Date.now): Gate {
-	const open = new Map<string, { salt: string; bits: number; expiresAt: number }>();
+export function createGate(bits: number, secret: string, now: () => number = Date.now): Gate {
+	/** Salts that have been answered, and the moment each one stops mattering. */
+	const spent = new Map<string, number>();
 
-	function prune(): void {
-		const moment = now();
-		for (const [id, challenge] of open) {
-			if (challenge.expiresAt <= moment) open.delete(id);
+	function sign(salt: string, expiresAt: number): string {
+		return createHmac("sha256", secret).update(`${salt}.${expiresAt}`).digest("hex");
+	}
+
+	function signatureHolds(given: string, expected: string): boolean {
+		const one = Buffer.from(given, "utf8");
+		const two = Buffer.from(expected, "utf8");
+		// A length that does not match is a signature that does not match, and comparing
+		// the two would throw rather than answer.
+		return one.length === two.length && timingSafeEqual(one, two);
+	}
+
+	function prune(moment: number): void {
+		for (const [salt, expiresAt] of spent) {
+			if (expiresAt <= moment) spent.delete(salt);
 		}
-		// Still too many means somebody is collecting them. The oldest go, which are the
-		// ones nearest to expiring anyway.
-		while (open.size > MOST) {
-			const oldest = open.keys().next();
+		while (spent.size > MOST) {
+			const oldest = spent.keys().next();
 			if (oldest.done) break;
-			open.delete(oldest.value);
+			spent.delete(oldest.value);
 		}
 	}
 
@@ -52,30 +75,41 @@ export function createGate(bits: number, now: () => number = Date.now): Gate {
 		bits,
 
 		issue(): Challenge {
-			prune();
-			const challenge = { id: uuidV7(), salt: freshSalt(), bits };
-			open.set(challenge.id, { salt: challenge.salt, bits, expiresAt: now() + GOOD_FOR });
-			return challenge;
+			const salt = freshSalt();
+			const expiresAt = now() + GOOD_FOR;
+			// The identifier is the challenge: a salt, the moment it dies, and a signature
+			// over both. Nothing here has to be remembered to be recognised later.
+			return { id: `${salt}.${expiresAt}.${sign(salt, expiresAt)}`, salt, bits };
 		},
 
 		redeem(proof): boolean {
 			if (bits === 0) return true;
 			if (typeof proof !== "string") return false;
 
-			const at = proof.indexOf(".");
+			// The number is after the last dot, because the identifier in front of it has
+			// dots of its own.
+			const at = proof.lastIndexOf(".");
 			if (at <= 0) return false;
-			const id = proof.slice(0, at);
 			const nonce = Number(proof.slice(at + 1));
 
-			const challenge = open.get(id);
-			if (!challenge) return false;
+			const parts = proof.slice(0, at).split(".");
+			if (parts.length !== 3) return false;
+			const [salt, when, signature] = parts as [string, string, string];
 
-			// Taken out whatever the answer is, so a wrong one cannot be tried again
-			// against the same salt until it works.
-			open.delete(id);
-			if (challenge.expiresAt <= now()) return false;
+			const expiresAt = Number(when);
+			if (!Number.isSafeInteger(expiresAt)) return false;
+			if (!signatureHolds(signature, sign(salt, expiresAt))) return false;
 
-			return checkWork(challenge.salt, challenge.bits, nonce);
+			const moment = now();
+			prune(moment);
+			if (expiresAt <= moment) return false;
+
+			// Written down whatever the answer turns out to be, so a wrong one cannot be
+			// tried again against the same salt until it works.
+			if (spent.has(salt)) return false;
+			spent.set(salt, expiresAt);
+
+			return checkWork(salt, bits, nonce);
 		},
 	};
 }

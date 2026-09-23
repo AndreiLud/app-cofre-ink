@@ -29,9 +29,13 @@ export type WebdavOptions = {
 };
 
 function authorisation(options: WebdavOptions): string {
-	const pair = `${options.user}:${options.password}`;
-	// btoa is in every browser and in Node since long before this project.
-	return `Basic ${btoa(unescape(encodeURIComponent(pair)))}`;
+	// Basic wants the pair as bytes, and a password with an accent in it is more than
+	// one byte per character. The encoder says which bytes those are; btoa then reads
+	// each one as a character, which is the whole of what it does.
+	const bytes = new TextEncoder().encode(`${options.user}:${options.password}`);
+	let latin = "";
+	for (const byte of bytes) latin += String.fromCharCode(byte);
+	return `Basic ${btoa(latin)}`;
 }
 
 /** The file a space keeps, for the callers that name it. */

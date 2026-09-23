@@ -50,6 +50,13 @@ COPY --from=build /app/apps/web/dist apps/server/public
 
 ENV COFRE_STATIC_DIR=/app/apps/server/public
 ENV COFRE_DATABASE=/data/cofre.db
+
+# Not root. The image already carries a plain user, and the folder the data lives in is
+# made here so that a fresh volume is created owned by the account that has to write to
+# it rather than by the one that does not have to be root to read the code.
+RUN mkdir -p /data && chown -R node:node /data /app
+USER node
+
 VOLUME /data
 EXPOSE 4321
 

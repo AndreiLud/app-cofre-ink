@@ -303,7 +303,7 @@ const savedFilterInput = z.object({
 
 export function createApp({ config, database, auth }: AppDependencies) {
 	const app = new Hono<{ Variables: Variables }>();
-	const gate = createGate(config.COFRE_PROOF_BITS);
+	const gate = createGate(config.COFRE_PROOF_BITS, config.COFRE_SECRET);
 
 	/**
 	 * The headers a browser reads before it does anything clever.
@@ -424,7 +424,11 @@ export function createApp({ config, database, auth }: AppDependencies) {
 	});
 
 	app.use("/api/*", async (context, next) => {
-		if (context.req.path.startsWith("/api/auth")) return next();
+		// The prefix and nothing that merely begins with it, so that a route named
+		// /api/authority later does not inherit an exemption nobody meant to give it.
+		if (context.req.path === "/api/auth" || context.req.path.startsWith("/api/auth/")) {
+			return next();
+		}
 		if (context.req.method === "GET" && context.req.path === "/api/setup") return next();
 		if (context.req.method === "GET" && context.req.path === "/api/challenge") return next();
 		if (context.req.method === "GET" && /^\/api\/invitations\/[^/]+$/.test(context.req.path)) {

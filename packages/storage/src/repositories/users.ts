@@ -157,7 +157,24 @@ export async function upsertUserFromIdentity(
 	const moment = now();
 
 	const existing = await driver.all(`${SELECT} WHERE "id" = ?`, [identity.id]);
-	if (existing.length === 0) {
+	const already = existing[0];
+
+	// The server calls this on every request that carries a session, to keep its own row
+	// in step with whoever signed in. Almost every one of those finds nothing to change,
+	// and writing anyway took a write lock on the database to store what was already
+	// there. So the common case reads one row and stops.
+	if (already) {
+		const current = toUser(already);
+		if (
+			current.email === email &&
+			current.name === name &&
+			(current.image ?? null) === (identity.image ?? null)
+		) {
+			return current;
+		}
+	}
+
+	if (!already) {
 		await driver.run(
 			`INSERT INTO "users" ("id", "email", "name", "image", "email_verified", "created_at", "updated_at")
 			 VALUES (${marks(7)})`,
