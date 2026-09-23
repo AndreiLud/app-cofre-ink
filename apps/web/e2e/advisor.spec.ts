@@ -76,7 +76,7 @@ test.describe("the check up", () => {
 	test("compares the months just gone with the ones before, and the card ahead", async ({
 		page,
 	}) => {
-		const months = [1, 2, 3, 4, 5, 6].map((back) => {
+		const months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map((back) => {
 			const when = new Date();
 			when.setUTCDate(1);
 			when.setUTCMonth(when.getUTCMonth() - back);
@@ -107,7 +107,10 @@ test.describe("the check up", () => {
 			// description left and cannot be written.
 			await write(`recebi Trabalho 6000,00 ${month}-05 banco`);
 			// The three months just gone are the cheaper ones, so there is a direction.
-			await write(`Mercado ${index < 3 ? "3500,00" : "4000,00"} ${month}-12 banco`);
+			// And the ninth month back is the dear one, the kind that comes once a year:
+			// far enough behind not to touch what an ordinary month is today.
+			const spent = index === 8 ? "9000,00" : index < 3 ? "3500,00" : "4000,00";
+			await write(`Mercado ${spent} ${month}-12 banco`);
 		}
 
 		// Something bought in parts, which is what spends a month before it arrives.
@@ -126,10 +129,18 @@ test.describe("the check up", () => {
 		await expect(page.getByRole("heading", { name: "O cartão" })).toBeVisible();
 		await expect(page.getByText(/comprometido em parcelas/)).toBeVisible();
 
-		// Five parts of two hundred still to come, which a month that leaves two and a
-		// half thousand over covers without trouble.
-		await expect(page.getByRole("listitem").filter({ hasText: "2027" })).toHaveCount(2);
 		await expect(page.getByText("mais do que sobra num mês")).toHaveCount(0);
+
+		// One job, which is what most people have, and the one number that follows from
+		// it: how long the money would last without it.
+		await expect(page.getByRole("heading", { name: "De onde vem o dinheiro" })).toBeVisible();
+		// Written in lower case in the records, and the subject of a sentence here.
+		await expect(page.getByText(/Se Trabalho parar/)).toBeVisible();
+
+		// And the month that cost three times the others, turned into a monthly figure.
+		await expect(page.getByRole("heading", { name: "O que vem pela frente" })).toBeVisible();
+		await expect(page.getByText(/acima de um mês normal/)).toBeVisible();
+		await expect(page.getByText(/chega lá sem susto/)).toBeVisible();
 	});
 
 	test("is in the planning section, and reads a space with no history honestly", async ({

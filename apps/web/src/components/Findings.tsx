@@ -40,6 +40,15 @@ export function findingLine(
 				: money(amount);
 	}
 
+	// Inflation is the one figure here kept in hundredths of a per cent, because a year
+	// of it rounded to a whole number stops being the number that was published.
+	if (typeof finding.amounts.inflation === "number") {
+		values.inflation = new Intl.NumberFormat(language === "en" ? "en" : "pt-BR", {
+			minimumFractionDigits: 2,
+			maximumFractionDigits: 2,
+		}).format(finding.amounts.inflation / 100);
+	}
+
 	// Months of cover are kept in tenths so that nothing carries a fraction until it
 	// reaches a screen, which is here.
 	if (typeof finding.amounts.covers === "number") {
@@ -51,7 +60,11 @@ export function findingLine(
 	const counted = COUNTED[finding.code];
 	if (counted) values.count = finding.amounts[counted] ?? 0;
 
-	return t(`finding.${finding.code}`, values);
+	// Money standing still costs something, and how much depends on a number nobody may
+	// have fetched yet. The sentence that names it exists only when it can be filled in.
+	const knowsInflation = finding.code === "idleCash" && typeof finding.amounts.losing === "number";
+
+	return t(knowsInflation ? "finding.idleCashLosing" : `finding.${finding.code}`, values);
 }
 
 export function Findings({

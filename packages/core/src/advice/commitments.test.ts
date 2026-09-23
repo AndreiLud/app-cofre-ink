@@ -22,6 +22,9 @@ function household(): Snapshot {
 		netByMonth: [],
 		invoices: [],
 		instalments: [],
+		incomeSources: [],
+		longer: [],
+		inflation: null,
 	};
 }
 

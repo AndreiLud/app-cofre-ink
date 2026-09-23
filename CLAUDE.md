@@ -160,6 +160,7 @@ nothing.
 | 16. The check up: four signs, a verdict, and what to do first | done |
 | 17. The plan: an order, a month on each step, and where the money comes from | done |
 | 18. The trend against the months before, and what the card has already spent | done |
+| 19. If the income stops, the dearer months of the year, and idle money | done |
 | Next. Real statements for the recogniser, and whatever the owner asks for | waiting |
 
 ## Architecture decision records
@@ -197,3 +198,4 @@ nothing.
 | [0029](docs/adr/0029_four_signs_and_a_verdict.md) | four signs, and a word for the state of the money |
 | [0030](docs/adr/0030_a_plan_with_a_month_on_it.md) | a plan with a month on it, and a target they have already hit |
 | [0031](docs/adr/0031_whether_it_is_getting_better.md) | whether it is getting better, and the months already spent |
+| [0032](docs/adr/0032_the_year_ahead_and_the_one_income.md) | the year ahead, the one income, and what standing still costs |

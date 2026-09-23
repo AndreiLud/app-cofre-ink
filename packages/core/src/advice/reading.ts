@@ -22,6 +22,7 @@
 import { median } from "../plan/projection.ts";
 import { type CalendarDate, daysBetween } from "../time/calendar.ts";
 import { type Commitments, commitmentsFrom } from "./commitments.ts";
+import { type Exposure, exposureFrom } from "./exposure.ts";
 import {
 	type Finding,
 	findEverything,
@@ -30,6 +31,7 @@ import {
 	THIN_SAVING,
 } from "./findings.ts";
 import { type Levers, leversIn, type Plan, planFrom } from "./plan.ts";
+import { type Season, seasonFrom } from "./season.ts";
 import { type Trend, trendOf } from "./trend.ts";
 
 export type SignCode =
@@ -86,6 +88,10 @@ export type Reading = {
 	trend: Trend | null;
 	/** What the card takes, and what it has taken from the months ahead. */
 	commitments: Commitments | null;
+	/** Where the money comes from, and what happens if the biggest part stops. */
+	exposure: Exposure | null;
+	/** The dearer months of the year behind, and what they cost a month. */
+	season: Season | null;
 };
 
 /** Left over, as hundredths of what came in. Under the second one is worth saying. */
@@ -281,5 +287,7 @@ export function readingOf(snapshot: Snapshot): Reading {
 		levers: leversIn(snapshot),
 		trend: trendOf(snapshot),
 		commitments: commitmentsFrom(snapshot),
+		exposure: exposureFrom(snapshot),
+		season: seasonFrom(snapshot),
 	};
 }

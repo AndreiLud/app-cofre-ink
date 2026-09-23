@@ -102,6 +102,13 @@ export function AdvisorPage() {
 	const levers = reading.data?.levers.levers ?? [];
 	const months = reading.data?.monthsRead ?? 0;
 
+	/**
+	 * Where money comes from is grouped by the description in lower case, so that a
+	 * salary written two ways is one source. Here it is the subject of a sentence, and
+	 * a sentence about somebody's job should not open in lower case.
+	 */
+	const named = (name: string) => name.charAt(0).toUpperCase() + name.slice(1);
+
 	/** Months of cover, kept in tenths until they reach a screen, which is here. */
 	const cover = (tenths: number) =>
 		t("advisor.monthsCovered", {
@@ -273,6 +280,45 @@ export function AdvisorPage() {
 						</Panel>
 					) : null}
 
+					{reading.data.exposure ? (
+						<Panel
+							title={t("advisor.exposureTitle")}
+							description={t("advisor.exposureBody", {
+								count: reading.data.exposure.sources.length,
+							})}
+						>
+							<ul className="divide-y divide-line">
+								{reading.data.exposure.sources.map((source) => (
+									<li
+										key={source.name}
+										className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3 first:pt-0 last:pb-0"
+									>
+										<span className="font-medium text-ink">{named(source.name)}</span>
+										<span className="font-mono text-sm text-ink">
+											{money(source.usual)}
+											<span className="ml-2 text-quiet">
+												{t("advisor.ofIncome", { value: source.share })}
+											</span>
+										</span>
+									</li>
+								))}
+							</ul>
+
+							{/* The question somebody has actually asked themselves at three in
+							    the morning, answered with their own figures. */}
+							<p className="mt-4 border-t border-line pt-4 text-sm leading-relaxed text-ink">
+								{reading.data.exposure.lasts === null
+									? t("advisor.wouldCover", {
+											name: named(reading.data.exposure.sources[0]?.name ?? ""),
+										})
+									: t("advisor.wouldLast", {
+											name: named(reading.data.exposure.sources[0]?.name ?? ""),
+											cover: cover(reading.data.exposure.lasts),
+										})}
+							</p>
+						</Panel>
+					) : null}
+
 					{levers.length > 0 ? (
 						<Panel
 							title={t("advisor.leversTitle")}
@@ -365,6 +411,41 @@ export function AdvisorPage() {
 									) : null}
 								</div>
 							) : null}
+						</Panel>
+					) : null}
+
+					{reading.data.season && reading.data.season.heavy.length > 0 ? (
+						<Panel
+							title={t("advisor.seasonTitle")}
+							description={t("advisor.seasonBody", {
+								usual: money(reading.data.season.usual),
+								count: reading.data.season.monthsRead,
+							})}
+						>
+							<ul className="divide-y divide-line">
+								{reading.data.season.heavy.map((month) => (
+									<li key={month.was} className="py-3 first:pt-0 last:pb-0">
+										<div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+											<span className="font-medium text-ink">{monthName(month.next)}</span>
+											<span className="font-mono text-sm text-ink">{money(month.spent)}</span>
+										</div>
+										<p className="mt-1 text-sm leading-relaxed text-quiet">
+											{t("advisor.seasonWas", {
+												was: monthName(month.was),
+												over: money(month.over),
+											})}
+										</p>
+										{/* A lump in February is frightening. What it costs a month
+										    between now and then is a decision. */}
+										<p className="text-sm leading-relaxed text-ink">
+											{t("advisor.seasonSave", {
+												count: month.away,
+												everyMonth: money(month.everyMonth),
+											})}
+										</p>
+									</li>
+								))}
+							</ul>
 						</Panel>
 					) : null}
 

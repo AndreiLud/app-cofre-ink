@@ -31,6 +31,15 @@ import type { TransactionsRepository } from "./transactions.ts";
 /** How many months behind to read. Six sees a habit without last year deciding today. */
 const WINDOW = 6;
 
+/**
+ * How many months of totals to read, which is more than the window on purpose.
+ *
+ * A bill that comes once a year is invisible in six months, so the one question about
+ * the year ahead reads eighteen. Only that question uses them: every median in the
+ * package is still made of the six.
+ */
+const LONGER = 18;
+
 /** What falls due inside this many days is what the person can still do something about. */
 const SOON = 15;
 
@@ -42,9 +51,12 @@ const AHEAD = 24;
 
 export type {
 	Commitments,
+	Exposure,
 	Finding,
 	FindingCode,
 	FindingWeight,
+	HeavyMonth,
+	IncomeSource,
 	Lever,
 	Levers,
 	MonthAhead,
@@ -53,6 +65,7 @@ export type {
 	Plan,
 	PlanStep,
 	Reading,
+	Season,
 	SignCode,
 	SignState,
 	Snapshot,
@@ -101,6 +114,51 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			income: asNumber(row.income),
 			expense: Math.abs(asNumber(row.expense)),
 		}));
+	}
+
+	/**
+	 * What came in, by where it came from.
+	 *
+	 * Grouped by the description as written, which is the same bargain the repeating
+	 * charges make: a salary written the same way every month is one source, and a
+	 * salary written three ways is three. Rules tidy descriptions, so the household
+	 * that cares about this has the means to fix it.
+	 */
+	async function incomeBySource(spaceId: string, from: string, to: string) {
+		const rows = await context.driver.all(
+			`SELECT LOWER(TRIM("description")) AS name, SUBSTR("happened_on", 1, 7) AS month,
+			   COALESCE(SUM("amount_in_base"), 0) AS total
+			 FROM "transactions"
+			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "status" = 'settled'
+			   AND "kind" = 'income' AND "happened_on" >= ? AND "happened_on" <= ?
+			   AND "description" <> ''
+			 GROUP BY LOWER(TRIM("description")), SUBSTR("happened_on", 1, 7)`,
+			[spaceId, from, to],
+		);
+
+		return rows.map((row) => ({
+			name: String(row.name),
+			month: String(row.month),
+			amount: Math.abs(asNumber(row.total)),
+		}));
+	}
+
+	/**
+	 * What prices did over the last twelve published months, compounded.
+	 *
+	 * Null when nobody has fetched them, which is the ordinary case offline and on a
+	 * fresh install. A figure about somebody's money that depends on a number nobody
+	 * has is better left unsaid than guessed.
+	 */
+	async function inflationOverAYear(): Promise<{ percent: number; months: number } | null> {
+		const rows = await context.driver.all(
+			`SELECT "rate" FROM "index_rates" WHERE "series" = 'ipca' ORDER BY "month" DESC LIMIT 12`,
+		);
+		if (rows.length < 12) return null;
+
+		// Each month is hundredths of a per cent, and they compound rather than add.
+		const factor = rows.reduce((total, row) => total * (1 + asNumber(row.rate) / 10_000), 1);
+		return { percent: Math.round((factor - 1) * 10_000), months: rows.length };
 	}
 
 	async function spendingByCategory(spaceId: string, from: string, to: string) {
@@ -386,6 +444,9 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			const from = `${firstMonth}-01`;
 			const to = `${thisMonth}-31`;
 			const until = addDays(input.today, SOON);
+			// One read of the totals covers both windows: the six the medians are made of
+			// are the first six of the eighteen the year ahead needs.
+			const fromLonger = `${addMonthsToMonth(thisMonth, -LONGER)}-01`;
 
 			const [
 				months,
@@ -401,8 +462,10 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 				lastSaved,
 				invoices,
 				instalments,
+				sources,
+				inflation,
 			] = await Promise.all([
-				monthlyTotals(input.spaceId, from, to),
+				monthlyTotals(input.spaceId, fromLonger, to),
 				spendingByCategory(input.spaceId, from, to),
 				needs.budgets.progress({ spaceId: input.spaceId, month: thisMonth, today: input.today }),
 				needs.goals.progress({ spaceId: input.spaceId, today: input.today }),
@@ -415,6 +478,8 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 				lastPaidIn(input.spaceId),
 				closedInvoices(input.spaceId, firstMonth, thisMonth),
 				instalmentsAhead(input.spaceId, input.today),
+				incomeBySource(input.spaceId, from, to),
+				inflationOverAYear(),
 			]);
 
 			// Money on hand is what is in the accounts somebody spends from. What is put
@@ -448,11 +513,15 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 				byCategory.set(row.categoryId, found);
 			}
 
+			// Every closed month that was read, and then the six the medians are made of.
+			// The order is newest first, which both windows count on.
+			const closed = months.filter((month) => month.month !== thisMonth);
+
 			return {
 				today: input.today,
 				onHand,
 				thisMonth: current,
-				before: months.filter((month) => month.month !== thisMonth),
+				before: closed.slice(0, WINDOW),
 				categories: [...byCategory].map(([categoryId, found]) => ({ categoryId, ...found })),
 				budgets: budgets.map((budget) => ({
 					categoryId: budget.categoryId ?? "",
@@ -481,6 +550,9 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 				netByMonth: moved,
 				invoices,
 				instalments,
+				incomeSources: sources,
+				longer: closed,
+				inflation,
 			};
 		},
 	};

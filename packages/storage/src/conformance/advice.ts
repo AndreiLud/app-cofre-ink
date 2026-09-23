@@ -7,6 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 import { NotFoundError } from "../errors.ts";
+import { saveIndexRates } from "../repositories/indices.ts";
 import { type AdapterUnderTest, prepare } from "./setup.ts";
 
 const TODAY = "2026-09-20";
@@ -397,6 +398,147 @@ export function runAdviceConformance(adapter: AdapterUnderTest): void {
 				expect(card_?.ahead).toHaveLength(5);
 				expect(card_?.aheadTotal).toBe(100_000);
 				expect(card_?.lastMonth).toBe("2027-02");
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("reads where the money comes from, and what would be left without the biggest", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Casa" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+					initialBalance: 900_000,
+				});
+
+				for (const month of ["2026-06", "2026-07", "2026-08"]) {
+					await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "income",
+						amount: 600_000,
+						happenedOn: `${month}-05`,
+						description: "Salario",
+						accountId: account.id,
+					});
+					await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "income",
+						amount: 200_000,
+						happenedOn: `${month}-10`,
+						description: "Aluguel",
+						accountId: account.id,
+					});
+				}
+
+				const exposure = (await fixture.asAna.advice.reading({ spaceId: space.id, today: TODAY }))
+					.exposure;
+
+				expect(exposure?.sources.map((one) => one.name)).toEqual(["salario", "aluguel"]);
+				expect(exposure?.concentration).toBe(75);
+				expect(exposure?.without).toBe(200_000);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		/**
+		 * The year ahead is the one question here that reads more than six months, and
+		 * the six every median is made of are the first six of what it read.
+		 */
+		it("reads a year and a half of totals without moving what an ordinary month is", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Casa" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+				});
+
+				// Thirteen closed months, and one of them three times as dear.
+				const months = [
+					"2025-09",
+					"2025-10",
+					"2025-11",
+					"2025-12",
+					"2026-01",
+					"2026-02",
+					"2026-03",
+					"2026-04",
+					"2026-05",
+					"2026-06",
+					"2026-07",
+					"2026-08",
+				];
+				for (const month of months) {
+					await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "expense",
+						amount: month === "2025-12" ? 900_000 : 300_000,
+						happenedOn: `${month}-12`,
+						description: `Gastos de ${month}`,
+						accountId: account.id,
+					});
+				}
+
+				const snapshot = await fixture.asAna.advice.snapshot({ spaceId: space.id, today: TODAY });
+				expect(snapshot.longer).toHaveLength(12);
+				expect(snapshot.before).toHaveLength(6);
+
+				const season = (await fixture.asAna.advice.reading({ spaceId: space.id, today: TODAY }))
+					.season;
+				expect(season?.heavy.map((one) => one.was)).toEqual(["2025-12"]);
+				expect(season?.heavy[0]?.next).toBe("2026-12");
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("says what a year of standing still costs, once the index is in the database", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Casa" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+					initialBalance: 3_000_000,
+				});
+
+				for (const month of ["2026-06", "2026-07", "2026-08"]) {
+					await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "expense",
+						amount: 300_000,
+						happenedOn: `${month}-12`,
+						description: `Gastos de ${month}`,
+						accountId: account.id,
+					});
+				}
+
+				// Twelve months of half a per cent, which compounds to a little over six.
+				await saveIndexRates(
+					fixture.driver,
+					"ipca",
+					Array.from({ length: 12 }, (_, index) => ({
+						month: `2025-${String(index + 1).padStart(2, "0")}`,
+						rate: 50,
+					})),
+				);
+
+				const found = (
+					await fixture.asAna.advice.findings({ spaceId: space.id, today: TODAY })
+				).find((one) => one.code === "idleCash");
+
+				// Half a per cent twelve times over is not six per cent, it is 6,17.
+				expect(found?.amounts.inflation).toBe(617);
+				// Twenty one thousand on hand, nine of it the three month reserve, so
+				// twelve thousand sits still and loses that share of itself in a year.
+				expect(found?.amounts.spare).toBe(1_200_000);
+				expect(found?.amounts.losing).toBe(74_040);
 			} finally {
 				await fixture.close();
 			}

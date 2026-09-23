@@ -169,6 +169,19 @@ export type Snapshot = {
 	invoices: readonly MonthlyAmount[];
 	/** What instalments already bought take out of each month ahead, soonest first. */
 	instalments: readonly MonthlyAmount[];
+	/** What came in, by where it came from and in which month. One row per pair. */
+	incomeSources: readonly { name: string; month: string; amount: number }[];
+	/**
+	 * The closed months of the last year and a half, most recent first.
+	 *
+	 * A bill that comes once a year cannot be seen in six months of records, so the one
+	 * question about the year ahead reads a longer window than everything else. The
+	 * medians the rest of this package is made of still use `before`, deliberately:
+	 * last year should not decide what an ordinary month is today.
+	 */
+	longer: readonly MonthlyTotals[];
+	/** What prices did over the last twelve published months, in hundredths of a percent. */
+	inflation: { percent: number; months: number } | null;
 };
 
 /** Under this, a difference is not worth a line on a screen. Fifty units of currency. */
@@ -491,6 +504,10 @@ function aboutWhatIsSaved(snapshot: Snapshot): Finding[] {
 			});
 		} else if (snapshot.onHand > wanted + usualExpense) {
 			const spare = snapshot.onHand - wanted;
+			// What a year of sitting still costs it, when the figure for that is known.
+			// Still good news, and still a number worth putting next to it: money that is
+			// not spent is not therefore unharmed.
+			const inflation = snapshot.inflation;
 			found.push({
 				code: "idleCash",
 				weight: "good",
@@ -500,6 +517,12 @@ function aboutWhatIsSaved(snapshot: Snapshot): Finding[] {
 					wanted,
 					spare,
 					covers: Math.round(covers * 10),
+					...(inflation === null
+						? {}
+						: {
+								inflation: inflation.percent,
+								losing: Math.round((spare * inflation.percent) / 10_000),
+							}),
 				},
 				atStake: spare,
 			});
