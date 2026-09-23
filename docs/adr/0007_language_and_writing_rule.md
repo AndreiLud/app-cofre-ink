@@ -26,10 +26,18 @@ program that checks it.
 | API routes and payload fields | English |
 | commit messages, pull requests, changelog | English |
 | architecture decision records, `CLAUDE.md` | English |
-| `README.md` | English |
-| `LEIAME.md`, `docs/produto.md` | Portuguese |
+| `README.md` | English first, Portuguese after it, in one file |
+| documents for people who are not working on the code | both, side by side in `docs/` |
 | interface copy | Portuguese and English, through i18n, Portuguese as the default |
 | code comments | English, matching the code around them |
+
+**Amended on 23 September 2026.** The two rows above used to name one file per
+language: a README in English and a LEIAME in Portuguese, with the product brief in
+Portuguese alone. Two files drifted, as two files do, and somebody arriving at the
+repository had to guess which of the two was current. There is now one README holding
+both languages, with a link at the top to jump between them, and the documents in
+`docs/` exist in both. English is written first and is what the other is made from,
+which is the rule that keeps them saying the same thing.
 
 Two deliberate exceptions, because the owner asked for them: the setup wizard keeps
 the command name `configurar`, with `setup` as an alias, and the product vocabulary in

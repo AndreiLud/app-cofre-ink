@@ -178,8 +178,8 @@ As onze seções do menu viraram cinco. Registros 0021 e 0022.
 **Fase 10.** Cada tela passou a vir quando é pedida, e não na primeira vez que a página
 abre. O idioma que não está em uso também. Um atalho para pular o cabeçalho, um título
 de aba por tela, e os cinzas fracos demais corrigidos. Um script que recusa uma chave
-que existe em um idioma e não no outro. E o README e o LEIAME, que o repositório nunca
-teve.
+que existe em um idioma e não no outro. E o README nos dois idiomas, que o repositório
+nunca teve.
 
 ## Riscos e como reduzo cada um
 

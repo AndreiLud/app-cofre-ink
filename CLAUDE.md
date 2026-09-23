@@ -24,9 +24,11 @@ settle up flow. The app works offline and syncs when it can reach a server.
    would be a day of churn for nobody: `@cofre/*`, `COFRE_*`, `cofre.db`. The interface
    never writes the name out: it says `{{app}}` and `APP_NAME` in
    `apps/web/src/i18n/index.ts` fills it in.
-2. Code, schema, routes, commits, ADRs and this file are written in English. Product
-   documents for the owner (`docs/produto.md`, `LEIAME.md`) and the interface are in
-   Portuguese, with English available through i18n.
+2. Code, schema, routes, commits, ADRs and this file are written in English. The
+   interface is in Portuguese with English available through i18n, and every document
+   meant to be read by somebody who is not working on the code exists in both: the
+   README carries English first and Portuguese after it, and `docs/` holds the two side
+   by side.
 3. Browser and server adapters are both built in phase 1, validated by the same
    integration suite.
 4. Sync is prepared from day one (stable identifiers, logical clock, change log) and
