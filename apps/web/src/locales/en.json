@@ -90,6 +90,10 @@
 		"portuguese": "Portuguese",
 		"english": "English"
 	},
+	"donate": {
+		"label": "Donate",
+		"newTab": "(opens in a new tab)"
+	},
 	"privacy": {
 		"hide": "Hide amounts",
 		"show": "Show amounts"

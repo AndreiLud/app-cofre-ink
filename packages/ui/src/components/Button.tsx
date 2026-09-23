@@ -41,6 +41,28 @@ const SIZES: Record<ButtonSize, string> = {
 	medium: "h-11 px-4 text-sm gap-2",
 };
 
+/**
+ * What a button is wearing, for the things that cannot be one.
+ *
+ * A link that leaves the application is a link and has to be an anchor: putting a
+ * button inside one is two controls in the same place, and a screen reader reads it as
+ * such. This hands the clothes over so that the anchor looks like the row it sits in
+ * without the recipe being written down twice.
+ */
+export function buttonClasses(
+	options: { variant?: ButtonVariant; size?: ButtonSize; className?: string } = {},
+): string {
+	const { variant = "secondary", size = "medium", className } = options;
+	return cn(
+		"inline-flex shrink-0 items-center justify-center rounded-sm font-medium whitespace-nowrap",
+		"transition-[background-color,border-color,filter] duration-150",
+		"disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-sunken",
+		VARIANTS[variant],
+		SIZES[size],
+		className,
+	);
+}
+
 export function Button({
 	variant = "secondary",
 	size = "medium",
@@ -51,18 +73,7 @@ export function Button({
 	...rest
 }: ButtonProps) {
 	return (
-		<button
-			type={type}
-			className={cn(
-				"inline-flex shrink-0 items-center justify-center rounded-sm font-medium whitespace-nowrap",
-				"transition-[background-color,border-color,filter] duration-150",
-				"disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-sunken",
-				VARIANTS[variant],
-				SIZES[size],
-				className,
-			)}
-			{...rest}
-		>
+		<button type={type} className={buttonClasses({ variant, size, className })} {...rest}>
 			{icon}
 			{children}
 		</button>

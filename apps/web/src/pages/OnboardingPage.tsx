@@ -8,7 +8,7 @@
 import { Button, Callout, Field, Select } from "@cofre/ui";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { LanguageToggle, ThemeToggle } from "../components/Controls.tsx";
+import { DonateLink, LanguageToggle, ThemeToggle } from "../components/Controls.tsx";
 import { Wordmark } from "../components/Wordmark.tsx";
 import { useTheme } from "../lib/theme.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -81,6 +81,7 @@ export function OnboardingPage() {
 				<div className="flex items-center gap-1">
 					<LanguageToggle />
 					<ThemeToggle choice={choice} isDark={isDark} onChange={setChoice} />
+					<DonateLink />
 				</div>
 			</div>
 			<h1 className="mt-6 text-3xl">{t("onboarding.title")}</h1>

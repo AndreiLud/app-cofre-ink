@@ -90,6 +90,10 @@
 		"portuguese": "Português",
 		"english": "Inglês"
 	},
+	"donate": {
+		"label": "Doar",
+		"newTab": "(abre em uma nova guia)"
+	},
 	"privacy": {
 		"hide": "Esconder valores",
 		"show": "Mostrar valores"

@@ -6,7 +6,7 @@ import { Button, Callout, Icon, Skeleton, type SpaceColour, SpaceRule } from "@c
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { LanguageToggle, PrivacyToggle, ThemeToggle } from "../components/Controls.tsx";
+import { DonateLink, LanguageToggle, PrivacyToggle, ThemeToggle } from "../components/Controls.tsx";
 import { Wordmark } from "../components/Wordmark.tsx";
 import { useTheme } from "../lib/theme.ts";
 import { useDocumentTitle } from "../lib/title.ts";
@@ -313,6 +313,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 						<PrivacyToggle hidden={cofre.amountsHidden} onChange={cofre.setAmountsHidden} />
 						<LanguageToggle />
 						<ThemeToggle choice={choice} isDark={isDark} onChange={setChoice} />
+						<DonateLink />
 					</div>
 				</div>
 				<div className="mx-auto max-w-5xl px-4">

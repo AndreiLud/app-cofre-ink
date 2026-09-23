@@ -1,7 +1,10 @@
-import { Button, Icon } from "@cofre/ui";
+import { Button, buttonClasses, Icon } from "@cofre/ui";
 import { useTranslation } from "react-i18next";
 import { applyLanguage, LANGUAGES, type Language } from "../i18n/index.ts";
 import type { ThemeChoice } from "../lib/theme.ts";
+
+/** Where somebody who wants to pay for this goes. The only address here that is ours. */
+const DONATE = "https://cofre.ink/donate";
 
 export type ThemeToggleProps = {
 	choice: ThemeChoice;
@@ -42,6 +45,28 @@ export function LanguageToggle() {
 				</span>
 			))}
 		</Button>
+	);
+}
+
+/**
+ * The one link in the interface that leaves it.
+ *
+ * An anchor and not a button, because it goes somewhere, and it says out loud that it
+ * opens a tab of its own: a control that moves the ground under somebody without
+ * warning them is the kind that gets pressed once and never again.
+ */
+export function DonateLink() {
+	const { t } = useTranslation();
+	return (
+		<a
+			href={DONATE}
+			target="_blank"
+			rel="noreferrer noopener"
+			className={buttonClasses({ variant: "quiet", size: "small" })}
+		>
+			{t("donate.label")}
+			<span className="sr-only">{t("donate.newTab")}</span>
+		</a>
 	);
 }
 

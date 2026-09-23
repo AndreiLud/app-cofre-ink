@@ -9,6 +9,7 @@ export {
 	type ButtonProps,
 	type ButtonSize,
 	type ButtonVariant,
+	buttonClasses,
 } from "./components/Button.tsx";
 export { BarList, type BarListItem, type BarListProps } from "./components/charts/BarList.tsx";
 export {
