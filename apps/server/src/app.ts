@@ -1,0 +1,1434 @@
+// The API.
+//
+// Every route below does the same three things: it finds out who is asking, it opens
+// a session on the repository layer with that person, and it calls one method. The
+// rules about who may do what live in the repository layer, not here, which is what
+// keeps the server and the browser honest about the same model.
+
+import { fetchSeries } from "@cofre/cloud";
+import type { Session } from "@cofre/storage";
+import {
+	applyChanges,
+	applyPeople,
+	changesToPush,
+	latestStampOf,
+	NotFoundError,
+	openSession,
+	PermissionError,
+	peopleInSpace,
+	previewInvitation,
+	RuleError,
+	rowOf,
+	upsertUserFromIdentity,
+} from "@cofre/storage";
+import type { Context, Next } from "hono";
+import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
+import { cors } from "hono/cors";
+import { HTTPException } from "hono/http-exception";
+import { secureHeaders } from "hono/secure-headers";
+import { z } from "zod";
+import type { Auth } from "./auth.ts";
+import type { Config } from "./config.ts";
+import type { OpenedDatabase } from "./database.ts";
+import { checkTurnstile, createGate } from "./gate.ts";
+
+export type AppDependencies = {
+	config: Config;
+	database: OpenedDatabase;
+	auth: Auth;
+};
+
+type Variables = {
+	session: Session;
+	userId: string;
+};
+
+const spaceInput = z.object({
+	name: z.string().trim().min(1).max(80),
+	// The personal space is created by the interface right after signing up, through
+	// the same route. The repository layer is what refuses a second one.
+	kind: z.enum(["personal", "shared"]).optional(),
+	colour: z.string().trim().min(1).max(20).optional(),
+	icon: z.string().trim().min(1).max(40).optional(),
+	baseCurrency: z.string().trim().length(3).optional(),
+	timezone: z.string().trim().min(1).max(60).optional(),
+});
+
+const accountInput = z.object({
+	kind: z.enum(["checking", "savings", "cash", "credit", "voucher", "investment"]),
+	name: z.string().trim().min(1).max(80),
+	currency: z.string().trim().length(3).optional(),
+	initialBalance: z.number().int().optional(),
+	institution: z.string().trim().max(80).nullable().optional(),
+	closingDay: z.number().int().min(1).max(31).nullable().optional(),
+	dueDay: z.number().int().min(1).max(31).nullable().optional(),
+	creditLimit: z.number().int().nonnegative().nullable().optional(),
+	// "food" was the separate VA before it and VR became one pot. It is still taken so
+	// that an older build talking to a newer server is answered rather than refused,
+	// and it arrives as the value that replaced it.
+	benefit: z
+		.enum(["meal", "food", "transport", "culture", "mobility"])
+		.transform((value) => (value === "food" ? "meal" : value))
+		.nullable()
+		.optional(),
+});
+
+/**
+ * A card, which is a way to reach an account and not an account itself. Which of the
+ * two links a kind requires is decided by the repository layer, in one place, for every
+ * mode: this only says what a well formed request looks like.
+ */
+const cardInput = z.object({
+	kind: z.enum(["credit", "debit", "multiple", "benefit", "prepaid"]),
+	name: z.string().trim().min(1).max(80),
+	lastFour: z.string().trim().max(4).nullable().optional(),
+	creditAccountId: z.string().trim().max(64).nullable().optional(),
+	debitAccountId: z.string().trim().max(64).nullable().optional(),
+});
+
+const roleInput = z.enum(["admin", "editor", "viewer", "logger"]);
+
+const calendarDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected a calendar date");
+
+const priority = z.enum(["essential", "important", "desirable", "superfluous"]);
+
+const categoryInput = z.object({
+	name: z.string().trim().min(1).max(60),
+	kind: z.enum(["expense", "income"]),
+	priority: priority.optional(),
+	parentId: z.string().min(1).nullable().optional(),
+	colour: z.string().trim().max(20).nullable().optional(),
+	icon: z.string().trim().max(40).nullable().optional(),
+	position: z.number().int().min(0).max(999).optional(),
+});
+
+const budgetInput = z.object({
+	scope: z.enum(["total", "priority", "category"]),
+	amount: z.number().int().positive(),
+	categoryId: z.string().min(1).nullable().optional(),
+	priority: priority.nullable().optional(),
+	month: z
+		.string()
+		.regex(/^\d{4}-\d{2}$/)
+		.nullable()
+		.optional(),
+});
+
+const goalInput = z.object({
+	name: z.string().trim().min(1).max(80),
+	targetAmount: z.number().int().positive(),
+	accountId: z.string().min(1),
+	targetDate: calendarDate.nullable().optional(),
+	notes: z.string().trim().max(2000).nullable().optional(),
+});
+
+const savingsInput = z.object({
+	mode: z.enum(["percent", "fixed"]),
+	/** Hundredths of a percent, or minor units, depending on the mode. */
+	value: z.number().int().positive(),
+	accountId: z.string().min(1).nullable().optional(),
+});
+
+const splitInput = z.object({
+	method: z.enum(["evenly", "shares", "income"]),
+	userIds: z.array(z.string().min(1)).max(20).optional(),
+	weights: z.array(z.number().int().min(0).max(1_000_000)).max(20).optional(),
+	paidBy: z.string().min(1).nullable().optional(),
+});
+
+const settlementInput = z.object({
+	fromUserId: z.string().min(1),
+	toUserId: z.string().min(1),
+	amount: z.number().int().positive(),
+	happenedOn: calendarDate,
+	note: z.string().trim().max(200).nullable().optional(),
+});
+
+// Every identifier here is a UUID, so the lengths are far above anything honest and
+// exist to stop a body of two thousand entries from carrying two thousand novels.
+const changeInput = z.object({
+	id: z.string().min(1).max(80),
+	spaceId: z.string().min(1).max(80),
+	entity: z.string().min(1).max(60),
+	entityId: z.string().min(1).max(80),
+	operation: z.enum(["insert", "update", "delete"]),
+	payload: z.record(z.string().max(80), z.unknown()),
+	hlc: z.string().min(1).max(80),
+	deviceId: z.string().min(1).max(80),
+	actorId: z.string().min(1).max(80).nullable(),
+	createdAt: z.number().int().nonnegative(),
+});
+
+const ruleInput = z.object({
+	matchText: z.string().trim().min(2).max(80),
+	categoryId: z.string().min(1),
+	accountId: z.string().min(1).nullable().optional(),
+	kind: z.enum(["income", "expense", "transfer"]).nullable().optional(),
+	priority: priority.nullable().optional(),
+	position: z.number().int().min(0).max(999).optional(),
+	disabled: z.boolean().optional(),
+});
+
+const recurrenceInput = z.object({
+	description: z.string().trim().min(1).max(200),
+	kind: z.enum(["income", "expense", "transfer"]),
+	amount: z.number().int().positive(),
+	accountId: z.string().min(1),
+	counterAccountId: z.string().min(1).nullable().optional(),
+	categoryId: z.string().min(1).nullable().optional(),
+	priority: priority.nullable().optional(),
+	frequency: z.enum(["weekly", "monthly", "yearly"]),
+	intervalCount: z.number().int().min(1).max(60).optional(),
+	dayOfMonth: z.number().int().min(1).max(31).nullable().optional(),
+	monthOfYear: z.number().int().min(1).max(12).nullable().optional(),
+	startsOn: calendarDate,
+	endsOn: calendarDate.nullable().optional(),
+	notes: z.string().trim().max(2000).nullable().optional(),
+});
+
+const transactionInput = z.object({
+	kind: z.enum(["income", "expense", "transfer"]),
+	// Always positive: the direction comes from the kind, as registry 0010 says.
+	amount: z.number().int().positive(),
+	happenedOn: calendarDate,
+	description: z.string().trim().min(1).max(200),
+	accountId: z.string().min(1),
+	counterAccountId: z.string().min(1).nullable().optional(),
+	status: z.enum(["planned", "settled"]).optional(),
+	currency: z.string().trim().length(3).optional(),
+	fxRate: z.number().int().positive().nullable().optional(),
+	notes: z.string().trim().max(2000).nullable().optional(),
+	installments: z.number().int().min(1).max(420).optional(),
+	categoryId: z.string().min(1).nullable().optional(),
+	priority: priority.nullable().optional(),
+	cardId: z.string().min(1).max(64).nullable().optional(),
+});
+
+const transactionPatch = z.object({
+	amount: z.number().int().positive().optional(),
+	happenedOn: calendarDate.optional(),
+	description: z.string().trim().min(1).max(200).optional(),
+	accountId: z.string().min(1).optional(),
+	counterAccountId: z.string().min(1).nullable().optional(),
+	status: z.enum(["planned", "settled"]).optional(),
+	notes: z.string().trim().max(2000).nullable().optional(),
+	categoryId: z.string().min(1).nullable().optional(),
+	priority: priority.nullable().optional(),
+	cardId: z.string().min(1).max(64).nullable().optional(),
+});
+
+/** A selection, kept small enough that one request cannot lock the database. */
+const selection = z.array(z.string().min(1)).min(1).max(500);
+
+const holdingInput = z.object({
+	accountId: z.string().min(1),
+	name: z.string().trim().min(1).max(120),
+	kind: z.enum(["fixedIncome", "fund", "stock", "realEstate", "crypto", "pension", "other"]),
+	/** Scaled by ten to the eighth, so a fund can have fractions of a unit. */
+	quantity: z.number().int().nonnegative(),
+	unitPrice: z.number().int().nonnegative(),
+	ticker: z.string().trim().max(20).nullable().optional(),
+	currency: z.string().trim().length(3).optional(),
+	cost: z.number().int().nonnegative().optional(),
+	boughtOn: calendarDate.nullable().optional(),
+	notes: z.string().trim().max(2000).nullable().optional(),
+});
+
+const scenarioInput = z.object({
+	name: z.string().trim().min(1).max(60),
+	// Whatever the screen puts in it, as a saved filter is.
+	adjustments: z.array(z.record(z.string(), z.unknown())).max(20),
+	position: z.number().int().min(0).max(999).optional(),
+});
+
+/**
+ * One line of a file. The amount is signed here, unlike everywhere else, because that
+ * is what a statement says and turning it around before the person has looked at it is
+ * how a credit becomes a debit.
+ */
+const importedRecord = z.object({
+	happenedOn: calendarDate,
+	amount: z.number().int(),
+	description: z.string().trim().min(1).max(200),
+	notes: z.string().trim().max(2000).nullable().optional(),
+	externalId: z.string().trim().max(120).nullable().optional(),
+	categoryId: z.string().min(1).nullable().optional(),
+	priority: priority.nullable().optional(),
+});
+
+const importInput = z.object({
+	accountId: z.string().min(1),
+	cardId: z.string().min(1).max(64).nullable().optional(),
+	// A statement of a whole year fits. Anything larger is two files.
+	records: z.array(importedRecord).min(1).max(3000),
+});
+
+/**
+ * A backup as it arrives from a file the person chose. The rows are not described
+ * further: the repository knows which tables and columns exist and writes nothing it
+ * does not recognise, which is a better guard than a schema repeated here.
+ */
+const backupInput = z.object({
+	format: z.literal("cofre.backup"),
+	version: z.number().int().positive(),
+	// Restoring never reads it, so a file that lost it still comes back.
+	exportedAt: z.number().int().nonnegative().default(0),
+	spaces: z
+		.array(
+			z.object({
+				id: z.string().min(1),
+				kind: z.enum(["personal", "shared"]),
+				name: z.string().trim().min(1).max(60),
+				colour: z.string().trim().max(20),
+				icon: z.string().trim().max(20),
+				baseCurrency: z.string().trim().length(3),
+				timezone: z.string().trim().max(60),
+				tables: z.record(
+					z.string(),
+					z.array(z.record(z.string(), z.union([z.string(), z.number(), z.null()]))),
+				),
+			}),
+		)
+		.max(50),
+	people: z.array(z.object({ id: z.string().min(1), name: z.string().max(120) })).max(500),
+});
+
+const savedFilterInput = z.object({
+	name: z.string().trim().min(1).max(60),
+	// Whatever the screen puts in it. The repository stores it and gives it back.
+	query: z.record(z.string(), z.unknown()),
+	position: z.number().int().min(0).max(999).optional(),
+});
+
+export function createApp({ config, database, auth }: AppDependencies) {
+	const app = new Hono<{ Variables: Variables }>();
+	const gate = createGate(config.COFRE_PROOF_BITS, config.COFRE_SECRET);
+
+	/**
+	 * The headers a browser reads before it does anything clever.
+	 *
+	 * Said out loud rather than taken from a default, because two of them would be
+	 * wrong here. Framing is refused outright: nothing in this product is meant to sit
+	 * inside somebody else's page, and a bank screen inside an iframe is how a person
+	 * is fooled into pressing the wrong button. And no referrer leaves, because the
+	 * address of a screen in this application says which space somebody is looking at.
+	 */
+	app.use(
+		"/*",
+		secureHeaders({
+			xFrameOptions: "DENY",
+			xContentTypeOptions: "nosniff",
+			referrerPolicy: "no-referrer",
+			// The interface and the API are often two origins, and this one would refuse
+			// the pair without adding anything that the cross origin rules do not.
+			crossOriginResourcePolicy: false,
+			crossOriginEmbedderPolicy: false,
+			// A browser ignores this over plain http, which is how a server at home is
+			// usually reached, and honours it the moment there is a certificate.
+			strictTransportSecurity: "max-age=15552000; includeSubDomains",
+		}),
+	);
+
+	/**
+	 * How much a request may weigh.
+	 *
+	 * The largest honest one is a backup of many years or a push of two thousand
+	 * entries, and both are a few megabytes. Without a limit, a signed in person can
+	 * hand the server a body as large as they like and watch it read the whole thing
+	 * into memory before a single validator runs.
+	 */
+	app.use("/api/*", bodyLimit({ maxSize: 25 * 1024 * 1024 }));
+
+	app.use(
+		"/api/*",
+		cors({
+			origin: [config.COFRE_WEB_ORIGIN, config.COFRE_PUBLIC_URL],
+			credentials: true,
+			// The two the gate reads travel as headers rather than in the body, because
+			// the body of a sign in belongs to the library that handles it. A browser
+			// will not send a header that is not named here.
+			allowHeaders: ["Content-Type", "x-cofre-proof", "x-cofre-turnstile"],
+			allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+		}),
+	);
+
+	app.get("/health", (context) => context.json({ ok: true }));
+
+	/**
+	 * The gate, in front of the two routes worth attacking and no others.
+	 *
+	 * Better Auth already limits attempts per address. That stops one machine and not a
+	 * thousand, so this asks for something an address cannot fake: work that was
+	 * actually done. It is registered above the handler it guards, because the first
+	 * route that answers is the one that answers, and a gate behind the door it guards
+	 * is a gate that never opens.
+	 */
+	app.use("/api/auth/sign-in/email", guard);
+	app.use("/api/auth/sign-up/email", guard);
+
+	// Sign up, sign in, sign out and everything else the library handles.
+	app.on(["GET", "POST"], "/api/auth/*", (context) => auth.handler(context.req.raw));
+
+	/**
+	 * Whether this server has anybody on it yet.
+	 *
+	 * Somebody who has just installed Cofre on their own machine arrives at a screen
+	 * asking for an email and a password they never chose, and the way to make one is a
+	 * quiet button beside it. So the screen asks this first and opens on "create your
+	 * account" when the answer is nobody, which is the whole of the problem.
+	 *
+	 * It is answered before signing in, because it is the question of somebody who
+	 * cannot sign in yet. It says one thing and says nothing about who is here: a count
+	 * turned into a yes or a no.
+	 */
+	app.get("/api/setup", async (context) => {
+		const rows = await database.driver.all(`SELECT COUNT(*) AS how_many FROM "auth_users"`);
+		return context.json({
+			needsFirstAccount: Number(rows[0]?.how_many ?? 0) === 0,
+			// Public by definition: it is the key the widget is drawn with. The secret
+			// that checks an answer never leaves this process.
+			turnstileSiteKey: config.COFRE_TURNSTILE_SITE_KEY ?? null,
+		});
+	});
+
+	/**
+	 * A challenge to answer before a password is read. Anybody may ask for one, which is
+	 * the point: it costs them to answer and costs this server one hash to check.
+	 */
+	app.get("/api/challenge", (context) => context.json(gate.issue()));
+
+	async function guard(context: Context, next: Next) {
+		if (!gate.redeem(context.req.header("x-cofre-proof"))) {
+			return context.json({ error: "proofRequired" }, 400);
+		}
+
+		if (config.COFRE_TURNSTILE_SECRET) {
+			const passed = await checkTurnstile(
+				config.COFRE_TURNSTILE_SECRET,
+				context.req.header("x-cofre-turnstile"),
+				config.COFRE_CLIENT_IP_HEADER
+					? (context.req.header(config.COFRE_CLIENT_IP_HEADER) ?? null)
+					: null,
+			);
+			if (!passed) return context.json({ error: "captchaRequired" }, 400);
+		}
+
+		return next();
+	}
+
+	/** Anyone holding a link may read what it offers, before having an account. */
+	app.get("/api/invitations/:token", async (context) => {
+		const preview = await previewInvitation(database.driver, context.req.param("token"));
+		return context.json(preview);
+	});
+
+	app.use("/api/*", async (context, next) => {
+		// The prefix and nothing that merely begins with it, so that a route named
+		// /api/authority later does not inherit an exemption nobody meant to give it.
+		if (context.req.path === "/api/auth" || context.req.path.startsWith("/api/auth/")) {
+			return next();
+		}
+		if (context.req.method === "GET" && context.req.path === "/api/setup") return next();
+		if (context.req.method === "GET" && context.req.path === "/api/challenge") return next();
+		if (context.req.method === "GET" && /^\/api\/invitations\/[^/]+$/.test(context.req.path)) {
+			return next();
+		}
+
+		const found = await auth.api.getSession({ headers: context.req.raw.headers });
+		if (!found) return context.json({ error: "signedOut" }, 401);
+
+		const person = await upsertUserFromIdentity(database.driver, {
+			id: found.user.id,
+			email: found.user.email,
+			name: found.user.name,
+			image: found.user.image ?? null,
+		});
+
+		context.set("userId", person.id);
+		context.set(
+			"session",
+			await openSession({ driver: database.driver, userId: person.id, deviceId: "server" }),
+		);
+		return next();
+	});
+
+	app.get("/api/me", async (context) => {
+		const session = context.get("session");
+		const [me, spaces] = await Promise.all([session.users.me(), session.spaces.list()]);
+		return context.json({ user: me, spaces });
+	});
+
+	/** Everyone this person shares a space with, which is who the screens can name. */
+	app.get("/api/peers", async (context) =>
+		context.json(await context.get("session").users.peers()),
+	);
+
+	app.get("/api/spaces", async (context) =>
+		context.json(await context.get("session").spaces.list()),
+	);
+
+	app.post("/api/spaces", async (context) => {
+		const input = spaceInput.parse(await context.req.json());
+		const space = await context.get("session").spaces.create(input);
+		return context.json(space, 201);
+	});
+
+	app.patch("/api/spaces/:id", async (context) => {
+		const input = spaceInput.partial().parse(await context.req.json());
+		const space = await context.get("session").spaces.update(context.req.param("id"), input);
+		return context.json(space);
+	});
+
+	/**
+	 * Takes a space that arrived from a device and has nobody in it. The rule that makes
+	 * it safe lives in the repository: a space with any member at all is never adopted.
+	 */
+	app.post("/api/spaces/:id/adopt", async (context) =>
+		context.json(await context.get("session").spaces.adopt(context.req.param("id"))),
+	);
+
+	app.delete("/api/spaces/:id", async (context) => {
+		await context.get("session").spaces.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/members", async (context) =>
+		context.json(await context.get("session").members.list(context.req.param("id"))),
+	);
+
+	app.patch("/api/spaces/:id/members/:userId", async (context) => {
+		const input = z
+			.object({
+				role: roleInput.optional(),
+				monthlyIncome: z.number().int().nonnegative().nullable().optional(),
+			})
+			.parse(await context.req.json());
+
+		const session = context.get("session");
+		const spaceId = context.req.param("id");
+		const userId = context.req.param("userId");
+
+		if (input.role !== undefined) await session.members.changeRole(spaceId, userId, input.role);
+		if (input.monthlyIncome !== undefined) {
+			await session.members.setIncome(spaceId, userId, input.monthlyIncome);
+		}
+		return context.body(null, 204);
+	});
+
+	app.delete("/api/spaces/:id/members/:userId", async (context) => {
+		await context
+			.get("session")
+			.members.remove(context.req.param("id"), context.req.param("userId"));
+		return context.body(null, 204);
+	});
+
+	app.post("/api/spaces/:id/leave", async (context) => {
+		await context.get("session").members.leave(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/invitations", async (context) =>
+		context.json(await context.get("session").invitations.list(context.req.param("id"))),
+	);
+
+	app.post("/api/spaces/:id/invitations", async (context) => {
+		const input = z
+			.object({ role: roleInput, email: z.string().email().nullable().optional() })
+			.parse(await context.req.json());
+
+		const invitation = await context.get("session").invitations.create({
+			spaceId: context.req.param("id"),
+			role: input.role,
+			email: input.email ?? null,
+		});
+
+		return context.json(
+			{ ...invitation, link: `${config.COFRE_WEB_ORIGIN}/convite/${invitation.token}` },
+			201,
+		);
+	});
+
+	app.delete("/api/spaces/:id/invitations/:invitationId", async (context) => {
+		await context
+			.get("session")
+			.invitations.revoke(context.req.param("id"), context.req.param("invitationId"));
+		return context.body(null, 204);
+	});
+
+	app.post("/api/invitations/:token/accept", async (context) => {
+		const joined = await context.get("session").invitations.accept(context.req.param("token"));
+		return context.json(joined);
+	});
+
+	app.get("/api/spaces/:id/accounts", async (context) => {
+		const includeArchived = context.req.query("archived") === "true";
+		return context.json(
+			await context.get("session").accounts.list(context.req.param("id"), { includeArchived }),
+		);
+	});
+
+	app.post("/api/spaces/:id/accounts", async (context) => {
+		const input = accountInput.parse(await context.req.json());
+		const account = await context
+			.get("session")
+			.accounts.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(account, 201);
+	});
+
+	app.patch("/api/accounts/:id", async (context) => {
+		const input = accountInput
+			.partial()
+			.pick({ name: true, institution: true, initialBalance: true, benefit: true });
+		const account = await context
+			.get("session")
+			.accounts.update(context.req.param("id"), input.parse(await context.req.json()));
+		return context.json(account);
+	});
+
+	app.post("/api/accounts/:id/archive", async (context) =>
+		context.json(await context.get("session").accounts.archive(context.req.param("id"))),
+	);
+
+	app.post("/api/accounts/:id/unarchive", async (context) =>
+		context.json(await context.get("session").accounts.unarchive(context.req.param("id"))),
+	);
+
+	app.delete("/api/accounts/:id", async (context) => {
+		await context.get("session").accounts.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	/**
+	 * Everything inside one space, gone, and the space with it when it is a shared one.
+	 * A route of its own rather than a flag on the one that removes a space: the two do
+	 * different things, and a flag is how somebody does the wrong one by accident.
+	 */
+	app.delete("/api/spaces/:id/data", async (context) =>
+		context.json(await context.get("session").erasure.eraseSpace(context.req.param("id"))),
+	);
+
+	/** Every space this account owns. The ones it merely belongs to are left instead. */
+	app.post("/api/erase", async (context) =>
+		context.json(await context.get("session").erasure.eraseEverything()),
+	);
+
+	app.get("/api/spaces/:id/cards", async (context) => {
+		const includeArchived = context.req.query("archived") === "true";
+		return context.json(
+			await context.get("session").cards.list(context.req.param("id"), { includeArchived }),
+		);
+	});
+
+	app.post("/api/spaces/:id/cards", async (context) => {
+		const input = cardInput.parse(await context.req.json());
+		const card = await context
+			.get("session")
+			.cards.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(card, 201);
+	});
+
+	// The kind is not here, and not by accident. A card that changed kind would leave
+	// every record it already wrote pointing at an invoice it no longer charges.
+	app.patch("/api/cards/:id", async (context) => {
+		const input = cardInput
+			.partial()
+			.pick({ name: true, lastFour: true, creditAccountId: true, debitAccountId: true });
+		const card = await context
+			.get("session")
+			.cards.update(context.req.param("id"), input.parse(await context.req.json()));
+		return context.json(card);
+	});
+
+	app.post("/api/cards/:id/archive", async (context) =>
+		context.json(await context.get("session").cards.archive(context.req.param("id"))),
+	);
+
+	app.post("/api/cards/:id/unarchive", async (context) =>
+		context.json(await context.get("session").cards.unarchive(context.req.param("id"))),
+	);
+
+	app.delete("/api/cards/:id", async (context) => {
+		await context.get("session").cards.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/categories", async (context) => {
+		const includeArchived = context.req.query("archived") === "true";
+		return context.json(
+			await context.get("session").categories.list(context.req.param("id"), { includeArchived }),
+		);
+	});
+
+	app.post("/api/spaces/:id/categories", async (context) => {
+		const input = categoryInput.parse(await context.req.json());
+		const category = await context
+			.get("session")
+			.categories.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(category, 201);
+	});
+
+	/** The starting set, written once and only into a space that has none. */
+	app.post("/api/spaces/:id/categories/defaults", async (context) => {
+		const input = z
+			.object({ language: z.enum(["pt", "en"]).optional() })
+			.parse(await context.req.json().catch(() => ({})));
+		const written = await context
+			.get("session")
+			.categories.installDefaults({ spaceId: context.req.param("id"), language: input.language });
+		return context.json(written, 201);
+	});
+
+	app.patch("/api/categories/:id", async (context) => {
+		const input = categoryInput.partial().omit({ kind: true });
+		return context.json(
+			await context
+				.get("session")
+				.categories.update(context.req.param("id"), input.parse(await context.req.json())),
+		);
+	});
+
+	app.post("/api/categories/:id/archive", async (context) =>
+		context.json(await context.get("session").categories.archive(context.req.param("id"))),
+	);
+
+	app.post("/api/categories/:id/unarchive", async (context) =>
+		context.json(await context.get("session").categories.unarchive(context.req.param("id"))),
+	);
+
+	app.delete("/api/categories/:id", async (context) => {
+		await context.get("session").categories.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/transactions", async (context) => {
+		const query = context.req.query();
+		return context.json(
+			await context.get("session").transactions.list({
+				spaceId: context.req.param("id"),
+				accountId: query.accountId,
+				cardId: query.cardId,
+				kind: query.kind as "income" | "expense" | "transfer" | undefined,
+				status: query.status as "planned" | "settled" | undefined,
+				from: query.from,
+				to: query.to,
+				invoiceMonth: query.invoiceMonth,
+				search: query.search,
+				categoryIds:
+					query.categoryIds === undefined || query.categoryIds === ""
+						? undefined
+						: query.categoryIds.split(","),
+				withoutCategory: query.withoutCategory === "true",
+				limit: query.limit === undefined ? undefined : Number(query.limit),
+			}),
+		);
+	});
+
+	app.post("/api/spaces/:id/transactions", async (context) => {
+		const input = transactionInput.parse(await context.req.json());
+		const written = await context
+			.get("session")
+			.transactions.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(written, 201);
+	});
+
+	app.get("/api/spaces/:id/balances", async (context) =>
+		context.json(await context.get("session").transactions.balances(context.req.param("id"))),
+	);
+
+	// The same change over a selection. It comes before the route with the identifier
+	// so that "several" is never read as a record called "several".
+	app.patch("/api/transactions", async (context) => {
+		const input = z
+			.object({ ids: selection, patch: transactionPatch })
+			.parse(await context.req.json());
+		const changed = await context.get("session").transactions.updateMany(input.ids, input.patch);
+		return context.json({ changed });
+	});
+
+	app.post("/api/transactions/remove", async (context) => {
+		const input = z.object({ ids: selection }).parse(await context.req.json());
+		const removed = await context.get("session").transactions.removeMany(input.ids);
+		return context.json({ removed });
+	});
+
+	app.patch("/api/transactions/:id", async (context) => {
+		const input = transactionPatch.parse(await context.req.json());
+		return context.json(
+			await context.get("session").transactions.update(context.req.param("id"), input),
+		);
+	});
+
+	app.post("/api/transactions/:id/settle", async (context) =>
+		context.json(await context.get("session").transactions.settle(context.req.param("id"))),
+	);
+
+	app.post("/api/transactions/:id/reconcile", async (context) => {
+		const input = z.object({ reconciled: z.boolean() }).parse(await context.req.json());
+		return context.json(
+			await context
+				.get("session")
+				.transactions.reconcile(context.req.param("id"), input.reconciled),
+		);
+	});
+
+	app.delete("/api/transactions/:id", async (context) => {
+		await context.get("session").transactions.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.delete("/api/installments/:groupId", async (context) => {
+		const removed = await context
+			.get("session")
+			.transactions.removeGroup(context.req.param("groupId"));
+		return context.json({ removed });
+	});
+
+	app.get("/api/spaces/:id/filters", async (context) =>
+		context.json(await context.get("session").savedFilters.list(context.req.param("id"))),
+	);
+
+	app.post("/api/spaces/:id/filters", async (context) => {
+		const input = savedFilterInput.parse(await context.req.json());
+		const filter = await context
+			.get("session")
+			.savedFilters.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(filter, 201);
+	});
+
+	app.patch("/api/filters/:id", async (context) => {
+		const input = savedFilterInput.partial().parse(await context.req.json());
+		return context.json(
+			await context.get("session").savedFilters.update(context.req.param("id"), input),
+		);
+	});
+
+	app.delete("/api/filters/:id", async (context) => {
+		await context.get("session").savedFilters.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/rules", async (context) =>
+		context.json(await context.get("session").rules.list(context.req.param("id"))),
+	);
+
+	app.post("/api/spaces/:id/rules", async (context) => {
+		const input = ruleInput.omit({ disabled: true }).parse(await context.req.json());
+		const rule = await context
+			.get("session")
+			.rules.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(rule, 201);
+	});
+
+	/** Runs the rules over the records that were never sorted by anybody. */
+	app.post("/api/spaces/:id/rules/apply", async (context) => {
+		const input = z
+			.object({ from: calendarDate.optional(), to: calendarDate.optional() })
+			.parse(await context.req.json().catch(() => ({})));
+		const sorted = await context
+			.get("session")
+			.rules.applyToExisting({ spaceId: context.req.param("id"), ...input });
+		return context.json({ sorted });
+	});
+
+	app.patch("/api/rules/:id", async (context) => {
+		const input = ruleInput.partial().parse(await context.req.json());
+		return context.json(await context.get("session").rules.update(context.req.param("id"), input));
+	});
+
+	app.delete("/api/rules/:id", async (context) => {
+		await context.get("session").rules.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/recurrences", async (context) =>
+		context.json(await context.get("session").recurrences.list(context.req.param("id"))),
+	);
+
+	app.post("/api/spaces/:id/recurrences", async (context) => {
+		const input = recurrenceInput.parse(await context.req.json());
+		const series = await context
+			.get("session")
+			.recurrences.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(series, 201);
+	});
+
+	/** Writes the planned records the series owe, up to the horizon. */
+	app.post("/api/spaces/:id/recurrences/materialize", async (context) => {
+		const input = z
+			.object({ until: calendarDate.optional() })
+			.parse(await context.req.json().catch(() => ({})));
+		const written = await context
+			.get("session")
+			.recurrences.materialize({ spaceId: context.req.param("id"), until: input.until });
+		return context.json({ written });
+	});
+
+	app.patch("/api/recurrences/:id", async (context) => {
+		const input = recurrenceInput
+			.partial()
+			.omit({ kind: true })
+			.extend({ paused: z.boolean().optional() })
+			.parse(await context.req.json());
+		return context.json(
+			await context.get("session").recurrences.update(context.req.param("id"), input),
+		);
+	});
+
+	app.delete("/api/recurrences/:id", async (context) => {
+		const keepPlanned = context.req.query("keepPlanned") === "true";
+		const removed = await context
+			.get("session")
+			.recurrences.remove(context.req.param("id"), { keepPlanned });
+		return context.json({ removed });
+	});
+
+	app.get("/api/spaces/:id/budgets", async (context) =>
+		context.json(await context.get("session").budgets.list(context.req.param("id"))),
+	);
+
+	app.post("/api/spaces/:id/budgets", async (context) => {
+		const input = budgetInput.parse(await context.req.json());
+		const budget = await context
+			.get("session")
+			.budgets.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(budget, 201);
+	});
+
+	app.get("/api/spaces/:id/budgets/progress", async (context) => {
+		const query = context.req.query();
+		return context.json(
+			await context.get("session").budgets.progress({
+				spaceId: context.req.param("id"),
+				month: query.month ?? "",
+				today: query.today,
+			}),
+		);
+	});
+
+	app.patch("/api/budgets/:id", async (context) => {
+		const input = budgetInput.partial().pick({ amount: true, month: true });
+		return context.json(
+			await context
+				.get("session")
+				.budgets.update(context.req.param("id"), input.parse(await context.req.json())),
+		);
+	});
+
+	app.delete("/api/budgets/:id", async (context) => {
+		await context.get("session").budgets.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/goals", async (context) =>
+		context.json(await context.get("session").goals.list(context.req.param("id"))),
+	);
+
+	app.post("/api/spaces/:id/goals", async (context) => {
+		const input = goalInput.parse(await context.req.json());
+		const goal = await context
+			.get("session")
+			.goals.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(goal, 201);
+	});
+
+	app.get("/api/spaces/:id/goals/progress", async (context) =>
+		context.json(
+			await context.get("session").goals.progress({
+				spaceId: context.req.param("id"),
+				today: context.req.query("today") ?? "",
+			}),
+		),
+	);
+
+	app.patch("/api/goals/:id", async (context) => {
+		const input = goalInput
+			.partial()
+			.omit({ accountId: true })
+			.extend({ archived: z.boolean().optional() });
+		return context.json(
+			await context
+				.get("session")
+				.goals.update(context.req.param("id"), input.parse(await context.req.json())),
+		);
+	});
+
+	app.post("/api/goals/:id/achieved", async (context) =>
+		context.json(await context.get("session").goals.markAchieved(context.req.param("id"))),
+	);
+
+	app.delete("/api/goals/:id", async (context) => {
+		await context.get("session").goals.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/savings", async (context) =>
+		context.json(await context.get("session").goals.readRule(context.req.param("id"))),
+	);
+
+	app.post("/api/spaces/:id/savings", async (context) => {
+		const input = savingsInput.parse(await context.req.json());
+		const rule = await context
+			.get("session")
+			.goals.setRule({ spaceId: context.req.param("id"), ...input });
+		return context.json(rule);
+	});
+
+	app.delete("/api/spaces/:id/savings", async (context) => {
+		await context.get("session").goals.clearRule(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/savings/progress", async (context) =>
+		context.json(
+			await context.get("session").goals.savings({
+				spaceId: context.req.param("id"),
+				month: context.req.query("month") ?? "",
+			}),
+		),
+	);
+
+	app.get("/api/transactions/:id/splits", async (context) =>
+		context.json(await context.get("session").sharing.splitsOf(context.req.param("id"))),
+	);
+
+	app.post("/api/transactions/:id/splits", async (context) => {
+		const input = splitInput.parse(await context.req.json());
+		return context.json(
+			await context
+				.get("session")
+				.sharing.split({ transactionId: context.req.param("id"), ...input }),
+		);
+	});
+
+	app.delete("/api/transactions/:id/splits", async (context) => {
+		await context.get("session").sharing.clearSplit(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/sharing/balances", async (context) =>
+		context.json(await context.get("session").sharing.balances(context.req.param("id"))),
+	);
+
+	app.get("/api/spaces/:id/sharing/suggested", async (context) =>
+		context.json(await context.get("session").sharing.suggestSettlements(context.req.param("id"))),
+	);
+
+	app.get("/api/spaces/:id/sharing/settlements", async (context) =>
+		context.json(await context.get("session").sharing.settlements(context.req.param("id"))),
+	);
+
+	app.post("/api/spaces/:id/sharing/settlements", async (context) => {
+		const input = settlementInput.parse(await context.req.json());
+		const settled = await context
+			.get("session")
+			.sharing.settle({ spaceId: context.req.param("id"), ...input });
+		return context.json(settled, 201);
+	});
+
+	app.delete("/api/settlements/:id", async (context) => {
+		await context.get("session").sharing.forgetSettlement(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	/**
+	 * Every report goes through one route. Six routes that differ by a word would be six
+	 * places to forget the same permission check.
+	 */
+	app.get("/api/reports", async (context) => {
+		const query = z
+			.object({
+				kind: z.enum([
+					"totals",
+					"byCategory",
+					"incomeByCategory",
+					"byPriority",
+					"byMonth",
+					"byDay",
+				]),
+				from: calendarDate,
+				to: calendarDate,
+				spaceId: z.string().min(1).optional(),
+				includePlanned: z.enum(["true", "false"]).optional(),
+			})
+			.parse(context.req.query());
+
+		const range = {
+			spaceId: query.spaceId,
+			from: query.from,
+			to: query.to,
+			includePlanned: query.includePlanned === "true",
+		};
+
+		const reports = context.get("session").reports;
+		switch (query.kind) {
+			case "totals":
+				return context.json(await reports.totals(range));
+			case "byCategory":
+				return context.json(await reports.byCategory(range));
+			case "incomeByCategory":
+				return context.json(await reports.incomeByCategory(range));
+			case "byPriority":
+				return context.json(await reports.byPriority(range));
+			case "byMonth":
+				return context.json(await reports.byMonth(range));
+			default:
+				return context.json(await reports.byDay(range));
+		}
+	});
+
+	/**
+	 * One round trip of replication: what this device wrote goes up, what it has not
+	 * seen comes down. Two calls would leave a window where a device is half synced.
+	 *
+	 * A device may push what it wrote itself, as the account or as a device profile it
+	 * declares. A browser that keeps its data locally has a profile of its own, made on
+	 * that device and belonging to no account, and its records are written in that name.
+	 * What it may never do is write in the name of somebody who has an account here:
+	 * that is the rule that stops a member of a shared space from putting words in
+	 * another member's mouth.
+	 */
+	app.post("/api/spaces/:id/sync", async (context) => {
+		const spaceId = context.req.param("id");
+		const userId = context.get("userId");
+		const session = context.get("session");
+
+		const input = z
+			.object({
+				since: z.string().min(1).nullable().optional(),
+				changes: z.array(changeInput).max(2000).optional(),
+				/** Who this device writes as, when that is not the account itself. */
+				profile: z
+					.object({
+						id: z.string().min(1),
+						email: z.string().trim().email().max(200),
+						name: z.string().trim().min(1).max(120),
+						image: z.string().trim().max(500).nullable().optional(),
+					})
+					.optional(),
+			})
+			.parse(await context.req.json());
+
+		// Who the caller may speak for. Themselves, always.
+		const speakingFor = new Set<string>([userId]);
+
+		if (input.profile && input.profile.id !== userId) {
+			const account = await database.driver.all(`SELECT "id" FROM "auth_users" WHERE "id" = ?`, [
+				input.profile.id,
+			]);
+			if (account.length > 0) {
+				return context.json({ error: "profileBelongsToAnAccount" }, 403);
+			}
+
+			const moment = Date.now();
+			await applyPeople(database.driver, [
+				{
+					id: input.profile.id,
+					email: input.profile.email.toLowerCase(),
+					name: input.profile.name,
+					image: input.profile.image ?? null,
+					createdAt: moment,
+					updatedAt: moment,
+				},
+			]);
+			speakingFor.add(input.profile.id);
+		}
+
+		const here = await rowOf(database.driver, "spaces", spaceId);
+		const brings = (input.changes ?? []).some(
+			(change) =>
+				change.entity === "spaces" &&
+				change.entityId === spaceId &&
+				change.operation === "insert" &&
+				change.actorId !== null &&
+				speakingFor.has(change.actorId),
+		);
+
+		// A space this server already holds belongs to whoever is in it, so the caller
+		// has to be one of them. A space it has never seen may arrive with this push, and
+		// is taken below once the row exists.
+		if (here || !brings) await session.spaces.get(spaceId);
+
+		const incoming = (input.changes ?? []).filter(
+			(change) => change.actorId !== null && speakingFor.has(change.actorId),
+		);
+		const refused = (input.changes ?? []).length - incoming.length;
+
+		const written =
+			incoming.length === 0
+				? { applied: 0, skipped: 0, rejected: [], deferred: 0 }
+				: await applyChanges(
+						database.driver,
+						incoming.map((change) => ({
+							...change,
+							spaceId,
+							payload: change.payload as Record<string, unknown>,
+						})),
+						{ spaceId },
+					);
+
+		// The space arrived with this push, so it has nobody in it yet.
+		if (!here) {
+			await session.spaces.adopt(spaceId);
+			await session.refresh();
+		}
+
+		const changes = await changesToPush(database.driver, spaceId, input.since ?? null);
+		const people = await peopleInSpace(database.driver, spaceId);
+
+		return context.json({
+			changes,
+			people,
+			stamp: await latestStampOf(database.driver, spaceId),
+			applied: written.applied,
+			refused,
+		});
+	});
+
+	app.get("/api/spaces/:id/changes", async (context) => {
+		const after = context.req.query("after");
+		return context.json(
+			await context.get("session").changes.list({
+				spaceId: context.req.param("id"),
+				after: after === undefined ? undefined : after,
+			}),
+		);
+	});
+
+	/** What the figures of a space have to say, heaviest first. Reads and never writes. */
+	app.get("/api/spaces/:id/advice", async (context) => {
+		const query = z.object({ today: calendarDate }).parse(context.req.query());
+		return context.json(
+			await context.get("session").advice.findings({
+				spaceId: context.req.param("id"),
+				today: query.today,
+			}),
+		);
+	});
+
+	app.get("/api/spaces/:id/reading", async (context) => {
+		const query = z.object({ today: calendarDate }).parse(context.req.query());
+		return context.json(
+			await context.get("session").advice.reading({
+				spaceId: context.req.param("id"),
+				today: query.today,
+			}),
+		);
+	});
+
+	app.get("/api/spaces/:id/projection", async (context) => {
+		const query = z
+			.object({
+				from: z.string().regex(/^\d{4}-\d{2}$/),
+				months: z.coerce.number().int().min(1).max(36).optional(),
+				window: z.coerce.number().int().min(1).max(24).optional(),
+			})
+			.parse(context.req.query());
+
+		return context.json(
+			await context.get("session").projections.monthsAhead({
+				spaceId: context.req.param("id"),
+				from: query.from,
+				months: query.months ?? 12,
+				window: query.window,
+			}),
+		);
+	});
+
+	app.get("/api/spaces/:id/scenarios", async (context) =>
+		context.json(await context.get("session").scenarios.list(context.req.param("id"))),
+	);
+
+	app.post("/api/spaces/:id/scenarios", async (context) => {
+		const input = scenarioInput.parse(await context.req.json());
+		const created = await context
+			.get("session")
+			.scenarios.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(created, 201);
+	});
+
+	app.patch("/api/scenarios/:id", async (context) => {
+		const input = scenarioInput.partial().parse(await context.req.json());
+		return context.json(
+			await context.get("session").scenarios.update(context.req.param("id"), input),
+		);
+	});
+
+	app.delete("/api/scenarios/:id", async (context) => {
+		await context.get("session").scenarios.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/spaces/:id/holdings", async (context) =>
+		context.json(await context.get("session").investments.list(context.req.param("id"))),
+	);
+
+	app.get("/api/spaces/:id/holdings/total", async (context) =>
+		context.json(await context.get("session").investments.total(context.req.param("id"))),
+	);
+
+	app.post("/api/spaces/:id/holdings", async (context) => {
+		const input = holdingInput.parse(await context.req.json());
+		const created = await context
+			.get("session")
+			.investments.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(created, 201);
+	});
+
+	app.patch("/api/holdings/:id", async (context) => {
+		const input = holdingInput
+			.partial()
+			.omit({ accountId: true, kind: true, unitPrice: true })
+			.parse(await context.req.json());
+		return context.json(
+			await context.get("session").investments.update(context.req.param("id"), input),
+		);
+	});
+
+	app.post("/api/holdings/:id/price", async (context) => {
+		const input = z
+			.object({ unitPrice: z.number().int().nonnegative(), onDay: calendarDate.optional() })
+			.parse(await context.req.json());
+		return context.json(
+			await context.get("session").investments.price({ id: context.req.param("id"), ...input }),
+		);
+	});
+
+	app.get("/api/holdings/:id/prices", async (context) =>
+		context.json(await context.get("session").investments.prices(context.req.param("id"))),
+	);
+
+	app.delete("/api/holdings/:id", async (context) => {
+		await context.get("session").investments.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.get("/api/indices", async (context) => {
+		const query = z
+			.object({
+				series: z.enum(["cdi", "selic", "ipca"]),
+				from: z
+					.string()
+					.regex(/^\d{4}-\d{2}$/)
+					.optional(),
+				to: z
+					.string()
+					.regex(/^\d{4}-\d{2}$/)
+					.optional(),
+			})
+			.parse(context.req.query());
+
+		return context.json(await context.get("session").indices.list(query.series, query));
+	});
+
+	app.get("/api/indices/latest", async (context) =>
+		context.json(await context.get("session").indices.latest()),
+	);
+
+	/**
+	 * Asks the Banco Central for the months this installation does not have.
+	 *
+	 * The server does it rather than the browser, which is better in every way: one
+	 * fetch serves everybody who uses this server, the numbers are the same for all of
+	 * them, and a browser never has to be allowed to call somebody else's address.
+	 */
+	app.post("/api/indices/refresh", async (context) => {
+		const input = z
+			.object({
+				series: z
+					.array(z.enum(["cdi", "selic", "ipca"]))
+					.min(1)
+					.max(3),
+				from: z.string().regex(/^\d{4}-\d{2}$/),
+			})
+			.parse(await context.req.json());
+
+		const session = context.get("session");
+		const written: Record<string, number> = {};
+
+		for (const series of input.series) {
+			const points = await fetchSeries(series, { from: input.from });
+			written[series] = await session.indices.save(series, points);
+		}
+
+		return context.json({ written });
+	});
+
+	/** What the space already has around the days a file covers, to spot a repeat. */
+	app.get("/api/spaces/:id/imports/existing", async (context) => {
+		const query = z
+			.object({
+				from: calendarDate.optional(),
+				to: calendarDate.optional(),
+				accountId: z.string().min(1).optional(),
+			})
+			.parse(context.req.query());
+
+		return context.json(
+			await context.get("session").imports.existing(context.req.param("id"), query),
+		);
+	});
+
+	app.post("/api/spaces/:id/imports", async (context) => {
+		const input = importInput.parse(await context.req.json());
+		const written = await context
+			.get("session")
+			.imports.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(written, 201);
+	});
+
+	app.get("/api/spaces/:id/backup", async (context) =>
+		context.json(await context.get("session").backup.exportSpace(context.req.param("id"))),
+	);
+
+	app.get("/api/backup", async (context) =>
+		context.json(await context.get("session").backup.exportEverything()),
+	);
+
+	app.get("/api/spaces/:id/records", async (context) => {
+		const query = z
+			.object({ from: calendarDate.optional(), to: calendarDate.optional() })
+			.parse(context.req.query());
+		return context.json(
+			await context.get("session").backup.recordsForExport(context.req.param("id"), query),
+		);
+	});
+
+	/**
+	 * Restoring writes into spaces that do not exist yet, so it is the one route that
+	 * cannot check a space first. What guards it is the session: whoever is signed in
+	 * becomes the owner of what they restore, and of nothing else.
+	 */
+	app.post("/api/backup/restore", async (context) => {
+		const backup = backupInput.parse(await context.req.json());
+		return context.json(await context.get("session").backup.restore(backup));
+	});
+
+	// One place turns a rule of the model into a status code, so no route repeats it.
+	app.onError((error, context) => {
+		// What the framework itself already decided, such as a body that was too large
+		// or a method nothing answers. Turning these into five hundred would say the
+		// server broke when it was the request that was wrong.
+		if (error instanceof HTTPException) {
+			return context.json({ error: "refused", status: error.status }, error.status);
+		}
+		if (error instanceof PermissionError) {
+			return context.json({ error: "notAllowed", permission: error.permission }, 403);
+		}
+		if (error instanceof NotFoundError) {
+			return context.json({ error: "notFound", entity: error.entity }, 404);
+		}
+		if (error instanceof RuleError) {
+			return context.json({ error: error.rule, message: error.message }, 409);
+		}
+		if (error instanceof z.ZodError) {
+			return context.json({ error: "invalidInput", issues: error.issues }, 400);
+		}
+		console.error(error);
+		return context.json({ error: "unexpected" }, 500);
+	});
+
+	return app;
+}
+
+export type App = ReturnType<typeof createApp>;

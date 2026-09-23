@@ -1,0 +1,9 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		// This package talks to services over the network, from a browser and from a
+		// test in Node, so it is written against what both of them have.
+		"lib": ["ES2023", "DOM"]
+	},
+	"include": ["src/**/*.ts"]
+}

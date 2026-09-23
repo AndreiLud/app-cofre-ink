@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# simple-git-hooks writes the hook files into .git/hooks during install.
+allowBuilds:
+  simple-git-hooks: true

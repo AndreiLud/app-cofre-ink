@@ -1,0 +1,46 @@
+{
+	"name": "cofre",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Personal finance app you host yourself, with private and shared spaces",
+	"license": "MIT",
+	"author": "Andrei Ludescher",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/AndreiLud/app-cofre-ink.git"
+	},
+	"bugs": {
+		"url": "https://github.com/AndreiLud/app-cofre-ink/issues"
+	},
+	"homepage": "https://cofre.ink",
+	"packageManager": "pnpm@12.5.1",
+	"engines": {
+		"node": ">=22"
+	},
+	"scripts": {
+		"dev": "turbo run dev",
+		"build": "turbo run build",
+		"test": "turbo run test",
+		"test:e2e": "turbo run test:e2e",
+		"typecheck": "turbo run typecheck",
+		"lint": "biome check .",
+		"format": "biome format --write .",
+		"check": "biome check . && turbo run typecheck && node scripts/checkWriting.mjs && node scripts/checkTranslations.mjs",
+		"check:writing": "node scripts/checkWriting.mjs",
+		"check:translations": "node scripts/checkTranslations.mjs",
+		"prepare": "node scripts/installHooks.mjs"
+	},
+	"simple-git-hooks": {
+		"pre-commit": "pnpm exec biome check --staged --no-errors-on-unmatched && node scripts/checkWriting.mjs && node scripts/checkTranslations.mjs",
+		"commit-msg": "node scripts/checkWriting.mjs --commitMsg $1"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.14",
+		"@types/node": "^26.6.2",
+		"simple-git-hooks": "^2.14.0",
+		"turbo": "^2.11.2",
+		"typescript": "^7.0.2",
+		"vitest": "^5.0.1"
+	}
+}

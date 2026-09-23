@@ -1,0 +1,38 @@
+# What never belongs in the image. The build installs its own dependencies inside
+# Linux, so anything installed or built on the host would only make the image bigger
+# and, in the case of native binaries, wrong.
+
+node_modules
+**/node_modules
+dist
+**/dist
+build
+**/build
+.turbo
+**/.turbo
+
+.git
+.github
+.vscode
+.idea
+
+docs
+
+**/playwright-report
+**/test-results
+**/*.spec.ts
+**/*.test.ts
+apps/web/e2e
+
+.env
+.env.*
+!.env.example
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.log
+
+Dockerfile
+.dockerignore
+compose.yaml

@@ -1,0 +1,252 @@
+# Publicar
+
+Escolha o modo e leia só aquela seção. Não precisa do resto.
+
+| quero | vá para |
+| --- | --- |
+| usar no meu navegador, sem servidor nenhum | [Só o navegador](#so_o_navegador) |
+| deixar um endereço público para outras pessoas usarem | [Só o navegador](#so_o_navegador) |
+| usar no celular | [Só o navegador](#so_o_navegador) |
+| um servidor meu, com contas e espaços compartilhados | [Um servidor seu](#um_servidor_seu) |
+
+O Cofre Ink é um endereço que você abre no navegador, e nada além disso. No celular, o
+próprio navegador oferece guardar na tela inicial, e a partir daí ele abre pelo ícone,
+sem internet, com os mesmos dados. Não existe aplicativo para instalar de loja nenhuma.
+
+## O que precisa estar instalado
+
+1. **Node 22 ou mais novo.** No Node 22 o servidor roda com `--experimental-sqlite`,
+   que os scripts já passam sozinhos. No Node 24 não precisa de nada.
+2. **pnpm 12 ou mais novo.** `corepack enable` basta, já que a versão exata está
+   declarada em `packageManager`.
+3. **Git**, para clonar.
+
+```bash
+pnpm install
+pnpm dev        # a interface e o servidor, os dois observando
+```
+
+<a id="so_o_navegador"></a>
+
+## Só o navegador
+
+O banco de dados fica dentro do navegador da própria pessoa, num arquivo SQLite no
+armazenamento daquele site. Não existe servidor, não existe conta e nada sai do
+aparelho. É também o jeito de publicar uma demonstração: são arquivos estáticos, e
+qualquer hospedagem serve, inclusive as gratuitas.
+
+### Aqui não tem senha, e por quê
+
+Duas consequências, e as duas importam.
+
+**A boa: o endereço pode ser público sem expor nada seu.** Cada pessoa que abrir recebe
+um Cofre Ink vazio dentro do navegador dela. Não existe banco de dados compartilhado
+para alguém entrar, porque não existe banco de dados nenhum no servidor. O que está
+publicado são arquivos estáticos, os mesmos para todo mundo.
+
+**O preço: quem abrir o seu navegador vê os seus dados**, porque não há senha para
+pedir. Quem protege é o que já protege a máquina: a senha do computador, o perfil do
+navegador, o bloqueio do celular.
+
+Uma senha aqui seria cadeado em porta de vidro. O arquivo do banco está no
+armazenamento do site, e qualquer pessoa com o aparelho na mão e o console aberto lê
+ele de qualquer jeito. Proteger de verdade seria cifrar o arquivo com uma chave
+derivada de uma frase, e o Cofre Ink ainda não faz isso. Enquanto não fizer, este guia
+prefere dizer a verdade a vender uma tranca que não tranca.
+
+Se você quer senha de verdade, é [um servidor seu](#um_servidor_seu).
+
+### Compilar
+
+```bash
+pnpm build
+```
+
+O resultado fica em `apps/web/dist`. É só isso: copie essa pasta para onde quiser.
+
+A aplicação responde a vários endereços (`/lancamentos`, `/importar`, e assim por
+diante) e uma hospedagem de arquivos não conhece nenhum deles. O build já resolve isso
+dos dois jeitos que as hospedagens entendem: escreve um `404.html` que é a própria
+página, e leva um arquivo `_redirects`. Na prática, a maioria funciona sem configuração.
+
+### Netlify, Cloudflare Pages, Vercel e parecidos
+
+Comando de build `pnpm build`, pasta publicada `apps/web/dist`. O `_redirects` já está
+lá dentro.
+
+### GitHub Pages
+
+O Pages serve um projeto de dentro de uma pasta
+(`https://usuario.github.io/app-cofre-ink/`), então o build precisa saber disso:
+
+```bash
+pnpm --filter @cofre/web exec vite build --base=/app-cofre-ink/
+node scripts/buildServiceWorker.mjs
+node scripts/copyFallback.mjs
+```
+
+Publique `apps/web/dist`. Com um domínio próprio apontado para o Pages, a pasta some do
+endereço e aí vale o `pnpm build` normal.
+
+Existe um workflow para isso em `.github/workflows/demo.yml`, que roda só quando alguém
+aperta o botão na aba Actions.
+
+### Um cabeçalho que vale a pena adicionar
+
+A página já traz as próprias regras de segurança dentro dela, e elas funcionam em
+qualquer hospedagem. Só uma não funciona vindo de dentro da página, e é a que impede o
+Cofre Ink de ser aberto dentro de um quadro em outro site, que é como se engana alguém a
+clicar no lugar errado. Se a sua hospedagem deixa adicionar um cabeçalho, adicione este:
+
+```
+X-Frame-Options: DENY
+```
+
+O servidor do Cofre Ink já manda esse cabeçalho sozinho. Isto é só para quando você
+publica a pasta de arquivos em outro lugar.
+
+### Nginx
+
+```nginx
+server {
+    root /var/www/cofre;
+    index index.html;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Os arquivos com um código no nome nunca mudam.
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+}
+```
+
+### Caddy
+
+```caddyfile
+cofre.seudominio.com {
+    root * /var/www/cofre
+    try_files {path} /index.html
+    file_server
+    header {
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+    }
+}
+```
+
+### Uma pasta na sua máquina
+
+Para ver o build localmente, sem publicar nada:
+
+```bash
+pnpm --filter @cofre/web exec vite preview --port 5174
+```
+
+<a id="um_servidor_seu"></a>
+
+## Um servidor seu
+
+Contas, convites e espaços compartilhados de verdade. Uma máquina sua, um Raspberry Pi,
+uma máquina virtual barata, o que você tiver.
+
+```bash
+cp .env.example .env
+```
+
+Preencha `COFRE_SECRET`:
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+Ajuste `COFRE_WEB_ORIGIN` e `COFRE_PUBLIC_URL` para o endereço real, senão os convites
+saem apontando para `localhost`. Depois:
+
+```bash
+docker compose up -d
+```
+
+A interface e a API sobem juntas, na porta 4321 por padrão. Os dados ficam num volume
+chamado `cofreData`, que sobrevive a uma atualização da imagem.
+
+Para PostgreSQL no lugar do SQLite, descomente o serviço `database` no `compose.yaml` e
+aponte `COFRE_DATABASE` para ele.
+
+### A senha do primeiro acesso
+
+Não existe senha padrão, e não existe senha escrita em lugar nenhum. Quando você abre o
+endereço pela primeira vez, o servidor ainda não tem ninguém, a tela diz isso e abre já
+em criar acesso: você escolhe o email e a senha ali, naquele momento. Ela é guardada
+cifrada no banco do seu servidor e mais nada a conhece.
+
+O `COFRE_SECRET` não é a sua senha. Ele assina os cookies de sessão, e trocá lo só
+desconecta quem estiver conectado.
+
+Quem abrir o endereço depois disso vê a tela de entrar. **Cadastrar continua aberto**,
+ou seja, quem chegar ao endereço pode criar uma conta. A conta nova nasce vazia e não vê
+nada do que é seu, mas se o seu endereço é público e você quer que só quem for convidado
+entre, deixe o Cofre Ink atrás de uma autenticação do proxy ou de uma rede privada.
+
+### Atrás de um proxy
+
+Preencha `COFRE_CLIENT_IP_HEADER` com o cabeçalho que o seu proxy usa, normalmente
+`x-forwarded-for`. Sem isso, o limite de tentativas de entrar conta o mundo inteiro como
+se fosse uma pessoa só.
+
+### Usar a interface publicada com o seu servidor
+
+Se você usar a interface de app.cofre.ink em vez da que o seu container serve, duas
+coisas precisam ser verdade ou ninguém continua logado:
+
+1. O `COFRE_WEB_ORIGIN` é aquele endereço.
+2. O seu servidor responde em **https**, com certificado de verdade.
+
+Para o navegador são dois sites diferentes, e um cookie de sessão só viaja entre sites
+diferentes quando é marcado para isso, o que um navegador só guarda em https. Servir a
+interface pelo próprio container dispensa tudo isso.
+
+### Fazer backup
+
+O arquivo do banco está dentro do volume. Com o container parado:
+
+```bash
+docker compose stop
+docker run --rm -v cofre_cofreData:/data -v ${PWD}:/saida alpine tar czf /saida/cofre.tar.gz /data
+docker compose start
+```
+
+Também dá para exportar tudo pela própria interface, em Dados, que gera um arquivo que
+qualquer instalação do Cofre Ink lê de volta.
+
+## Onde ficam os dados
+
+| modo | onde |
+| --- | --- |
+| navegador | armazenamento do site, no perfil daquele navegador |
+| guardado na tela inicial | o mesmo armazenamento, do mesmo navegador |
+| servidor seu | o arquivo SQLite ou o PostgreSQL que você apontou |
+
+Nos dois primeiros, limpar os dados do site apaga o banco. Exporte um backup antes de
+mexer nisso, em Dados, Exportar tudo.
+
+O Cofre Ink não precisa de manutenção. O histórico que ele usa para sincronizar é
+compactado sozinho, no máximo uma vez por dia, e nenhum lançamento seu muda com isso:
+some só a versão intermediária de linhas com mais de trinta dias, que nada no produto
+lê. No servidor isso acontece de hora em hora, no navegador logo depois que a primeira
+tela aparece.
+
+## Uma demonstração pública
+
+O build do navegador já é uma: é estático, não fala com servidor nenhum, e o primeiro
+acesso oferece preencher com dados de exemplo, que vêm marcados. Publique
+`apps/web/dist` em qualquer lugar da primeira seção.
+
+Uma coisa antes de divulgar o endereço: cada visitante cria o próprio banco no próprio
+navegador. Ninguém vê os dados de ninguém, e ninguém consegue apagar os dados de outro.
+Não existe nada para moderar.

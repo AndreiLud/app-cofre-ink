@@ -1,0 +1,123 @@
+import type { HTMLAttributes, ReactNode, TdHTMLAttributes, ThHTMLAttributes } from "react";
+import { cn } from "../lib/cn.ts";
+
+export type TableProps = HTMLAttributes<HTMLTableElement> & {
+	/** Read by assistive technology, so a table is never anonymous. */
+	caption: ReactNode;
+	/** Shows the caption on screen as well. */
+	visibleCaption?: boolean;
+};
+
+/**
+ * The table carries its own horizontal scroll. Without it, a narrow window turns a
+ * wide table into a page that scrolls sideways as a whole, which moves the header and
+ * the navigation with it and feels like the screen is broken.
+ *
+ * The container is positioned, which looks like a detail and is not. A caption that is
+ * read only by a screen reader is placed absolutely, and an absolute box with no
+ * positioned ancestor escapes this scroll container and lands in the page itself, which
+ * is enough to make the whole page slide sideways by the width of one table.
+ */
+export function Table({
+	caption,
+	visibleCaption = false,
+	className,
+	children,
+	...rest
+}: TableProps) {
+	return (
+		<div className="relative w-full overflow-x-auto">
+			<table className={cn("w-full min-w-0 border-collapse text-sm", className)} {...rest}>
+				<caption
+					className={cn("text-left text-sm text-quiet", visibleCaption ? "pb-2" : "sr-only")}
+				>
+					{caption}
+				</caption>
+				{children}
+			</table>
+		</div>
+	);
+}
+
+export function TableHead({
+	className,
+	children,
+	...rest
+}: HTMLAttributes<HTMLTableSectionElement>) {
+	return (
+		// Sunken, so the head of a table reads as a label for the rows under it rather
+		// than as the first row of them.
+		<thead className={cn("bg-sunken", className)} {...rest}>
+			{children}
+		</thead>
+	);
+}
+
+export function TableBody({
+	className,
+	children,
+	...rest
+}: HTMLAttributes<HTMLTableSectionElement>) {
+	return (
+		<tbody className={cn("divide-y divide-line", className)} {...rest}>
+			{children}
+		</tbody>
+	);
+}
+
+export function TableRow({ className, children, ...rest }: HTMLAttributes<HTMLTableRowElement>) {
+	return (
+		<tr className={cn("transition-colors hover:bg-sunken/60", className)} {...rest}>
+			{children}
+		</tr>
+	);
+}
+
+export type CellProps = {
+	/** Right aligns the content, which is how every amount is presented. */
+	numeric?: boolean;
+};
+
+export function TableHeader({
+	numeric = false,
+	className,
+	children,
+	...rest
+}: ThHTMLAttributes<HTMLTableCellElement> & CellProps) {
+	return (
+		<th
+			scope="col"
+			className={cn(
+				// The gap between columns is what keeps two short headings from reading as
+				// one word. The last column keeps its edge, so a column of amounts still
+				// lines up with the right of the table.
+				"px-2 py-2.5 text-xs font-medium tracking-wide text-quiet first:pl-3 last:pr-3 sm:px-4 sm:first:pl-5 sm:last:pr-5",
+				numeric ? "text-right" : "text-left",
+				className,
+			)}
+			{...rest}
+		>
+			{children}
+		</th>
+	);
+}
+
+export function TableCell({
+	numeric = false,
+	className,
+	children,
+	...rest
+}: TdHTMLAttributes<HTMLTableCellElement> & CellProps) {
+	return (
+		<td
+			className={cn(
+				"px-2 py-3 align-baseline first:pl-3 last:pr-3 sm:px-4 sm:first:pl-5 sm:last:pr-5",
+				numeric ? "text-right" : "text-left",
+				className,
+			)}
+			{...rest}
+		>
+			{children}
+		</td>
+	);
+}

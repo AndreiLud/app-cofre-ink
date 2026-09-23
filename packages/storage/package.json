@@ -1,0 +1,29 @@
+{
+	"name": "@cofre/storage",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Repository layer of Cofre, with one adapter per way of storing data",
+	"exports": {
+		".": "./src/index.ts",
+		"./nodeSqlite": "./src/adapters/nodeSqlite.ts",
+		"./sqliteWasm": "./src/adapters/sqliteWasm.ts",
+		"./postgres": "./src/adapters/postgres.ts",
+		"./conformance": "./src/conformance/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@cofre/core": "workspace:*",
+		"@cofre/db": "workspace:*",
+		"@sqlite.org/sqlite-wasm": "3.53.4-build1"
+	},
+	"devDependencies": {
+		"@electric-sql/pglite": "^0.5.8",
+		"@types/node": "^26.6.2",
+		"typescript": "^7.0.2",
+		"vitest": "^5.0.1"
+	}
+}

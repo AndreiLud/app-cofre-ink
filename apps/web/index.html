@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt">
+	<head>
+		<meta charset="utf-8" />
+		<!-- The cover fit is for a phone with a notch: the page reaches the edges and the
+		     layout keeps its distance from them with the safe area instead. -->
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<meta name="color-scheme" content="light dark" />
+		<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4efe4" />
+		<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1815" />
+		<meta name="description" content="Cofre Ink: as suas finanças, no seu dispositivo." />
+		<title>Cofre Ink</title>
+		<!-- What a link to this build looks like when somebody pastes it somewhere. No
+		     absolute address is written here on purpose: this same build is published at
+		     an address of its own, served from a folder of another one, and run from a
+		     container at home, and a URL written into the page would be wrong for two of
+		     the three. -->
+		<meta property="og:type" content="website" />
+		<meta property="og:title" content="Cofre Ink" />
+		<meta property="og:description" content="As suas finanças, no seu dispositivo." />
+		<meta property="og:image" content="%BASE_URL%icons/icon512.png" />
+		<meta name="twitter:card" content="summary" />
+		<!--
+			What this page is allowed to do, which is very little.
+
+			Script comes from here and nowhere else, and none of it is written into the
+			page: that is the rule that makes an injected line of script worth nothing,
+			and it matters here because the tokens of a drive live in this browser.
+			WebAssembly is allowed because the database is one.
+
+			Connecting is open on purpose and cannot be otherwise: the whole product is
+			a person typing the address of their own server, their own WebDAV folder or
+			their own drive, and a list of allowed addresses would be a list of the
+			services this project chose for them.
+
+			Framing is not here because a browser ignores that rule when it arrives in
+			the page rather than in a header. The server sends it as a header, and
+			docs/en/deploy.md says the one line to add to a static host.
+
+			The one address here that is not this site is the widget from Cloudflare, and
+			it is only ever loaded when the owner of a server turned it on. Naming it here
+			rather than loosening the policy later is what keeps the rule readable: every
+			other script has to come from this site.
+		-->
+		<meta
+			http-equiv="Content-Security-Policy"
+			content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src *; object-src 'none'; base-uri 'self'; form-action 'none'"
+		/>
+		<!-- Every address here is written against the base of the build, so the same files
+		     work at the root of a domain and inside a folder of one. -->
+		<link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
+		<link rel="icon" href="%BASE_URL%icons/favicon32.png" sizes="32x32" />
+		<link rel="apple-touch-icon" href="%BASE_URL%icons/apple180.png" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-title" content="Cofre Ink" />
+		<script src="%BASE_URL%tema.js"></script>
+	</head>
+	<body>
+		<div id="root"></div>
+		<script type="module" src="/src/main.tsx"></script>
+	</body>
+</html>

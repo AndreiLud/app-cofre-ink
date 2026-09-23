@@ -1,0 +1,25 @@
+{
+	"$schema": "https://turbo.build/schema.json",
+	"ui": "stream",
+	"tasks": {
+		"build": {
+			"dependsOn": ["^build"],
+			"outputs": ["dist/**"]
+		},
+		"typecheck": {
+			"dependsOn": ["^build"]
+		},
+		"test": {
+			"dependsOn": ["^build"],
+			"outputs": ["coverage/**"]
+		},
+		"test:e2e": {
+			"dependsOn": ["^build"],
+			"outputs": ["playwright-report/**"]
+		},
+		"dev": {
+			"cache": false,
+			"persistent": true
+		}
+	}
+}
