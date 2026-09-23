@@ -293,6 +293,7 @@ describe("what is put aside", () => {
 				target: 1_000_000,
 				saved: 400_000,
 				lastAddedOn: "2026-05-01",
+				createdOn: "2026-04-01",
 				dueOn: "2027-03-01",
 			},
 		];
@@ -312,10 +313,36 @@ describe("what is put aside", () => {
 				target: 1_000_000,
 				saved: 400_000,
 				lastAddedOn: "2026-09-01",
+				createdOn: "2026-04-01",
 				dueOn: "2027-03-01",
 			},
 		];
 		expect(codes(findEverything(snapshot))).not.toContain("goalStalled");
+	});
+
+	/**
+	 * A goal set up this morning has never been fed, and by the old reading that made it
+	 * stalled from the moment it was saved: "nothing has gone in for nought days".
+	 */
+	it("leaves a goal nobody has fed yet alone, until it is old enough to have stopped", () => {
+		const untouched = {
+			goalId: "g1",
+			name: "Viagem",
+			target: 1_000_000,
+			saved: 0,
+			lastAddedOn: null,
+			createdOn: "2026-09-18",
+			dueOn: null,
+		};
+
+		const snapshot = quiet();
+		snapshot.goals = [untouched];
+		expect(codes(findEverything(snapshot))).not.toContain("goalStalled");
+
+		// And once it has sat there for months with nothing in it, it is said.
+		const older = quiet();
+		older.goals = [{ ...untouched, createdOn: "2026-06-01" }];
+		expect(one(findEverything(older), "goalStalled").amounts.days).toBe(111);
 	});
 });
 

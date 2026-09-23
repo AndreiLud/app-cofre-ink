@@ -29,6 +29,7 @@ const SCREENS = [
 	"/importar",
 	"/projecao",
 	"/investimentos",
+	"/diagnostico",
 ];
 
 async function widerThanTheWindow(page: Page): Promise<number> {

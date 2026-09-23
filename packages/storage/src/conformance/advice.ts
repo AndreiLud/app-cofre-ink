@@ -225,6 +225,67 @@ export function runAdviceConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		it("turns a goal into a step with a month on it, and does not call it stalled", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Casa" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+					initialBalance: 500_000,
+				});
+				const savings = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "savings",
+					name: "Reserva",
+				});
+
+				for (const month of ["2026-06", "2026-07", "2026-08"]) {
+					await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "income",
+						amount: 600_000,
+						happenedOn: `${month}-05`,
+						description: "Salario",
+						accountId: account.id,
+					});
+					await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "expense",
+						amount: 400_000,
+						happenedOn: `${month}-12`,
+						description: `Gastos de ${month}`,
+						accountId: account.id,
+					});
+				}
+
+				await fixture.asAna.goals.create({
+					spaceId: space.id,
+					name: "Viagem",
+					targetAmount: 600_000,
+					accountId: savings.id,
+				});
+
+				const reading = await fixture.asAna.advice.reading({ spaceId: space.id, today: TODAY });
+
+				// Two hundred a month left over, so three months of cover comes first and
+				// the goal queues behind it.
+				expect(reading.plan.surplus).toBe(200_000);
+				expect(reading.plan.steps.map((step) => step.code)).toEqual(["reserve", "goal"]);
+
+				const goal = reading.plan.steps[1];
+				expect(goal?.subject).toBe("Viagem");
+				expect(goal?.amount).toBe(600_000);
+				expect(goal?.months).toBe(3);
+
+				// It was made a moment ago and has never been fed, which is not stalled.
+				expect(reading.findings.map((one) => one.code)).not.toContain("goalStalled");
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		it("tells somebody who is not in the space that there is no such space", async () => {
 			const fixture = await prepare(adapter);
 			try {

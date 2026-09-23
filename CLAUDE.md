@@ -158,6 +158,7 @@ nothing.
 | 14. More than one person per device, and a gate in front of the sign in | done |
 | 15. The front door: two doors, nothing asked, and the defaults made correctable | done |
 | 16. The check up: four signs, a verdict, and what to do first | done |
+| 17. The plan: an order, a month on each step, and where the money comes from | done |
 | Next. Real statements for the recogniser, and whatever the owner asks for | waiting |
 
 ## Architecture decision records
@@ -193,3 +194,4 @@ nothing.
 | [0027](docs/adr/0027_a_cost_before_a_password.md) | a cost before a password, and no captcha from anybody else |
 | [0028](docs/adr/0028_the_front_door.md) | the front door of an address anybody can open |
 | [0029](docs/adr/0029_four_signs_and_a_verdict.md) | four signs, and a word for the state of the money |
+| [0030](docs/adr/0030_a_plan_with_a_month_on_it.md) | a plan with a month on it, and a target they have already hit |

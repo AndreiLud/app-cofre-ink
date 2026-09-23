@@ -1046,6 +1046,24 @@
 		"committed": "Referência: até metade do que você tem",
 		"repeatingLoad": "Referência: até metade do que entra"
 	},
+	"step": {
+		"coverDues": "Cobrir o que já vence",
+		"buffer": "Uma reserva de um mês",
+		"reserve": "Chegar a três meses de reserva",
+		"goal": "Meta",
+		"freeUpMonthly": "Fazer o mês fechar",
+		"said": {
+			"coverDues": "Faltam {{amount}} para o que vence nos próximos dias. Isso é desta semana, não do plano.",
+			"buffer_one": "Faltam {{amount}}. Guardando {{everyMonth}} por mês, leva um mês.",
+			"buffer_other": "Faltam {{amount}}. Guardando {{everyMonth}} por mês, leva {{count}} meses.",
+			"reserve_one": "Faltam {{amount}}. Guardando {{everyMonth}} por mês, leva mais um mês.",
+			"reserve_other": "Faltam {{amount}}. Guardando {{everyMonth}} por mês, leva mais {{count}} meses.",
+			"goal_one": "Faltam {{amount}}. Guardando {{everyMonth}} por mês, leva um mês.",
+			"goal_other": "Faltam {{amount}}. Guardando {{everyMonth}} por mês, leva {{count}} meses.",
+			"freeUpMonthly": "Precisa sobrar {{amount}} a mais por mês. Enquanto não sobrar, nada abaixo anda.",
+			"undated": "Faltam {{amount}}. Sem sobra no mês, isto não tem data."
+		}
+	},
 	"advisor": {
 		"reading": "Lendo os seus números",
 		"verdict": {
@@ -1077,11 +1095,23 @@
 			"repeatingLoad_other": "{{count}} cobranças se repetem todo mês e somam {{everyMonth}} dos {{income}} que entram.",
 			"repeatingLoadNone": "Nada nos seus registros se repete todo mês."
 		},
-		"firstTitle": "Por onde começar",
-		"firstBody_one": "A coisa com mais dinheiro em jogo.",
-		"firstBody_other": "As {{count}} coisas com mais dinheiro em jogo, na ordem.",
+		"planTitle": "O plano",
+		"planBody": "Na ordem, com quanto por mês e quando termina. Tudo isto sai da mesma sobra de um mês normal: {{surplus}}.",
+		"planStuckBody": "Na ordem, e quanto cada coisa custa.",
+		"stuckTitle": "O mês não está fechando",
+		"stuckBody": "Um mês normal não deixa nada de sobra, então nada aqui tem data: com o que entra hoje, nenhum destes passos anda. O primeiro é fazer o mês fechar.",
+		"until": "até {{month}}",
+		"late": "Isso passa da data que você marcou para esta meta.",
+		"planDone": "Nesta ordem, tudo isto fica pronto em {{month}}.",
+		"leversTitle": "Para onde vai o mês",
+		"leversBody_one": "A categoria que mais pesa num mês normal, e o mês mais barato que você já teve nela.",
+		"leversBody_other": "As {{count}} categorias que mais pesam num mês normal, e o mês mais barato que você já teve em cada uma.",
+		"ofIncome": "{{value}}% do que entra",
+		"cheapestMonth": "O seu mês mais barato foi {{best}}, ou seja {{frees}} a menos.",
+		"sameEveryMonth": "Igual todo mês, sem variação para apertar.",
+		"leversTotal": "Repetindo os seus próprios meses mais baratos, sobrariam {{frees}} a mais por mês.",
 		"goTo": "Ir para {{screen}}",
-		"allTitle": "Tudo o que os números disseram",
+		"allTitle": "O que mais os números apontaram",
 		"allBody": "Na ordem do que tem mais dinheiro em jogo.",
 		"nothingTitle": "Nada a apontar",
 		"nothingBody": "Os seus registros não têm nada fora do lugar. Isso é uma boa notícia, não um erro.",
@@ -1090,6 +1120,7 @@
 		"howTitle": "Como isto foi calculado",
 		"how_one": "Tudo aqui é conta feita sobre os seus próprios registros, um mês deles, neste aparelho. Não existe modelo, nem nota, nem opinião sobre o que você deveria querer: cada linha carrega os números que a produziram, para você conferir na mão.",
 		"how_other": "Tudo aqui é conta feita sobre os seus próprios registros, {{count}} meses deles, neste aparelho. Não existe modelo, nem nota, nem opinião sobre o que você deveria querer: cada linha carrega os números que a produziram, para você conferir na mão.",
+		"assumes": "A única opinião é a ordem do plano: uma reserva antes de uma meta, porque quem não tem reserva paga a próxima semana ruim no cartão. Fora isso, a conta assume que os próximos meses se parecem com os que passaram, e as datas se refazem sozinhas conforme você anota.",
 		"notAdvice": "Isto não é recomendação de investimento. O Cofre lê o que você escreveu e diz o que encontrou. Dizer onde colocar dinheiro é outro trabalho, de quem tem registro para fazer isso."
 	},
 	"benefitKind": {

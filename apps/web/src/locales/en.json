@@ -1046,6 +1046,24 @@
 		"committed": "Reference: up to half of what you have",
 		"repeatingLoad": "Reference: up to half of what comes in"
 	},
+	"step": {
+		"coverDues": "Cover what is already due",
+		"buffer": "One month of cover",
+		"reserve": "Reach three months of cover",
+		"goal": "Goal",
+		"freeUpMonthly": "Make the month close",
+		"said": {
+			"coverDues": "{{amount}} short of what falls due in the next days. That is this week, not the plan.",
+			"buffer_one": "{{amount}} to go. At {{everyMonth}} a month, it takes one month.",
+			"buffer_other": "{{amount}} to go. At {{everyMonth}} a month, it takes {{count}} months.",
+			"reserve_one": "{{amount}} to go. At {{everyMonth}} a month, one month more.",
+			"reserve_other": "{{amount}} to go. At {{everyMonth}} a month, {{count}} months more.",
+			"goal_one": "{{amount}} to go. At {{everyMonth}} a month, it takes one month.",
+			"goal_other": "{{amount}} to go. At {{everyMonth}} a month, it takes {{count}} months.",
+			"freeUpMonthly": "{{amount}} more has to be left over each month. Until it is, nothing below moves.",
+			"undated": "{{amount}} to go. With nothing left over in the month, this carries no date."
+		}
+	},
 	"advisor": {
 		"reading": "Reading your figures",
 		"verdict": {
@@ -1077,11 +1095,23 @@
 			"repeatingLoad_other": "{{count}} charges repeat every month and add up to {{everyMonth}} of the {{income}} that comes in.",
 			"repeatingLoadNone": "Nothing in your records repeats every month."
 		},
-		"firstTitle": "Where to start",
-		"firstBody_one": "The one thing with the most money at stake.",
-		"firstBody_other": "The {{count}} things with the most money at stake, in order.",
+		"planTitle": "The plan",
+		"planBody": "In order, with what it costs a month and when it finishes. All of it comes out of the same thing an ordinary month leaves over: {{surplus}}.",
+		"planStuckBody": "In order, and what each one costs.",
+		"stuckTitle": "The month does not close",
+		"stuckBody": "An ordinary month leaves nothing over, so nothing here carries a date: on what comes in today, none of these steps moves. The first thing is to make the month close.",
+		"until": "by {{month}}",
+		"late": "That is past the date you set for this goal.",
+		"planDone": "In this order, all of it is done by {{month}}.",
+		"leversTitle": "Where the month goes",
+		"leversBody_one": "The category that weighs most in an ordinary month, and the cheapest month you have had in it.",
+		"leversBody_other": "The {{count}} categories that weigh most in an ordinary month, and the cheapest month you have had in each.",
+		"ofIncome": "{{value}}% of what comes in",
+		"cheapestMonth": "Your cheapest month was {{best}}, which is {{frees}} less.",
+		"sameEveryMonth": "The same every month, with nothing to squeeze.",
+		"leversTotal": "Repeating your own cheapest months would leave {{frees}} more over every month.",
 		"goTo": "Go to {{screen}}",
-		"allTitle": "Everything the figures said",
+		"allTitle": "What else the figures pointed at",
 		"allBody": "In the order of what has the most money at stake.",
 		"nothingTitle": "Nothing to point at",
 		"nothingBody": "There is nothing out of place in your records. That is good news, not a fault.",
@@ -1090,6 +1120,7 @@
 		"howTitle": "How this was worked out",
 		"how_one": "All of this is arithmetic over your own records, one month of them, done on this device. There is no model, no score and no opinion about what you ought to want: every line carries the figures it was made from, so you can check it by hand.",
 		"how_other": "All of this is arithmetic over your own records, {{count}} months of them, done on this device. There is no model, no score and no opinion about what you ought to want: every line carries the figures it was made from, so you can check it by hand.",
+		"assumes": "The one opinion is the order of the plan: cover before a goal, because a household with no cover pays for the next bad week with a card. Beyond that, the arithmetic assumes the months ahead look like the months behind, and the dates redraw themselves as you write things down.",
 		"notAdvice": "This is not investment advice. Cofre reads what you wrote down and says what it found. Telling somebody where to put their money is a different job, done by people who are licensed to do it."
 	},
 	"benefitKind": {

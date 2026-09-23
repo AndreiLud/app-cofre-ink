@@ -34,6 +34,40 @@ test.describe("the check up", () => {
 		await expect(page.getByText("Isto não é recomendação de investimento.")).toBeVisible();
 	});
 
+	test("turns a goal into a step with a month on it", async ({ page }) => {
+		await openCofre(page, { name: "Andrei", space: "Pessoal" });
+
+		// Somewhere for the money to sit, and a goal pointing at it. Until there is
+		// something to save for, a household with a reserve already has no plan to show.
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		await page.getByRole("dialog").getByLabel("Nome").fill("Reserva");
+		await page.getByRole("dialog").getByLabel("Tipo").selectOption("savings");
+		await page.getByRole("button", { name: "Salvar" }).click();
+
+		await go(page, "Orçamento");
+		await page.getByRole("button", { name: "Nova meta" }).click();
+		await page.getByRole("dialog").getByLabel("Nome").fill("Viagem");
+		await page.getByRole("dialog").getByLabel("Quanto", { exact: true }).fill("15.000,00");
+		await page
+			.getByRole("dialog")
+			.getByLabel("Onde o dinheiro fica")
+			.selectOption({ label: "Reserva" });
+		await page.getByRole("button", { name: "Salvar" }).click();
+
+		await go(page, "Diagnóstico");
+
+		const plan = page.getByRole("heading", { name: "O plano" });
+		await expect(plan).toBeVisible();
+
+		// The step carries what is missing, what goes in each month and how long that
+		// takes. The date under it is the same arithmetic said as a month.
+		const step = page.getByRole("listitem").filter({ hasText: "Viagem" });
+		await expect(step).toContainText("R$ 15.000,00");
+		await expect(step).toContainText(/leva \d+ meses/);
+		await expect(step).toContainText("até");
+	});
+
 	test("is in the planning section, and reads a space with no history honestly", async ({
 		page,
 	}) => {

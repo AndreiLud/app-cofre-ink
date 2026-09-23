@@ -103,6 +103,8 @@ export type GoalLine = {
 	saved: number;
 	/** Last time anything was put into it, or null when nothing ever was. */
 	lastAddedOn: CalendarDate | null;
+	/** The day it was set up, which is what a goal nobody has fed yet is measured from. */
+	createdOn: CalendarDate | null;
 	/** When it is meant to be reached, or null when no date was set. */
 	dueOn: CalendarDate | null;
 };
@@ -161,8 +163,12 @@ const BELOW_USUAL = 0.7;
 /** Months of ordinary spending that a reserve is expected to cover. */
 export const RESERVE_MONTHS = 3;
 
-/** Under this share of what came in, what is left over is worth saying out loud. */
-const THIN_SAVING = 0.1;
+/**
+ * Under this share of what came in, what is left over is worth saying out loud. It is
+ * exported because two other files draw the same line, and a line drawn twice is a line
+ * that moves once.
+ */
+export const THIN_SAVING = 0.1;
 
 /** A goal nobody has touched for this long has stopped. */
 const STALLED_DAYS = 60;
@@ -508,10 +514,14 @@ function aboutWhatIsSaved(snapshot: Snapshot): Finding[] {
 		if (goal.saved >= goal.target) continue;
 
 		const still = goal.target - goal.saved;
-		const quiet =
-			goal.lastAddedOn === null
-				? Number.POSITIVE_INFINITY
-				: daysBetween(goal.lastAddedOn, snapshot.today);
+
+		// From the last time money went in, or from the day it was set up when none ever
+		// has. A goal made this morning is not stalled, it is new, and telling somebody
+		// their goal has not moved in nought days is the screen talking to itself.
+		const since = goal.lastAddedOn ?? goal.createdOn;
+		if (since === null) continue;
+
+		const quiet = daysBetween(since, snapshot.today);
 		if (quiet < STALLED_DAYS) continue;
 
 		// How much a month it now takes, when there is a date to arrive by.
@@ -527,7 +537,7 @@ function aboutWhatIsSaved(snapshot: Snapshot): Finding[] {
 				still,
 				months: Math.max(0, monthsLeft),
 				everyMonth: monthsLeft > 0 ? Math.ceil(still / monthsLeft) : 0,
-				days: Number.isFinite(quiet) ? quiet : 0,
+				days: quiet,
 			},
 			atStake: still,
 		});

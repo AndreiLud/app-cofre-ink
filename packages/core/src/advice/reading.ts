@@ -21,7 +21,14 @@
 
 import { median } from "../plan/projection.ts";
 import { type CalendarDate, daysBetween } from "../time/calendar.ts";
-import { type Finding, findEverything, RESERVE_MONTHS, type Snapshot } from "./findings.ts";
+import {
+	type Finding,
+	findEverything,
+	RESERVE_MONTHS,
+	type Snapshot,
+	THIN_SAVING,
+} from "./findings.ts";
+import { type Levers, leversIn, type Plan, planFrom } from "./plan.ts";
 
 export type SignCode =
 	/** What is left over each month, as a share of what comes in. */
@@ -69,11 +76,15 @@ export type Reading = {
 	monthsRead: number;
 	signs: VitalSign[];
 	findings: Finding[];
+	/** What to do, in order, with a month on each step. */
+	plan: Plan;
+	/** Where an ordinary month goes, and what their own quietest month in each was. */
+	levers: Levers;
 };
 
 /** Left over, as hundredths of what came in. Under the second one is worth saying. */
 export const SAVING_GOOD = 20;
-export const SAVING_FAIR = 10;
+export const SAVING_FAIR = Math.round(THIN_SAVING * 100);
 
 /** Months of ordinary spending the money on hand covers, in tenths. */
 export const RESERVE_GOOD = RESERVE_MONTHS * 10;
@@ -245,7 +256,13 @@ export function verdictFrom(signs: readonly VitalSign[]): Verdict {
 	return "steady";
 }
 
-/** The whole reading: the state of things, the four signs, and everything found. */
+/**
+ * The whole reading: the state of things, the four signs, everything found, what to do
+ * about it in order, and where the month goes.
+ *
+ * One function over one snapshot, so that every figure on the screen was read from the
+ * same set of records at the same moment. Two calls could disagree by a day.
+ */
 export function readingOf(snapshot: Snapshot): Reading {
 	const signs = vitalSigns(snapshot);
 	return {
@@ -254,5 +271,7 @@ export function readingOf(snapshot: Snapshot): Reading {
 		monthsRead: snapshot.before.length,
 		signs,
 		findings: findEverything(snapshot),
+		plan: planFrom(snapshot),
+		levers: leversIn(snapshot),
 	};
 }
