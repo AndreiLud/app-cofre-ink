@@ -1,37 +1,73 @@
+# What never belongs in the repository.
+#
+# Grouped by why, because a list of forty lines with no reason attached is a list
+# nobody edits: the next person adds a duplicate rather than work out what is already
+# covered.
+
+# Dependencies. pnpm keeps a store of its own and links from it.
 node_modules/
+.pnpm-store/
+*.tgz
+
+# What a build produces. Every one of these is written again by pnpm build.
 dist/
 build/
 out/
-coverage/
-.turbo/
-.vercel/
 .vite/
+*.tsbuildinfo
 
+# Caches of the tools. Turborepo, Vite and Biome all keep one, and none of them is
+# worth sharing: they are keyed to the machine that wrote them.
+.turbo/
+.cache/
+.eslintcache
+
+# Secrets. The example is the only one that travels, and it holds no real value.
 .env
 .env.*
 !.env.example
 
-*.log
-npm-debug.log*
-pnpm-debug.log*
-
-playwright-report/
-test-results/
-apps/desktop/src-tauri/target/
-
+# Databases. In browser mode the database is inside the browser, and on a server it is
+# a file. Neither is ever committed, and a stray one in a working copy is somebody's
+# real money.
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
 *.sqlite
 *.sqlite3
+data/
 
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/*
-!.vscode/extensions.json
+# What the test runners leave behind.
+coverage/
+playwright-report/
+test-results/
 apps/web/playwright-report/
 apps/web/test-results/
-
+blob-report/
 
 # Throwaway pictures taken for a review.
 apps/web/shots/
+
+# Logs.
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# Hosts that write into the working copy.
+.vercel/
+.netlify/
+.wrangler/
+
+# Editors and operating systems.
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*~
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
