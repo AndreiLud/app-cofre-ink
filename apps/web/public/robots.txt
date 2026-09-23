@@ -1,0 +1,10 @@
+# There is nothing here for a search engine to read.
+#
+# Every address in this application renders the same page, and what fills it is the
+# data of whoever is holding the browser, which never leaves their device. A crawler
+# would index the same empty shell under a dozen addresses and put them in front of
+# people looking for the project itself, which lives at the site below.
+#
+# Delete these two lines to let the application be indexed.
+User-agent: *
+Disallow: /
