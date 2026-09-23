@@ -211,8 +211,8 @@ export function DashboardPage() {
 				{balances.isPending ? (
 					<Skeleton lines={2} className="mt-4" />
 				) : (
-					<p className="mt-4 font-mono text-4xl leading-none tabular-nums sm:text-[2.75rem]">
-						<Value amount={settled} currency={currentSpace.baseCurrency} tone="auto" />
+					<p className="mt-4 text-4xl leading-none sm:text-[2.75rem]">
+						<Value amount={settled} currency={currentSpace.baseCurrency} tone="auto" face="serif" />
 					</p>
 				)}
 

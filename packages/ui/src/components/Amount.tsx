@@ -3,10 +3,22 @@ import { cn } from "../lib/cn.ts";
 
 export type AmountTone = "auto" | "neutral" | "positive" | "negative";
 
+/**
+ * Which face the figures are cut in.
+ *
+ * A column wants the monospace: every digit the same width, so the eye runs down the
+ * decimal point instead of hunting for it. A number on its own, at the size a screen
+ * gives the one figure it exists to show, wants the serif: the same face the headings
+ * are in, which is what makes it look set rather than printed out by a machine. Both
+ * are tabular, so both still line up when they sit beside each other.
+ */
+export type AmountFace = "mono" | "serif";
+
 export type AmountProps = {
 	value: Money;
 	locale?: string;
 	tone?: AmountTone;
+	face?: AmountFace;
 	/** Hides the digits, for the privacy mode and for recording a demo. */
 	hidden?: boolean;
 	withoutSymbol?: boolean;
@@ -31,6 +43,7 @@ export function Amount({
 	value,
 	locale,
 	tone = "neutral",
+	face = "mono",
 	hidden = false,
 	withoutSymbol = false,
 	alwaysSign = false,
@@ -41,7 +54,8 @@ export function Amount({
 	return (
 		<span
 			className={cn(
-				"font-mono tabular-nums whitespace-nowrap",
+				"tabular-nums whitespace-nowrap",
+				face === "serif" ? "font-serif" : "font-mono",
 				toneClass(tone, value.amount),
 				className,
 			)}

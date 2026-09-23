@@ -24,7 +24,16 @@ export type SectionTitleProps = {
 export function SectionTitle({ children, action, level = "h2", className }: SectionTitleProps) {
 	const Heading = level;
 	return (
-		<div className={cn("flex flex-wrap items-center justify-between gap-3", className)}>
+		<div
+			className={cn(
+				"flex flex-wrap items-center justify-between gap-3",
+				// The title of a screen sits above a rule, the way the head of a page does
+				// on anything that was printed. It is the screen and not a block, so it is
+				// the one place in the product that earns a line of its own.
+				level === "h1" ? "border-b border-line pb-3" : "",
+				className,
+			)}
+		>
 			<Heading
 				className={cn(
 					"min-w-0 font-serif text-ink",

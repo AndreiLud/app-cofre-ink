@@ -178,6 +178,10 @@
 		font-family: var(--font-serif);
 		line-height: 1.2;
 		font-weight: 600;
+		/* A serif at heading sizes is set too loose by default, because the spacing that
+		   suits a paragraph is not the spacing that suits a line of twenty four pixels.
+		   This much is not noticed and is the difference between set and typed. */
+		letter-spacing: -0.012em;
 	}
 
 	:focus-visible {

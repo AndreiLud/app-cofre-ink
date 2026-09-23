@@ -1,4 +1,9 @@
-export { Amount, type AmountProps, type AmountTone } from "./components/Amount.tsx";
+export {
+	Amount,
+	type AmountFace,
+	type AmountProps,
+	type AmountTone,
+} from "./components/Amount.tsx";
 export {
 	Button,
 	type ButtonProps,

@@ -85,7 +85,9 @@ export async function go(page: Page, label: string): Promise<void> {
 
 /** The amount shown as the answer to "how much do I have". */
 export function total(page: Page) {
-	return page.locator("main p.font-mono").first();
+	// Every amount on screen is one of these, whichever face it is cut in, and the one
+	// the overview opens with is the first.
+	return page.locator("main span.tabular-nums").first();
 }
 
 /**

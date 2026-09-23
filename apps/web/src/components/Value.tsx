@@ -2,7 +2,7 @@
 // never forgotten in one corner of one screen.
 
 import { money } from "@cofre/core";
-import { Amount, type AmountTone } from "@cofre/ui";
+import { Amount, type AmountFace, type AmountTone } from "@cofre/ui";
 import { useTranslation } from "react-i18next";
 import { type Language, LOCALE_OF } from "../i18n/index.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -12,6 +12,8 @@ export type ValueProps = {
 	amount: number;
 	currency?: string;
 	tone?: AmountTone;
+	/** The serif is for the one figure a screen exists to show. Columns stay monospace. */
+	face?: AmountFace;
 	withoutSymbol?: boolean;
 	className?: string;
 };
@@ -20,6 +22,7 @@ export function Value({
 	amount,
 	currency = "BRL",
 	tone = "neutral",
+	face,
 	withoutSymbol,
 	className,
 }: ValueProps) {
@@ -32,6 +35,7 @@ export function Value({
 			value={money(amount, currency)}
 			locale={locale}
 			tone={tone}
+			face={face}
 			hidden={amountsHidden}
 			withoutSymbol={withoutSymbol}
 			className={className}
