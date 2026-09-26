@@ -6,7 +6,7 @@
 #
 # The data lives in the named volume below, so it survives an update of the image.
 # For PostgreSQL instead of SQLite, read the note above the database service further
-# down: there are three things to uncomment, and leaving one out stops the whole file.
+# down: there are four things to uncomment, and leaving one out stops the whole file.
 
 # The project name comes from here and not from the folder, so the container and the
 # volume are called the same thing on every machine.
@@ -39,10 +39,20 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    # Uncomment this with the database service below, and not on its own: Compose
+    # refuses the whole project when a service depends on one that is not there.
+    #
+    # Waiting for the container to exist is not enough, which is why this waits for it
+    # to be healthy. PostgreSQL starts, writes its own files, restarts itself once and
+    # only then opens the socket, so a server that connects the moment the container
+    # appears is refused and dies on the first boot.
+    # depends_on:
+    #   database:
+    #     condition: service_healthy
 
-  # PostgreSQL instead of SQLite. Three things to uncomment, not one: this service, the
-  # volume it writes to at the bottom of this file, and POSTGRES_PASSWORD in .env. Then
-  # point COFRE_DATABASE at it:
+  # PostgreSQL instead of SQLite. Four things to uncomment, not one: this service, the
+  # depends_on above, the volume it writes to at the bottom of this file, and
+  # POSTGRES_PASSWORD in .env. Then point COFRE_DATABASE at it:
   #   COFRE_DATABASE=postgres://cofre:${POSTGRES_PASSWORD}@database:5432/cofre
   # The host is `database`, the name of the service, because that is what the address
   # resolves to from inside this network. It is not localhost, which in there is the
@@ -56,6 +66,14 @@ services:
   #     POSTGRES_DB: cofre
   #   volumes:
   #     - cofrePostgres:/var/lib/postgresql/data
+  #   # What the depends_on above waits for. Asking the database itself, rather than
+  #   # watching a port, because the port is open for a moment during the start before
+  #   # it is ready to answer.
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U cofre -d cofre"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 12
 
 volumes:
   cofreData:

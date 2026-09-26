@@ -248,13 +248,21 @@ container, which an update deletes.
 
 ### PostgreSQL instead of SQLite
 
-Three things to uncomment, and leaving one out stops the whole file rather than half of
-it: Compose refuses a project where a service mounts a volume nothing declares.
+Four things to uncomment, and leaving one out stops the whole file rather than half of
+it: Compose refuses a project where a service mounts a volume, or depends on a service,
+that nothing declares.
 
-1. The `database` service in `compose.yaml`.
-2. The `cofrePostgres` volume, at the bottom of the same file. This is the one that is
-   easy to miss, because it sits apart from the service that uses it.
-3. `POSTGRES_PASSWORD` in `.env`, which is the password the database is created with.
+1. The `database` service in `compose.yaml`, healthcheck and all.
+2. The `depends_on` on the `cofre` service, further up the same file.
+3. The `cofrePostgres` volume, at the bottom of it. This is the one that is easy to
+   miss, because it sits apart from the service that uses it.
+4. `POSTGRES_PASSWORD` in `.env`, which is the password the database is created with.
+
+The second one is what stops the server racing the database. PostgreSQL starts, writes
+its own files, restarts itself once and only then opens the socket, so a server that
+connects the moment the container appears is refused and dies with
+`connect ECONNREFUSED`. Waiting for the container is not enough, which is why it waits
+for the healthcheck.
 
 Then point the server at it, in the same `.env`:
 
