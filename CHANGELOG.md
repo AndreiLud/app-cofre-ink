@@ -94,7 +94,7 @@ which is worth reading once and is not worth writing twice.
 ### What it does
 
 **Records.** Accounts, cards with a real invoice cycle, instalments, transfers, planned
-and settled. A whole record written on one line: `mercado 42,90 ontem nubank 3x`.
+and settled. A whole record written on one line: `market 42.90 yesterday nubank 3x`.
 
 **Sorting.** Categories two levels deep, spending priority, and rules that sort by
 themselves and learn from a correction.
