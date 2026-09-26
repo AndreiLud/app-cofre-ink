@@ -107,9 +107,20 @@ pnpm install
 pnpm dev
 ```
 
-That is the browser mode at `http://localhost:5174`, with the API also running at
-`http://localhost:4321` for whoever wants to try the other mode. There is no password in
-browser mode, so whoever opens your browser sees your data.
+That is the browser mode at `http://localhost:5174`, which is the whole product and
+needs nothing else. There is no password in browser mode, so whoever opens your browser
+sees your data.
+
+The same command starts the API beside it, and the API refuses to start without a
+secret, so its half of the output is a configuration error until you give it one.
+Nothing reads `.env` outside Docker, so it goes in the environment of the shell:
+
+```bash
+$env:COFRE_SECRET = "at least thirty two characters, anything"   # PowerShell
+export COFRE_SECRET=...                                          # bash
+```
+
+Only server mode needs it. Browser mode never asks.
 
 For the server, as a container:
 
@@ -380,9 +391,20 @@ pnpm install
 pnpm dev
 ```
 
-Isso é o modo navegador em `http://localhost:5174`, com a API também de pé em
-`http://localhost:4321` para quem quiser experimentar o outro modo. No modo navegador
-não existe senha, então quem abrir o seu navegador vê os seus dados.
+Isso é o modo navegador em `http://localhost:5174`, que é o produto inteiro e não
+precisa de mais nada. No modo navegador não existe senha, então quem abrir o seu
+navegador vê os seus dados.
+
+O mesmo comando sobe a API ao lado, e a API se recusa a subir sem um segredo, então a
+metade dela na saída é um erro de configuração até você dar um. Nada lê o `.env` fora do
+Docker, então ele vai no ambiente do terminal:
+
+```bash
+$env:COFRE_SECRET = "no mínimo trinta e dois caracteres, qualquer coisa"   # PowerShell
+export COFRE_SECRET=...                                                   # bash
+```
+
+Só o modo servidor precisa disso. O modo navegador nunca pede.
 
 Para o servidor, em container:
 

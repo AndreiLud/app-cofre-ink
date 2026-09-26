@@ -23,8 +23,12 @@ sem internet, com os mesmos dados. Não existe aplicativo para instalar de loja 
 
 ```bash
 pnpm install
-pnpm dev        # a interface e o servidor, os dois observando
+pnpm dev        # a interface na 5174, e a API ao lado dela
 ```
+
+A interface é o produto inteiro e não precisa de mais nada. A API se recusa a subir sem
+o `COFRE_SECRET`, e nada lê o `.env` fora do Docker, então exporte ele no terminal antes
+se quiser o modo servidor localmente. O modo navegador nunca pede.
 
 <a id="so_o_navegador"></a>
 

@@ -23,8 +23,12 @@ connection, with the same data. There is no application to install from any stor
 
 ```bash
 pnpm install
-pnpm dev        # the interface and the server, both watching
+pnpm dev        # the interface at 5174, and the API beside it
 ```
+
+The interface is the whole product and needs nothing else. The API refuses to start
+without `COFRE_SECRET`, and nothing reads `.env` outside Docker, so export it in the
+shell first if you want server mode locally. Browser mode never asks for it.
 
 <a id="the_browser_mode"></a>
 
