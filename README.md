@@ -119,7 +119,16 @@ docker compose up -d
 ```
 
 It answers on `http://localhost:4321` and serves the interface itself, so there is one
-thing to run rather than two.
+thing to run rather than two. The first visit opens on the question the interface asks
+everybody: pick **Sync between my devices**, then **See both ways**, then **A server of
+mine**, and give it that address.
+
+`COFRE_SECRET` is the only line that has to be filled. The rest of `.env.example` is
+commented on purpose, because what is in `.env` wins over the container's own defaults,
+and a development value left in by accident is how a database ends up somewhere an
+update deletes. **Set `COFRE_WEB_ORIGIN` and `COFRE_PUBLIC_URL` to the real address the
+moment the server is reachable as anything other than `localhost`**, or every invitation
+link points where nobody can follow it.
 
 ### Environment
 
@@ -383,7 +392,17 @@ docker compose up -d
 ```
 
 Ele responde em `http://localhost:4321` e serve a própria interface, então é uma coisa
-para rodar em vez de duas.
+para rodar em vez de duas. A primeira visita abre na pergunta que a interface faz para
+todo mundo: escolha **Sincronizar entre os meus aparelhos**, depois **Ver as duas
+formas**, depois **Um servidor meu**, e informe esse endereço.
+
+O `COFRE_SECRET` é a única linha que precisa ser preenchida. O resto do `.env.example`
+está comentado de propósito, porque o que está no `.env` vence os padrões do próprio
+container, e um valor de desenvolvimento deixado ali sem querer é como um banco de dados
+vai parar num lugar que uma atualização apaga. **Ajuste `COFRE_WEB_ORIGIN` e
+`COFRE_PUBLIC_URL` para o endereço real no momento em que o servidor for alcançável por
+algo que não seja `localhost`**, senão todo link de convite aponta para onde ninguém
+consegue ir.
 
 ### Variáveis de ambiente
 

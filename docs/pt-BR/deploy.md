@@ -212,25 +212,57 @@ Preencha `COFRE_SECRET`:
 node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 ```
 
-Ajuste `COFRE_WEB_ORIGIN` e `COFRE_PUBLIC_URL` para o endereço real, senão os convites
-saem apontando para `localhost`. Depois:
+Essa é a única linha que precisa ser preenchida. Todo o resto do arquivo está
+comentado, e uma linha comentada cai no padrão que o container já carrega.
+
+**No momento em que o servidor for alcançável por algo que não seja `localhost`,
+ajuste os dois endereços para o real.** Eles estão comentados no exemplo exatamente por
+isso: o que estiver no `.env` vence o `compose.yaml`, então um valor deixado ali sem
+querer é um valor que passa por cima do container.
+
+```
+COFRE_WEB_ORIGIN=https://cofre.suacasa.com
+COFRE_PUBLIC_URL=https://cofre.suacasa.com
+```
+
+O `COFRE_WEB_ORIGIN` é de onde a interface é servida, e a API recusa requisição que não
+venha dele nem do endereço do próprio servidor. O `COFRE_PUBLIC_URL` é onde este
+servidor responde, visto de fora.
+O container serve a própria interface, então numa máquina só os dois são o mesmo
+endereço. No padrão, os dois são `http://localhost:4321`, que está certo enquanto você
+experimenta na máquina em que ele roda e está errado no instante em que outra pessoa
+precisa alcançar: todo link de convite é montado com o primeiro deles.
 
 ```bash
 docker compose up -d
 ```
 
 A interface e a API sobem juntas, na porta 4321 por padrão. Os dados ficam num volume
-chamado `cofreData`, que sobrevive a uma atualização da imagem.
+chamado `cofreData`, que sobrevive a uma atualização da imagem, e o container escreve em
+`/data/cofre.db`. A linha de boot diz qual arquivo foi aberto, e vale ler uma vez: um
+caminho que não começa com `/data` é um banco dentro do container, que uma atualização
+apaga.
 
 Para PostgreSQL no lugar do SQLite, descomente o serviço `database` no `compose.yaml` e
-aponte `COFRE_DATABASE` para ele.
+aponte `COFRE_DATABASE` para o endereço dele.
+
+### Como é a primeira visita
+
+O endereço serve a interface, e a interface ainda não sabe que está falando com o seu
+servidor, então ela abre na pergunta que faz para todo mundo:
+**Como você quer usar o Cofre Ink?**
+
+Escolha **Sincronizar entre os meus aparelhos**, depois **Ver as duas formas**, depois
+**Um servidor meu**. Ele pede o **Endereço do servidor**, que é o endereço que você
+acabou de digitar, e o **Conectar** aponta este navegador para lá. A escolha fica
+guardada, então a pergunta é feita uma vez só.
 
 ### A senha do primeiro acesso
 
-Não existe senha padrão, e não existe senha escrita em lugar nenhum. Quando você abre o
-endereço pela primeira vez, o servidor ainda não tem ninguém, a tela diz isso e abre já
-em criar acesso: você escolhe o email e a senha ali, naquele momento. Ela é guardada
-cifrada no banco do seu servidor e mais nada a conhece.
+Não existe senha padrão, e não existe senha escrita em lugar nenhum. Depois que este
+navegador está apontado para o seu servidor, o servidor ainda não tem ninguém, a tela
+diz isso e abre já em criar acesso: você escolhe o email e a senha ali, naquele momento.
+Ela é guardada cifrada no banco do seu servidor e mais nada a conhece.
 
 O `COFRE_SECRET` não é a sua senha. Ele assina os cookies de sessão, e trocá lo só
 desconecta quem estiver conectado.

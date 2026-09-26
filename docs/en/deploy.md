@@ -211,25 +211,57 @@ Fill `COFRE_SECRET`:
 node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 ```
 
-Set `COFRE_WEB_ORIGIN` and `COFRE_PUBLIC_URL` to the real address, or invitations go
-out pointing at `localhost`. Then:
+That is the only line that has to be filled. Everything else in the file is commented,
+and a commented line falls through to the default the container already carries.
+
+**The moment the server is reachable as anything other than `localhost`, set both
+addresses to the real one.** They are commented out in the example for exactly that
+reason: whatever is in `.env` wins over `compose.yaml`, so a value left in by accident
+is a value that overrides the container.
+
+```
+COFRE_WEB_ORIGIN=https://cofre.yourhouse.com
+COFRE_PUBLIC_URL=https://cofre.yourhouse.com
+```
+
+`COFRE_WEB_ORIGIN` is where the interface is served from, and the API refuses a request
+from anywhere that is not it or this server's own address. `COFRE_PUBLIC_URL` is where
+this server answers, seen from outside.
+The container serves its own interface, so on a single machine they are the same
+address. Left at the default they are both `http://localhost:4321`, which is right
+while you are trying it on the machine it runs on and wrong the moment anybody else
+has to reach it: every invitation link is built from the first one.
 
 ```bash
 docker compose up -d
 ```
 
 The interface and the API come up together, on port 4321 by default. The data lives in
-a volume called `cofreData`, which survives an update of the image.
+a volume called `cofreData`, which survives an update of the image, and the container
+writes it to `/data/cofre.db`. The boot log says which file it opened, and it is worth
+reading once: a path that does not start with `/data` is a database inside the
+container, which an update deletes.
 
 For PostgreSQL instead of SQLite, uncomment the `database` service in `compose.yaml`
-and point `COFRE_DATABASE` at it.
+and set `COFRE_DATABASE` to its address.
+
+### What the first visit looks like
+
+The address serves the interface, and the interface does not know yet that it is
+talking to your server, so it opens on the question it asks everybody:
+**How do you want to use Cofre Ink?**
+
+Choose **Sync between my devices**, then **See both ways**, then **A server of mine**.
+It asks for the **Address of the server**, which is the address you just typed, and
+**Connect** points this browser at it. The choice is kept, so the question is asked
+once.
 
 ### The password for the first sign in
 
-There is no default password and no password written anywhere. The first time you open
-the address, the server has nobody on it, the screen says so and opens on creating
-access: you choose the email and the password there, at that moment. It is stored
-hashed in the database on your server and nothing else knows it.
+There is no default password and no password written anywhere. Once this browser is
+pointed at your server, the server has nobody on it, the screen says so and opens on
+creating access: you choose the email and the password there, at that moment. It is
+stored hashed in the database on your server and nothing else knows it.
 
 `COFRE_SECRET` is not your password. It signs the session cookies, and changing it only
 signs out whoever is signed in.

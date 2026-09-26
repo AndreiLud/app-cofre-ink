@@ -5,6 +5,37 @@ Every release, what changed in it, and what to do about it if you are running th
 Versions follow semantic versioning. While the first number is zero, the second one
 changes when something breaks and the third when nothing does.
 
+## Unreleased
+
+### Fixed
+
+**The example environment kept the data inside the container.** Following the guide
+exactly (`cp .env.example .env`, fill `COFRE_SECRET`, `docker compose up -d`) wrote the
+database to `./data/cofre.db` instead of to the named volume, because Compose reads
+`.env` and the value in it won over the one in `compose.yaml`. The database was inside
+the container, so **recreating the container deleted it**, which is what an update does.
+The same mechanism sent every invitation link to port 5174, which nothing answers.
+
+Both lines are commented out now, so the container's own defaults apply: `/data/cofre.db`
+inside the volume, and `http://localhost:4321`.
+
+> **If you already run a server, read this before you update.**
+>
+> Look at the boot log:
+>
+> ```bash
+> docker compose logs | grep "storing data"
+> ```
+>
+> If it says `/data/cofre.db`, nothing is wrong and nothing is needed.
+>
+> **If it says `./data/cofre.db`, your data is inside the container and the copy in the
+> volume does not have it.** Before touching anything, open the interface, go to Data and
+> export every space. Then correct the `.env`, comparing it against the new
+> `.env.example`, bring the container up again and restore what you exported. Do not run
+> `docker compose down` or pull a new image first: recreating the container is what
+> removes the file.
+
 ## 0.1.0
 
 Released on 23 September 2026. The first published version.
