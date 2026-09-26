@@ -42,10 +42,19 @@ inside the volume, and `http://localhost:4321`.
 **The PostgreSQL path could not be followed as written.** Four places said to uncomment
 the database service. The service mounts a volume declared in a separate comment at the
 bottom of the file, and Compose refuses a whole project where a service mounts a volume
-nothing declares, so the documented steps brought nothing up. It is three things now,
-said as three: the service, the volume, and `POSTGRES_PASSWORD`, which the example never
-mentioned either. The guides also say that the host is the name of the service and not
-`localhost`, and that the backup recipe copies a volume that holds nothing on this path.
+nothing declares, so the documented steps brought nothing up. It is four things now,
+said as four: the service, the wait described below, the volume, and
+`POSTGRES_PASSWORD`, which the example never mentioned either. The guides also say that
+the host is the name of the service and not `localhost`, and that the backup recipe
+copies a volume that holds nothing on this path.
+
+**On that same path the first boot could die with `connect ECONNREFUSED`.** PostgreSQL
+starts, writes its own files, restarts itself once and only then opens the socket, so a
+server that connected the moment the container appeared was refused. The restart policy
+brought it back seconds later, which is why it looked like it worked, but a fresh
+install failed the first time and said something frightening while doing it. The
+database now carries a healthcheck that asks the database itself rather than watching a
+port, and the server waits for it.
 
 **A server that would not start pointed at a file nothing reads.** The error said to copy
 `.env.example` to `.env` and fill it in. Only Compose reads that file. Started any other
@@ -72,7 +81,8 @@ never written down as a choice. The reasoning is in
 
 ### Added
 
-Where to donate, in the README and as the Sponsor button on the repository.
+Where to donate, in the README and behind the Sponsor button on the repository, which
+offers GitHub Sponsors and PayPal.
 
 ## 0.1.0
 
