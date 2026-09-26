@@ -12,6 +12,7 @@ device without you pressing something.
 | Site | [cofre.ink](https://cofre.ink) |
 | Application | [app.cofre.ink](https://app.cofre.ink) |
 | Repository | [`AndreiLud/app-cofre-ink`](https://github.com/AndreiLud/app-cofre-ink) |
+| Donate | [PayPal](https://www.paypal.com/donate/?hosted_button_id=6P3GYKL7PULEN) |
 
 ![The overview, with the balance, what the figures found and where the money is](docs/imagens/painel.png)
 
@@ -246,6 +247,17 @@ from the monorepo to the way a projection is built. A few that shape everything 
    when it is about to.
 5. **No hyphen as punctuation** in anything written for a person, checked in CI.
 
+### Supporting the project
+
+Nothing here is paid for and nothing here is sold. If it is worth something to you,
+[the PayPal page](https://www.paypal.com/donate/?hosted_button_id=6P3GYKL7PULEN) takes
+any amount you choose.
+
+Money is not the only way, and it is not the most useful one.
+[cofre.ink/donate](https://cofre.ink/donate) lists the others: a star on the repository,
+a problem reported with enough detail to reproduce it, a translation, a statement from a
+bank the readers have never seen.
+
 ### Licence and contact
 
 MIT. See [LICENSE](LICENSE).
@@ -267,6 +279,7 @@ sem você mandar.
 | Site | [cofre.ink](https://cofre.ink) |
 | Aplicativo | [app.cofre.ink](https://app.cofre.ink) |
 | Repositório | [`AndreiLud/app-cofre-ink`](https://github.com/AndreiLud/app-cofre-ink) |
+| Doar | [PayPal](https://www.paypal.com/donate/?hosted_button_id=6P3GYKL7PULEN) |
 
 ### O que ele faz
 
@@ -499,6 +512,17 @@ Algumas que mandam em todo o resto:
 4. **Nada sai do aparelho sem uma ação explícita**, e a tela avisa quando vai sair.
 5. **Nenhum hífen como pontuação** em nada escrito para pessoas, verificado na
    integração contínua.
+
+### Apoiar o projeto
+
+Nada aqui é pago e nada aqui é vendido. Se isto vale alguma coisa para você,
+[a página do PayPal](https://www.paypal.com/donate/?hosted_button_id=6P3GYKL7PULEN)
+aceita o valor que você escolher.
+
+Dinheiro não é o único jeito, e não é o mais útil.
+[cofre.ink/pt/donate](https://cofre.ink/pt/donate) lista os outros: uma estrela no
+repositório, um problema relatado com detalhe suficiente para reproduzir, uma tradução,
+um extrato de um banco que os leitores ainda não viram.
 
 ### Licença e contato
 
