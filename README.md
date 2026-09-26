@@ -208,7 +208,7 @@ to match the Worker the repository is connected to.
 
 **The server mode is one container.** `docker compose up -d` builds it and runs it, with
 the data in a named volume that survives an update of the image. For PostgreSQL instead
-of SQLite, there are three things to uncomment and one of them is easy to miss, so
+of SQLite, there are four things to uncomment and two of them are easy to miss, so
 [the guide](docs/en/deploy.md) walks through it.
 
 Every release also publishes an image built for Intel and for ARM, so there is nothing
@@ -494,7 +494,7 @@ precisa ser o mesmo nome do Worker a que o repositório está conectado.
 
 **O modo servidor é um container.** O `docker compose up -d` constrói e sobe, com os
 dados num volume nomeado que sobrevive a uma atualização da imagem. Para PostgreSQL em
-vez de SQLite, são três coisas para descomentar e uma delas passa batido, então
+vez de SQLite, são quatro coisas para descomentar e duas delas passam batido, então
 [o guia](docs/pt-BR/deploy.md) mostra o caminho.
 
 Toda versão também publica uma imagem construída para Intel e para ARM, então não há

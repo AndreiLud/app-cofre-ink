@@ -249,14 +249,21 @@ apaga.
 
 ### PostgreSQL no lugar do SQLite
 
-São três coisas para descomentar, e deixar uma de fora para o arquivo inteiro em vez de
-metade dele: o Compose recusa um projeto em que um serviço monta um volume que ninguém
-declara.
+São quatro coisas para descomentar, e deixar uma de fora para o arquivo inteiro em vez
+de metade dele: o Compose recusa um projeto em que um serviço monta um volume, ou
+depende de um serviço, que ninguém declara.
 
-1. O serviço `database` no `compose.yaml`.
-2. O volume `cofrePostgres`, no fim do mesmo arquivo. É esse que passa batido, porque
-   fica longe do serviço que o usa.
-3. O `POSTGRES_PASSWORD` no `.env`, que é a senha com que o banco é criado.
+1. O serviço `database` no `compose.yaml`, com healthcheck e tudo.
+2. O `depends_on` no serviço `cofre`, mais acima no mesmo arquivo.
+3. O volume `cofrePostgres`, no fim dele. É esse que passa batido, porque fica longe do
+   serviço que o usa.
+4. O `POSTGRES_PASSWORD` no `.env`, que é a senha com que o banco é criado.
+
+O segundo é o que impede o servidor de correr contra o banco. O PostgreSQL sobe, escreve
+os próprios arquivos, se reinicia uma vez e só então abre o socket, então um servidor que
+conecta no instante em que o container aparece é recusado e morre com
+`connect ECONNREFUSED`. Esperar o container não basta, e é por isso que ele espera o
+healthcheck.
 
 Depois aponte o servidor para ele, no mesmo `.env`:
 

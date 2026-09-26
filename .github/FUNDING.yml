@@ -1,6 +1,8 @@
 # What puts the Sponsor button at the top of the repository.
 #
-# One platform, because there is one. When GitHub Sponsors is set up, adding a line
-# saying `github: AndreiLud` is the whole of it, and the button then offers both.
+# Two ways to give, and the button offers both. GitHub takes no cut of a sponsorship and
+# PayPal takes a fee, so the first one is listed first, which is also the order the
+# button shows them in.
 
+github: AndreiLud
 custom: ["https://www.paypal.com/donate/?hosted_button_id=6P3GYKL7PULEN"]
