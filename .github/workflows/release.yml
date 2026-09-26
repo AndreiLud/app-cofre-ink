@@ -1,27 +1,48 @@
 name: release
 
-# A tag, and nothing else. Pushing to main publishes nothing: a release is a decision
-# somebody makes, and the tag is how they make it.
+# A tag, mostly. Pushing to main publishes nothing: a release is a decision somebody
+# makes, and the tag is how they make it.
 #
 #   pnpm version 0.1.0 --no-git-tag-version   then write the section in CHANGELOG.md
 #   git tag v0.1.0 && git push origin v0.1.0
+#
+# The button is the other way in, for the day the notes need redoing on their own: a
+# release that went out without them, or a changelog corrected afterwards. It takes the
+# tag by name and leaves the image alone, because a tag is built once and the release
+# already points at what came out.
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The tag to write the notes of, for example v0.1.1
+        required: true
+        type: string
 
 permissions:
   contents: write
   packages: write
 
+# Which tag this run is about. A push carries it in the ref, and the button carries it
+# in the box, and everything below reads this instead of knowing which of the two it is.
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag || github.ref_name }}
 
 jobs:
   verify:
     name: the tag is coherent, and the code still passes
     runs-on: ubuntu-latest
     steps:
+      # The tag, and not the branch the button was pressed from. What a release says is
+      # what its own commit says, so the notes are read from there and never from
+      # whatever main happens to hold today.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
 
       - uses: pnpm/action-setup@v4
 
@@ -36,7 +57,7 @@ jobs:
       # Before anything is built or published: the tag, the version in package.json and
       # the section in the changelog all say the same thing, or this stops here.
       - name: the tag, the version and the changelog agree
-        run: node scripts/releaseNotes.mjs "${{ github.ref_name }}"
+        run: node scripts/releaseNotes.mjs "$TAG"
 
       - name: lint, types, the writing rule and the two languages
         run: pnpm run check
@@ -53,9 +74,19 @@ jobs:
   image:
     name: the container, on the registry of this repository
     needs: verify
+    # Only a tag push builds one. The button exists for the notes, and the image for a
+    # tag was built the day that tag was pushed: building it again would either produce
+    # the same thing for twenty minutes, or produce something different from what the
+    # release already points at, which is worse.
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
+      # The same tag the other two check out. On a push it is what the default would
+      # have given anyway, and it is written out so that loosening the line above never
+      # quietly builds an image of something else.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
 
       # Two architectures, because the guide says a Raspberry Pi is a place to run this
       # and a Pi is not an Intel machine. The second one is emulated and slow, which is
@@ -92,10 +123,20 @@ jobs:
 
   release:
     name: the release, with the notes somebody wrote
-    needs: image
+    needs: [verify, image]
+    # The image job does not run when the button was pressed, and a dependency that was
+    # skipped skips everything after it unless that is said out loud. Said out loud
+    # here, along with the thing that must never happen: this running after a verify
+    # that failed, or after an image that was attempted and did not come out.
+    if: >-
+      ${{ !cancelled()
+      && needs.verify.result == 'success'
+      && (needs.image.result == 'success' || needs.image.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
 
       - uses: pnpm/action-setup@v4
 
@@ -108,7 +149,7 @@ jobs:
       # repository and the page on the release say the same thing and only one of them
       # has to be written.
       - name: the notes
-        run: node scripts/releaseNotes.mjs "${{ github.ref_name }}" > notes.md
+        run: node scripts/releaseNotes.mjs "$TAG" > notes.md
 
       # Written so that running it twice ends the same way it ended the first time.
       #
@@ -121,10 +162,12 @@ jobs:
       # have done and not a reason to stop.
       #
       # So it asks first, and edits what is there instead of refusing.
+      # TAG is not set again here. It comes from the top of the file, where it already
+      # knows whether this was a push or the button, and setting it again would quietly
+      # hand this step the branch instead of the tag.
       - name: publish it, or bring what is published up to date
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
         run: |
           if gh release view "$TAG" > /dev/null 2>&1; then
             echo "a release for $TAG is already there, so its notes are brought up to date"
