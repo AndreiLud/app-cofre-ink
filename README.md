@@ -51,6 +51,12 @@ copy in a file, a WebDAV folder or an online database, and mirror the records in
 Google spreadsheet. Two devices agree by exchanging a change log, over a server or
 through a file somebody carries.
 
+**Two languages.** Portuguese and English, and it opens in the one that fits where the
+device is: a clock set to Brazil opens in Portuguese and anywhere else opens in English.
+A link can say which (`?lang=pt` or `?lang=en`), the button in the header has the last
+word, and the choice sticks. Nothing is asked of any service to work that out, so it
+behaves the same with no connection at all.
+
 **Offline.** The whole interface is kept by a service worker, so it opens on a train.
 
 ### The three ways to run it
@@ -295,6 +301,12 @@ despesa comum. Nada sobre o que comprar ou onde colocar dinheiro.
 guarde uma cópia num arquivo, numa pasta WebDAV ou num banco de dados online, e espelhe
 os lançamentos numa planilha do Google. Dois aparelhos combinam trocando um histórico de
 alterações, por um servidor ou por um arquivo que você carrega.
+
+**Dois idiomas.** Português e inglês, e ele abre no que combina com onde o aparelho
+está: um relógio no Brasil abre em português e qualquer outro abre em inglês. Um link
+pode dizer qual (`?lang=pt` ou `?lang=en`), o botão do cabeçalho tem a última palavra, e
+a escolha fica guardada. Nada disso pergunta a serviço nenhum, então funciona igual sem
+internet.
 
 **Sem internet.** A interface inteira fica guardada por um service worker, então ele
 abre no metrô.

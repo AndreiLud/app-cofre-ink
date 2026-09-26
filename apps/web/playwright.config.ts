@@ -26,6 +26,10 @@ export default defineConfig({
 		baseURL: `http://localhost:${PORT}`,
 		trace: "retain-on-failure",
 		locale: "pt-BR",
+		// Every flow below reads Portuguese, and the interface now opens in the language
+		// of wherever the device is. Without this the suite passes on a machine in Brazil
+		// and fails on a runner, which sits in UTC and would be handed English.
+		timezoneId: "America/Sao_Paulo",
 	},
 	projects: [
 		{

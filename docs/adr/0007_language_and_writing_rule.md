@@ -1,6 +1,7 @@
 # ADR 0007: Language policy and the writing rule
 
-**Status:** Accepted
+**Status:** Accepted, with the default interface language replaced by
+[0034](0034_which_language_opens.md)
 **Date:** 21 September 2026
 **Deciders:** Andrei Ludescher (owner)
 
@@ -28,7 +29,7 @@ program that checks it.
 | architecture decision records | English |
 | `README.md` | English first, Portuguese after it, in one file |
 | documents for people who are not working on the code | both, side by side in `docs/` |
-| interface copy | Portuguese and English, through i18n, Portuguese as the default |
+| interface copy | Portuguese and English, through i18n. Which one opens is registry 0034 |
 | code comments | English, matching the code around them |
 
 **Amended on 23 September 2026.** The two rows above used to name one file per

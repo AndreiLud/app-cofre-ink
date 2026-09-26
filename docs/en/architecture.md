@@ -102,6 +102,17 @@ React 19 with TanStack Router for addresses and TanStack Query for what is in fl
 Tailwind 4 for style, with the tokens in `@cofre/ui`. Both languages through i18next,
 with the language not in use fetched only when somebody asks for it.
 
+Which of the two opens is the first of four answers that speaks: the `lang` parameter of
+the address, when it says `pt` or `en`; the choice this browser holds; the zone of the
+device, where Brazil opens in Portuguese and anywhere else opens in English; and
+Portuguese when the device will not say. The order is `firstLanguage` in `@cofre/core`,
+so it is one pure function with its own tests, and nothing in it asks a service
+anything. A language that came from the address is written down as a choice and the
+parameter is taken back out of the address bar. A language that came from the clock is
+never written down, so somebody who travels does not come back to an interface that
+translated itself. The reasoning is in
+[decision record 0034](../adr/0034_which_language_opens.md).
+
 The database runs in a dedicated worker, so a query over ten thousand rows does not
 stop the page from painting.
 

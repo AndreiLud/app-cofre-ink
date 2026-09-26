@@ -12,6 +12,7 @@ export * from "./cards/invoice.ts";
 export * from "./categories/defaults.ts";
 export * from "./entry/quickEntry.ts";
 export * from "./ids/uuidV7.ts";
+export * from "./language/firstLanguage.ts";
 export * from "./money/index.ts";
 export * from "./plan/interest.ts";
 export * from "./plan/projection.ts";
