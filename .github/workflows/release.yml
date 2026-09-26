@@ -110,7 +110,25 @@ jobs:
       - name: the notes
         run: node scripts/releaseNotes.mjs "${{ github.ref_name }}" > notes.md
 
-      - name: publish it
+      # Written so that running it twice ends the same way it ended the first time.
+      #
+      # A tag gets moved. Somebody spots one more thing on the morning of a release,
+      # fixes it, points the tag at the fix and pushes again, and this runs a second
+      # time. Creating a release that exists is refused by the API, so the second run
+      # failed on its last line, after the image had already been built and pushed,
+      # which is the most expensive place to fail and the least informative. It also
+      # failed for a release somebody had made by hand, which is a reasonable thing to
+      # have done and not a reason to stop.
+      #
+      # So it asks first, and edits what is there instead of refusing.
+      - name: publish it, or bring what is published up to date
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --notes-file notes.md
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "a release for $TAG is already there, so its notes are brought up to date"
+            gh release edit "$TAG" --title "$TAG" --notes-file notes.md
+          else
+            gh release create "$TAG" --title "$TAG" --notes-file notes.md
+          fi
