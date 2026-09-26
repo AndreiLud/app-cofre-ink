@@ -247,8 +247,34 @@ chamado `cofreData`, que sobrevive a uma atualização da imagem, e o container 
 caminho que não começa com `/data` é um banco dentro do container, que uma atualização
 apaga.
 
-Para PostgreSQL no lugar do SQLite, descomente o serviço `database` no `compose.yaml` e
-aponte `COFRE_DATABASE` para o endereço dele.
+### PostgreSQL no lugar do SQLite
+
+São três coisas para descomentar, e deixar uma de fora para o arquivo inteiro em vez de
+metade dele: o Compose recusa um projeto em que um serviço monta um volume que ninguém
+declara.
+
+1. O serviço `database` no `compose.yaml`.
+2. O volume `cofrePostgres`, no fim do mesmo arquivo. É esse que passa batido, porque
+   fica longe do serviço que o usa.
+3. O `POSTGRES_PASSWORD` no `.env`, que é a senha com que o banco é criado.
+
+Depois aponte o servidor para ele, no mesmo `.env`:
+
+```
+POSTGRES_PASSWORD=alguma coisa longa
+COFRE_DATABASE=postgres://cofre:${POSTGRES_PASSWORD}@database:5432/cofre
+```
+
+O Compose expande isso, então a senha é escrita uma vez só e as duas não têm como
+divergir.
+
+O host é `database`, o nome do serviço, porque é nisso que o endereço resolve de dentro
+da rede que o Compose cria. Não é `localhost`, que lá dentro é o container perguntando
+para si mesmo.
+
+Repare que a receita de backup mais abaixo copia o volume `cofreData`, que neste caminho
+não tem nada. Um PostgreSQL se copia com `pg_dump`, ou pela própria interface, em Dados,
+que funciona igual com qualquer banco embaixo.
 
 ### Como é a primeira visita
 

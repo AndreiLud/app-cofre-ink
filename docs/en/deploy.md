@@ -246,8 +246,32 @@ writes it to `/data/cofre.db`. The boot log says which file it opened, and it is
 reading once: a path that does not start with `/data` is a database inside the
 container, which an update deletes.
 
-For PostgreSQL instead of SQLite, uncomment the `database` service in `compose.yaml`
-and set `COFRE_DATABASE` to its address.
+### PostgreSQL instead of SQLite
+
+Three things to uncomment, and leaving one out stops the whole file rather than half of
+it: Compose refuses a project where a service mounts a volume nothing declares.
+
+1. The `database` service in `compose.yaml`.
+2. The `cofrePostgres` volume, at the bottom of the same file. This is the one that is
+   easy to miss, because it sits apart from the service that uses it.
+3. `POSTGRES_PASSWORD` in `.env`, which is the password the database is created with.
+
+Then point the server at it, in the same `.env`:
+
+```
+POSTGRES_PASSWORD=something long
+COFRE_DATABASE=postgres://cofre:${POSTGRES_PASSWORD}@database:5432/cofre
+```
+
+Compose expands that, so the password is written once and the two cannot drift apart.
+
+The host is `database`, the name of the service, because that is what the address
+resolves to from inside the network Compose makes. It is not `localhost`, which in there
+is the container asking itself.
+
+Note that the backup recipe below copies the `cofreData` volume, which on this path
+holds nothing. A PostgreSQL database is backed up with `pg_dump`, or from the interface
+under Data, which works the same whichever database is underneath.
 
 ### What the first visit looks like
 
