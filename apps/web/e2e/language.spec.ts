@@ -8,6 +8,7 @@
 // that has never been here and it needs no account, no space and no onboarding.
 
 import { expect, type Page, test } from "@playwright/test";
+import { openCofre } from "./support.ts";
 
 const IN_PORTUGUESE = "Como você quer usar o Cofre Ink?";
 const IN_ENGLISH = "How do you want to use Cofre Ink?";
@@ -101,4 +102,23 @@ test.describe("the parameter the site sends", () => {
 
 		expect(new URL(page.url()).search).toBe("");
 	});
+});
+
+// The one link in the interface that leaves it, and the site it leaves for holds the
+// page in both languages. Sending somebody who is reading English to the Portuguese
+// page is the same discourtesy this whole file is about, one page later.
+test("the donate link goes to the page in the language being read", async ({ page }) => {
+	await openCofre(page);
+
+	await expect(page.getByRole("link", { name: /^Doar/ })).toHaveAttribute(
+		"href",
+		"https://cofre.ink/pt/donate",
+	);
+
+	await page.getByRole("button", { name: "Idioma" }).click();
+
+	await expect(page.getByRole("link", { name: /^Donate/ })).toHaveAttribute(
+		"href",
+		"https://cofre.ink/donate",
+	);
 });
