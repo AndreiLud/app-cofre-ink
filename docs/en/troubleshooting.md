@@ -10,6 +10,23 @@ It says which setting and why. The most common is `COFRE_SECRET` missing or shor
 than 32 characters. This is deliberate: a missing secret stops the process rather than
 surfacing as a strange error three requests later.
 
+**Where the values go depends on how the server was started, and only one of the two
+involves a file.** Docker Compose reads `.env` and hands what it finds to the container,
+so with Docker the answer is to fill that file in. Started any other way, including
+`pnpm dev`, nothing opens a file at all: the values have to be in the environment of the
+process.
+
+```bash
+$env:COFRE_SECRET = "..."     # PowerShell
+export COFRE_SECRET=...       # bash
+```
+
+Or pass the file to Node, which does know how to read one:
+
+```bash
+node --env-file=.env --experimental-sqlite apps/server/src/main.ts
+```
+
 ### `COFRE_TURNSTILE_SECRET is set without COFRE_TURNSTILE_SITE_KEY`
 
 Or the other way round. Both or neither. With only the secret every sign in would be

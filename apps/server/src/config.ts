@@ -99,8 +99,22 @@ export function readConfig(source: NodeJS.ProcessEnv = process.env): Config {
 		const problems = parsed.error.issues
 			.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
 			.join("\n");
+		// It says where to put the values, and it says it twice, because the answer is
+		// different depending on how this was started and the old message only knew one
+		// of them. Nothing in this repository reads a .env file: Compose does, and hands
+		// what it finds to the container. Started any other way, the variables have to
+		// be in the environment of the process, and telling somebody to write a file
+		// nothing opens is how a person follows the instruction and fails again.
 		throw new ConfigError(
-			`the configuration is not complete. Copy .env.example to .env and fill it in.\n${problems}`,
+			[
+				"the configuration is not complete.",
+				"",
+				"  With Docker: copy .env.example to .env, fill it in, and bring it up again.",
+				"  Any other way: the values go in the environment of this process, or pass",
+				"  them with node --env-file=.env, because nothing here opens a file by itself.",
+				"",
+				problems,
+			].join("\n"),
 		);
 	}
 

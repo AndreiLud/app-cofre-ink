@@ -5,8 +5,8 @@
 #   3. docker compose up -d
 #
 # The data lives in the named volume below, so it survives an update of the image.
-# For PostgreSQL instead of SQLite, uncomment the database service and point
-# COFRE_DATABASE at it.
+# For PostgreSQL instead of SQLite, read the note above the database service further
+# down: there are three things to uncomment, and leaving one out stops the whole file.
 
 # The project name comes from here and not from the folder, so the container and the
 # volume are called the same thing on every machine.
@@ -40,6 +40,13 @@ services:
       timeout: 5s
       retries: 3
 
+  # PostgreSQL instead of SQLite. Three things to uncomment, not one: this service, the
+  # volume it writes to at the bottom of this file, and POSTGRES_PASSWORD in .env. Then
+  # point COFRE_DATABASE at it:
+  #   COFRE_DATABASE=postgres://cofre:${POSTGRES_PASSWORD}@database:5432/cofre
+  # The host is `database`, the name of the service, because that is what the address
+  # resolves to from inside this network. It is not localhost, which in there is the
+  # container asking itself.
   # database:
   #   image: postgres:17-alpine
   #   restart: unless-stopped
@@ -52,4 +59,7 @@ services:
 
 volumes:
   cofreData:
+  # The other half of the database service above. Compose refuses the whole project when
+  # a service mounts a volume nothing declares, so uncommenting one without the other
+  # brings nothing up at all.
   # cofrePostgres:

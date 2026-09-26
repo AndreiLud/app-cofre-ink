@@ -12,6 +12,7 @@ device without you pressing something.
 | Site | [cofre.ink](https://cofre.ink) |
 | Application | [app.cofre.ink](https://app.cofre.ink) |
 | Repository | [`AndreiLud/app-cofre-ink`](https://github.com/AndreiLud/app-cofre-ink) |
+| Donate | [PayPal](https://www.paypal.com/donate/?hosted_button_id=6P3GYKL7PULEN) |
 
 ![The overview, with the balance, what the figures found and where the money is](docs/imagens/painel.png)
 
@@ -50,6 +51,12 @@ of ordinary spending. Nothing about what to buy or where to put money.
 copy in a file, a WebDAV folder or an online database, and mirror the records into a
 Google spreadsheet. Two devices agree by exchanging a change log, over a server or
 through a file somebody carries.
+
+**Two languages.** Portuguese and English, and it opens in the one that fits where the
+device is: a clock set to Brazil opens in Portuguese and anywhere else opens in English.
+A link can say which (`?lang=pt` or `?lang=en`), the button in the header has the last
+word, and the choice sticks. Nothing is asked of any service to work that out, so it
+behaves the same with no connection at all.
 
 **Offline.** The whole interface is kept by a service worker, so it opens on a train.
 
@@ -100,9 +107,20 @@ pnpm install
 pnpm dev
 ```
 
-That is the browser mode at `http://localhost:5174`, with the API also running at
-`http://localhost:4321` for whoever wants to try the other mode. There is no password in
-browser mode, so whoever opens your browser sees your data.
+That is the browser mode at `http://localhost:5174`, which is the whole product and
+needs nothing else. There is no password in browser mode, so whoever opens your browser
+sees your data.
+
+The same command starts the API beside it, and the API refuses to start without a
+secret, so its half of the output is a configuration error until you give it one.
+Nothing reads `.env` outside Docker, so it goes in the environment of the shell:
+
+```bash
+$env:COFRE_SECRET = "at least thirty two characters, anything"   # PowerShell
+export COFRE_SECRET=...                                          # bash
+```
+
+Only server mode needs it. Browser mode never asks.
 
 For the server, as a container:
 
@@ -112,7 +130,16 @@ docker compose up -d
 ```
 
 It answers on `http://localhost:4321` and serves the interface itself, so there is one
-thing to run rather than two.
+thing to run rather than two. The first visit opens on the question the interface asks
+everybody: pick **Sync between my devices**, then **See both ways**, then **A server of
+mine**, and give it that address.
+
+`COFRE_SECRET` is the only line that has to be filled. The rest of `.env.example` is
+commented on purpose, because what is in `.env` wins over the container's own defaults,
+and a development value left in by accident is how a database ends up somewhere an
+update deletes. **Set `COFRE_WEB_ORIGIN` and `COFRE_PUBLIC_URL` to the real address the
+moment the server is reachable as anything other than `localhost`**, or every invitation
+link points where nobody can follow it.
 
 ### Environment
 
@@ -181,8 +208,17 @@ to match the Worker the repository is connected to.
 
 **The server mode is one container.** `docker compose up -d` builds it and runs it, with
 the data in a named volume that survives an update of the image. For PostgreSQL instead
-of SQLite, uncomment the database service in `compose.yaml` and point `COFRE_DATABASE`
-at it.
+of SQLite, there are three things to uncomment and one of them is easy to miss, so
+[the guide](docs/en/deploy.md) walks through it.
+
+Every release also publishes an image built for Intel and for ARM, so there is nothing
+to clone:
+
+```bash
+docker run -d -p 4321:4321 -v cofre:/data -e COFRE_SECRET=... ghcr.io/andreilud/app-cofre-ink:latest
+```
+
+[The changelog](CHANGELOG.md) says what changed in each version.
 
 ### What is in each folder
 
@@ -231,6 +267,17 @@ from the monorepo to the way a projection is built. A few that shape everything 
    when it is about to.
 5. **No hyphen as punctuation** in anything written for a person, checked in CI.
 
+### Supporting the project
+
+Nothing here is paid for and nothing here is sold. If it is worth something to you,
+[the PayPal page](https://www.paypal.com/donate/?hosted_button_id=6P3GYKL7PULEN) takes
+any amount you choose.
+
+Money is not the only way, and it is not the most useful one.
+[cofre.ink/donate](https://cofre.ink/donate) lists the others: a star on the repository,
+a problem reported with enough detail to reproduce it, a translation, a statement from a
+bank the readers have never seen.
+
 ### Licence and contact
 
 MIT. See [LICENSE](LICENSE).
@@ -252,6 +299,7 @@ sem você mandar.
 | Site | [cofre.ink](https://cofre.ink) |
 | Aplicativo | [app.cofre.ink](https://app.cofre.ink) |
 | Repositório | [`AndreiLud/app-cofre-ink`](https://github.com/AndreiLud/app-cofre-ink) |
+| Doar | [PayPal](https://www.paypal.com/donate/?hosted_button_id=6P3GYKL7PULEN) |
 
 ### O que ele faz
 
@@ -286,6 +334,12 @@ despesa comum. Nada sobre o que comprar ou onde colocar dinheiro.
 guarde uma cópia num arquivo, numa pasta WebDAV ou num banco de dados online, e espelhe
 os lançamentos numa planilha do Google. Dois aparelhos combinam trocando um histórico de
 alterações, por um servidor ou por um arquivo que você carrega.
+
+**Dois idiomas.** Português e inglês, e ele abre no que combina com onde o aparelho
+está: um relógio no Brasil abre em português e qualquer outro abre em inglês. Um link
+pode dizer qual (`?lang=pt` ou `?lang=en`), o botão do cabeçalho tem a última palavra, e
+a escolha fica guardada. Nada disso pergunta a serviço nenhum, então funciona igual sem
+internet.
 
 **Sem internet.** A interface inteira fica guardada por um service worker, então ele
 abre no metrô.
@@ -337,9 +391,20 @@ pnpm install
 pnpm dev
 ```
 
-Isso é o modo navegador em `http://localhost:5174`, com a API também de pé em
-`http://localhost:4321` para quem quiser experimentar o outro modo. No modo navegador
-não existe senha, então quem abrir o seu navegador vê os seus dados.
+Isso é o modo navegador em `http://localhost:5174`, que é o produto inteiro e não
+precisa de mais nada. No modo navegador não existe senha, então quem abrir o seu
+navegador vê os seus dados.
+
+O mesmo comando sobe a API ao lado, e a API se recusa a subir sem um segredo, então a
+metade dela na saída é um erro de configuração até você dar um. Nada lê o `.env` fora do
+Docker, então ele vai no ambiente do terminal:
+
+```bash
+$env:COFRE_SECRET = "no mínimo trinta e dois caracteres, qualquer coisa"   # PowerShell
+export COFRE_SECRET=...                                                   # bash
+```
+
+Só o modo servidor precisa disso. O modo navegador nunca pede.
 
 Para o servidor, em container:
 
@@ -349,7 +414,17 @@ docker compose up -d
 ```
 
 Ele responde em `http://localhost:4321` e serve a própria interface, então é uma coisa
-para rodar em vez de duas.
+para rodar em vez de duas. A primeira visita abre na pergunta que a interface faz para
+todo mundo: escolha **Sincronizar entre os meus aparelhos**, depois **Ver as duas
+formas**, depois **Um servidor meu**, e informe esse endereço.
+
+O `COFRE_SECRET` é a única linha que precisa ser preenchida. O resto do `.env.example`
+está comentado de propósito, porque o que está no `.env` vence os padrões do próprio
+container, e um valor de desenvolvimento deixado ali sem querer é como um banco de dados
+vai parar num lugar que uma atualização apaga. **Ajuste `COFRE_WEB_ORIGIN` e
+`COFRE_PUBLIC_URL` para o endereço real no momento em que o servidor for alcançável por
+algo que não seja `localhost`**, senão todo link de convite aponta para onde ninguém
+consegue ir.
 
 ### Variáveis de ambiente
 
@@ -419,8 +494,17 @@ precisa ser o mesmo nome do Worker a que o repositório está conectado.
 
 **O modo servidor é um container.** O `docker compose up -d` constrói e sobe, com os
 dados num volume nomeado que sobrevive a uma atualização da imagem. Para PostgreSQL em
-vez de SQLite, descomente o serviço de banco no `compose.yaml` e aponte o
-`COFRE_DATABASE` para ele.
+vez de SQLite, são três coisas para descomentar e uma delas passa batido, então
+[o guia](docs/pt-BR/deploy.md) mostra o caminho.
+
+Toda versão também publica uma imagem construída para Intel e para ARM, então não há
+nada para clonar:
+
+```bash
+docker run -d -p 4321:4321 -v cofre:/data -e COFRE_SECRET=... ghcr.io/andreilud/app-cofre-ink:latest
+```
+
+[O changelog](CHANGELOG.md) diz o que mudou em cada versão.
 
 ### O que existe em cada pasta
 
@@ -469,6 +553,17 @@ Algumas que mandam em todo o resto:
 4. **Nada sai do aparelho sem uma ação explícita**, e a tela avisa quando vai sair.
 5. **Nenhum hífen como pontuação** em nada escrito para pessoas, verificado na
    integração contínua.
+
+### Apoiar o projeto
+
+Nada aqui é pago e nada aqui é vendido. Se isto vale alguma coisa para você,
+[a página do PayPal](https://www.paypal.com/donate/?hosted_button_id=6P3GYKL7PULEN)
+aceita o valor que você escolher.
+
+Dinheiro não é o único jeito, e não é o mais útil.
+[cofre.ink/pt/donate](https://cofre.ink/pt/donate) lista os outros: uma estrela no
+repositório, um problema relatado com detalhe suficiente para reproduzir, uma tradução,
+um extrato de um banco que os leitores ainda não viram.
 
 ### Licença e contato
 

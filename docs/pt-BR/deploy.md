@@ -23,8 +23,12 @@ sem internet, com os mesmos dados. Não existe aplicativo para instalar de loja 
 
 ```bash
 pnpm install
-pnpm dev        # a interface e o servidor, os dois observando
+pnpm dev        # a interface na 5174, e a API ao lado dela
 ```
+
+A interface é o produto inteiro e não precisa de mais nada. A API se recusa a subir sem
+o `COFRE_SECRET`, e nada lê o `.env` fora do Docker, então exporte ele no terminal antes
+se quiser o modo servidor localmente. O modo navegador nunca pede.
 
 <a id="so_o_navegador"></a>
 
@@ -184,6 +188,24 @@ pnpm --filter @cofre/web exec vite preview --port 5174
 Contas, convites e espaços compartilhados de verdade. Uma máquina sua, um Raspberry Pi,
 uma máquina virtual barata, o que você tiver.
 
+### Sem clonar nada
+
+Toda versão publica uma imagem, construída para Intel e para ARM, então um Raspberry Pi
+roda a mesma:
+
+```bash
+docker run -d --name cofre -p 4321:4321 -v cofre:/data \
+  -e COFRE_SECRET=$(node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))") \
+  -e COFRE_PUBLIC_URL=https://seu.endereco \
+  -e COFRE_WEB_ORIGIN=https://seu.endereco \
+  ghcr.io/andreilud/app-cofre-ink:latest
+```
+
+Fixe a versão em vez de seguir o `latest` se quiser decidir quando atualizar. [O
+changelog](../../CHANGELOG.md) diz o que mudou em cada uma.
+
+### A partir do código
+
 ```bash
 cp .env.example .env
 ```
@@ -194,25 +216,83 @@ Preencha `COFRE_SECRET`:
 node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 ```
 
-Ajuste `COFRE_WEB_ORIGIN` e `COFRE_PUBLIC_URL` para o endereço real, senão os convites
-saem apontando para `localhost`. Depois:
+Essa é a única linha que precisa ser preenchida. Todo o resto do arquivo está
+comentado, e uma linha comentada cai no padrão que o container já carrega.
+
+**No momento em que o servidor for alcançável por algo que não seja `localhost`,
+ajuste os dois endereços para o real.** Eles estão comentados no exemplo exatamente por
+isso: o que estiver no `.env` vence o `compose.yaml`, então um valor deixado ali sem
+querer é um valor que passa por cima do container.
+
+```
+COFRE_WEB_ORIGIN=https://cofre.suacasa.com
+COFRE_PUBLIC_URL=https://cofre.suacasa.com
+```
+
+O `COFRE_WEB_ORIGIN` é de onde a interface é servida, e a API recusa requisição que não
+venha dele nem do endereço do próprio servidor. O `COFRE_PUBLIC_URL` é onde este
+servidor responde, visto de fora.
+O container serve a própria interface, então numa máquina só os dois são o mesmo
+endereço. No padrão, os dois são `http://localhost:4321`, que está certo enquanto você
+experimenta na máquina em que ele roda e está errado no instante em que outra pessoa
+precisa alcançar: todo link de convite é montado com o primeiro deles.
 
 ```bash
 docker compose up -d
 ```
 
 A interface e a API sobem juntas, na porta 4321 por padrão. Os dados ficam num volume
-chamado `cofreData`, que sobrevive a uma atualização da imagem.
+chamado `cofreData`, que sobrevive a uma atualização da imagem, e o container escreve em
+`/data/cofre.db`. A linha de boot diz qual arquivo foi aberto, e vale ler uma vez: um
+caminho que não começa com `/data` é um banco dentro do container, que uma atualização
+apaga.
 
-Para PostgreSQL no lugar do SQLite, descomente o serviço `database` no `compose.yaml` e
-aponte `COFRE_DATABASE` para ele.
+### PostgreSQL no lugar do SQLite
+
+São três coisas para descomentar, e deixar uma de fora para o arquivo inteiro em vez de
+metade dele: o Compose recusa um projeto em que um serviço monta um volume que ninguém
+declara.
+
+1. O serviço `database` no `compose.yaml`.
+2. O volume `cofrePostgres`, no fim do mesmo arquivo. É esse que passa batido, porque
+   fica longe do serviço que o usa.
+3. O `POSTGRES_PASSWORD` no `.env`, que é a senha com que o banco é criado.
+
+Depois aponte o servidor para ele, no mesmo `.env`:
+
+```
+POSTGRES_PASSWORD=alguma coisa longa
+COFRE_DATABASE=postgres://cofre:${POSTGRES_PASSWORD}@database:5432/cofre
+```
+
+O Compose expande isso, então a senha é escrita uma vez só e as duas não têm como
+divergir.
+
+O host é `database`, o nome do serviço, porque é nisso que o endereço resolve de dentro
+da rede que o Compose cria. Não é `localhost`, que lá dentro é o container perguntando
+para si mesmo.
+
+Repare que a receita de backup mais abaixo copia o volume `cofreData`, que neste caminho
+não tem nada. Um PostgreSQL se copia com `pg_dump`, ou pela própria interface, em Dados,
+que funciona igual com qualquer banco embaixo.
+
+### Como é a primeira visita
+
+O endereço serve a interface, e a interface ainda não sabe que está falando com o seu
+servidor, então ela abre na pergunta que faz para todo mundo:
+**Como você quer usar o Cofre Ink?**
+
+Escolha **Sincronizar entre os meus aparelhos**, depois **Ver as duas formas**, depois
+**Um servidor meu**. Ele pede o **Endereço do servidor**, que é o endereço que você
+acabou de digitar, e o **Conectar** aponta este navegador para lá. A escolha fica
+guardada, então a pergunta é feita uma vez só.
 
 ### A senha do primeiro acesso
 
-Não existe senha padrão, e não existe senha escrita em lugar nenhum. Quando você abre o
-endereço pela primeira vez, o servidor ainda não tem ninguém, a tela diz isso e abre já
-em criar acesso: você escolhe o email e a senha ali, naquele momento. Ela é guardada
-cifrada no banco do seu servidor e mais nada a conhece.
+Não existe senha padrão, e não existe senha escrita em lugar nenhum. Depois que este
+navegador está apontado para o seu servidor, o servidor ainda não tem ninguém, a tela
+diz isso e abre já em criar acesso: você escolhe o email e a senha ali, naquele momento.
+Ela é guardada cifrada no banco do seu servidor e mais nada a conhece.
 
 O `COFRE_SECRET` não é a sua senha. Ele assina os cookies de sessão, e trocá lo só
 desconecta quem estiver conectado.

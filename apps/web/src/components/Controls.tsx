@@ -1,10 +1,22 @@
+import { isLanguage } from "@cofre/core";
 import { Button, buttonClasses, Icon } from "@cofre/ui";
 import { useTranslation } from "react-i18next";
 import { applyLanguage, LANGUAGES, type Language } from "../i18n/index.ts";
 import type { ThemeChoice } from "../lib/theme.ts";
 
-/** Where somebody who wants to pay for this goes. The only address here that is ours. */
-const DONATE = "https://cofre.ink/donate";
+/**
+ * Where somebody who wants to pay for this goes, in the language they are reading. The
+ * only addresses here that are ours, and the site holds the page in both.
+ */
+const DONATE: Record<Language, string> = {
+	pt: "https://cofre.ink/pt/donate",
+	en: "https://cofre.ink/donate",
+};
+
+/** Which of the two is on screen, asked of i18next and never assumed. */
+function readingIn(language: string | undefined): Language {
+	return isLanguage(language) ? language : "pt";
+}
 
 export type ThemeToggleProps = {
 	choice: ThemeChoice;
@@ -27,7 +39,7 @@ export function ThemeToggle({ isDark, onChange }: ThemeToggleProps) {
 
 export function LanguageToggle() {
 	const { t, i18n } = useTranslation();
-	const current = (i18n.resolvedLanguage ?? "pt") as Language;
+	const current = readingIn(i18n.resolvedLanguage);
 	const next: Language = current === "pt" ? "en" : "pt";
 
 	return (
@@ -59,12 +71,16 @@ export function LanguageToggle() {
  * the whole of the emphasis: in a row of things that change the screen, this is the one
  * that does something else. Not the filled colour, which is spoken for by the action
  * each screen is actually for.
+ *
+ * It lands on the page in the language being read, and it changes the moment somebody
+ * presses the button beside it, because it is read from the same place that button
+ * writes to.
  */
 export function DonateLink() {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	return (
 		<a
-			href={DONATE}
+			href={DONATE[readingIn(i18n.resolvedLanguage)]}
 			target="_blank"
 			rel="noreferrer noopener"
 			className={buttonClasses({ variant: "secondary", size: "small" })}

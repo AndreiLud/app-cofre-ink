@@ -104,6 +104,16 @@ React 19 com TanStack Router para endereços e TanStack Query para o que está e
 trânsito. Tailwind 4 para estilo, com os tokens no `@cofre/ui`. Os dois idiomas por
 i18next, com o idioma fora de uso baixado só quando alguém pede.
 
+Qual dos dois abre é a primeira de quatro respostas que falar: o parâmetro `lang` do
+endereço, quando ele diz `pt` ou `en`; a escolha que este navegador guarda; o fuso do
+aparelho, em que o Brasil abre em português e qualquer outro lugar abre em inglês; e
+português, quando o aparelho não diz. A ordem é o `firstLanguage` no `@cofre/core`,
+então é uma função pura com testes próprios, e nada nela pergunta coisa alguma a um
+serviço. Um idioma que veio do endereço é guardado como escolha e o parâmetro é tirado
+da barra de endereço. Um idioma que veio do relógio nunca é guardado, para que quem
+viaja não volte a uma interface que se traduziu sozinha. O motivo está no
+[registro 0034](../adr/0034_which_language_opens.md).
+
 O banco roda num worker dedicado, então uma consulta sobre dez mil linhas não impede a
 página de pintar.
 

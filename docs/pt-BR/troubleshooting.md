@@ -10,6 +10,23 @@ Ele diz qual configuração e por quê. A mais comum é o `COFRE_SECRET` faltand
 menos de 32 caracteres. Isso é deliberado: um segredo faltando para o processo em vez de
 aparecer como um erro estranho três requisições depois.
 
+**Onde os valores vão depende de como o servidor foi iniciado, e só um dos dois casos
+envolve um arquivo.** O Docker Compose lê o `.env` e entrega o que achar ao container,
+então com Docker a resposta é preencher aquele arquivo. Iniciado de qualquer outro jeito,
+inclusive pelo `pnpm dev`, nada abre arquivo nenhum: os valores precisam estar no
+ambiente do processo.
+
+```bash
+$env:COFRE_SECRET = "..."     # PowerShell
+export COFRE_SECRET=...       # bash
+```
+
+Ou passe o arquivo para o Node, que sabe ler um:
+
+```bash
+node --env-file=.env --experimental-sqlite apps/server/src/main.ts
+```
+
 ### `COFRE_TURNSTILE_SECRET is set without COFRE_TURNSTILE_SITE_KEY`
 
 Ou o contrário. As duas ou nenhuma. Com só o segredo, todo login seria recusado por um

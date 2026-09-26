@@ -4,13 +4,17 @@
 // screen, and almost everybody reads one of the two. So the one being used is bundled
 // and the other arrives when somebody asks for it, which is a click that already
 // expects the screen to change.
+//
+// Which of the two opens is decided by `firstLanguage` in the core package, where the
+// order is written out and tested. This file is the part that cannot be pure: reading
+// the address, reading the clock, and writing a choice down.
 
+import { firstLanguage, isLanguage, LANGUAGES, type Language } from "@cofre/core";
 import i18next from "i18next";
 import { initReactI18next } from "react-i18next";
 import pt from "../locales/pt.json";
 
-export const LANGUAGES = ["pt", "en"] as const;
-export type Language = (typeof LANGUAGES)[number];
+export { LANGUAGES, type Language };
 
 /**
  * What the product is called, in one place.
@@ -30,14 +34,15 @@ export const LOCALE_OF: Record<Language, string> = {
 
 const STORAGE_KEY = "cofreLanguage";
 
-function storedLanguage(): Language {
+/** The language somebody chose here before, or nothing if nobody has. */
+function storedLanguage(): Language | null {
 	try {
 		const stored = localStorage.getItem(STORAGE_KEY);
-		if (stored === "pt" || stored === "en") return stored;
+		return isLanguage(stored) ? stored : null;
 	} catch {
-		// Storage can be blocked. The default language still works.
+		// Storage can be blocked. Everything below still decides.
+		return null;
 	}
-	return "pt";
 }
 
 export function rememberLanguage(language: Language): void {
@@ -45,6 +50,48 @@ export function rememberLanguage(language: Language): void {
 		localStorage.setItem(STORAGE_KEY, language);
 	} catch {
 		// Not being able to remember the choice is not a reason to fail.
+	}
+}
+
+/** What the device says about itself, which is the only thing ever asked of it. */
+function deviceTimezone(): string | null {
+	try {
+		return Intl.DateTimeFormat().resolvedOptions().timeZone ?? null;
+	} catch {
+		return null;
+	}
+}
+
+/** The language the site sent this person here with, if it sent one. */
+function askedInTheAddress(): string | null {
+	try {
+		return new URL(window.location.href).searchParams.get("lang");
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Takes the parameter back out of the address bar.
+ *
+ * It has been read and written down, and leaving it there would mean every link
+ * somebody copies out of this application carries a language with it, handed to
+ * whoever they send it to. The path, the rest of the query and the fragment are put
+ * back exactly as they were, and the entry is replaced rather than added so the back
+ * button does not lead to the address that was just cleaned.
+ */
+function forgetTheAddress(): void {
+	try {
+		const address = new URL(window.location.href);
+		address.searchParams.delete("lang");
+		const query = address.searchParams.toString();
+		window.history.replaceState(
+			window.history.state,
+			"",
+			`${address.pathname}${query === "" ? "" : `?${query}`}${address.hash}`,
+		);
+	} catch {
+		// An address this cannot rewrite is one the person keeps. Nothing else breaks.
 	}
 }
 
@@ -56,20 +103,25 @@ void i18next.use(initReactI18next).init({
 });
 
 /**
- * Brings a language in and switches to it.
+ * Brings a language in and switches to it, without deciding whether it was a choice.
  *
  * Portuguese is already here. English is fetched once, kept by the browser and by the
  * worker, and never fetched again. Somebody with no connection who has never asked for
  * English stays in Portuguese, which is the language they were already reading.
  */
-export async function applyLanguage(language: Language): Promise<void> {
+async function bringIn(language: Language): Promise<void> {
 	if (!i18next.hasResourceBundle(language, "translation")) {
 		const { default: strings } = await import("../locales/en.json");
 		i18next.addResourceBundle(language, "translation", strings);
 	}
 	await i18next.changeLanguage(language);
-	rememberLanguage(language);
 	speakTheDocument(language);
+}
+
+/** Somebody chose this one. It is applied and it is written down. */
+export async function applyLanguage(language: Language): Promise<void> {
+	await bringIn(language);
+	rememberLanguage(language);
 }
 
 /**
@@ -84,11 +136,25 @@ function speakTheDocument(language: Language): void {
 	document.documentElement.lang = LOCALE_OF[language];
 }
 
-// The language chosen last time, applied once the first screen is up rather than before
-// it: a person who reads Portuguese waits for nothing, and a person who chose English
-// sees one repaint instead of a blank page.
-const chosen = storedLanguage();
-if (chosen === "pt") speakTheDocument(chosen);
-else void applyLanguage(chosen);
+const decided = firstLanguage({
+	asked: askedInTheAddress(),
+	remembered: storedLanguage(),
+	timezone: deviceTimezone(),
+});
+
+// A language that came from the address was chosen, over on the site, so it is written
+// down here exactly as a press of the button would be. One that came from the clock was
+// guessed, and a guess is never written down: the button keeps the last word, and
+// somebody who travels does not come back to an interface that translated itself.
+if (decided.source === "address") {
+	forgetTheAddress();
+	rememberLanguage(decided.language);
+}
+
+// Applied once the first screen is up rather than before it: a person who reads
+// Portuguese waits for nothing, and a person reading English sees one repaint instead
+// of a blank page.
+if (decided.language === "pt") speakTheDocument("pt");
+else void bringIn(decided.language);
 
 export default i18next;
