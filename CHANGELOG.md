@@ -5,7 +5,10 @@ Every release, what changed in it, and what to do about it if you are running th
 Versions follow semantic versioning. While the first number is zero, the second one
 changes when something breaks and the third when nothing does.
 
-## Unreleased
+## 0.1.1
+
+Released on 26 September 2026. Four things that were wrong on the path the guide
+describes, and the interface now opens in the language of wherever it is.
 
 ### Fixed
 
@@ -36,9 +39,47 @@ inside the volume, and `http://localhost:4321`.
 > `docker compose down` or pull a new image first: recreating the container is what
 > removes the file.
 
+**The PostgreSQL path could not be followed as written.** Four places said to uncomment
+the database service. The service mounts a volume declared in a separate comment at the
+bottom of the file, and Compose refuses a whole project where a service mounts a volume
+nothing declares, so the documented steps brought nothing up. It is three things now,
+said as three: the service, the volume, and `POSTGRES_PASSWORD`, which the example never
+mentioned either. The guides also say that the host is the name of the service and not
+`localhost`, and that the backup recipe copies a volume that holds nothing on this path.
+
+**A server that would not start pointed at a file nothing reads.** The error said to copy
+`.env.example` to `.env` and fill it in. Only Compose reads that file. Started any other
+way, the person did exactly what they were told and got the same error. It now says both
+cases and which is which.
+
+**The guides promised the API was running after `pnpm dev`.** It is not: the API stops on
+its own configuration, because the secret has no default and nothing outside Docker reads
+a file to find one. The interface, which is the whole product, comes up and needs
+nothing. That is what they say now, with the one line that brings the other half up.
+
+### Changed
+
+**The interface opens in the language of wherever the device is.** It opened in
+Portuguese for everybody. Now the first of four answers wins: the `lang` parameter of the
+address, the choice this browser holds, the zone of the device (Brazil in Portuguese,
+anywhere else in English), and Portuguese when the device will not say. Nothing is asked
+of any service, so it behaves the same offline, in a container and on any host. The
+button in the header still has the last word, and a language guessed from the clock is
+never written down as a choice. The reasoning is in
+[decision record 0034](docs/adr/0034_which_language_opens.md).
+
+**The donate link goes to the page in the language being read.**
+
+### Added
+
+Where to donate, in the README and as the Sponsor button on the repository.
+
 ## 0.1.0
 
-Released on 23 September 2026. The first published version.
+Written on 23 September 2026 and never released: it was never tagged, so there is no
+release and no image carrying that number, and 0.1.1 above is the first one there is.
+The section is kept because it says what the product is rather than what changed in it,
+which is worth reading once and is not worth writing twice.
 
 ### What it does
 
@@ -96,7 +137,7 @@ The interface is a folder of static files that any host will serve. The server i
 container:
 
 ```bash
-docker run -d -p 4321:4321 -v cofre:/data -e COFRE_SECRET=... ghcr.io/andreilud/app-cofre-ink:0.1.0
+docker run -d -p 4321:4321 -v cofre:/data -e COFRE_SECRET=... ghcr.io/andreilud/app-cofre-ink:0.1.1
 ```
 
 The full guide is in [docs/en/deploy.md](docs/en/deploy.md), and in
