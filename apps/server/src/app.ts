@@ -205,6 +205,11 @@ const transactionInput = z.object({
 	categoryId: z.string().min(1).nullable().optional(),
 	priority: priority.nullable().optional(),
 	cardId: z.string().min(1).max(64).nullable().optional(),
+	// What the bank called this entry, or the mark the month screen puts on the three
+	// records it writes. Without it here the parser would drop the mark and that screen
+	// would write three more records every time somebody typed the same month, because
+	// it would never find the ones it wrote before.
+	externalId: z.string().trim().max(120).nullable().optional(),
 });
 
 const transactionPatch = z.object({

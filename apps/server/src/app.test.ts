@@ -340,6 +340,44 @@ describe("the api", () => {
 		expect(byCard.map((one) => one.description)).toEqual(["Livraria"]);
 	});
 
+	it("keeps the mark a record arrives with", async () => {
+		// The month screen finds the three records it wrote by this mark. A schema that
+		// dropped it would leave that screen writing three more every time somebody typed
+		// the same month, and only in server mode, which is the worst place to find out.
+		const ana = createClient(app);
+		await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+
+		const space = await ana.json<{ id: string }>("/api/spaces", {
+			method: "POST",
+			body: JSON.stringify({ name: "Casa" }),
+		});
+		const account = await ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+			method: "POST",
+			body: JSON.stringify({ kind: "checking", name: "Conta" }),
+		});
+
+		const [written] = await ana.json<Array<{ externalId: string | null }>>(
+			`/api/spaces/${space.id}/transactions`,
+			{
+				method: "POST",
+				body: JSON.stringify({
+					kind: "income",
+					amount: 500_000,
+					happenedOn: "2026-09-30",
+					description: "Entradas de setembro de 2026",
+					accountId: account.id,
+					externalId: "mes:2026-09:income",
+				}),
+			},
+		);
+		expect(written?.externalId).toBe("mes:2026-09:income");
+
+		const back = await ana.json<Array<{ externalId: string | null }>>(
+			`/api/spaces/${space.id}/transactions`,
+		);
+		expect(back.map((one) => one.externalId)).toEqual(["mes:2026-09:income"]);
+	});
+
 	describe("several records at once", () => {
 		/** A space, an account and three planned bills in it. */
 		async function threeBills(client: Client) {

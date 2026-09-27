@@ -61,7 +61,11 @@ export type CreateTransactionInput = {
 	categoryId?: string | null;
 	/** Only when this one record disagrees with the priority of its category. */
 	priority?: SpendingPriority | null;
-	/** What the bank called this entry, set by an import and by nothing else. */
+	/**
+	 * What the bank called this entry, set by an import, and the mark the month screen
+	 * puts on the three records it writes so that typing the same month again corrects
+	 * them. Nothing else writes here, and a record written by hand carries nothing.
+	 */
 	externalId?: string | null;
 	/**
 	 * Which piece of plastic was used. It never chooses the account by itself: the
