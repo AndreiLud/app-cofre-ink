@@ -26,7 +26,7 @@ import { backupFromBundle, replaceTheCopy } from "@cofre/storage";
 import { Button, Callout, Dialog, Disclosure, Field, Icon, Panel, SectionTitle } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AutomaticBackup } from "../components/AutomaticBackup.tsx";
 import { DangerZone } from "../components/DangerZone.tsx";
@@ -40,7 +40,7 @@ import {
 } from "../lib/download.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
-import { storedDestination, storedWhen } from "../storage/destinations.ts";
+import { storedDestination, storedWhen, whenSettingsChange } from "../storage/destinations.ts";
 import { storeFrom } from "../storage/storeFrom.ts";
 
 const BACKUP_KEY = "cofreBackupAt";
@@ -186,6 +186,21 @@ export function DataPage() {
 	const [leftBehind, setLeftBehind] = useState<Record<string, boolean>>({});
 	/** Whether the file coming back should become the automatic copy as well. */
 	const [alsoTheBackup, setAlsoTheBackup] = useState(false);
+	/**
+	 * The panel at the top says whether the copy is switched on, and the panel that
+	 * switches it on is further down the same screen. They read the same settings, so
+	 * the one that does not own them has to hear when they move.
+	 */
+	const [backingUp, setBackingUp] = useState(storedWhen);
+	const [destination, setDestination] = useState(storedDestination);
+	useEffect(
+		() =>
+			whenSettingsChange(() => {
+				setBackingUp(storedWhen());
+				setDestination(storedDestination());
+			}),
+		[],
+	);
 	const [sheet, setSheet] = useState(storedSheet);
 	const [mirrored, setMirrored] = useState<string | null>(null);
 
@@ -379,9 +394,6 @@ export function DataPage() {
 
 	const when = (at: number) => new Date(at).toLocaleString(i18n.resolvedLanguage ?? "pt-BR");
 
-	// What this device is set up to keep a copy in, and whether it is switched on.
-	const destination = storedDestination();
-	const backingUp = storedWhen();
 	/** A place that holds a file, switched on. A server of theirs is not one of these. */
 	const keepingACopy =
 		backingUp.on && destination.kind !== null && destination.kind !== "server" && driver !== null;

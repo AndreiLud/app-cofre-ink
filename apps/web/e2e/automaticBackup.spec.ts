@@ -97,9 +97,13 @@ test.describe("the copy that keeps itself up to date", () => {
 		expect(folder.files).toHaveLength(2);
 		expect(folder.writes).toBe(2);
 
-		// And the state stops saying never.
-		await expect(page.getByText("Ativo").first()).toBeVisible();
+		// And the state stops saying never, in the panel that runs it and in the one at
+		// the top of the screen that answers where the data is.
 		await expect(page.locator("#copia").getByText("Nunca")).toHaveCount(0);
+		const whereItIs = page
+			.locator("section")
+			.filter({ has: page.getByRole("heading", { name: "Onde estão os seus dados" }) });
+		await expect(whereItIs.getByText("Ativo em Uma pasta WebDAV")).toBeVisible();
 	});
 
 	/**
