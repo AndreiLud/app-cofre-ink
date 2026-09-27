@@ -41,6 +41,13 @@ async function widerThanTheWindow(page: Page): Promise<number> {
 
 for (const size of SIZES) {
 	test(`fits on a ${size.name}`, async ({ page }) => {
+		// Fifteen full page loads, and a full load is the slowest thing this application
+		// does: a database opens in a worker before any screen can draw. At half a second
+		// a load this sits inside the default thirty seconds and at two it does not, so on
+		// a machine with something else going on it failed for want of time rather than
+		// for anything it was looking at.
+		test.setTimeout(180_000);
+
 		await page.setViewportSize({ width: size.width, height: size.height });
 		await openCofre(page);
 
