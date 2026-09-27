@@ -1,0 +1,132 @@
+// When the copy is brought up to date, and by what.
+//
+// Mounted once around the whole application, because a copy that only keeps up while
+// somebody is looking at the data screen is not a copy that keeps up.
+//
+// Three things can start a run and the person chooses two of them. A change is not a
+// choice: with the backup on, a change is the whole reason it is on, and it waits for
+// the typing to stop first because somebody writing one record touches the database
+// several times in a second. The other two cost a round trip when nothing changed, so
+// they are asked for: when the application opens, and on a clock.
+
+import { runBackup } from "@cofre/storage";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { afterTheTyping } from "./backupRunner.ts";
+import { setBackupState } from "./backupState.ts";
+import { useCofre } from "./CofreProvider.tsx";
+import { markMet, storedDestination, storedWhen, whenSettingsChange } from "./destinations.ts";
+
+/** Long enough for a form to be filled in, short enough to feel like it is looking. */
+const AFTER_THE_TYPING = 4000;
+
+export function useAutomaticBackup(): void {
+	const { driver, session, spaces } = useCofre();
+	const { t, i18n } = useTranslation();
+	const queries = useQueryClient();
+
+	// The run reads these when it fires, not when this was set up, so a change of place
+	// or of spaces takes effect without anything being torn down and built again.
+	const latest = useRef({ spaces, session, t, language: i18n.resolvedLanguage });
+	latest.current = { spaces, session, t, language: i18n.resolvedLanguage };
+
+	useEffect(() => {
+		if (!driver) return;
+
+		let running = false;
+
+		async function run(): Promise<void> {
+			const settings = storedDestination();
+			const when = storedWhen();
+			// A place that keeps a file is what this drives. A server of theirs is the
+			// other kind of agreement and is pressed by hand, on the screen that has it.
+			if (!when.on || settings.kind === null || settings.kind === "server") return;
+			if (running || !driver) return;
+
+			// Loaded here and not at the top of the file. Everything in this module is in
+			// the shell, which every screen pays for on every load, and the package that
+			// speaks to a folder or a database is needed only when a copy is actually
+			// being written. Importing it eagerly doubled the time every page took.
+			const { storeFrom } = await import("./storeFrom.ts");
+			const store = storeFrom(settings, settings.kind);
+			if (store === null) return;
+
+			const allowed = await latest.current.session?.backup.copyable();
+			const covered = latest.current.spaces
+				.filter((space) => (allowed ?? []).includes(space.id))
+				.map((space) => space.id);
+			if (covered.length === 0) return;
+
+			running = true;
+			setBackupState({ busy: true, problem: null });
+			try {
+				const done = await runBackup(driver, store, covered);
+				for (const outcome of done.outcomes) {
+					if (outcome.did !== "asked") markMet(outcome.spaceId, settings.kind ?? "");
+				}
+
+				setBackupState({
+					busy: false,
+					at: done.at,
+					waiting: done.waiting,
+					problem: null,
+					said: latest.current.t("auto.savedAt", {
+						time: new Date(done.at).toLocaleTimeString(latest.current.language ?? "pt-BR", {
+							hour: "2-digit",
+							minute: "2-digit",
+						}),
+					}),
+				});
+				void queries.invalidateQueries();
+			} catch (error) {
+				setBackupState({
+					busy: false,
+					said: null,
+					problem: latest.current.t("auto.failed", {
+						where: latest.current.t(`destination.${settings.kind ?? "webdav"}`),
+					}),
+				});
+				// The reason is in the console for whoever is looking, and on the screen in
+				// one sentence for whoever is not.
+				console.warn("the automatic backup did not finish", error);
+			} finally {
+				running = false;
+			}
+		}
+
+		const waited = afterTheTyping(AFTER_THE_TYPING, () => void run());
+
+		// Every change, once the typing stops. A mutation that succeeded is the only
+		// signal this needs, and there is one place that sees all of them.
+		const stopWatching = queries.getMutationCache().subscribe((event) => {
+			if (event.mutation?.state.status === "success") waited.poke();
+		});
+
+		// The clock, rebuilt whenever somebody changes what it was built from. Waiting an
+		// hour to find out that fifteen minutes took effect is a small lie.
+		let clock: ReturnType<typeof setInterval> | null = null;
+		function setTheClock(): void {
+			if (clock !== null) clearInterval(clock);
+			clock = null;
+
+			const when = storedWhen();
+			if (!when.on || when.everyMinutes === null) return;
+			clock = setInterval(() => void run(), when.everyMinutes * 60 * 1000);
+		}
+
+		const stopListening = whenSettingsChange(setTheClock);
+		setTheClock();
+
+		const opening = storedWhen();
+		if (opening.on && opening.onLoad) void run();
+
+		return () => {
+			stopWatching();
+			stopListening();
+			waited.stop();
+			if (clock !== null) clearInterval(clock);
+		};
+		// The settings are read inside the run, so this is set up once per database.
+	}, [driver, queries]);
+}

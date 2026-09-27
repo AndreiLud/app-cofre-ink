@@ -7,6 +7,7 @@
 
 import { stampAt, uuidV7 } from "@cofre/core";
 import { describe, expect, it } from "vitest";
+import { keepMine, keepTheirs, runBackup } from "../backupRun.ts";
 import type { Driver } from "../driver.ts";
 import { NotFoundError } from "../errors.ts";
 import { SETTLED_AFTER, tidyEverySpace, tidySpace } from "../housekeeping.ts";
@@ -61,6 +62,221 @@ export function runSyncConformance(adapter: AdapterUnderTest): void {
 		await applyPeople(to, await peopleInSpace(from, spaceId));
 		return applyChanges(to, await changesToPush(from, spaceId, null), { spaceId });
 	}
+
+	/**
+	 * A copy that keeps itself up to date.
+	 *
+	 * The engine underneath is the one two devices use to agree. What is checked here is
+	 * the part that belongs to a backup: that it looks before it writes, that it never
+	 * writes nothing over something, and that it stops rather than choosing when choosing
+	 * would mean throwing somebody's records away.
+	 */
+	describe("keeping a copy up to date on its own", () => {
+		async function aSpaceWithARecord(fixture: Awaited<ReturnType<typeof prepare>>) {
+			const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+			const account = await fixture.asAna.accounts.create({
+				spaceId: space.id,
+				kind: "cash",
+				name: "Dinheiro",
+			});
+			await fixture.asAna.transactions.create({
+				spaceId: space.id,
+				kind: "expense",
+				amount: 1000,
+				happenedOn: "2026-09-10",
+				description: "Cafe",
+				accountId: account.id,
+			});
+			return space.id;
+		}
+
+		it("writes the first time, says nothing the second, and sends what is new", async () => {
+			const fixture = await prepare(adapter);
+			const store = createMemoryStore("um lugar");
+			try {
+				const spaceId = await aSpaceWithARecord(fixture);
+
+				const first = await runBackup(fixture.driver, store, [spaceId]);
+				expect(first.outcomes[0]?.comparison.state).toBe("nothingThere");
+				expect(first.outcomes[0]?.did).toBe("sent");
+				expect(first.waiting).toHaveLength(0);
+
+				// Nothing changed on either side, so nothing is written at all.
+				const second = await runBackup(fixture.driver, store, [spaceId]);
+				expect(second.outcomes[0]?.comparison.state).toBe("same");
+				expect(second.outcomes[0]?.did).toBe("nothing");
+
+				await fixture.asAna.accounts.create({
+					spaceId,
+					kind: "checking",
+					name: "Conta corrente",
+				});
+				const third = await runBackup(fixture.driver, store, [spaceId]);
+				expect(third.outcomes[0]?.comparison.state).toBe("mineAhead");
+				expect(third.outcomes[0]?.did).toBe("sent");
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("brings back what the place holds when this side wrote nothing", async () => {
+			const fixture = await prepare(adapter);
+			const other = await otherDevice(fixture.ana, "outroAparelho");
+			const store = createMemoryStore("um lugar");
+			try {
+				const spaceId = await aSpaceWithARecord(fixture);
+				await runBackup(fixture.driver, store, [spaceId]);
+
+				// A second device that has never seen the space reads it whole.
+				const arriving = await runBackup(other.driver, store, [spaceId]);
+				expect(arriving.outcomes[0]?.comparison.state).toBe("theirsAhead");
+				expect(arriving.outcomes[0]?.did).toBe("received");
+				expect(arriving.outcomes[0]?.received).toBeGreaterThan(0);
+
+				const rows = await other.driver.all(
+					`SELECT "id" FROM "transactions" WHERE "space_id" = ?`,
+					[spaceId],
+				);
+				expect(rows).toHaveLength(1);
+			} finally {
+				await other.close();
+				await fixture.close();
+			}
+		});
+
+		it("stops and asks when both sides wrote since they last agreed", async () => {
+			const fixture = await prepare(adapter);
+			const other = await otherDevice(fixture.ana, "outroAparelho");
+			const store = createMemoryStore("um lugar");
+			try {
+				const spaceId = await aSpaceWithARecord(fixture);
+				await runBackup(fixture.driver, store, [spaceId]);
+				await runBackup(other.driver, store, [spaceId]);
+				// Membership does not replicate, so a space that arrives has nobody in it
+				// until whoever read it takes it, which is registry 0009.
+				await other.session.spaces.adopt(spaceId);
+				await other.session.refresh();
+
+				// Each side writes one record without meeting the other.
+				const here = await fixture.asAna.accounts.list(spaceId);
+				await fixture.asAna.transactions.create({
+					spaceId,
+					kind: "expense",
+					amount: 500,
+					happenedOn: "2026-09-11",
+					description: "Daqui",
+					accountId: here[0]?.id ?? "",
+				});
+				await runBackup(fixture.driver, store, [spaceId]);
+
+				const there = await other.session.accounts.list(spaceId);
+				await other.session.transactions.create({
+					spaceId,
+					kind: "expense",
+					amount: 700,
+					happenedOn: "2026-09-12",
+					description: "De la",
+					accountId: there[0]?.id ?? "",
+				});
+
+				const asked = await runBackup(other.driver, store, [spaceId]);
+				expect(asked.outcomes[0]?.did).toBe("asked");
+				expect(asked.waiting).toHaveLength(1);
+				expect(asked.outcomes[0]?.comparison.onlyMine).toBeGreaterThan(0);
+				expect(asked.outcomes[0]?.comparison.onlyTheirs).toBeGreaterThan(0);
+
+				// And it wrote nothing while asking: the place still holds what it held.
+				const held = (await store.read(spaceId)).bundle;
+				expect(held?.changes.some((change) => change.deviceId === "outroAparelho")).toBe(false);
+			} finally {
+				await other.close();
+				await fixture.close();
+			}
+		});
+
+		it("keeps one side over the other only when told, and never writes nothing over something", async () => {
+			const fixture = await prepare(adapter);
+			const other = await otherDevice(fixture.ana, "outroAparelho");
+			const store = createMemoryStore("um lugar");
+			try {
+				const spaceId = await aSpaceWithARecord(fixture);
+				await runBackup(fixture.driver, store, [spaceId]);
+
+				// This device has never seen the space, so it has nothing to write over it.
+				await expect(keepMine(other.driver, store, { spaceId, revision: null })).rejects.toThrow();
+
+				await runBackup(other.driver, store, [spaceId]);
+				// Membership does not replicate, so a space that arrives has nobody in it
+				// until whoever read it takes it, which is registry 0009.
+				await other.session.spaces.adopt(spaceId);
+				await other.session.refresh();
+				const there = await other.session.accounts.list(spaceId);
+				await other.session.transactions.create({
+					spaceId,
+					kind: "expense",
+					amount: 700,
+					happenedOn: "2026-09-12",
+					description: "De la",
+					accountId: there[0]?.id ?? "",
+				});
+
+				const before = (await store.read(spaceId)).bundle?.changes.length ?? 0;
+				const written = await keepMine(other.driver, store, {
+					spaceId,
+					revision: (await store.read(spaceId)).revision,
+				});
+				expect(written).toBeGreaterThan(before);
+				expect((await store.read(spaceId)).bundle?.changes).toHaveLength(written);
+			} finally {
+				await other.close();
+				await fixture.close();
+			}
+		});
+
+		it("takes the copy that is over there, emptying what is here first", async () => {
+			const fixture = await prepare(adapter);
+			const other = await otherDevice(fixture.ana, "outroAparelho");
+			const store = createMemoryStore("um lugar");
+			try {
+				const spaceId = await aSpaceWithARecord(fixture);
+				await runBackup(fixture.driver, store, [spaceId]);
+				await runBackup(other.driver, store, [spaceId]);
+				// Membership does not replicate, so a space that arrives has nobody in it
+				// until whoever read it takes it, which is registry 0009.
+				await other.session.spaces.adopt(spaceId);
+				await other.session.refresh();
+
+				// One record on this side that the place has never heard of.
+				const there = await other.session.accounts.list(spaceId);
+				await other.session.transactions.create({
+					spaceId,
+					kind: "expense",
+					amount: 700,
+					happenedOn: "2026-09-12",
+					description: "So daqui",
+					accountId: there[0]?.id ?? "",
+				});
+				expect(await other.session.transactions.list({ spaceId })).toHaveLength(2);
+
+				const outcome = await keepTheirs(
+					other.driver,
+					store,
+					(id) => other.session.erasure.emptySpace(id),
+					{ spaceId },
+				);
+				expect(outcome.emptied).toBeGreaterThan(0);
+
+				// What is left is the copy that was over there, and only it.
+				const left = await other.session.transactions.list({ spaceId });
+				expect(left.map((one) => one.description)).toEqual(["Cafe"]);
+				// The space itself is still here, with the person still in it.
+				expect((await other.session.spaces.list()).map((one) => one.id)).toContain(spaceId);
+			} finally {
+				await other.close();
+				await fixture.close();
+			}
+		});
+	});
 
 	describe("an entry that reaches for a space it was not sent to", () => {
 		it("cannot write a row into another space by naming it in the payload", async () => {

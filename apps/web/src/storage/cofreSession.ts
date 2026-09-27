@@ -167,6 +167,8 @@ export type CofreSession = {
 	 */
 	erasure: {
 		eraseSpace: (spaceId: string) => Promise<EraseResult>;
+		/** The rows of one space, gone, with the space and its members left standing. */
+		emptySpace: (spaceId: string) => Promise<number>;
 		eraseEverything: () => Promise<EraseEverythingResult>;
 	};
 	cards: {

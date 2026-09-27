@@ -15,6 +15,7 @@ import { OnboardingPage } from "../pages/OnboardingPage.tsx";
 import { SignInPage } from "../pages/SignInPage.tsx";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { useAutomaticBackup } from "../storage/useAutomaticBackup.ts";
 import { CommandPalette, useCommandPalette } from "./CommandPalette.tsx";
 import { SpaceSwitcher } from "./SpaceSwitcher.tsx";
 
@@ -261,6 +262,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 	const palette = useCommandPalette();
 
 	useDocumentTitle(cofre.currentSpace?.name ?? null);
+	// A copy that only keeps up while somebody is looking at the data screen is not a
+	// copy that keeps up, so what runs it is mounted here, around everything.
+	useAutomaticBackup();
 
 	const isDark =
 		choice === "dark" ||

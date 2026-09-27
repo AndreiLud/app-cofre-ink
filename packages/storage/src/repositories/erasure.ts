@@ -165,6 +165,24 @@ export function createErasureRepository(context: RepositoryContext) {
 		},
 
 		/**
+		 * Everything inside one space, gone, and the space itself left standing with its
+		 * members.
+		 *
+		 * This is what "keep the copy that is over there" needs: the rows here go, and
+		 * the log of the other side is written in their place, which is the only way to
+		 * end up with that copy and not with the two of them merged. It asks for the role
+		 * that pouring a whole space in asks for, because it is the same decision.
+		 */
+		async emptySpace(spaceId: string): Promise<number> {
+			// Read before the check, so somebody who is not a member is told the space
+			// does not exist rather than that they may not touch it.
+			await spaceRow(spaceId);
+			assertCan(context.actor(), spaceId, "backup.restore");
+
+			return context.driver.transaction(async (tx) => eraseRowsOf(tx, spaceId));
+		},
+
+		/**
 		 * Every space this person owns, erased, and every space of somebody else, left.
 		 *
 		 * Leaving rather than erasing is the only honest move on a space that is not

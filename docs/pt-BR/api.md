@@ -28,6 +28,7 @@ Todo o resto exige sessão e responde `401 {"error": "signedOut"}` sem uma.
 | `GET` `POST` | `/api/spaces` | listar, criar |
 | `PATCH` `DELETE` | `/api/spaces/:id` | renomear ou recolorir, remover |
 | `POST` | `/api/spaces/:id/adopt` | adotar um espaço que chegou de um aparelho e não tem ninguém |
+| `POST` | `/api/spaces/:id/empty` | as linhas de um espaço, apagadas, com o espaço e os membros de pé |
 | `DELETE` | `/api/spaces/:id/data` | esvaziar um espaço, e removê lo se for compartilhado |
 | `POST` | `/api/erase` | todo espaço que esta conta possui |
 | `GET` | `/api/spaces/:id/members` | quem está nele |

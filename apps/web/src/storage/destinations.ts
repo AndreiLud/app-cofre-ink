@@ -84,8 +84,27 @@ export function storedDestination(): DestinationSettings {
 	}
 }
 
+/**
+ * Whoever is running the backup has to hear when these change.
+ *
+ * The clock that fires every so often is set up from these settings, so a person who
+ * moves it from an hour to fifteen minutes and waits an hour to see it take effect has
+ * been told a small lie. One set of listeners, told on every write.
+ */
+const listeners = new Set<() => void>();
+
+export function whenSettingsChange(listener: () => void): () => void {
+	listeners.add(listener);
+	return () => listeners.delete(listener);
+}
+
+function tellThem(): void {
+	for (const listener of listeners) listener();
+}
+
 export function rememberDestination(settings: DestinationSettings): void {
 	write(KEY, JSON.stringify(settings));
+	tellThem();
 }
 
 export function storedWhen(): WhenToBackUp {
@@ -109,6 +128,7 @@ export function storedWhen(): WhenToBackUp {
 
 export function rememberWhen(when: WhenToBackUp): void {
 	write(WHEN_KEY, JSON.stringify(when));
+	tellThem();
 }
 
 /** The last time this device met each destination, per space. */

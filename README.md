@@ -48,10 +48,11 @@ subscription that quietly went up, the same charge twice, a reserve measured in 
 of ordinary spending. Nothing about what to buy or where to put money.
 
 **Leaving.** One backup file with whichever spaces you tick, which restores anywhere and
-which the same button reads back, along with the file kept for syncing. A spreadsheet or
-a CSV for another program. A copy that lives in a file, a WebDAV folder or an online
-database, and the records mirrored into a Google spreadsheet. Two devices agree by
-exchanging a change log, over a server or through a file somebody carries.
+which the same button reads back. Or a backup that keeps itself up to date in a place of
+yours, a server, an online database or a WebDAV folder, covering every space at once and
+asking you before it ever writes one version over another. A spreadsheet or a CSV for
+another program, and the records mirrored into a Google spreadsheet. Two devices agree by
+exchanging a change log over a server of yours.
 
 **Two languages.** Portuguese and English, and it opens in the one that fits where the
 device is: a clock set to Brazil opens in Portuguese and anywhere else opens in English.
@@ -332,11 +333,11 @@ assinatura que subiu de preço, a mesma cobrança duas vezes, a reserva medida e
 despesa comum. Nada sobre o que comprar ou onde colocar dinheiro.
 
 **Ir embora.** Um arquivo de backup com os espaços que você marcar, que restaura em
-qualquer instalação e que o mesmo botão lê de volta, junto com o arquivo da
-sincronização. Uma planilha ou um CSV para outro programa. Uma cópia que mora num
-arquivo, numa pasta WebDAV ou num banco de dados online, e os lançamentos espelhados
-numa planilha do Google. Dois aparelhos combinam trocando um histórico de alterações,
-por um servidor ou por um arquivo que você carrega.
+qualquer instalação e que o mesmo botão lê de volta. Ou um backup que se mantém em dia
+num lugar seu, um servidor, um banco de dados online ou uma pasta WebDAV, levando todos
+os espaços de uma vez e perguntando antes de escrever uma versão por cima da outra. Uma
+planilha ou um CSV para outro programa, e os lançamentos espelhados numa planilha do
+Google. Dois aparelhos combinam trocando um histórico de alterações por um servidor seu.
 
 **Dois idiomas.** Português e inglês, e ele abre no que combina com onde o aparelho
 está: um relógio no Brasil abre em português e qualquer outro abre em inglês. Um link

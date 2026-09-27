@@ -23,7 +23,7 @@ new one.
 | [0014](0014_charts_and_sizes.md) | charts drawn by hand, and screens that survive a resize | accepted |
 | [0015](0015_import_export_and_sync.md) | reading files in, taking everything out, and meeting a server | accepted, extended by 0035 |
 | [0016](0016_reading_a_document.md) | reading a card invoice and a receipt out of a PDF | accepted |
-| [0017](0017_where_a_copy_lives.md) | where a copy of a space can live, and what each place costs | accepted |
+| [0017](0017_where_a_copy_lives.md) | where a copy of a space can live, and what each place costs | accepted, the file dropped by 0036 |
 | [0018](0018_making_the_history_smaller.md) | folding the change log up to a watermark, and packing what travels | accepted |
 | [0019](0019_the_months_ahead.md) | projections, scenarios, compound interest and what is put aside | accepted |
 | [0020](0020_an_application_in_a_window.md) | installed on a telephone, wrapped for a desktop, served from anywhere | partly superseded by 0021 |
@@ -41,4 +41,5 @@ new one.
 | [0032](0032_the_year_ahead_and_the_one_income.md) | the year ahead, the one income, and what standing still costs | accepted |
 | [0033](0033_the_name_and_the_drop.md) | the name, the drop, and the one place the name lives | accepted |
 | [0034](0034_which_language_opens.md) | which language opens, and who is allowed to say | accepted |
-| [0035](0035_one_backup_and_one_place_for_it.md) | one backup, and one place on the screen for it | accepted |
+| [0035](0035_one_backup_and_one_place_for_it.md) | one backup, and one place on the screen for it | accepted, the screen amended by 0036 |
+| [0036](0036_a_copy_that_keeps_itself_up_to_date.md) | a copy that keeps itself up to date, and the one question it may not answer | accepted |

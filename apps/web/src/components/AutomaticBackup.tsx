@@ -13,14 +13,27 @@
 // or already runs.
 
 import type { DestinationKind } from "@cofre/cloud";
-import { CloudError, createLibsqlStore, createWebdavStore, DESTINATIONS } from "@cofre/cloud";
-import type { SyncStore } from "@cofre/storage";
-import { syncWithStore } from "@cofre/storage";
-import { Button, Callout, Field, Select } from "@cofre/ui";
+import {
+	BUNDLE_MEDIA_TYPE,
+	bundleFileName,
+	CloudError,
+	DESTINATIONS,
+	packBundle,
+} from "@cofre/cloud";
+import type { BackupOutcome, SyncStore } from "@cofre/storage";
+import { keepMine, keepTheirs, runBackup, syncWithStore } from "@cofre/storage";
+import { Button, Callout, Dialog, Field, Select } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { FileTooLargeError, LARGEST_FILE } from "../lib/download.ts";
+import {
+	downloadBytes,
+	downloadJson,
+	FileTooLargeError,
+	fileNameFor,
+	LARGEST_FILE,
+} from "../lib/download.ts";
+import { backupState, setBackupState, subscribeToBackup } from "../storage/backupState.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import {
 	type DestinationSettings,
@@ -35,6 +48,7 @@ import {
 } from "../storage/destinations.ts";
 import { normaliseServer } from "../storage/mode.ts";
 import { createServerClient } from "../storage/remoteSession.ts";
+import { storeFrom } from "../storage/storeFrom.ts";
 import { SyncError, syncWithServer } from "../storage/syncClient.ts";
 
 const KINDS: DestinationKind[] = ["server", "database", "webdav"];
@@ -76,6 +90,12 @@ export function AutomaticBackup() {
 	const [said, setSaid] = useState<string | null>(null);
 	const [signedIn, setSignedIn] = useState(false);
 
+	// What the thing that runs on its own has been doing, which happens around the whole
+	// application and not inside this screen.
+	const running = useSyncExternalStore(subscribeToBackup, backupState, backupState);
+	const [asking, setAsking] = useState<BackupOutcome | null>(null);
+	const question = asking ?? running.waiting[0] ?? null;
+
 	const kind = settings.kind;
 	// Somebody already in server mode has an address. It is the one this would use.
 	const serverAddress = settings.address === "" ? (server ?? "") : settings.address;
@@ -109,19 +129,9 @@ export function AutomaticBackup() {
 	};
 
 	function storeFor(): SyncStore {
-		if (kind === "webdav") {
-			return createWebdavStore({
-				url: settings.address,
-				user: settings.user,
-				password: settings.secret,
-				name: t("destination.webdav"),
-			});
-		}
-		return createLibsqlStore({
-			url: settings.address,
-			token: settings.secret,
-			name: t("destination.database"),
-		});
+		const store = storeFrom(settings, t(`destination.${kind ?? "webdav"}`));
+		if (store === null) throw new Error("a server of theirs is not a store");
+		return store;
 	}
 
 	const where = kind === null ? "" : kind === "server" ? normaliseServer(serverAddress) : kind;
@@ -170,8 +180,11 @@ export function AutomaticBackup() {
 			if (!driver) throw new Error("no database");
 			if (covered.length === 0) throw new Error("no spaces");
 
-			for (const spaceId of covered) {
-				if (kind === "server") {
+			// A server of theirs is the other kind of agreement: it merges by record and
+			// has nothing to ask anybody. A place that keeps a file is compared first and
+			// stops on the one answer a machine may not give.
+			if (kind === "server") {
+				for (const spaceId of covered) {
 					await syncWithServer(
 						driver,
 						normaliseServer(serverAddress),
@@ -180,12 +193,17 @@ export function AutomaticBackup() {
 							? { id: user.id, email: user.email, name: user.name, image: user.image }
 							: undefined,
 					);
-				} else {
-					await syncWithStore(driver, storeFor(), { spaceId });
+					markMet(spaceId, where);
 				}
-				markMet(spaceId, where);
+				return Date.now();
 			}
-			return Date.now();
+
+			const done = await runBackup(driver, storeFor(), covered);
+			for (const outcome of done.outcomes) {
+				if (outcome.did !== "asked") markMet(outcome.spaceId, where);
+			}
+			setBackupState({ at: done.at, waiting: done.waiting });
+			return done.at;
 		},
 		onSuccess: async (at: number) => {
 			setProblem(null);
@@ -215,6 +233,55 @@ export function AutomaticBackup() {
 				return;
 			}
 			setProblem(t("auto.failed", { where: t(`destination.${kind ?? "webdav"}`) }));
+		},
+	});
+
+	/** The name of the space a question is about, for the sentence that asks it. */
+	const askedAbout = spaces.find((space) => space.id === question?.spaceId)?.name ?? "";
+
+	/**
+	 * The answer to the one question a machine may not answer.
+	 *
+	 * Two of the three lose something, and both of them hand the person a copy of the
+	 * side that is about to go before it goes. Undoing is then the same door as any
+	 * other file: restore it.
+	 */
+	const answer = useMutation({
+		mutationFn: async (choice: "both" | "mine" | "theirs") => {
+			if (!driver || !question) throw new Error("no question");
+			const store = storeFor();
+			const spaceId = question.spaceId;
+
+			if (choice === "both") {
+				await syncWithStore(driver, store, { spaceId });
+			} else if (choice === "mine") {
+				const bundle = question.comparison.bundle;
+				if (bundle) downloadBytes(bundleFileName(spaceId), packBundle(bundle), BUNDLE_MEDIA_TYPE);
+				await keepMine(driver, store, { spaceId, revision: question.comparison.revision });
+			} else {
+				if (!session) throw new Error("no session");
+				downloadJson(
+					fileNameFor("cofre_antes_de_trocar", "json"),
+					await session.backup.exportSpaces([spaceId]),
+				);
+				await keepTheirs(driver, store, (id) => session.erasure.emptySpace(id), { spaceId });
+			}
+
+			markMet(spaceId, where);
+			return spaceId;
+		},
+		onSuccess: async (spaceId: string) => {
+			setAsking(null);
+			setProblem(null);
+			setBackupState({
+				waiting: backupState().waiting.filter((one) => one.spaceId !== spaceId),
+			});
+			await reload();
+			void queries.invalidateQueries();
+		},
+		onError: (error: unknown) => {
+			setAsking(null);
+			setProblem(saidWhy(error, t));
 		},
 	});
 
@@ -361,8 +428,23 @@ export function AutomaticBackup() {
 				</div>
 			)}
 
-			{problem ? <Callout tone="problem">{problem}</Callout> : null}
-			{said ? <p className="text-sm text-quiet">{said}</p> : null}
+			{(problem ?? running.problem) ? (
+				<Callout tone="problem">{problem ?? running.problem}</Callout>
+			) : null}
+			{(said ?? running.said) ? <p className="text-sm text-quiet">{said ?? running.said}</p> : null}
+
+			{/* A question that nobody has answered yet outlives the run that found it,
+			    because the copy of that space stands still until it is answered. */}
+			{question && asking === null ? (
+				<Callout tone="attention" title={t("auto.conflictTitle")}>
+					<span className="flex flex-wrap items-center gap-3">
+						<span>{t("auto.conflictWaiting", { name: askedAbout })}</span>
+						<Button variant="secondary" size="small" onClick={() => setAsking(question)}>
+							{t("auto.conflictOpen")}
+						</Button>
+					</span>
+				</Callout>
+			) : null}
 
 			{/* The state of the thing, always, because a backup nobody can see is a
 			    promise rather than a copy. */}
@@ -425,6 +507,60 @@ export function AutomaticBackup() {
 					</fieldset>
 				</div>
 			) : null}
+
+			{/* Both sides wrote since they last agreed. Nothing has been written over and
+			    nothing will be until this is answered, and two of the three answers hand
+			    back a copy of what they are about to let go of. */}
+			<Dialog
+				open={asking !== null}
+				onOpenChange={(next) => {
+					if (!next) setAsking(null);
+				}}
+				title={t("auto.conflictTitle")}
+				description={t("auto.conflictBody", {
+					name: askedAbout,
+					here: asking?.comparison.onlyMine ?? 0,
+					there: asking?.comparison.onlyTheirs ?? 0,
+				})}
+				closeLabel={t("actions.cancel")}
+				footer={
+					<>
+						<Button variant="quiet" onClick={() => setAsking(null)}>
+							{t("actions.cancel")}
+						</Button>
+						<Button
+							variant="primary"
+							disabled={answer.isPending}
+							onClick={() => answer.mutate("both")}
+						>
+							{t("auto.keepBoth")}
+						</Button>
+					</>
+				}
+			>
+				<div className="space-y-3">
+					<p className="text-sm leading-relaxed text-quiet">{t("auto.keepBothHint")}</p>
+					<div className="flex flex-wrap gap-2 border-t border-line pt-3">
+						<Button
+							variant="secondary"
+							size="small"
+							disabled={answer.isPending}
+							onClick={() => answer.mutate("mine")}
+						>
+							{t("auto.keepMine")}
+						</Button>
+						<Button
+							variant="secondary"
+							size="small"
+							disabled={answer.isPending}
+							onClick={() => answer.mutate("theirs")}
+						>
+							{t("auto.keepTheirs")}
+						</Button>
+					</div>
+					<p className="text-sm leading-relaxed text-quiet">{t("auto.undoSaved")}</p>
+				</div>
+			</Dialog>
 		</div>
 	);
 }

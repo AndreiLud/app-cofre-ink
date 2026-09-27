@@ -102,9 +102,11 @@ outro, carregando o mesmo histórico de alterações.
 
 ## Levar tudo embora
 
-Tudo que é cópia está numa seção só da tela Dados, chamada Backup e cópias, porque dois
-botões que baixavam um JSON, em duas seções diferentes, é assim que alguém acaba com o
-arquivo errado na mão.
+Uma cópia é uma de duas coisas e nunca uma terceira, e a tela Dados tem um painel para
+cada. Ou alguém faz ela, que é um arquivo que a pessoa baixa e guarda, ou uma máquina
+faz, que é um lugar dela mantido em dia sem precisar pedir. Dois botões que baixavam um
+JSON, em seções diferentes, com um terceiro arquivo que não era backup no meio, é assim
+que alguém acaba com o arquivo errado na mão.
 
 **Backup.** Um arquivo só, com os espaços que você marcar, chamado
 `cofre_backup_AAAAMMDD.json`. Todos começam marcados. Um espaço compartilhado em que a
@@ -123,11 +125,32 @@ se junta ao espaço pessoal que já existe.
 linha de texto, porque é coisa de uma vez por ano e não é backup: não leva identificador
 nenhum e nada lê ele de volta.
 
-**Uma cópia que mora em algum lugar.** Um arquivo, uma pasta WebDAV, um banco de dados
-online, ou uma planilha do Google como espelho. Todos são alcançados pelo navegador,
-com credenciais que ficam naquele navegador. O servidor nunca as tem e nunca os chama.
-É um espaço por vez e é assim que dois aparelhos combinam, não é onde a cópia fica: o
-arquivo que você guarda é o backup.
+**O backup automático.** Um lugar só, escolhido entre três: um servidor seu, um banco de
+dados online, uma pasta WebDAV. Ele leva todos os espaços de uma vez. É alcançado pelo
+navegador, com credenciais que ficam naquele navegador, e o servidor nunca as tem e nunca
+os chama.
+
+Ligar ele é a ação explícita que a quinta regra de ouro pede, e depois disso ele roda a
+cada alteração, quando a digitação para, mais o que mandarem entre dois: ao abrir o
+aplicativo, e de tempos em tempos.
+
+Antes de escrever qualquer coisa ele lê o que está lá e compara, por quais entradas cada
+lado tem e não por data, porque dois aparelhos que escreveram um lançamento cada são os
+dois mais novos que o outro. Quatro das cinco respostas possíveis são óbvias e ele age
+nelas: não tem nada lá, os dois lados iguais, um lado na frente de cada jeito. A quinta,
+os dois lados escreveram desde a última vez que combinaram, é aquela em que escolher
+significaria jogar fora o que alguém escreveu, então ele para e pergunta. Juntar os dois
+é a resposta que não perde nada e vem primeiro; as duas que perdem alguma coisa devolvem
+antes um arquivo com o lado que vai embora, e restaurar ele é como se desfaz.
+
+Um servidor seu é a exceção da comparação: lá os dois lados são o mesmo espaço e não uma
+cópia dele, e eles se mesclam lançamento por lançamento, como dois aparelhos fazem.
+
+Trazer um arquivo de volta com isso ligado faz os dois lados ficarem diferentes, então
+ele pergunta se o arquivo também deve virar a cópia.
+
+**Uma planilha como espelho.** Uma planilha do Google sua, reescrita a cada vez, só de
+ida.
 
 **Apagar.** Duas portas separadas, porque fazem coisas diferentes. Apagar um espaço
 esvazia ele e o remove se for compartilhado. Apagar tudo remove todo espaço que esta

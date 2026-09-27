@@ -883,7 +883,10 @@
 		"exportRecordsBody": "One line per record, to open in Excel, Numbers or whatever you use.",
 		"exportRecordsAction": "Download CSV",
 		"manualTitle": "Manual copy",
-		"manualBody": "One file with everything, that you download and keep wherever you like."
+		"manualBody": "One file with everything, that you download and keep wherever you like.",
+		"alsoTheBackup": "Replace the automatic backup too",
+		"alsoTheBackupHint": "The backup becomes this file. Whatever is there and not here goes.",
+		"notAlsoTheBackupHint": "Without it, only this browser changes. Next time, the backup will see the two sides differ and ask which one to keep."
 	},
 	"destination": {
 		"where": "Where to keep the copy",
@@ -1265,6 +1268,15 @@
 		"every60": "Every hour",
 		"every360": "Every 6 hours",
 		"savedAt": "Backup saved at {{time}}",
-		"failed": "Could not connect to {{where}}"
+		"failed": "Could not connect to {{where}}",
+		"conflictTitle": "Both sides changed",
+		"conflictWaiting": "The backup of {{name}} is waiting for you to decide.",
+		"conflictOpen": "Decide",
+		"conflictBody": "Since they last agreed, this browser wrote {{here}} and the backup took in {{there}}. Nothing has been replaced.",
+		"keepBoth": "Keep both",
+		"keepBothHint": "The safe one, and the one that loses nothing: both sides end up with everything either of them wrote, record by record.",
+		"keepMine": "Keep this browser's",
+		"keepTheirs": "Keep the backup's",
+		"undoSaved": "The last two throw away what the other side wrote. Before either of them, a file with the side that is going is saved for you, and Restore from a file brings it back if you change your mind."
 	}
 }

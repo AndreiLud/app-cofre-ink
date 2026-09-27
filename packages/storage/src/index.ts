@@ -3,6 +3,7 @@
 // be dragged into a bundle that does not need it.
 
 export * from "./actor.ts";
+export * from "./backupRun.ts";
 export * from "./driver.ts";
 export * from "./errors.ts";
 export * from "./housekeeping.ts";

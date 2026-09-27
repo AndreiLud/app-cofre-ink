@@ -883,7 +883,10 @@
 		"exportRecordsBody": "Uma linha por lançamento, para abrir no Excel, no Numbers ou no que você usa.",
 		"exportRecordsAction": "Baixar CSV",
 		"manualTitle": "Cópia manual",
-		"manualBody": "Um arquivo com tudo, que você baixa e guarda onde quiser."
+		"manualBody": "Um arquivo com tudo, que você baixa e guarda onde quiser.",
+		"alsoTheBackup": "Trocar também o backup automático",
+		"alsoTheBackupHint": "O backup passa a ser este arquivo. O que estiver lá e não estiver aqui vai embora.",
+		"notAlsoTheBackupHint": "Sem isso, só este navegador muda. Na próxima vez, o backup vai ver os dois lados diferentes e perguntar com qual ficar."
 	},
 	"destination": {
 		"where": "Onde guardar a cópia",
@@ -1265,6 +1268,15 @@
 		"every60": "A cada 1 hora",
 		"every360": "A cada 6 horas",
 		"savedAt": "Backup salvo às {{time}}",
-		"failed": "Falha ao conectar ao {{where}}"
+		"failed": "Falha ao conectar ao {{where}}",
+		"conflictTitle": "Os dois lados mudaram",
+		"conflictWaiting": "O backup de {{name}} está parado esperando você decidir.",
+		"conflictOpen": "Decidir",
+		"conflictBody": "Desde a última vez que combinaram, este navegador escreveu {{here}} e o backup recebeu {{there}}. Nada foi trocado até agora.",
+		"keepBoth": "Juntar os dois",
+		"keepBothHint": "O jeito seguro, e o que não perde nada: os dois lados ficam com tudo o que cada um escreveu, lançamento por lançamento.",
+		"keepMine": "Ficar com o deste navegador",
+		"keepTheirs": "Ficar com o do backup",
+		"undoSaved": "As duas últimas jogam fora o que o outro lado escreveu. Antes de fazer isso, eu baixo um arquivo com o lado que vai embora, e você traz ele de volta em Restaurar de um arquivo se mudar de ideia."
 	}
 }

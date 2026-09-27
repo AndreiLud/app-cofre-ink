@@ -22,7 +22,7 @@
 import { mirrorToSheet, unpackBundle } from "@cofre/cloud";
 import { writeAmount, writeCsv } from "@cofre/importers";
 import type { Backup, RecordForExport, RestoreResult } from "@cofre/storage";
-import { backupFromBundle } from "@cofre/storage";
+import { backupFromBundle, replaceTheCopy } from "@cofre/storage";
 import { Button, Callout, Dialog, Disclosure, Field, Icon, Panel, SectionTitle } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -41,6 +41,7 @@ import {
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { storedDestination, storedWhen } from "../storage/destinations.ts";
+import { storeFrom } from "../storage/storeFrom.ts";
 
 const BACKUP_KEY = "cofreBackupAt";
 
@@ -173,7 +174,7 @@ function storedSheet(): { token: string; spreadsheetId: string } {
 export function DataPage() {
 	const { t, i18n } = useTranslation();
 	const navigate = useNavigate();
-	const { session, currentSpace, spaces, mode, reload, chooseAgain } = useCofre();
+	const { session, driver, currentSpace, spaces, mode, reload, chooseAgain } = useCofre();
 	const queries = useQueryClient();
 
 	const spaceId = currentSpace?.id ?? "";
@@ -183,6 +184,8 @@ export function DataPage() {
 	/** Unticked spaces, for the copy being written and for the file waiting to come back. */
 	const [leftOut, setLeftOut] = useState<Record<string, boolean>>({});
 	const [leftBehind, setLeftBehind] = useState<Record<string, boolean>>({});
+	/** Whether the file coming back should become the automatic copy as well. */
+	const [alsoTheBackup, setAlsoTheBackup] = useState(false);
 	const [sheet, setSheet] = useState(storedSheet);
 	const [mirrored, setMirrored] = useState<string | null>(null);
 
@@ -328,6 +331,7 @@ export function DataPage() {
 
 			setProblem(null);
 			setLeftBehind({});
+			setAlsoTheBackup(false);
 			setWaiting({ name: file.name, backup });
 		} catch (error) {
 			failed(error);
@@ -340,7 +344,17 @@ export function DataPage() {
 	const restore = useMutation({
 		mutationFn: async () => {
 			if (!session || !waiting) throw new Error("no session");
-			return session.backup.restore(waiting.backup, { only: bringing.map((space) => space.id) });
+			const only = bringing.map((space) => space.id);
+			const result = await session.backup.restore(waiting.backup, { only });
+
+			// With a copy keeping itself up to date somewhere, this file just made the two
+			// sides differ. Either it becomes the copy too, or the next pass finds the
+			// difference and asks about it, and the person said which.
+			if (alsoTheBackup && driver) {
+				const store = storeFrom(storedDestination(), "");
+				if (store) await replaceTheCopy(driver, store, only);
+			}
+			return result;
 		},
 		onSuccess: async (result) => {
 			setProblem(null);
@@ -368,6 +382,9 @@ export function DataPage() {
 	// What this device is set up to keep a copy in, and whether it is switched on.
 	const destination = storedDestination();
 	const backingUp = storedWhen();
+	/** A place that holds a file, switched on. A server of theirs is not one of these. */
+	const keepingACopy =
+		backingUp.on && destination.kind !== null && destination.kind !== "server" && driver !== null;
 	const mine = spaces.filter((space) => mayCopy.has(space.id));
 	const savedAt = oldestBackup(mine.map((space) => space.id));
 
@@ -614,6 +631,31 @@ export function DataPage() {
 							{t("data.bringBackAdds")}
 						</span>
 					</Callout>
+
+					{/* With a copy keeping itself up to date somewhere, this file is about
+					    to make the two sides differ, and there are only two honest answers
+					    to that. Neither is chosen for them. */}
+					{keepingACopy ? (
+						<div className="space-y-2 border-t border-line pt-3">
+							<label className="flex items-start gap-3 text-sm">
+								<input
+									type="checkbox"
+									checked={alsoTheBackup}
+									onChange={(event) => setAlsoTheBackup(event.target.checked)}
+									className="mt-1 size-4 accent-[var(--ink)]"
+								/>
+								<span>
+									<span className="font-medium text-ink">{t("data.alsoTheBackup")}</span>
+									<span className="block text-quiet">{t("data.alsoTheBackupHint")}</span>
+								</span>
+							</label>
+							{alsoTheBackup ? null : (
+								<p className="text-sm leading-relaxed text-quiet">
+									{t("data.notAlsoTheBackupHint")}
+								</p>
+							)}
+						</div>
+					) : null}
 				</div>
 			</Dialog>
 		</div>

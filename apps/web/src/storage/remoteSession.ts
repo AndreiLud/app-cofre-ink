@@ -322,6 +322,8 @@ export function createRemoteSession(
 
 		erasure: {
 			eraseSpace: (spaceId: string) => send<EraseResult>(`/api/spaces/${spaceId}/data`, "DELETE"),
+			emptySpace: async (spaceId: string) =>
+				(await send<{ rows: number }>(`/api/spaces/${spaceId}/empty`, "POST", {})).rows,
 			eraseEverything: () => send<EraseEverythingResult>("/api/erase", "POST", {}),
 		},
 

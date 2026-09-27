@@ -101,9 +101,11 @@ other, carrying the same change log.
 
 ## Taking everything away
 
-Everything about a copy is in one section of the data screen, called Backups and
-copies, because two buttons that both wrote a JSON file, in two different sections, is
-how somebody ends up holding the wrong one.
+A copy is one of two things and never a third, and the data screen has one panel for
+each. Either somebody makes it, which is a file they download and keep, or a machine
+makes it, which is a place of theirs kept up to date without being asked. Two buttons
+that both wrote a JSON file, in two different sections, with a third file that was not a
+backup sitting between them, is how somebody ends up holding the wrong one.
 
 **Backup.** One file, whichever spaces were ticked, named `cofre_backup_YYYYMMDD.json`.
 All of them start ticked. A shared space where the person is neither Owner nor
@@ -122,11 +124,32 @@ its owner, and a personal space merges into the personal space there already is.
 of text, because it is a once a year thing and it is not a backup: it carries no
 identifiers and nothing reads it back.
 
-**A copy that lives somewhere.** A file, a WebDAV folder, an online database, or a
-Google spreadsheet as a mirror. All of them are reached from the browser, with
-credentials that stay in that browser. The server never holds them and never calls
-them. This is one space at a time and it is how two devices agree, not how a copy is
-kept: the file you keep is the backup.
+**The automatic backup.** One place, picked from three: a server of yours, an online
+database, a WebDAV folder. It covers every space at once. It is reached from the browser
+with credentials that stay in that browser, and the server never holds them and never
+calls them.
+
+Turning it on is the explicit action the fifth golden rule asks for, and after that it
+runs on every change, once the typing stops, plus whichever of two it was told: when the
+application opens, and every so often.
+
+Before it writes anything it reads what is there and compares, by which entries each side
+holds rather than by a date, because two devices that each wrote one record are both
+newer than the other. Four of the five answers it can get are obvious and it acts on
+them: nothing there, the same on both sides, one side ahead either way. The fifth, both
+sides wrote since they last agreed, is the one where choosing would mean throwing
+somebody's records away, so it stops and asks. Keeping both is the answer that loses
+nothing and is offered first; the two that do lose something hand back a file of the side
+that is going, first, so restoring it is the way to undo.
+
+A server of yours is the exception to the comparison: there the two sides are the same
+space rather than a copy of it, and they merge record by record the way two devices do.
+
+Bringing a file back while this is on makes the two sides differ, so it asks whether the
+file should become the copy as well.
+
+**A spreadsheet as a mirror.** A Google spreadsheet of yours, rewritten every time, one
+way only.
 
 **Erasing.** Two separate doors, because they do different things. Erasing a space
 empties it and removes it if it is shared. Erasing everything removes every space this

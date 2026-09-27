@@ -29,6 +29,7 @@ one.
 | `GET` `POST` | `/api/spaces` | list, create |
 | `PATCH` `DELETE` | `/api/spaces/:id` | rename or recolour, remove |
 | `POST` | `/api/spaces/:id/adopt` | take a space that arrived from a device and has nobody in it |
+| `POST` | `/api/spaces/:id/empty` | the rows of one space, gone, with the space and its members left standing |
 | `DELETE` | `/api/spaces/:id/data` | empty a space, and remove it if it is shared |
 | `POST` | `/api/erase` | every space this account owns |
 | `GET` | `/api/spaces/:id/members` | who is in it |

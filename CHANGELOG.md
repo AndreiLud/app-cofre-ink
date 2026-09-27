@@ -37,7 +37,30 @@ somebody who is not in the space the expense is in, which is right. The dialog n
 offers the people of the space that is open, on the division, on who paid, and on the
 settle up.
 
+### Added
+
+**A backup that keeps itself up to date.** Pick one place, a server of yours, an online
+database or a WebDAV folder, test the connection, and turn it on. It covers every space
+at once, and after that it runs on every change once the typing stops, plus whichever of
+two you asked for: when the application opens, and every so often.
+
+It reads the place before it writes to it, and compares by which entries each side holds
+rather than by a date, because two devices that each wrote one record are both newer than
+the other. When both sides wrote since they last agreed it stops and asks rather than
+choosing, because choosing there means throwing somebody's records away. Keeping both
+loses nothing and is offered first. The two answers that do lose something hand you a
+file of the side that is going before it goes, so restoring it is the way to undo.
+
+Bringing a file back while it is on asks whether the file should become the copy as well.
+
 ### Changed
+
+**A copy is made by a person or by a machine, and the screen has one panel for each.**
+The file somebody carries stopped being a destination: a destination is somewhere this
+application can reach by itself, and a folder in a downloads directory is somewhere a
+person goes. What that costs is that two browsers with no server between them used to
+agree by carrying a packed log back and forth, and now they exchange a backup instead,
+which moves a money life across but does not merge two people editing at once.
 
 **Backup and copies are one section of the data screen.** Saving a copy took the space
 that happened to be open, and the file with every space was hidden under a line about

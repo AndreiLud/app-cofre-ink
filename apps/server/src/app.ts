@@ -621,6 +621,18 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		context.json(await context.get("session").erasure.eraseSpace(context.req.param("id"))),
 	);
 
+	/**
+	 * The rows of one space, gone, and the space itself left standing.
+	 *
+	 * What `keep the copy that is over there` needs: the rows here go and the log of
+	 * the other side is written in their place.
+	 */
+	app.post("/api/spaces/:id/empty", async (context) =>
+		context.json({
+			rows: await context.get("session").erasure.emptySpace(context.req.param("id")),
+		}),
+	);
+
 	/** Every space this account owns. The ones it merely belongs to are left instead. */
 	app.post("/api/erase", async (context) =>
 		context.json(await context.get("session").erasure.eraseEverything()),
