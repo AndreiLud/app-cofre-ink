@@ -3,13 +3,7 @@
 // lives in this browser or on a server, which is why no screen has to.
 
 import type { Driver, Space, User } from "@cofre/storage";
-import {
-	findUserById,
-	listProfiles,
-	openSession,
-	renameProfile,
-	tidyEverySpace,
-} from "@cofre/storage";
+import { findUserById, openSession, tidyEverySpace } from "@cofre/storage";
 import {
 	createContext,
 	type ReactNode,
@@ -19,6 +13,7 @@ import {
 	useMemo,
 	useState,
 } from "react";
+import i18n from "../i18n/index.ts";
 import type { CofreSession } from "./cofreSession.ts";
 import {
 	deviceId,
@@ -36,12 +31,12 @@ import {
 	type RemoteInvitations,
 	type ServerClient,
 } from "./remoteSession.ts";
+import { startLocalProfile } from "./startProfile.ts";
 import { type BrowserDatabase, openBrowserDatabase } from "./workerDriver.ts";
 
 export type CofreStatus =
 	| "opening"
 	| "needsMode"
-	| "needsProfile"
 	| "needsSignIn"
 	| "ready"
 	/** The database file is held by another tab, which takes it exclusively. */
@@ -61,8 +56,6 @@ export type CofreValue = {
 	/** Present only in server mode, because a link needs somewhere to point. */
 	linkInvitations: RemoteInvitations | null;
 	user: User | null;
-	/** Browser mode: everybody with a profile on this device, to change between them. */
-	profiles: User[];
 	spaces: Space[];
 	currentSpace: Space | null;
 	amountsHidden: boolean;
@@ -81,12 +74,6 @@ export type CofreValue = {
 	signOut: () => Promise<void>;
 	/** Back to the first question, from any screen that can be reached by accident. */
 	chooseAgain: () => void;
-	/** Browser mode: the name of the person reading, which nobody was asked for. */
-	renameMe: (name: string) => Promise<void>;
-	/** Browser mode: read this database as another profile that is already in it. */
-	switchProfile: (userId: string) => Promise<void>;
-	/** Browser mode: make room for somebody else on this device. */
-	addProfile: () => void;
 	reload: () => Promise<void>;
 	/**
 	 * Browser mode only: takes the database file off the device, forgets the profile and
@@ -137,23 +124,17 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 	const [linkInvitations, setLinkInvitations] = useState<RemoteInvitations | null>(null);
 	const [user, setUser] = useState<User | null>(null);
 	/** Browser mode only: everybody who has a profile in this database. */
-	const [profiles, setProfiles] = useState<User[]>([]);
 	const [spaces, setSpaces] = useState<Space[]>([]);
 	const [currentSpaceId, setCurrentSpaceId] = useState<string | null>(storedSpaceId);
 	const [amountsHidden, setAmountsHidden] = useState(false);
 
 	const startLocalSession = useCallback(async (database: Driver, userId: string) => {
 		const opened = await openSession({ driver: database, userId, deviceId: deviceId() });
-		const [me, list, everybody] = await Promise.all([
-			opened.users.me(),
-			opened.spaces.list(),
-			listProfiles(database),
-		]);
+		const [me, list] = await Promise.all([opened.users.me(), opened.spaces.list()]);
 		setSession(asCofreSession(opened));
 		setLinkInvitations(null);
 		setUser(me);
 		setSpaces(list);
-		setProfiles(everybody);
 		setStatus("ready");
 
 		// The database looks after itself, after the screen is up and while nobody is
@@ -183,22 +164,26 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 		}
 
 		const userId = storedUserId();
-		if (!userId) {
-			setStatus("needsProfile");
-			return;
-		}
+		// The browser can throw the database away and keep the identifier. That is not a
+		// failure, it is somebody starting over.
+		const profile = userId === null ? null : await findUserById(database.driver, userId);
 
-		// The browser can throw the database away and keep the identifier. That is not
-		// a failure, it is someone starting over, so the onboarding takes it from here
-		// instead of an error screen with no way out.
-		const profile = await findUserById(database.driver, userId);
 		if (!profile) {
+			// Nothing is asked here. The door already asked the one question that cannot
+			// be changed later, and everything else it would have wanted, a name, a
+			// currency, what the space is called, is corrected from inside in one screen.
 			forgetProfile();
-			setStatus("needsProfile");
+			const made = await startLocalProfile(database.driver, {
+				name: i18n.t("mode.defaultName"),
+				spaceName: i18n.t("onboarding.personalDefault"),
+				language: i18n.resolvedLanguage === "en" ? "en" : "pt",
+			});
+			rememberUser(made.id);
+			await startLocalSession(database.driver, made.id);
 			return;
 		}
 
-		await startLocalSession(database.driver, userId);
+		await startLocalSession(database.driver, profile.id);
 	}, [startLocalSession]);
 
 	const openServerMode = useCallback(
@@ -318,16 +303,6 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 		[startLocalSession],
 	);
 
-	const renameMe = useCallback(
-		async (name: string) => {
-			if (!driver || !user) return;
-			const renamed = await renameProfile(driver, user.id, name);
-			setUser(renamed);
-			setProfiles(await listProfiles(driver));
-		},
-		[driver, user],
-	);
-
 	const adoptUser = useCallback(
 		async (created: User) => {
 			if (!driver) return;
@@ -386,28 +361,6 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 	}, []);
 
 	/**
-	 * Another profile on this same device, in browser mode.
-	 *
-	 * One machine at home and two people is the ordinary case, and until now the only
-	 * way to be the other one was to forget the profile and make a new one, which left
-	 * the first one in the database with no way back to it. Nothing is created here and
-	 * nothing is thrown away: the database is the same, and which person is reading it
-	 * is what changes. The space is forgotten with it, because the spaces of one person
-	 * are not the spaces of the other.
-	 */
-	const switchProfile = useCallback(
-		async (userId: string) => {
-			if (!driver) return;
-			setStatus("opening");
-			forgetProfile();
-			rememberUser(userId);
-			setCurrentSpaceId(null);
-			await startLocalSession(driver, userId);
-		},
-		[driver, startLocalSession],
-	);
-
-	/**
 	 * Back to the first question, from wherever things went wrong.
 	 *
 	 * Every screen that can be reached by accident needs one of these. Without it a
@@ -424,16 +377,6 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 		setServer(null);
 		setError(null);
 		setStatus("needsMode");
-	}, []);
-
-	/** Somebody else on this device, who does not have a profile here yet. */
-	const addProfile = useCallback(() => {
-		forgetProfile();
-		setSession(null);
-		setUser(null);
-		setSpaces([]);
-		setCurrentSpaceId(null);
-		setStatus("needsProfile");
 	}, []);
 
 	const selectSpace = useCallback((spaceId: string) => {
@@ -466,7 +409,6 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 			session,
 			linkInvitations,
 			user,
-			profiles,
 			spaces,
 			currentSpace,
 			amountsHidden,
@@ -478,9 +420,6 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 			adoptServerSession,
 			signOut,
 			chooseAgain,
-			renameMe,
-			switchProfile,
-			addProfile,
 			reload,
 			eraseDevice,
 		}),
@@ -495,7 +434,6 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 			session,
 			linkInvitations,
 			user,
-			profiles,
 			spaces,
 			currentSpace,
 			amountsHidden,
@@ -506,9 +444,6 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 			adoptServerSession,
 			signOut,
 			chooseAgain,
-			renameMe,
-			switchProfile,
-			addProfile,
 			reload,
 			eraseDevice,
 		],

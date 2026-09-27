@@ -169,7 +169,7 @@ test.describe("accounts", () => {
 
 test.describe("spaces", () => {
 	test("switches space and carries the accounts of that space", async ({ page }) => {
-		await openCofre(page, { space: "Pessoal" });
+		await openCofre(page);
 
 		await openSetting(page, "Gerenciar espaços");
 		await expect(page.getByRole("listitem").filter({ hasText: "Casa" })).toContainText(
@@ -187,21 +187,28 @@ test.describe("spaces", () => {
 	test("says the personal space takes no members", async ({ page }) => {
 		await openCofre(page);
 
-		await openSetting(page, "Membros");
+		await openSetting(page, "Gerenciar espaços");
 		await expect(
 			page.getByText("Este espaço é só seu e não aceita membros", { exact: false }),
 		).toBeVisible();
 		await expect(page.getByRole("button", { name: "Convidar" })).toHaveCount(0);
 	});
 
+	/**
+	 * Who is in a space sits under the list of spaces now, for whichever one is open, so
+	 * this switches to the shared one and reads what appeared below.
+	 */
 	test("shows who is in the shared space and with which role", async ({ page }) => {
 		await openCofre(page);
 
 		await openSetting(page, "Gerenciar espaços");
-		await page.getByRole("button", { name: "Entrar" }).click();
-		await openSetting(page, "Membros");
+		await page
+			.getByRole("listitem")
+			.filter({ hasText: "Casa" })
+			.getByRole("button", { name: "Entrar" })
+			.click();
 
-		await expect(page.getByRole("cell", { name: "Andrei (você)" })).toBeVisible();
+		await expect(page.getByRole("cell", { name: "Você" })).toBeVisible();
 		await expect(page.getByRole("cell", { name: "Dono" })).toBeVisible();
 		await expect(page.getByRole("cell", { name: "João (exemplo)" })).toBeVisible();
 		await expect(page.getByRole("cell", { name: "Editor" })).toBeVisible();

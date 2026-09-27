@@ -9,7 +9,7 @@ import { go, openCofre } from "./support.ts";
 
 test.describe("what the figures have to say", () => {
 	test("says nothing on the first day, when there is nothing to say", async ({ page }) => {
-		await openCofre(page, { name: "Andrei", demo: false });
+		await openCofre(page, { demo: false });
 
 		// An account and one record is not a pattern, and the screen does not invent one.
 		await expect(page.getByText("acima do de sempre")).toHaveCount(0);
@@ -17,7 +17,7 @@ test.describe("what the figures have to say", () => {
 	});
 
 	test("finds the same charge twice and says what to check", async ({ page }) => {
-		await openCofre(page, { name: "Andrei" });
+		await openCofre(page);
 
 		await go(page, "Lançamentos");
 

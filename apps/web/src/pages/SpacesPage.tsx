@@ -15,10 +15,9 @@ import {
 	SpaceMark,
 } from "@cofre/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ROUTES } from "../router.tsx";
+import { SpacePeople } from "../components/SpacePeople.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 
 const CURRENCIES = ["BRL", "USD", "EUR", "GBP"];
@@ -28,7 +27,6 @@ type Target = { made: true } | { made: false; space: Space };
 
 export function SpacesPage() {
 	const { t, i18n } = useTranslation();
-	const navigate = useNavigate();
 	const { session, spaces, currentSpace, selectSpace, reload } = useCofre();
 	const queries = useQueryClient();
 
@@ -130,20 +128,15 @@ export function SpacesPage() {
 							<Button size="small" variant="quiet" onClick={() => openEdit(space)}>
 								{t("spaces.edit")}
 							</Button>
-							<Button
-								size="small"
-								variant="quiet"
-								onClick={() => {
-									selectSpace(space.id);
-									void navigate({ to: ROUTES.members });
-								}}
-							>
-								{t("spaces.members")}
-							</Button>
 						</span>
 					</li>
 				))}
 			</ul>
+
+			{/* Who is in the space, under the list of spaces, for the one that is open.
+			    It used to be a screen of its own reached from a menu, which put "who is in
+			    this space" somewhere other than the screen about spaces. */}
+			<SpacePeople />
 
 			<Dialog
 				open={target !== null}

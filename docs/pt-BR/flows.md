@@ -6,10 +6,11 @@ O que acontece de verdade, nos caminhos que importam.
 
 A porta de entrada faz uma pergunta: usar só este navegador, ou conectar a um servidor.
 
-**Só o navegador.** Um perfil é criado na hora com um nome padrão, um espaço pessoal é
+**Só o navegador.** Uma pessoa é criada na hora com um nome padrão, um espaço pessoal é
 criado, o conjunto inicial de categorias é escrito, e a pessoa recebe a oferta de dados
-de demonstração, que ela pode recusar. Nada é perguntado. Nem email, nem senha, nem
-nome até ela querer trocar o que ganhou. A escolha é lembrada, então a porta não
+de demonstração, que ela pode recusar. Nada mais é perguntado, nunca: nem email, nem
+senha, nem nome. Como o espaço se chama e em que moeda ele conta se corrige numa tela
+só, e o nome da pessoa não é mostrado a ninguém. A escolha é lembrada, então a porta não
 aparece de novo.
 
 **Um servidor.** O endereço é digitado. A interface pergunta àquele servidor se ele já

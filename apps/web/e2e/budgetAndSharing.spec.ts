@@ -81,7 +81,7 @@ test.describe("dividing with the house", () => {
 		await page.getByRole("button", { name: "Salvar" }).click();
 
 		// Who owes whom lives with the people, not with the money.
-		await openSetting(page, "Membros");
+		await openSetting(page, "Gerenciar espaços");
 		await expect(page.getByText("Para zerar")).toBeVisible();
 		await expect(page.getByText("R$ 100,00").first()).toBeVisible();
 
@@ -93,12 +93,12 @@ test.describe("dividing with the house", () => {
 	 * A share belongs to the person it was typed for.
 	 *
 	 * The dialog reads people by name and the space holds them by when they arrived, so
-	 * the two orders only agree by luck. Zeca comes after João in the alphabet and joined
+	 * the two orders only agree by luck. Você comes after João in the alphabet and joined
 	 * before him, which is the ordinary case of a household and the one that used to hand
 	 * each share to the wrong person.
 	 */
 	test("gives each share to the person it was typed for", async ({ page }) => {
-		await openCofre(page, { name: "Zeca" });
+		await openCofre(page);
 
 		await openSetting(page, "Gerenciar espaços");
 		await page.getByRole("button", { name: "Entrar" }).click();
@@ -115,15 +115,15 @@ test.describe("dividing with the house", () => {
 
 		const dialog = page.getByRole("dialog");
 		await dialog.getByText("Por partes", { exact: true }).click();
-		await dialog.getByLabel("Zeca").fill("3");
+		await dialog.getByLabel("Você").fill("3");
 		await dialog.getByLabel("João (exemplo)").fill("1");
 		await page.getByRole("button", { name: "Salvar" }).click();
 
-		// Zeca paid the four hundred and owes three of the four parts, so what comes
+		// Você paid the four hundred and owes three of the four parts, so what comes
 		// back is one hundred. With the shares crossed over it would be three hundred.
-		await openSetting(page, "Membros");
+		await openSetting(page, "Gerenciar espaços");
 		await expect(page.getByText("Para zerar")).toBeVisible();
-		await expect(page.getByText("João (exemplo) paga Zeca")).toBeVisible();
+		await expect(page.getByText("João (exemplo) paga Você")).toBeVisible();
 		await expect(page.getByText("R$ 100,00").first()).toBeVisible();
 	});
 });

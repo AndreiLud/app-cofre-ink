@@ -43,3 +43,4 @@ new one.
 | [0034](0034_which_language_opens.md) | which language opens, and who is allowed to say | accepted |
 | [0035](0035_one_backup_and_one_place_for_it.md) | one backup, and one place on the screen for it | accepted, the screen amended by 0036 |
 | [0036](0036_a_copy_that_keeps_itself_up_to_date.md) | a copy that keeps itself up to date, and the one question it may not answer | accepted |
+| [0037](0037_one_person_per_browser_and_no_form_at_the_door.md) | one person per browser, and no form at the door | accepted |

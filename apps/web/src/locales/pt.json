@@ -103,7 +103,6 @@
 		"dashboard": "Painel",
 		"accounts": "Contas",
 		"spaces": "Espaços",
-		"members": "Membros",
 		"transactions": "Lançamentos",
 		"invoices": "Faturas",
 		"categories": "Categorias",
@@ -284,25 +283,12 @@
 		"changeMode": "Trocar onde os dados ficam"
 	},
 	"onboarding": {
-		"title": "Vamos abrir o seu {{app}}",
-		"subtitle": "Três campos e você já está dentro. Nada disso sai deste dispositivo.",
 		"name": "Como você se chama",
 		"namePlaceholder": "Seu nome",
 		"email": "Email",
-		"emailHint": "Opcional. Serve para ligar este perfil a um servidor seu, se um dia você quiser sincronizar.",
 		"emailPlaceholder": "voce@exemplo.com",
 		"currency": "Moeda",
-		"currencyHint": "Dá para ter contas em outras moedas depois.",
-		"personalSpace": "Nome do seu espaço pessoal",
-		"personalSpaceHint": "Esse espaço é privado e não pode ser compartilhado com ninguém.",
-		"personalDefault": "Pessoal",
-		"demo": "Começar com dados de demonstração",
-		"demoHint": "Cria contas fictícias e um espaço compartilhado de exemplo, para você ver o app funcionando. Dá para apagar depois.",
-		"start": "Começar",
-		"working": "Preparando",
-		"privacy": "Nenhum dado sai daqui.",
-		"nameMissing": "Escreva o seu nome para continuar.",
-		"failedTitle": "Não consegui criar o perfil"
+		"personalDefault": "Pessoal"
 	},
 	"dashboard": {
 		"headline": "Você tem isto em {{space}}",
@@ -711,7 +697,6 @@
 		"sharedKind": "Compartilhado",
 		"open": "aberto agora",
 		"enter": "Entrar",
-		"members": "Membros",
 		"current": "Você está no espaço {{name}}",
 		"switch": "Trocar de espaço",
 		"manage": "Gerenciar espaços",
@@ -731,7 +716,7 @@
 		"person": "Pessoa",
 		"role": "Papel",
 		"state": "Situação",
-		"you": "{{name}} (você)",
+		"you": "Você",
 		"someone": "Alguém",
 		"income": "Renda mensal",
 		"incomeTitle": "Renda mensal",
@@ -1237,12 +1222,7 @@
 		"spaceEmptied_other": "{{name}} ficou vazio. {{count}} registros foram apagados."
 	},
 	"profiles": {
-		"you": "Você é {{name}}",
-		"beThisOne": "Entrar como {{name}}",
-		"add": "Adicionar outra pessoa neste aparelho",
-		"rename": "Mudar o meu nome",
-		"renameDescription": "O nome que aparece nas divisões e ao lado do que é seu.",
-		"renameHint": "Fica só neste aparelho, como o resto."
+		"you": "Você é {{name}}"
 	},
 	"auto": {
 		"title": "Backup automático",

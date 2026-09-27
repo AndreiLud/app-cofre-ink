@@ -29,7 +29,9 @@ test.describe("state from before", () => {
 
 		// And the way out is on the same screen.
 		await page.getByRole("button", { name: "Prefiro guardar só neste dispositivo" }).click();
-		await expect(page.getByRole("heading", { name: "Vamos abrir o seu Cofre Ink" })).toBeVisible({
+		// Straight into the application, because there is nothing left to ask: the door
+		// already asked the one question that matters and the rest is correctable.
+		await expect(page.getByRole("navigation", { name: "Seções do aplicativo" })).toBeVisible({
 			timeout: 20_000,
 		});
 	});

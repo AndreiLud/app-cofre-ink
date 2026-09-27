@@ -103,7 +103,6 @@
 		"dashboard": "Overview",
 		"accounts": "Accounts",
 		"spaces": "Spaces",
-		"members": "Members",
 		"transactions": "Records",
 		"invoices": "Card invoices",
 		"categories": "Categories",
@@ -284,25 +283,12 @@
 		"changeMode": "Change where the data lives"
 	},
 	"onboarding": {
-		"title": "Let us open your {{app}}",
-		"subtitle": "Three fields and you are in. None of this leaves this device.",
 		"name": "What you are called",
 		"namePlaceholder": "Your name",
 		"email": "Email",
-		"emailHint": "Optional. It links this profile to a server of yours, if one day you want to sync.",
 		"emailPlaceholder": "you@example.com",
 		"currency": "Currency",
-		"currencyHint": "Accounts in other currencies can come later.",
-		"personalSpace": "Name of your personal space",
-		"personalSpaceHint": "This space is private and can never be shared with anyone.",
-		"personalDefault": "Personal",
-		"demo": "Start with demonstration data",
-		"demoHint": "Creates made up accounts and an example shared space, so you can see the product working. You can delete it afterwards.",
-		"start": "Start",
-		"working": "Getting ready",
-		"privacy": "No data leaves this device.",
-		"nameMissing": "Write your name to continue.",
-		"failedTitle": "I could not create the profile"
+		"personalDefault": "Personal"
 	},
 	"dashboard": {
 		"headline": "You have this much in {{space}}",
@@ -711,7 +697,6 @@
 		"sharedKind": "Shared",
 		"open": "open now",
 		"enter": "Enter",
-		"members": "Members",
 		"current": "You are in the {{name}} space",
 		"switch": "Switch space",
 		"manage": "Manage spaces",
@@ -731,7 +716,7 @@
 		"person": "Person",
 		"role": "Role",
 		"state": "State",
-		"you": "{{name}} (you)",
+		"you": "You",
 		"someone": "Somebody",
 		"income": "Monthly income",
 		"incomeTitle": "Monthly income",
@@ -1237,12 +1222,7 @@
 		"spaceEmptied_other": "{{name}} is empty now. {{count}} records were erased."
 	},
 	"profiles": {
-		"you": "You are {{name}}",
-		"beThisOne": "Come in as {{name}}",
-		"add": "Add somebody else on this device",
-		"rename": "Change my name",
-		"renameDescription": "The name that shows up on the splits and next to what is yours.",
-		"renameHint": "It stays on this device, like everything else."
+		"you": "You are {{name}}"
 	},
 	"auto": {
 		"title": "Automatic backup",

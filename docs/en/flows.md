@@ -6,11 +6,12 @@ What actually happens, in the paths that matter.
 
 The front door asks one question: use this browser alone, or connect to a server.
 
-**Browser alone.** A profile is made on the spot with a default name, a personal space
-is created, the starting set of categories is written, and the person is offered
-demonstration data they can refuse. Nothing is asked. No email, no password, no name
-until they want to change the one they were given. The choice is remembered, so the
-door is not shown again.
+**Browser alone.** A person is made on the spot with a default name, a personal space is
+created, the starting set of categories is written, and the person is offered
+demonstration data they can refuse. Nothing else is asked, ever: no email, no password,
+no name. What the space is called and what it counts in are corrected in one screen, and
+the name of the person is shown to nobody. The choice is remembered, so the door is not
+shown again.
 
 **A server.** The address is typed in. The interface asks that server whether it has
 anybody on it yet. A server with nobody opens on creating the first account rather than

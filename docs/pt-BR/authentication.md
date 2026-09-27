@@ -10,9 +10,10 @@ letras na porta de entrada, em vez de escondido, porque a versão honesta deste 
 Um endereço público não expõe nada. Cada pessoa que abre recebe um Cofre Ink vazio
 dentro do navegador dela, e quem publicou não lê nada.
 
-Mais de uma pessoa pode usar um navegador. Os perfis são separados, cada um com os
-próprios espaços, e trocar é um item de menu. Isso é separação, não segurança: nada
-impede uma pessoa de trocar para outro perfil.
+Um navegador guarda uma pessoa. Não há conta, não há nome para digitar e não há perfil
+para trocar: a porta cria o que precisa com padrões, e o que ela decidiu se corrige por
+dentro. Uma segunda pessoa na mesma máquina usa um segundo perfil do navegador, que é a
+separação que o sistema já oferece e melhor do que este aplicativo saberia fazer.
 
 ## O modo servidor
 

@@ -1,40 +1,30 @@
 import { expect, type Page } from "@playwright/test";
 
 /**
- * Walks the onboarding, which every flow starts from because each test opens a
- * browser with nothing stored.
+ * Walks the front door, which every flow starts from because each test opens a browser
+ * with nothing stored.
  *
- * The front door asks nothing and goes straight in, which is what a person meeting
- * this application for the first time gets and what frontDoor.spec.ts is about. These
- * flows need a person with a name and a space with a name, so they answer the first
- * question the way a browser that has been here before does and land on the form that
- * asks for both.
+ * There used to be a form behind the door asking for a name, an address, a currency and
+ * what the space was called. It is gone: the door asks the one question that cannot be
+ * changed later, where the data lives, and everything else it would have wanted is
+ * corrected from inside in one screen. So this presses the door and waits for the
+ * application, and the one thing it still chooses is whether the demonstration data
+ * comes along, because that is the one question the door still asks.
  */
-export async function openCofre(
-	page: Page,
-	options: { name?: string; demo?: boolean; space?: string } = {},
-): Promise<void> {
+export async function openCofre(page: Page, options: { demo?: boolean } = {}): Promise<void> {
 	await page.goto("/");
-	await page.evaluate(() => localStorage.setItem("cofreMode", "browser"));
-	await page.reload();
 
-	await expect(page.getByRole("heading", { name: "Vamos abrir o seu Cofre Ink" })).toBeVisible({
-		timeout: 20_000,
-	});
+	const demo = page.getByRole("checkbox", { name: "Começar com dados de exemplo" });
+	await expect(demo).toBeVisible({ timeout: 45_000 });
+	if (options.demo === false) await demo.uncheck();
+	else await demo.check();
 
-	await page.getByLabel("Como você se chama").fill(options.name ?? "Andrei");
-	if (options.space) {
-		await page.getByLabel("Nome do seu espaço pessoal").fill(options.space);
-	}
-
-	const demo = page.getByRole("checkbox");
-	if (options.demo === false) {
-		await demo.uncheck();
-	}
-
-	await page.getByRole("button", { name: "Começar" }).click();
+	await page.getByRole("button", { name: "Usar só neste navegador" }).click();
+	// The click is where the work happens: a worker, a database, the migrations, a space,
+	// the categories and usually the demonstration data. Three seconds on a quiet machine
+	// and fifteen on a busy one, so it is given room.
 	await expect(page.getByRole("navigation", { name: "Seções do aplicativo" })).toBeVisible({
-		timeout: 20_000,
+		timeout: 45_000,
 	});
 }
 
@@ -94,7 +84,7 @@ export function total(page: Page) {
  * Spaces and members are settings, so they live in the menu of the space instead of in
  * the navigation. Both screens are reached the same way.
  */
-export async function openSetting(page: Page, label: "Gerenciar espaços" | "Membros") {
+export async function openSetting(page: Page, label: "Gerenciar espaços") {
 	await page.getByRole("button", { name: "Você está no espaço" }).click();
 	await page.getByRole("menuitem", { name: label }).click();
 }

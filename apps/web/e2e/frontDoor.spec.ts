@@ -35,7 +35,13 @@ test.describe("the front door", () => {
 		).toHaveCount(0);
 	});
 
-	test("the name nobody was asked for can be corrected", async ({ page }) => {
+	/**
+	 * The door asks nothing, so what it wrote down has to be correctable from inside.
+	 * The name of the person is not one of those things any more: nobody is shown it
+	 * and nothing is signed with it in a browser that holds one person. What the space
+	 * is called and what it counts in are, and they are corrected in one screen.
+	 */
+	test("what the door decided without asking can be corrected", async ({ page }) => {
 		await page.goto("/");
 		await page.getByRole("button", { name: "Usar só neste navegador" }).click();
 		await expect(page.getByRole("navigation", { name: "Seções do aplicativo" })).toBeVisible({
@@ -43,14 +49,24 @@ test.describe("the front door", () => {
 		});
 
 		await page.getByRole("button", { name: "Você está no espaço" }).click();
-		await page.getByRole("menuitem", { name: "Mudar o meu nome" }).click();
+		await page.getByRole("menuitem", { name: "Gerenciar espaços" }).click();
+
+		await page
+			.getByRole("listitem")
+			.filter({ hasText: "Pessoal" })
+			.getByRole("button", { name: "Editar" })
+			.click();
 
 		const dialog = page.getByRole("dialog");
-		await dialog.getByLabel("Como você se chama").fill("Andrei");
+		await dialog.getByLabel("Nome do espaço").fill("Meu dinheiro");
+		await dialog.getByLabel("Moeda").selectOption("EUR");
 		await dialog.getByRole("button", { name: "Salvar" }).click();
 
-		await page.getByRole("button", { name: "Você está no espaço" }).click();
-		await expect(page.getByText("Você é Andrei")).toBeVisible();
+		// The list says the new name and the new currency, and so does the header.
+		await expect(page.getByRole("listitem").filter({ hasText: "Meu dinheiro" })).toContainText(
+			"EUR",
+		);
+		await expect(page.getByRole("banner")).toContainText("Meu dinheiro");
 	});
 
 	test("where the data lives can be answered again, from the data screen", async ({ page }) => {

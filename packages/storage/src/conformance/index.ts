@@ -18,7 +18,7 @@ import { ALL_PERMISSIONS, PERMISSIONS, type Permission, type Role } from "../act
 import { NotFoundError, PermissionError, RuleError } from "../errors.ts";
 import { migrate } from "../migrate.ts";
 import { BACKUP_FORMAT, BACKUP_VERSION } from "../repositories/backup.ts";
-import { createUser, listProfiles, renameProfile } from "../repositories/users.ts";
+import { createUser } from "../repositories/users.ts";
 import type { Session } from "../session.ts";
 import { runAdviceConformance } from "./advice.ts";
 import { runCardConformance } from "./cards.ts";
@@ -281,39 +281,6 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 			});
 
 			/**
-			 * A browser offers to change between the people who use that machine, and the
-			 * people table is not that list. A shared space brings the names of the people
-			 * in it along with the records that point at them, so somebody who has never
-			 * touched this machine is in it too. What tells them apart is a personal space
-			 * of their own, which is made when somebody sets themselves up here.
-			 */
-			it("counts as a profile only somebody who has a personal space here", async () => {
-				const fixture = await prepare(adapter);
-				try {
-					await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
-					const house = await fixture.asAna.spaces.create({ name: "Casa" });
-					await fixture.asAna.members.invite({
-						spaceId: house.id,
-						userId: fixture.joao.id,
-						role: "editor",
-					});
-					await fixture.asJoao.members.accept(house.id);
-
-					// Joao is in the database, and in a space of Ana's, and is still not
-					// somebody this machine can be.
-					expect((await listProfiles(fixture.driver)).map((one) => one.name)).toEqual(["Ana"]);
-
-					await fixture.asJoao.spaces.create({ name: "Pessoal", kind: "personal" });
-					expect((await listProfiles(fixture.driver)).map((one) => one.name)).toEqual([
-						"Ana",
-						"Joao",
-					]);
-				} finally {
-					await fixture.close();
-				}
-			});
-
-			/**
 			 * Two lists, and the difference matters on any screen that divides money.
 			 *
 			 * Somebody in two shared spaces reads everybody through the first one, which
@@ -358,27 +325,6 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 					// And it is a space of theirs or it does not exist, like everything else.
 					await expect(fixture.asCarla.users.inSpace(house.id)).rejects.toBeInstanceOf(
 						NotFoundError,
-					);
-				} finally {
-					await fixture.close();
-				}
-			});
-
-			/**
-			 * A device can be opened without being asked anything, which means a profile
-			 * carries a name nobody chose until they choose one. A name that cannot be
-			 * corrected is the kind of default that turns into a life sentence.
-			 */
-			it("lets a profile be given the name nobody was asked for", async () => {
-				const fixture = await prepare(adapter);
-				try {
-					const renamed = await renameProfile(fixture.driver, fixture.ana.id, "  Ana Maria  ");
-					expect(renamed.name).toBe("Ana Maria");
-					expect((await fixture.asAna.users.me()).name).toBe("Ana Maria");
-
-					// And it stays a person: an empty name is not a name.
-					await expect(renameProfile(fixture.driver, fixture.ana.id, "   ")).rejects.toBeInstanceOf(
-						RuleError,
 					);
 				} finally {
 					await fixture.close();

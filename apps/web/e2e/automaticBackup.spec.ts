@@ -81,7 +81,7 @@ async function setUpTheFolder(page: import("@playwright/test").Page) {
 test.describe("the copy that keeps itself up to date", () => {
 	test("tests the place, writes every space, and says when it managed it", async ({ page }) => {
 		const folder = await aFolderThatAnswers(page);
-		await openCofre(page, { space: "Meu dinheiro" });
+		await openCofre(page);
 		await setUpTheFolder(page);
 
 		// Testing reads and writes nothing, so the folder is still empty afterwards.
@@ -113,7 +113,7 @@ test.describe("the copy that keeps itself up to date", () => {
 	 */
 	test("asks whether a file coming back should become the copy as well", async ({ page }) => {
 		const folder = await aFolderThatAnswers(page);
-		await openCofre(page, { space: "Meu dinheiro" });
+		await openCofre(page);
 		await setUpTheFolder(page);
 
 		await page.getByRole("button", { name: "Ligar" }).click();
@@ -148,7 +148,7 @@ test.describe("the copy that keeps itself up to date", () => {
 
 	test("writes again by itself once a record is typed", async ({ page }) => {
 		const folder = await aFolderThatAnswers(page);
-		await openCofre(page, { space: "Meu dinheiro" });
+		await openCofre(page);
 		await setUpTheFolder(page);
 
 		await page.getByRole("button", { name: "Ligar" }).click();

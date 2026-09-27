@@ -195,7 +195,7 @@ test.describe("taking the data out", () => {
 	 * line about taking the data to another program.
 	 */
 	test("hands over one file with the spaces that were ticked", async ({ page }) => {
-		await openCofre(page, { space: "Meu dinheiro" });
+		await openCofre(page);
 
 		await go(page, "Dados");
 		// The panel that answers where the data is. The automatic backup has a line of
@@ -209,7 +209,7 @@ test.describe("taking the data out", () => {
 		await expect(whereItIs.getByText("Nunca", { exact: true })).toBeVisible();
 
 		// Both spaces of the demonstration are there and both are ticked.
-		await expect(page.getByRole("checkbox", { name: "Meu dinheiro" })).toBeChecked();
+		await expect(page.getByRole("checkbox", { name: "Pessoal" })).toBeChecked();
 		await expect(page.getByRole("checkbox", { name: "Casa" })).toBeChecked();
 
 		await page.getByRole("checkbox", { name: "Casa" }).uncheck();
@@ -233,10 +233,10 @@ test.describe("taking the data out", () => {
 	});
 
 	test("refuses to write a file with no space in it", async ({ page }) => {
-		await openCofre(page, { space: "Meu dinheiro" });
+		await openCofre(page);
 		await go(page, "Dados");
 
-		await page.getByRole("checkbox", { name: "Meu dinheiro" }).uncheck();
+		await page.getByRole("checkbox", { name: "Pessoal" }).uncheck();
 		await page.getByRole("checkbox", { name: "Casa" }).uncheck();
 
 		await expect(page.getByText("Marque pelo menos um espaço")).toBeVisible();
@@ -261,7 +261,7 @@ test.describe("taking the data out", () => {
 	});
 
 	test("says what bringing a file back will do, and what is inside it", async ({ page }) => {
-		await openCofre(page, { space: "Meu dinheiro" });
+		await openCofre(page);
 
 		await go(page, "Dados");
 		const download = page.waitForEvent("download");
@@ -274,7 +274,7 @@ test.describe("taking the data out", () => {
 		await page.getByLabel("Escolher arquivo").setInputFiles(path);
 		const dialog = page.getByRole("dialog");
 		await expect(dialog).toContainText("O que tem neste arquivo");
-		await expect(dialog.getByRole("checkbox", { name: "Meu dinheiro" })).toBeChecked();
+		await expect(dialog.getByRole("checkbox", { name: "Pessoal" })).toBeChecked();
 		await expect(dialog.getByRole("checkbox", { name: "Casa" })).toBeChecked();
 		await expect(dialog).toContainText("Só acrescenta o que está faltando");
 
@@ -290,7 +290,7 @@ test.describe("taking the data out", () => {
 	test("brings back only the spaces that were ticked", async ({ browser }) => {
 		const first = await browser.newContext({ acceptDownloads: true });
 		const one = await first.newPage();
-		await openCofre(one, { name: "Ana", space: "Meu dinheiro" });
+		await openCofre(one);
 
 		await go(one, "Dados");
 		const download = one.waitForEvent("download");
@@ -299,7 +299,7 @@ test.describe("taking the data out", () => {
 
 		const second = await browser.newContext({ acceptDownloads: true });
 		const two = await second.newPage();
-		await openCofre(two, { name: "Ana", demo: false, space: "Pessoal" });
+		await openCofre(two, { demo: false });
 
 		await go(two, "Dados");
 		await two.getByLabel("Escolher arquivo").setInputFiles(path);

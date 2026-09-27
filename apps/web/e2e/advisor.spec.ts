@@ -9,7 +9,7 @@ import { go, openCofre } from "./support.ts";
 
 test.describe("the check up", () => {
 	test("is one click from the overview, and says what shape the money is in", async ({ page }) => {
-		await openCofre(page, { name: "Andrei", space: "Pessoal" });
+		await openCofre(page);
 
 		// The panel that says what needs attention now leads somewhere instead of just
 		// growing longer.
@@ -35,7 +35,7 @@ test.describe("the check up", () => {
 	});
 
 	test("turns a goal into a step with a month on it", async ({ page }) => {
-		await openCofre(page, { name: "Andrei", space: "Pessoal" });
+		await openCofre(page);
 
 		// Somewhere for the money to sit, and a goal pointing at it. Until there is
 		// something to save for, a household with a reserve already has no plan to show.
@@ -83,7 +83,7 @@ test.describe("the check up", () => {
 			return `${when.getUTCFullYear()}-${String(when.getUTCMonth() + 1).padStart(2, "0")}`;
 		});
 
-		await openCofre(page, { name: "Andrei", demo: false });
+		await openCofre(page, { demo: false });
 
 		await go(page, "Contas");
 		await page.getByRole("button", { name: "Nova conta" }).first().click();
@@ -146,7 +146,7 @@ test.describe("the check up", () => {
 	test("is in the planning section, and reads a space with no history honestly", async ({
 		page,
 	}) => {
-		await openCofre(page, { name: "Andrei", demo: false });
+		await openCofre(page, { demo: false });
 		await go(page, "Diagnóstico");
 
 		await expect(page.getByRole("heading", { level: 1 })).toContainText("Ainda não dá para dizer");

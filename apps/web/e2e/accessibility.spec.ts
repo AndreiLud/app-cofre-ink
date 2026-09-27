@@ -10,7 +10,7 @@ import { go, openCofre } from "./support.ts";
 
 test.describe("the keyboard and the screen reader", () => {
 	test("gets past the header with the first key it presses", async ({ page }) => {
-		await openCofre(page, { name: "Andrei" });
+		await openCofre(page);
 
 		await page.keyboard.press("Tab");
 		const skip = page.getByRole("link", { name: "Ir para o conteúdo" });
@@ -21,18 +21,18 @@ test.describe("the keyboard and the screen reader", () => {
 	});
 
 	test("calls the tab after the screen, the space and the product", async ({ page }) => {
-		await openCofre(page, { name: "Andrei", space: "Meu dinheiro" });
-		await expect(page).toHaveTitle("Painel | Meu dinheiro | Cofre Ink");
+		await openCofre(page);
+		await expect(page).toHaveTitle("Painel | Pessoal | Cofre Ink");
 
 		await go(page, "Lançamentos");
-		await expect(page).toHaveTitle("Lançamentos | Meu dinheiro | Cofre Ink");
+		await expect(page).toHaveTitle("Lançamentos | Pessoal | Cofre Ink");
 
 		await go(page, "Orçamento");
-		await expect(page).toHaveTitle("Orçamento | Meu dinheiro | Cofre Ink");
+		await expect(page).toHaveTitle("Orçamento | Pessoal | Cofre Ink");
 	});
 
 	test("gives every screen exactly one first level heading", async ({ page }) => {
-		await openCofre(page, { name: "Andrei" });
+		await openCofre(page);
 
 		for (const screen of ["Painel", "Lançamentos", "Orçamento", "Relatórios", "Contas"]) {
 			await go(page, screen);
@@ -41,7 +41,7 @@ test.describe("the keyboard and the screen reader", () => {
 	});
 
 	test("names every control a person can type into", async ({ page }) => {
-		await openCofre(page, { name: "Andrei" });
+		await openCofre(page);
 		await go(page, "Lançamentos");
 
 		// Every input, select and textarea on the busiest screen in the product, each

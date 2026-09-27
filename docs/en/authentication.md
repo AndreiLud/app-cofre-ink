@@ -10,9 +10,11 @@ opens your browser sees your data.**
 A public address exposes nothing. Everybody who opens it gets an empty Cofre Ink inside
 their own browser, and whoever published it can read none of it.
 
-More than one person can use one browser. Profiles are separate, each with its own
-spaces, and switching is a menu item. It is separation, not security: nothing stops a
-person from switching to another profile.
+One browser holds one person. There is no account, no name to type and no profile to
+switch between: the door makes what it needs with defaults, and what it decided is
+corrected from inside. A second person on the same machine uses a second browser
+profile, which is the separation the operating system already offers and a better one
+than this application could have made.
 
 ## Server mode
 

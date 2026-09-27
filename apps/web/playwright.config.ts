@@ -19,6 +19,18 @@ export default defineConfig({
 	// fighting over the same file instead of testing the product.
 	fullyParallel: false,
 	workers: 1,
+	/**
+	 * Sixty seconds, not the usual thirty.
+	 *
+	 * Every flow here starts by opening the application for real, and that is the
+	 * slowest thing it does: a page load, a worker, a database opened on disk, the
+	 * migrations, a personal space and the starting set of categories, and usually the
+	 * demonstration data on top. On a quiet machine that is three seconds. On a machine
+	 * that is also syncing a folder or scanning a disk it is fifteen, and then a flow
+	 * that works fails for want of time, which is the least readable way for a test to
+	 * fail. A real break still fails, and it fails for the reason it broke.
+	 */
+	timeout: 60_000,
 	forbidOnly: Boolean(process.env.CI),
 	retries: process.env.CI ? 1 : 0,
 	reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : [["list"]],

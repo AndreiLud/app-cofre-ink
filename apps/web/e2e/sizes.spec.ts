@@ -24,7 +24,6 @@ const SCREENS = [
 	"/categorias",
 	"/contas",
 	"/espacos",
-	"/membros",
 	"/dados",
 	"/importar",
 	"/projecao",

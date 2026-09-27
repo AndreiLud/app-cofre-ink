@@ -109,7 +109,7 @@ test.describe("server mode", () => {
 		await ana.getByRole("button", { name: "Salvar" }).click();
 		await expect(ana.getByRole("banner")).toContainText("Casa");
 
-		await openSetting(ana, "Membros");
+		await openSetting(ana, "Gerenciar espaços");
 		await ana.getByRole("button", { name: "Convidar" }).first().click();
 		await ana.getByRole("button", { name: "Gerar link" }).click();
 
@@ -132,7 +132,7 @@ test.describe("server mode", () => {
 
 		// And the role that came with the link is the role that took effect.
 		await ana.reload();
-		await openSetting(ana, "Membros");
+		await openSetting(ana, "Gerenciar espaços");
 		await expect(ana.getByRole("cell", { name: "João" })).toBeVisible();
 		await expect(ana.getByRole("cell", { name: "Editor" })).toBeVisible();
 	});
@@ -156,7 +156,7 @@ test.describe("server mode", () => {
 			await ana.getByRole("button", { name: "Salvar" }).click();
 			await expect(ana.getByRole("banner")).toContainText(name);
 
-			await openSetting(ana, "Membros");
+			await openSetting(ana, "Gerenciar espaços");
 			await ana.getByRole("button", { name: "Convidar" }).first().click();
 			await ana.getByRole("button", { name: "Gerar link" }).click();
 			const link = await ana.getByRole("dialog").locator("p.font-mono").innerText();
@@ -204,7 +204,7 @@ test.describe("server mode", () => {
 		await ana.getByRole("button", { name: "Salvar" }).click();
 		await expect(dialog).toHaveCount(0);
 
-		await openSetting(ana, "Membros");
+		await openSetting(ana, "Gerenciar espaços");
 		await expect(ana.getByText("Para zerar")).toBeVisible();
 		await expect(ana.getByText("R$ 100,00").first()).toBeVisible();
 	});
@@ -217,7 +217,7 @@ test.describe("server mode", () => {
 		await ana.getByLabel("Nome do espaço").fill("Viagem");
 		await ana.getByRole("button", { name: "Salvar" }).click();
 
-		await openSetting(ana, "Membros");
+		await openSetting(ana, "Gerenciar espaços");
 		await ana.getByRole("button", { name: "Convidar" }).first().click();
 		await ana.getByRole("button", { name: "Gerar link" }).click();
 		const link = await ana.getByRole("dialog").locator("p.font-mono").innerText();

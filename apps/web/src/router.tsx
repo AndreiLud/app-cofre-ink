@@ -40,12 +40,6 @@ const spacesRoute = createRoute({
 	component: lazyRouteComponent(() => import("./pages/SpacesPage.tsx"), "SpacesPage"),
 });
 
-const membersRoute = createRoute({
-	getParentRoute: () => rootRoute,
-	path: "/membros",
-	component: lazyRouteComponent(() => import("./pages/MembersPage.tsx"), "MembersPage"),
-});
-
 const accountsRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/contas",
@@ -139,7 +133,6 @@ const routeTree = rootRoute.addChildren([
 	invoicesRoute,
 	categoriesRoute,
 	spacesRoute,
-	membersRoute,
 	accountsRoute,
 	projectionRoute,
 	investmentsRoute,

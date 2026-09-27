@@ -11,7 +11,6 @@ import { Wordmark } from "../components/Wordmark.tsx";
 import { useTheme } from "../lib/theme.ts";
 import { useDocumentTitle } from "../lib/title.ts";
 import { ModeChooserPage } from "../pages/ModeChooserPage.tsx";
-import { OnboardingPage } from "../pages/OnboardingPage.tsx";
 import { SignInPage } from "../pages/SignInPage.tsx";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -274,7 +273,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 	if (cofre.status === "failed") return <Failure message={cofre.error} />;
 	if (cofre.status === "busy") return <Busy />;
 	if (cofre.status === "needsMode") return <ModeChooserPage />;
-	if (cofre.status === "needsProfile") return <OnboardingPage />;
 	// The address is kept while this shows, so signing in from an invitation link
 	// lands back on the invitation.
 	if (cofre.status === "needsSignIn") return <SignInPage />;

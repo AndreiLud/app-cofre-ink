@@ -1,8 +1,12 @@
 // Who is in this space and what each person may do.
 //
-// Inviting exists only in server mode, and the screen says so rather than offering a
-// button that leads nowhere: in browser mode there is one profile in one browser, so
-// an invitation would have nobody to accept it.
+// This was a screen of its own, reached from a menu, which put "who is in the space"
+// somewhere other than the screen about spaces. It is a part of a space, so it sits
+// with the space, under the list, for whichever one is open.
+//
+// Inviting exists only in server mode, and it says so rather than offering a button
+// that leads nowhere: in browser mode there is one person in one browser, so an
+// invitation would have nobody to accept it.
 
 import {
 	Button,
@@ -27,13 +31,13 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SettleSection } from "../components/SettleSection.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import type { AssignableRole } from "../storage/cofreSession.ts";
+import { SettleSection } from "./SettleSection.tsx";
 
 const ASSIGNABLE: AssignableRole[] = ["admin", "editor", "viewer", "logger"];
 
-export function MembersPage() {
+export function SpacePeople() {
 	const { t } = useTranslation();
 	const { session, currentSpace, user, reload, linkInvitations, chooseMode } = useCofre();
 	const queries = useQueryClient();
@@ -143,9 +147,9 @@ export function MembersPage() {
 	}
 
 	return (
-		<div className="space-y-6">
+		<div className="space-y-6 border-t border-line pt-6">
 			<SectionTitle
-				level="h1"
+				level="h2"
 				action={
 					canInvite ? (
 						<Button
