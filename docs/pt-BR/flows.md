@@ -125,8 +125,10 @@ As regras que tornam isso seguro:
    empurrou, mas só se não tiver ninguém dentro. Um espaço que já tem membros pertence a
    eles.
 
-Existe também um caminho sem servidor nenhum: um arquivo levado de um aparelho ao
-outro, carregando o mesmo histórico de alterações.
+Existia também um caminho sem servidor nenhum, um arquivo levado de um aparelho ao outro
+com o mesmo histórico de alterações dentro. Ele não existe mais. Dois aparelhos sem nada
+entre eles trocam um backup, que leva uma vida financeira inteira e acrescenta o que
+falta, mas não mescla duas pessoas editando o mesmo lançamento ao mesmo tempo.
 
 ## Levar tudo embora
 

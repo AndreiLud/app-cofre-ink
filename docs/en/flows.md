@@ -123,8 +123,10 @@ The rules that make it safe:
    whoever pushed it, but only if it has nobody in it. A space that already has members
    belongs to them.
 
-There is also a path with no server at all: a file carried from one device to the
-other, carrying the same change log.
+There used to be a path with no server at all, a file carried from one device to the
+other with the same change log in it. It is gone. Two devices with nothing between them
+exchange a backup instead, which moves a money life across and adds what is missing, but
+does not merge two people editing the same record at once.
 
 ## Taking everything away
 
