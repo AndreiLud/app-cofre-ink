@@ -198,9 +198,15 @@ test.describe("taking the data out", () => {
 		await openCofre(page, { space: "Meu dinheiro" });
 
 		await go(page, "Dados");
+		// The panel that answers where the data is. The automatic backup has a line of
+		// its own that also says never, so this one is asked for by name.
+		const whereItIs = page
+			.locator("section")
+			.filter({ has: page.getByRole("heading", { name: "Onde estão os seus dados" }) });
+
 		// Before anything is saved the screen says so, in the one colour it uses for
 		// something being wrong.
-		await expect(page.getByText("Nunca", { exact: true })).toBeVisible();
+		await expect(whereItIs.getByText("Nunca", { exact: true })).toBeVisible();
 
 		// Both spaces of the demonstration are there and both are ticked.
 		await expect(page.getByRole("checkbox", { name: "Meu dinheiro" })).toBeChecked();
@@ -209,21 +215,21 @@ test.describe("taking the data out", () => {
 		await page.getByRole("checkbox", { name: "Casa" }).uncheck();
 
 		const download = page.waitForEvent("download");
-		await page.getByRole("button", { name: "Guardar", exact: true }).first().click();
+		await page.getByRole("button", { name: "Baixar", exact: true }).first().click();
 		const file = await download;
 		expect(file.suggestedFilename()).toMatch(/^cofre_backup_\d{8}\.json$/);
 
 		// One of the two was left out, so the honest answer to when the last copy was
 		// is still never. The line under it says which reading this is.
 		await expect(page.getByText("O mais antigo entre os seus espaços")).toBeVisible();
-		await expect(page.getByText("Nunca", { exact: true })).toBeVisible();
+		await expect(whereItIs.getByText("Nunca", { exact: true })).toBeVisible();
 
 		await page.getByRole("checkbox", { name: "Casa" }).check();
 		const second = page.waitForEvent("download");
-		await page.getByRole("button", { name: "Guardar", exact: true }).first().click();
+		await page.getByRole("button", { name: "Baixar", exact: true }).first().click();
 		await second;
 
-		await expect(page.getByText("Nunca", { exact: true })).toHaveCount(0);
+		await expect(whereItIs.getByText("Nunca", { exact: true })).toHaveCount(0);
 	});
 
 	test("refuses to write a file with no space in it", async ({ page }) => {
@@ -234,7 +240,7 @@ test.describe("taking the data out", () => {
 		await page.getByRole("checkbox", { name: "Casa" }).uncheck();
 
 		await expect(page.getByText("Marque pelo menos um espaço")).toBeVisible();
-		await expect(page.getByRole("button", { name: "Guardar", exact: true }).first()).toBeDisabled();
+		await expect(page.getByRole("button", { name: "Baixar", exact: true }).first()).toBeDisabled();
 	});
 
 	test("hands over the records as a spreadsheet, from behind the line that hides it", async ({
@@ -259,7 +265,7 @@ test.describe("taking the data out", () => {
 
 		await go(page, "Dados");
 		const download = page.waitForEvent("download");
-		await page.getByRole("button", { name: "Guardar", exact: true }).first().click();
+		await page.getByRole("button", { name: "Baixar", exact: true }).first().click();
 		const saved = await download;
 		const path = await saved.path();
 
@@ -288,7 +294,7 @@ test.describe("taking the data out", () => {
 
 		await go(one, "Dados");
 		const download = one.waitForEvent("download");
-		await one.getByRole("button", { name: "Guardar", exact: true }).first().click();
+		await one.getByRole("button", { name: "Baixar", exact: true }).first().click();
 		const path = await (await download).path();
 
 		const second = await browser.newContext({ acceptDownloads: true });

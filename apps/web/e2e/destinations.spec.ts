@@ -1,174 +1,98 @@
-// Two devices, one file, no server.
+// The half of a copy that a machine makes.
 //
-// This is the flow the project promises to anybody who does not want to run anything:
-// write on one device, carry a file, and the other device ends up with the same money.
-// Two browsers with nothing shared between them is exactly what that is, so that is
-// what this test uses.
+// A file somebody carries used to be one of the destinations here, which put a thing a
+// person does by hand beside three things a machine does on its own. It moved to its own
+// half of the screen, and what is left is a place: a server of theirs, an online
+// database, a WebDAV folder. None of them can be reached from a test runner, so what is
+// checked here is what the screen promises before anything is reached: only the fields
+// of the place that was picked, a connection that says why it failed, and a state
+// anybody can read at a glance.
 
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { expect, test } from "@playwright/test";
-import { go, openCofre, openSetting, record } from "./support.ts";
+import { go, openCofre } from "./support.ts";
 
-/**
- * The data screen keeps this behind a line of text until it is set up, so that the
- * three things people do every day are the three things on the screen. Opening it is
- * part of the flow now, and this only opens it when it is not open already.
- */
-async function openSync(page: import("@playwright/test").Page) {
+async function openData(page: import("@playwright/test").Page) {
 	await go(page, "Dados");
-	const where = page.getByLabel("Onde guardar a cópia");
-	if (!(await where.isVisible())) {
-		await page.getByText("Manter um espaço em dia em outro lugar", { exact: true }).click();
-	}
-	await expect(where).toBeVisible();
+	await expect(page.getByRole("heading", { level: 1, name: "Dados" })).toBeVisible();
 }
 
-async function pickDestination(page: import("@playwright/test").Page, label: string) {
-	await openSync(page);
+async function pick(page: import("@playwright/test").Page, label: string) {
 	await page.getByLabel("Onde guardar a cópia").selectOption({ label });
 }
 
-test.describe("a copy somewhere else", () => {
-	test("carries a space from one browser to another through a file", async ({ browser }) => {
-		const folder = mkdtempSync(join(tmpdir(), "cofre"));
-
-		// The first device: a shared space with something in it. Shared, because
-		// syncing joins the same space in two places, and the personal space of a
-		// device is the one space that is never the same as another device's.
-		const first = await browser.newContext({ acceptDownloads: true });
-		const one = await first.newPage();
-		await openCofre(one, { name: "Ana", space: "Meu dinheiro" });
-
-		await openSetting(one, "Gerenciar espaços");
-		await one.getByRole("button", { name: "Novo espaço" }).click();
-		await one.getByRole("dialog").getByLabel("Nome").fill("Casa");
-		await one.getByRole("button", { name: "Salvar" }).click();
-		await expect(one.getByRole("button", { name: /Você está no espaço Casa/ })).toBeVisible();
-
-		await go(one, "Contas");
-		await one.getByRole("button", { name: "Nova conta" }).first().click();
-		await one.getByRole("dialog").getByLabel("Nome").fill("Conta corrente");
-		await one.getByRole("button", { name: "Salvar" }).click();
-
-		await go(one, "Lançamentos");
-		await one.getByRole("button", { name: "Novo lançamento" }).first().click();
-		await one.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("42,90");
-		await one.getByRole("dialog").getByLabel("Descrição").fill("Mercado do bairro");
-		await one
-			.getByRole("dialog")
-			.getByLabel("Conta", { exact: true })
-			.selectOption({ label: "Conta corrente" });
-		await one.getByRole("button", { name: "Salvar" }).click();
-		await expect(record(one, "Mercado do bairro")).toBeVisible();
-
-		await pickDestination(one, "Um arquivo que você move");
-
-		const download = one.waitForEvent("download");
-		await one.getByRole("button", { name: /Sincronizar Casa agora/ }).click();
-		const file = await download;
-
-		const carried = join(folder, file.suggestedFilename());
-		await file.saveAs(carried);
-		// Packed, which is what makes a year of records a file worth carrying.
-		expect(file.suggestedFilename()).toMatch(/^cofre_sync_.+\.json\.gz$/);
-
-		// The second device: another browser, nothing shared with the first.
-		const second = await browser.newContext({ acceptDownloads: true });
-		const two = await second.newPage();
-		await openCofre(two, { name: "Ana", demo: false, space: "Pessoal" });
-
-		await pickDestination(two, "Um arquivo que você move");
-		await two.getByLabel("Arquivo do outro aparelho").setInputFiles(carried);
-		await expect(two.getByText(/traz \d+ mudanças/)).toBeVisible();
-
-		const back = two.waitForEvent("download");
-		await two.getByRole("button", { name: "Trazer este espaço para cá" }).click();
-		await back;
-
-		// The space arrived, and it is theirs.
-		await expect(two.getByText(/Casa chegou e agora é seu/)).toBeVisible();
-
-		await go(two, "Lançamentos");
-		await expect(record(two, "Mercado do bairro")).toBeVisible();
-		await expect(two.getByRole("cell", { name: "-R$ 42,90" })).toBeVisible();
-
-		await first.close();
-		await second.close();
-	});
-
-	/**
-	 * The one thing syncing cannot do, and what happens next.
-	 *
-	 * Two personal spaces are two different money lives and joining them is not a sync,
-	 * it is a merge. This used to be said after the whole log had been written into a
-	 * space nobody belonged to, and it told the person to go back to a device they may
-	 * no longer have. Now it is said with the file in hand, and the way out is the same
-	 * file through the other door.
-	 */
-	test("sends another device's personal space through the door that merges it", async ({
-		browser,
+test.describe("the automatic backup", () => {
+	test("asks for nothing until a place is picked, and then only for that place", async ({
+		page,
 	}) => {
-		const folder = mkdtempSync(join(tmpdir(), "cofre"));
-
-		const first = await browser.newContext({ acceptDownloads: true });
-		const one = await first.newPage();
-		await openCofre(one, { name: "Ana", space: "Meu dinheiro" });
-
-		await pickDestination(one, "Um arquivo que você move");
-		const download = one.waitForEvent("download");
-		await one.getByRole("button", { name: /Sincronizar Meu dinheiro agora/ }).click();
-		const carried = join(folder, (await download).suggestedFilename());
-		await (await download).saveAs(carried);
-
-		const second = await browser.newContext({ acceptDownloads: true });
-		const two = await second.newPage();
-		await openCofre(two, { name: "Ana", demo: false, space: "Pessoal" });
-
-		await pickDestination(two, "Um arquivo que você move");
-		await two.getByLabel("Arquivo do outro aparelho").setInputFiles(carried);
-
-		// Before anything is written, and the button that would write it is off.
-		await expect(two.getByText(/Use Trazer de volta com este mesmo arquivo/)).toBeVisible();
-		await expect(two.getByRole("button", { name: "Trazer este espaço para cá" })).toBeDisabled();
-
-		// The same file, through the door it belongs to.
-		await two.getByLabel("Escolher arquivo").setInputFiles(carried);
-		await two.getByRole("dialog").getByRole("button", { name: "Trazer de volta" }).click();
-		await expect(two.getByText("Restaurado", { exact: true })).toBeVisible({ timeout: 20_000 });
-
-		// Still one personal space, now holding the money life of the other device.
-		await go(two, "Lançamentos");
-		await expect(record(two, "Café da esquina")).toBeVisible({ timeout: 20_000 });
-
-		await first.close();
-		await second.close();
-	});
-
-	test("says what each destination costs before anything is set up", async ({ page }) => {
 		await openCofre(page);
-		await openSync(page);
+		await openData(page);
+
+		// Nothing chosen is the honest starting state: there is no sensible default place
+		// to keep somebody's money in.
+		await expect(page.getByLabel("Onde guardar a cópia")).toHaveValue("");
+		await expect(page.getByLabel("Endereço da pasta")).toHaveCount(0);
+		await expect(page.getByRole("button", { name: "Testar conexão" })).toHaveCount(0);
 
 		// One a browser cannot reach without the other side allowing it says so.
-		await page.getByLabel("Onde guardar a cópia").selectOption({ label: "Uma pasta WebDAV" });
+		await pick(page, "Uma pasta WebDAV");
+		await expect(page.getByLabel("Endereço da pasta")).toBeVisible();
+		await expect(page.getByLabel("Usuário")).toBeVisible();
+		await expect(page.getByLabel("Senha de aplicativo")).toBeVisible();
 		await expect(
 			page.getByText(/só fala com este lugar se o servidor de lá permitir/),
 		).toBeVisible();
 
-		// A database asks for two things and warns about nothing, because rows in a log
-		// are not a file two devices can write over.
-		await page
-			.getByLabel("Onde guardar a cópia")
-			.selectOption({ label: "Um banco de dados online" });
+		// And the next one asks for two things, with nothing of the last one left over.
+		await pick(page, "Um banco de dados online");
 		await expect(page.getByLabel("Endereço do banco")).toBeVisible();
 		await expect(page.getByLabel("Token", { exact: true })).toBeVisible();
-		await expect(page.getByText(/podem perder uma das duas gravações/)).toHaveCount(0);
+		await expect(page.getByLabel("Endereço da pasta")).toHaveCount(0);
+		await expect(page.getByLabel("Usuário")).toHaveCount(0);
+	});
 
-		// The file asks for nothing and is ready at once.
-		await page
-			.getByLabel("Onde guardar a cópia")
-			.selectOption({ label: "Um arquivo que você move" });
-		await expect(page.getByLabel("Arquivo do outro aparelho")).toBeVisible();
+	test("says what went wrong when the place does not answer", async ({ page }) => {
+		await openCofre(page);
+		await openData(page);
+
+		await pick(page, "Uma pasta WebDAV");
+		// Testing costs nothing and writes nothing, so it is there before anything is on,
+		// and off until there is something to test with.
+		await expect(page.getByRole("button", { name: "Testar conexão" })).toBeDisabled();
+
+		await page.getByLabel("Endereço da pasta").fill("https://localhost:9/dav");
+		await page.getByLabel("Usuário").fill("ana");
+		await page.getByLabel("Senha de aplicativo").fill("uma senha de aplicativo");
+
+		await page.getByRole("button", { name: "Testar conexão" }).click();
+		await expect(page.getByText(/Não consegui falar com/)).toBeVisible({ timeout: 20_000 });
+	});
+
+	test("says whether it is on, where it goes and when it last managed", async ({ page }) => {
+		await openCofre(page);
+		await openData(page);
+
+		// Before anything: off, nowhere, never.
+		await expect(page.getByText("Inativo").first()).toBeVisible();
+		await expect(page.getByText("Nenhuma configurada")).toBeVisible();
+
+		await pick(page, "Um banco de dados online");
+		await page.getByLabel("Endereço do banco").fill("https://cofre-teste.turso.io");
+		await page.getByLabel("Token", { exact: true }).fill("um token qualquer");
+
+		// Turning it on is the explicit action, and only then is there anything to say
+		// about when it runs.
+		await expect(page.getByText("A cada alteração, sempre.")).toHaveCount(0);
+		await page.getByRole("button", { name: "Ligar" }).click();
+
+		await expect(page.getByText("Ativo").first()).toBeVisible();
+		await expect(page.getByText("A cada alteração, sempre.")).toBeVisible();
+		await expect(page.getByLabel("Ao abrir a página")).toBeChecked();
+		await expect(page.getByLabel("De tempos em tempos")).toHaveValue("60");
+
+		// And it survives a reload, because it is a setting and not a mood.
+		await page.reload();
+		await openData(page);
+		await expect(page.getByLabel("Onde guardar a cópia")).toHaveValue("database");
+		await expect(page.getByRole("button", { name: "Desligar" })).toBeVisible();
 	});
 });

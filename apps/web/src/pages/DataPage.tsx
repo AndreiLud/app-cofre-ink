@@ -6,14 +6,18 @@
 //
 // So it is ordered by how often it is done rather than by what the code calls it. Where
 // the data is and when it was last copied, first, because that is the question the
-// screen is really being asked. Then everything about copies in one place, because
-// backing up was spread over three sections and two of them wrote a JSON file: one for
-// the space that happened to be open, one for all of them, hidden under a line about
-// taking the data to another program. Reading a statement in is not a backup and sits
-// on its own.
+// screen is really being asked.
 //
-// Nothing here happens without being asked, and the two that write into the space say
-// what they are about to do before they do it.
+// Then a copy, and a copy is one of two things and never a third. Either somebody makes
+// it, which is a file they download and keep, or a machine makes it, which is a place
+// of theirs that is kept up to date on its own. Those are the two panels, in that order,
+// and everything that used to sit between them (a file that was also a destination, a
+// backup of one space and a backup of all of them under different names) was the reason
+// somebody could end up holding the wrong file and not know it.
+//
+// Reading a statement in is not a copy at all and sits on its own. The zone that erases
+// is last and looks it. Nothing here happens without being asked, and the two that write
+// into the space say what they are about to do before they do it.
 
 import { mirrorToSheet, unpackBundle } from "@cofre/cloud";
 import { writeAmount, writeCsv } from "@cofre/importers";
@@ -24,8 +28,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AutomaticBackup } from "../components/AutomaticBackup.tsx";
 import { DangerZone } from "../components/DangerZone.tsx";
-import { Destinations } from "../components/Destinations.tsx";
 import {
 	downloadCsv,
 	downloadJson,
@@ -36,7 +40,7 @@ import {
 } from "../lib/download.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
-import { lastMet, storedDestination } from "../storage/destinations.ts";
+import { storedDestination, storedWhen } from "../storage/destinations.ts";
 
 const BACKUP_KEY = "cofreBackupAt";
 
@@ -60,11 +64,10 @@ function backupAt(spaceId: string): number | null {
 /**
  * When the last copy was, over several spaces.
  *
- * A backup now takes whichever spaces were ticked, so there is no single date any more
- * and the panel has to choose which one it shows. It shows the oldest, and says never
- * when any of them has never been saved, because the question behind that line is
- * whether the data is safe and the answer to that is the weakest of the spaces, not the
- * luckiest.
+ * A backup takes whichever spaces were ticked, so there is no single date any more and
+ * the panel has to choose which one it shows. It shows the oldest, and says never when
+ * any of them has never been saved, because the question behind that line is whether the
+ * data is safe and the answer to that is the weakest of the spaces, not the luckiest.
  */
 function oldestBackup(spaceIds: readonly string[]): number | null {
 	if (spaceIds.length === 0) return null;
@@ -174,16 +177,10 @@ export function DataPage() {
 	const queries = useQueryClient();
 
 	const spaceId = currentSpace?.id ?? "";
-	/**
-	 * The copy section, forced open by the button above it. A details element keeps its
-	 * own state once it is on the page, so the key sends a new one in when the answer
-	 * to "should this be open" changes.
-	 */
-	const [openSync, setOpenSync] = useState(false);
 	const [problem, setProblem] = useState<string | null>(null);
 	const [restored, setRestored] = useState<RestoreResult | null>(null);
 	const [waiting, setWaiting] = useState<{ name: string; backup: Backup } | null>(null);
-	/** Unticked spaces, for the backup and for the file waiting to be brought back. */
+	/** Unticked spaces, for the copy being written and for the file waiting to come back. */
 	const [leftOut, setLeftOut] = useState<Record<string, boolean>>({});
 	const [leftBehind, setLeftBehind] = useState<Record<string, boolean>>({});
 	const [sheet, setSheet] = useState(storedSheet);
@@ -320,10 +317,10 @@ export function DataPage() {
 	async function readTheFile(file: File): Promise<void> {
 		try {
 			const bytes = await readPickedFile(file);
-			// Two files leave this application and both hold a whole space: the backup,
-			// which is the rows, and the file kept for syncing, which is every change ever
-			// made to them. The second one folds into the first, so both come back through
-			// this one door instead of the person having to know which is which.
+			// Two files hold a whole space: the copy somebody keeps, which is the rows,
+			// and the one an automatic backup leaves in a folder, which is every change
+			// ever made to them. The second folds into the first, so both come back
+			// through this one door instead of the person having to know which is which.
 			const bundle = unpackBundle(bytes);
 			const backup = bundle
 				? backupFromBundle(bundle)
@@ -368,9 +365,9 @@ export function DataPage() {
 
 	const when = (at: number) => new Date(at).toLocaleString(i18n.resolvedLanguage ?? "pt-BR");
 
-	// What this device is set up to keep a copy in, and when it last managed to.
+	// What this device is set up to keep a copy in, and whether it is switched on.
 	const destination = storedDestination();
-	const met = spaceId === "" ? null : lastMet(spaceId, destination.kind);
+	const backingUp = storedWhen();
 	const mine = spaces.filter((space) => mayCopy.has(space.id));
 	const savedAt = oldestBackup(mine.map((space) => space.id));
 
@@ -404,13 +401,10 @@ export function DataPage() {
 					</div>
 					<div className="flex flex-wrap justify-between gap-2 pt-2">
 						<dt className="text-quiet">{t("data.copyIn")}</dt>
-						<dd className="text-ink">
-							{met === null
-								? t("data.noCopyYet")
-								: t("data.copyMet", {
-										where: t(`destination.${destination.kind}`),
-										when: when(met),
-									})}
+						<dd className={backingUp.on ? "text-ink" : "text-seal"}>
+							{backingUp.on && destination.kind !== null
+								? t("auto.onAt", { where: t(`destination.${destination.kind}`) })
+								: t("auto.off")}
 						</dd>
 					</div>
 				</dl>
@@ -423,10 +417,7 @@ export function DataPage() {
 						<Button
 							variant="secondary"
 							size="small"
-							onClick={() => {
-								setOpenSync(true);
-								document.getElementById("copia")?.scrollIntoView({ block: "start" });
-							}}
+							onClick={() => document.getElementById("copia")?.scrollIntoView({ block: "start" })}
 						>
 							{t("data.turnOnSync")}
 						</Button>
@@ -440,9 +431,8 @@ export function DataPage() {
 				)}
 			</Panel>
 
-			{/* Everything about a copy, in one place: the file you keep, the file coming
-			    back, and the places that hold a space between two devices. */}
-			<Panel title={t("data.backupTitle")} description={t("data.backupBody")}>
+			{/* The first of the two ways to have a copy: somebody makes it. */}
+			<Panel title={t("data.manualTitle")} description={t("data.manualBody")}>
 				<div className="divide-y divide-line">
 					<div className="space-y-3 pb-4">
 						<span className="block text-sm font-medium text-ink">{t("data.saveCopy")}</span>
@@ -503,23 +493,16 @@ export function DataPage() {
 						{t("data.bringBackBody")}
 					</Action>
 				</div>
-
-				{/* Open already when it is set up, because then it is not a rarity any
-				    more: it is the button somebody came here to press. */}
-				<div id="copia">
-					<Disclosure
-						key={openSync ? "copiaAberta" : "copia"}
-						summary={t("data.syncTitle")}
-						hint={t("data.syncBody")}
-						open={openSync || destination.kind !== "file" || met !== null}
-						className="-mx-4 rounded-none border-x-0 border-b-0 bg-transparent sm:-mx-5"
-					>
-						<Destinations />
-					</Disclosure>
-				</div>
 			</Panel>
 
-			{/* Not a backup: it reads a file from the bank and writes records. */}
+			{/* The second: a machine makes it, in a place of theirs. */}
+			<div id="copia">
+				<Panel title={t("auto.title")} description={t("auto.body")}>
+					<AutomaticBackup />
+				</Panel>
+			</div>
+
+			{/* Not a copy at all: it reads a file from the bank and writes records. */}
 			<Panel title={t("data.importTitle")} description={t("data.importBody")}>
 				<Button variant="secondary" onClick={() => void navigate({ to: ROUTES.import })}>
 					{t("data.importAction")}

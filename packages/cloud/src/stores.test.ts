@@ -6,7 +6,6 @@
 
 import { BUNDLE_FORMAT, type SyncBundle } from "@cofre/storage";
 import { describe, expect, it } from "vitest";
-import { createFileStore } from "./file.ts";
 import { mirrorToSheet } from "./googleSheets.ts";
 import { CloudError } from "./http.ts";
 import { isPacked, packBundle, unpackBundle } from "./pack.ts";
@@ -225,23 +224,6 @@ describe("a service that does not answer at all", () => {
 		expect((failed as CloudError).status).toBe(0);
 		expect((failed as CloudError).where).toBe("WebDAV");
 		expect((failed as CloudError).message).toBe("WebDAV did not answer");
-	});
-});
-
-describe("a file the person moves themselves", () => {
-	it("reads what they gave it and hands back what came out", async () => {
-		let handed: SyncBundle | null = null;
-
-		const store = createFileStore({
-			read: async () => ({ bundle, revision: null }),
-			write: (written) => {
-				handed = written;
-			},
-		});
-
-		expect((await store.read("espaco1")).bundle?.spaceId).toBe("espaco1");
-		await store.write("espaco1", bundle, null);
-		expect(handed).toEqual(bundle);
 	});
 });
 

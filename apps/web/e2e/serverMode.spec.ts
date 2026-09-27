@@ -79,7 +79,7 @@ test.describe("server mode", () => {
 		await expect(ana.getByRole("checkbox", { name: "Casa" })).toBeChecked();
 
 		const download = ana.waitForEvent("download");
-		await ana.getByRole("button", { name: "Guardar", exact: true }).first().click();
+		await ana.getByRole("button", { name: "Baixar", exact: true }).first().click();
 		const file = await download;
 		expect(file.suggestedFilename()).toMatch(/^cofre_backup_\d{8}\.json$/);
 	});

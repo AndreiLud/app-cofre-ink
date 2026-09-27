@@ -15,7 +15,6 @@ export {
 	type SeriesPoint,
 	seriesUrl,
 } from "./bancoCentral.ts";
-export { bundleFileName, createFileStore, type FileStoreOptions } from "./file.ts";
 export {
 	mirrorToSheet,
 	type SheetOptions,
@@ -27,6 +26,7 @@ export { createLibsqlStore, type LibsqlOptions } from "./libsql.ts";
 export {
 	BUNDLE_MEDIA_TYPE,
 	base64Of,
+	bundleFileName,
 	isPacked,
 	packBundle,
 	storedFileName,
@@ -35,7 +35,16 @@ export {
 } from "./pack.ts";
 export { createWebdavStore, fileNameFor, type WebdavOptions } from "./webdav.ts";
 
-export type DestinationKind = "file" | "server" | "webdav" | "database";
+/**
+ * Where a copy is kept up to date on its own.
+ *
+ * A file the person carries used to be one of these, and it is not one any more: a
+ * destination is somewhere this application can reach by itself, and a file in a
+ * downloads folder is somewhere a person goes. Carrying a copy by hand is still there
+ * and is its own thing on the screen, with a button that writes one and a button that
+ * reads one back.
+ */
+export type DestinationKind = "server" | "webdav" | "database";
 
 /** What each destination needs, and what it can promise. Read by the screen. */
 export const DESTINATIONS: Record<
@@ -47,7 +56,6 @@ export const DESTINATIONS: Record<
 		worksInABrowser: boolean;
 	}
 > = {
-	file: { safeTogether: true, worksInABrowser: true },
 	server: { safeTogether: true, worksInABrowser: true },
 	webdav: { safeTogether: true, worksInABrowser: false },
 	database: { safeTogether: true, worksInABrowser: true },
