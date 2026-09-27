@@ -10,6 +10,7 @@ export * from "./budget/progress.ts";
 export * from "./cards/installments.ts";
 export * from "./cards/invoice.ts";
 export * from "./categories/defaults.ts";
+export * from "./entry/monthInThree.ts";
 export * from "./entry/quickEntry.ts";
 export * from "./ids/uuidV7.ts";
 export * from "./language/firstLanguage.ts";

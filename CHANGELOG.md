@@ -89,6 +89,23 @@ wrong, and no purchase was ever put on the wrong invoice.
 
 ### Added
 
+**A month in three numbers, for whoever will not keep a ledger.** A screen beside the
+list, in the records section. It asks for a month and three amounts: what came in, what
+went out apart from the card, and what the card invoice came to. That is all the bank and
+the card tell somebody without being asked, and it is enough for the balance, the trend,
+the check up and the projection to work.
+
+What it writes are three ordinary records, so nothing else in the application had to
+change: they are in the list, they count everywhere, the card one is on the invoice of
+that month, and any of the three can be opened and corrected like any other record.
+Typing the same month again corrects those three instead of writing three more, and
+clearing a field takes its record away. Before the fields, the screen says how many
+records the month already holds and what they add up to, because somebody who writes a
+few by hand and then types the whole month has counted those few twice. Registry 0038 has
+the reasoning.
+
+What it does not give is anything that needs a category or a day.
+
 **A backup that keeps itself up to date.** Pick one place, a server of yours, an online
 database or a WebDAV folder, test the connection, and turn it on. It covers every space
 at once, and after that it runs on every change once the typing stops, plus whichever of

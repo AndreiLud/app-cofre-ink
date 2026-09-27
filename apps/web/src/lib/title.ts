@@ -13,6 +13,7 @@ import { ROUTES } from "../routes.ts";
 const NAMED: Record<string, string> = {
 	[ROUTES.dashboard]: "nav.dashboard",
 	[ROUTES.transactions]: "nav.transactions",
+	[ROUTES.month]: "nav.month",
 	[ROUTES.calendar]: "nav.calendar",
 	[ROUTES.reports]: "nav.reports",
 	[ROUTES.budget]: "nav.budget",

@@ -36,6 +36,9 @@ function sectionsOf(t: (key: string) => string) {
 			icon: "records" as const,
 			children: [
 				{ to: ROUTES.transactions, label: t("nav.allRecords") },
+				// Beside the list, because it is the other way of writing the same thing and
+				// somebody who does not want the list has to find it without being told.
+				{ to: ROUTES.month, label: t("nav.month") },
 				{ to: ROUTES.invoices, label: t("nav.invoices") },
 				{ to: ROUTES.calendar, label: t("nav.calendar") },
 			],

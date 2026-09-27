@@ -25,6 +25,11 @@ device without you pressing something.
 **Records.** Accounts, cards with a real invoice cycle, instalments, transfers, planned
 and settled. A whole record written on one line: `mercado 42,90 ontem nubank 3x`.
 
+**Or a month in three numbers.** For whoever is never going to log a coffee: what came
+in, what went out and what the card invoice came to, once a month. They become three
+ordinary records, so the balance, the reports, the check up and the projection all work
+from them. Typing the same month again corrects it instead of writing it twice.
+
 **Sorting.** Categories two levels deep, spending priority, and rules that sort by
 themselves and learn from a correction.
 
@@ -308,6 +313,11 @@ sem você mandar.
 **Lançamentos.** Contas, cartões com ciclo de fatura de verdade, compras parceladas,
 transferências, previsto e realizado. Um lançamento inteiro escrito numa linha só:
 `mercado 42,90 ontem nubank 3x`.
+
+**Ou o mês em três números.** Para quem nunca vai lançar um cafezinho: quanto entrou,
+quanto saiu e quanto veio na fatura, uma vez por mês. Eles viram três lançamentos comuns,
+então o saldo, os relatórios, o diagnóstico e a projeção funcionam a partir deles.
+Escrever o mesmo mês de novo corrige, em vez de escrever duas vezes.
 
 **Organização.** Categorias em dois níveis, prioridade do gasto, e regras que
 categorizam sozinhas e aprendem quando você corrige.

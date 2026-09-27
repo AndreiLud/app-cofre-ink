@@ -52,6 +52,12 @@ const transactionsRoute = createRoute({
 	component: TransactionsPage,
 });
 
+const monthRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/mes",
+	component: lazyRouteComponent(() => import("./pages/MonthPage.tsx"), "MonthPage"),
+});
+
 const reportsRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/relatorios",
@@ -127,6 +133,7 @@ const designSystemRoute = createRoute({
 const routeTree = rootRoute.addChildren([
 	dashboardRoute,
 	transactionsRoute,
+	monthRoute,
 	calendarRoute,
 	reportsRoute,
 	budgetRoute,

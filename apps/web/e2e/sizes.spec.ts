@@ -17,6 +17,7 @@ const SIZES = [
 const SCREENS = [
 	"/",
 	"/lancamentos",
+	"/mes",
 	"/relatorios",
 	"/orcamento",
 	"/calendario",

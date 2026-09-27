@@ -8,6 +8,7 @@
 export const ROUTES = {
 	dashboard: "/",
 	transactions: "/lancamentos",
+	month: "/mes",
 	calendar: "/calendario",
 	reports: "/relatorios",
 	budget: "/orcamento",

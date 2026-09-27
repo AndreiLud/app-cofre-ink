@@ -22,14 +22,15 @@ which session they are holding.
 
 ## Writing a record
 
-Three ways in, all landing in the same repository method.
+Four ways in, all landing in the same repository method.
 
 1. **The form.** Every field, for the record that needs them.
 2. **One line of text.** `mercado 42,90 ontem nubank 3x` becomes an expense of 42.90 in
    groceries, dated yesterday, on the Nubank card, in three instalments. The parser is
    in `packages/core`, is pure, and is the most heavily tested single thing in the
    repository. What it could not read is left blank rather than guessed.
-3. **A file.** See the next section.
+3. **Three numbers for the month.** See the section after the next one.
+4. **A file.** See the next section.
 
 On the way in, the rules run. A rule matches text and sets a category, a priority or an
 account. Rules are ordered and the first match wins. A correction teaches the rule that
@@ -56,6 +57,31 @@ file -> reader -> records -> review -> written
    file covers.
 5. **Nothing is written until somebody has seen it.** The review is a screen, not a
    confirmation dialog.
+
+## A month in three numbers
+
+For somebody who is not going to log a line at a time. The screen is beside the list, in
+the records section, and it asks for a month and three amounts: what came in, what went
+out apart from the card, and what the card invoice came to.
+
+What it writes are three ordinary records, one per number, on the last day of that month.
+The card one goes to the credit account, on the last day the invoice of that month still
+takes, so it lands on that invoice. Everything else in the application reads them as it
+reads any record: the balances, the reports, the check up, the projection, the backup and
+the replication all work with no change, and any of the three can be opened in the list
+and corrected.
+
+Each carries a mark in the field an import uses, `mes:2026-09:income`, so typing the same
+month again corrects those three rather than writing three more. An empty field means the
+month has no such number, so it takes that record away rather than writing a zero.
+
+Before the fields, the screen says how many records the month already holds and what they
+add up to. Somebody who writes a few by hand and then types the whole month as a total has
+counted those few twice, and only they can know whether the total includes them.
+
+What this does not give is anything that needs a category or a day: which sort of spending
+grew, what falls due on Thursday, whether the supermarket is over its limit. The reasoning
+is in [decision record 0038](../adr/0038_a_month_in_three_numbers.md).
 
 ## Sharing an expense
 

@@ -22,14 +22,15 @@ sessão estão segurando.
 
 ## Escrever um lançamento
 
-Três caminhos de entrada, todos caindo no mesmo método de repositório.
+Quatro caminhos de entrada, todos caindo no mesmo método de repositório.
 
 1. **O formulário.** Todos os campos, para o lançamento que precisa deles.
 2. **Uma linha de texto.** `mercado 42,90 ontem nubank 3x` vira uma despesa de 42,90 em
    mercado, com a data de ontem, no cartão Nubank, em três parcelas. O leitor está no
    `packages/core`, é puro, e é a coisa mais testada do repositório. O que ele não
    conseguiu ler fica em branco, em vez de ser adivinhado.
-3. **Um arquivo.** Veja a próxima seção.
+3. **Três números do mês.** Veja a seção depois da próxima.
+4. **Um arquivo.** Veja a próxima seção.
 
 Na entrada, as regras rodam. Uma regra casa um texto e define uma categoria, uma
 prioridade ou uma conta. As regras são ordenadas e a primeira que casa vence. Uma
@@ -57,6 +58,32 @@ arquivo -> leitor -> lançamentos -> revisão -> gravado
 4. **As repetições são encontradas** comparando o que já existe no espaço em volta dos
    dias que o arquivo cobre.
 5. **Nada é gravado até alguém ver.** A revisão é uma tela, não uma caixa de confirmar.
+
+## O mês em três números
+
+Para quem não vai lançar uma linha de cada vez. A tela fica ao lado da lista, na seção de
+lançamentos, e pergunta um mês e três valores: quanto entrou, quanto saiu fora o cartão, e
+quanto veio na fatura.
+
+O que ela escreve são três lançamentos comuns, um por número, no último dia daquele mês. O
+do cartão vai para a conta de crédito, no último dia que a fatura daquele mês ainda pega,
+então ele cai naquela fatura. Todo o resto do aplicativo lê esses três como lê qualquer
+lançamento: os saldos, os relatórios, o diagnóstico, a projeção, o backup e a replicação
+funcionam sem nenhuma mudança, e qualquer um dos três pode ser aberto na lista e
+corrigido.
+
+Cada um carrega uma marca no campo que uma importação usa, `mes:2026-09:income`, então
+escrever o mesmo mês de novo corrige esses três em vez de escrever outros três. Um campo
+vazio quer dizer que o mês não tem aquele número, então ele tira o lançamento em vez de
+gravar um zero.
+
+Antes dos campos, a tela diz quantos lançamentos o mês já tem e quanto eles somam. Quem
+escreve alguns à mão e depois digita o mês inteiro como total contou aqueles alguns duas
+vezes, e só a pessoa sabe se o total já inclui eles.
+
+O que isso não dá é qualquer coisa que precise de categoria ou de dia: qual tipo de gasto
+cresceu, o que vence na quinta, se o mercado passou do limite. O raciocínio está no
+[registro de decisão 0038](../adr/0038_a_month_in_three_numbers.md).
 
 ## Dividir uma despesa
 

@@ -52,6 +52,7 @@ export function inside(page: Page, label: string) {
  */
 const SECTION_OF: Record<string, string> = {
 	Lista: "Lançamentos",
+	"O mês": "Lançamentos",
 	Faturas: "Lançamentos",
 	Calendário: "Lançamentos",
 	Orçamento: "Planejamento",

@@ -79,6 +79,12 @@ export function CommandPalette({ state }: { state: PaletteState }) {
 				run: go(ROUTES.transactions),
 			},
 			{
+				id: "goMonth",
+				group: t("palette.navigate"),
+				label: t("nav.month"),
+				run: go(ROUTES.month),
+			},
+			{
 				id: "goReports",
 				group: t("palette.navigate"),
 				label: t("nav.reports"),
