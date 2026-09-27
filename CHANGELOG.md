@@ -78,6 +78,15 @@ somebody who is not in the space the expense is in, which is right. The dialog n
 offers the people of the space that is open, on the division, on who paid, and on the
 settle up.
 
+**The days an invoice said it covered, for two closing days.** Under the invoice total
+there is a line reading "Compras de X a Y". A card that closes on the first was told its
+September invoice ran to the last day of September, when every one of those days is on
+the invoice after: that invoice is the whole of August. A card that closes on the thirty
+first was told its March invoice began on the twenty eighth of February, a day that is on
+the February one, because February has no thirty first for anything to close on. Both
+ends are now the days that really land on the invoice they name. Only the sentence was
+wrong, and no purchase was ever put on the wrong invoice.
+
 ### Added
 
 **A backup that keeps itself up to date.** Pick one place, a server of yours, an online

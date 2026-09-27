@@ -70,6 +70,44 @@ describe("when the invoice closes and falls due", () => {
 		expect(compareCalendarDates(period.from, period.to)).toBe(-1);
 	});
 
+	it("gives a card that closes on the first the whole of the month before", () => {
+		expect(invoicePeriod("2026-09", { closingDay: 1, dueDay: 10 })).toEqual({
+			from: "2026-08-01",
+			to: "2026-08-31",
+		});
+	});
+
+	it("starts a card that closes on the thirty first on the first, after a February", () => {
+		// February has no thirty first, so nothing in it closed onto the March invoice.
+		expect(invoicePeriod("2026-03", { closingDay: 31, dueDay: 10 })).toEqual({
+			from: "2026-03-01",
+			to: "2026-03-30",
+		});
+		expect(invoicePeriod("2026-02", { closingDay: 31, dueDay: 10 })).toEqual({
+			from: "2026-01-31",
+			to: "2026-02-28",
+		});
+	});
+
+	it("covers every day, and only the days, that land on that invoice", () => {
+		fc.assert(
+			fc.property(
+				fc.integer({ min: 1, max: 31 }),
+				fc.integer({ min: 1, max: 12 }),
+				(closingDay, month) => {
+					const cycle: CardCycle = { closingDay, dueDay: 10 };
+					const named = `2026-${String(month).padStart(2, "0")}` as const;
+					const period = invoicePeriod(named, cycle);
+					expect(compareCalendarDates(period.from, period.to)).toBe(-1);
+					// Both ends belong to the invoice they are said to be the ends of, which
+					// is the only thing the two dates promise.
+					expect(invoiceMonthOf(period.from, cycle)).toBe(named);
+					expect(invoiceMonthOf(period.to, cycle)).toBe(named);
+				},
+			),
+		);
+	});
+
 	it("says how long the money is borrowed for", () => {
 		// Buying the day after the invoice closed buys the longest wait.
 		expect(daysUntilDue("2026-09-03", early)).toBe(37);

@@ -12,7 +12,9 @@ import {
 	type CalendarMonth,
 	dateInMonth,
 	formatCalendarMonth,
+	lastDayOfMonth,
 	parseCalendarDate,
+	parseCalendarMonth,
 } from "../time/calendar.ts";
 
 export type CardCycle = {
@@ -67,10 +69,25 @@ export function invoicePeriod(
 ): { from: CalendarDate; to: CalendarDate } {
 	assertCycle(cycle);
 	const previous = addMonthsToMonth(month, -1);
+	const before = parseCalendarMonth(previous);
+	const daysBefore = lastDayOfMonth(before.year, before.month);
+
 	return {
-		from: dateInMonth(previous, cycle.closingDay),
+		// The days of the month before that had already closed onto this invoice. A
+		// closing day that month never reaches, the thirty first of a February, means
+		// none of them did and the invoice starts on the first of its own month.
+		from:
+			cycle.closingDay <= daysBefore
+				? dateInMonth(previous, cycle.closingDay)
+				: dateInMonth(month, 1),
 		// The closing day belongs to the next invoice, so this one ends the day before.
-		to: dateInMonth(month, cycle.closingDay - 1 === 0 ? 31 : cycle.closingDay - 1),
+		// A card that closes on the first has no day of its own month on it at all: the
+		// invoice named September is the whole of August, and saying it ran to the last
+		// day of September named thirty days that are on the invoice after.
+		to:
+			cycle.closingDay === 1
+				? dateInMonth(previous, daysBefore)
+				: dateInMonth(month, cycle.closingDay - 1),
 	};
 }
 
