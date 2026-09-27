@@ -3,7 +3,7 @@
 // people who share a space with you, because a name and a picture are still personal.
 
 import { uuidV7 } from "@cofre/core";
-import { readableSpaceIds } from "../actor.ts";
+import { assertCan, readableSpaceIds } from "../actor.ts";
 import type { Driver } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { toUser, type User } from "../models.ts";
@@ -222,6 +222,27 @@ export function createUsersRepository(context: RepositoryContext) {
 			const first = rows[0];
 			if (!first) throw new NotFoundError("user", userId);
 			return toUser(first);
+		},
+
+		/**
+		 * Everybody in one space, which is who a division is between.
+		 *
+		 * Not the same list as `peers`, and the difference is the whole point: somebody
+		 * who is in two shared spaces with different people reads everybody through that
+		 * one, and a screen that offered all of them was offering to divide an expense
+		 * with people who are not in the space the expense is in.
+		 */
+		async inSpace(spaceId: string): Promise<User[]> {
+			assertCan(context.actor(), spaceId, "member.read");
+			const rows = await context.driver.all(
+				`SELECT u."id", u."email", u."name", u."image", u."created_at", u."updated_at"
+				 FROM "users" u
+				 JOIN "space_members" m ON m."user_id" = u."id"
+				 WHERE m."space_id" = ? AND m."state" = 'active' AND m."deleted_at" IS NULL
+				 ORDER BY u."name"`,
+				[spaceId],
+			);
+			return rows.map(toUser);
 		},
 
 		/** Everyone this person shares a space with, which is who they can mention. */

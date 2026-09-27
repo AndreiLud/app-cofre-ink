@@ -121,6 +121,8 @@ export type AssignableRole = Exclude<Role, "owner">;
 export type CofreSession = {
 	users: {
 		me: () => Promise<User>;
+		/** Everybody in one space, which is who a division is between. */
+		inSpace: (spaceId: string) => Promise<User[]>;
 		peers: () => Promise<User[]>;
 	};
 	spaces: {

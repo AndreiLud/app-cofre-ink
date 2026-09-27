@@ -55,15 +55,17 @@ export function MembersPage() {
 		queryFn: () => session?.members.list(spaceId) ?? [],
 	});
 
+	// The people of this space: this screen names its members and settles up between
+	// them, and somebody from another space of this person's is neither.
 	const people = useQuery({
-		queryKey: ["peers", spaceId],
-		enabled: Boolean(session),
-		queryFn: () => session?.users.peers() ?? [],
+		queryKey: ["peopleOfSpace", spaceId],
+		enabled: Boolean(session && spaceId !== ""),
+		queryFn: () => session?.users.inSpace(spaceId) ?? [],
 	});
 
 	const invalidate = () => {
 		void queries.invalidateQueries({ queryKey: ["members"] });
-		void queries.invalidateQueries({ queryKey: ["peers"] });
+		void queries.invalidateQueries({ queryKey: ["peopleOfSpace"] });
 	};
 
 	const createLink = useMutation({

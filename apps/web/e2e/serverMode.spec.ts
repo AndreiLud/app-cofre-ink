@@ -137,6 +137,78 @@ test.describe("server mode", () => {
 		await expect(ana.getByRole("cell", { name: "Editor" })).toBeVisible();
 	});
 
+	/**
+	 * Two shared spaces with different people in them, which is the ordinary shape of a
+	 * life: a house with one person and a trip with another. The division used to offer
+	 * everybody from both, and the model was right to refuse a division with somebody who
+	 * is not in the space, so nobody in this situation could divide anything at all.
+	 */
+	test("divides with the people of this space, and not with everybody", async ({ browser }) => {
+		const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
+
+		for (const [name, guest] of [
+			["Casa", "Joao"],
+			["Viagem", "Carla"],
+		] as const) {
+			await openSetting(ana, "Gerenciar espaços");
+			await ana.getByRole("button", { name: "Novo espaço" }).click();
+			await ana.getByLabel("Nome do espaço").fill(name);
+			await ana.getByRole("button", { name: "Salvar" }).click();
+			await expect(ana.getByRole("banner")).toContainText(name);
+
+			await openSetting(ana, "Membros");
+			await ana.getByRole("button", { name: "Convidar" }).first().click();
+			await ana.getByRole("button", { name: "Gerar link" }).click();
+			const link = await ana.getByRole("dialog").locator("p.font-mono").innerText();
+			await ana.keyboard.press("Escape");
+
+			const other = await arrive(browser, { name: guest, email: uniqueEmail(guest) });
+			await other.goto(link);
+			await other.getByRole("button", { name: "Entrar no espaço" }).click();
+			await expect(other.getByRole("banner")).toContainText(name);
+		}
+
+		// Back to the house, where the expense is.
+		await openSetting(ana, "Gerenciar espaços");
+		await ana
+			.getByRole("listitem")
+			.filter({ hasText: "Casa" })
+			.getByRole("button", { name: "Entrar" })
+			.click();
+		await expect(ana.getByRole("banner")).toContainText("Casa");
+
+		await go(ana, "Contas");
+		await ana.getByRole("button", { name: "Nova conta" }).first().click();
+		await ana.getByRole("dialog").getByLabel("Nome").fill("Conta conjunta");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+
+		await go(ana, "Lançamentos");
+		await ana.getByRole("button", { name: "Novo lançamento" }).first().click();
+		await ana.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("200,00");
+		await ana.getByRole("dialog").getByLabel("Descrição").fill("Conta de luz");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+
+		await ana
+			.getByRole("row")
+			.filter({ hasText: "Conta de luz" })
+			.getByRole("button", { name: "Ações" })
+			.click();
+		await ana.getByRole("menuitem", { name: "Dividir com a casa" }).click();
+
+		// The people of the house, and Carla is not one of them.
+		const dialog = ana.getByRole("dialog");
+		await expect(dialog.getByRole("option", { name: "Ana" })).toHaveCount(1);
+		await expect(dialog.getByRole("option", { name: "Joao" })).toHaveCount(1);
+		await expect(dialog.getByRole("option", { name: "Carla" })).toHaveCount(0);
+
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(dialog).toHaveCount(0);
+
+		await openSetting(ana, "Membros");
+		await expect(ana.getByText("Para zerar")).toBeVisible();
+		await expect(ana.getByText("R$ 100,00").first()).toBeVisible();
+	});
+
 	test("burns the link after the first person uses it", async ({ browser }) => {
 		const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
 

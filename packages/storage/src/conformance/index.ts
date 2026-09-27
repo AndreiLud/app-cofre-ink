@@ -314,6 +314,57 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 			});
 
 			/**
+			 * Two lists, and the difference matters on any screen that divides money.
+			 *
+			 * Somebody in two shared spaces reads everybody through the first one, which
+			 * is what lets a name be shown wherever it turns up. Dividing an expense is
+			 * the other question: it is between the people of the space the expense is
+			 * in, and offering the rest offers a division that is refused.
+			 */
+			it("tells who is in one space apart from everybody this person knows", async () => {
+				const fixture = await prepare(adapter);
+				try {
+					const house = await fixture.asAna.spaces.create({ name: "Casa" });
+					await fixture.asAna.members.invite({
+						spaceId: house.id,
+						userId: fixture.joao.id,
+						role: "editor",
+					});
+					await fixture.asJoao.members.accept(house.id);
+
+					const trip = await fixture.asAna.spaces.create({ name: "Viagem" });
+					await fixture.asAna.members.invite({
+						spaceId: trip.id,
+						userId: fixture.carla.id,
+						role: "editor",
+					});
+					await fixture.asCarla.members.accept(trip.id);
+					await fixture.asAna.refresh();
+
+					expect((await fixture.asAna.users.peers()).map((one) => one.name)).toEqual([
+						"Ana",
+						"Carla",
+						"Joao",
+					]);
+					expect((await fixture.asAna.users.inSpace(house.id)).map((one) => one.name)).toEqual([
+						"Ana",
+						"Joao",
+					]);
+					expect((await fixture.asAna.users.inSpace(trip.id)).map((one) => one.name)).toEqual([
+						"Ana",
+						"Carla",
+					]);
+
+					// And it is a space of theirs or it does not exist, like everything else.
+					await expect(fixture.asCarla.users.inSpace(house.id)).rejects.toBeInstanceOf(
+						NotFoundError,
+					);
+				} finally {
+					await fixture.close();
+				}
+			});
+
+			/**
 			 * A device can be opened without being asked anything, which means a profile
 			 * carries a name nobody chose until they choose one. A name that cannot be
 			 * corrected is the kind of default that turns into a life sentence.

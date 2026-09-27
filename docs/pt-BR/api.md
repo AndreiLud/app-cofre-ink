@@ -24,6 +24,7 @@ Todo o resto exige sessão e responde `401 {"error": "signedOut"}` sem uma.
 | --- | --- | --- |
 | `GET` | `/api/me` | quem você é e quais espaços você pode ler |
 | `GET` | `/api/peers` | todo mundo com quem você divide algum espaço |
+| `GET` | `/api/spaces/:id/people` | todo mundo de um espaço, que é entre quem uma divisão acontece |
 | `GET` `POST` | `/api/spaces` | listar, criar |
 | `PATCH` `DELETE` | `/api/spaces/:id` | renomear ou recolorir, remover |
 | `POST` | `/api/spaces/:id/adopt` | adotar um espaço que chegou de um aparelho e não tem ninguém |
@@ -89,7 +90,7 @@ vírgula, `withoutCategory`, `limit`.
 
 | método | caminho | o que faz |
 | --- | --- | --- |
-| `GET` `POST` `DELETE` | `/api/transactions/:id/splits` | como uma despesa é dividida |
+| `GET` `POST` `DELETE` | `/api/transactions/:id/splits` | como uma despesa é dividida. Uma parte vai pelo identificador, em `shares`, e nunca pela posição |
 | `GET` | `/api/spaces/:id/sharing/balances` | quem deve o quê, no total |
 | `GET` | `/api/spaces/:id/sharing/suggested` | o menor número de pagamentos que fecha |
 | `GET` `POST` | `/api/spaces/:id/sharing/settlements` | pagamentos já registrados, registrar um |

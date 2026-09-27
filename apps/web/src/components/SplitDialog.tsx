@@ -72,7 +72,11 @@ export function SplitDialog({ open, onOpenChange, record, people }: SplitDialogP
 				transactionId: record.id,
 				method,
 				userIds: people.map((person) => person.id),
-				weights: people.map((person) => Number(weights[person.id] ?? "1")),
+				// Each share by the person it was typed for. A list in the order this
+				// screen reads people in was a list the space read in another order.
+				shares: Object.fromEntries(
+					people.map((person) => [person.id, Number(weights[person.id] ?? "1")]),
+				),
 				paidBy,
 			});
 		},

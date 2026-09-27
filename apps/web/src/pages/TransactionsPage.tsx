@@ -106,10 +106,13 @@ export function TransactionsPage() {
 	});
 
 	// Only a shared space needs to know who else is in it, and only to divide a cost.
+	// The people of this space, not everybody this person shares any space with: a
+	// division is between the members of the space the expense is in, and offering the
+	// others meant offering a division the model was right to refuse.
 	const peers = useQuery({
-		queryKey: ["peers", spaceId],
-		enabled: Boolean(session && currentSpace?.kind === "shared"),
-		queryFn: () => session?.users.peers() ?? [],
+		queryKey: ["peopleOfSpace", spaceId],
+		enabled: Boolean(session && currentSpace?.kind === "shared" && spaceId !== ""),
+		queryFn: () => session?.users.inSpace(spaceId) ?? [],
 	});
 
 	// Asking for a category that has others under it means asking for all of them, which

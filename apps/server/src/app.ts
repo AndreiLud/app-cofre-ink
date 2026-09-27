@@ -133,7 +133,9 @@ const savingsInput = z.object({
 const splitInput = z.object({
 	method: z.enum(["evenly", "shares", "income"]),
 	userIds: z.array(z.string().min(1)).max(20).optional(),
-	weights: z.array(z.number().int().min(0).max(1_000_000)).max(20).optional(),
+	// By identifier, because a share tied to a position lands on whoever is standing in
+	// that position, and the two sides order people differently.
+	shares: z.record(z.string().min(1).max(80), z.number().int().min(0).max(1_000_000)).optional(),
 	paidBy: z.string().min(1).nullable().optional(),
 });
 
@@ -468,6 +470,11 @@ export function createApp({ config, database, auth }: AppDependencies) {
 	/** Everyone this person shares a space with, which is who the screens can name. */
 	app.get("/api/peers", async (context) =>
 		context.json(await context.get("session").users.peers()),
+	);
+
+	/** Everybody in one space, which is a shorter list and the one a division uses. */
+	app.get("/api/spaces/:id/people", async (context) =>
+		context.json(await context.get("session").users.inSpace(context.req.param("id"))),
 	);
 
 	app.get("/api/spaces", async (context) =>

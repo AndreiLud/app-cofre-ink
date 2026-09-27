@@ -63,6 +63,11 @@ Um espaço compartilhado tem membros. Uma despesa pode ser dividida igual, por c
 proporcional à renda declarada. A divisão escreve linhas dizendo quem deve qual parte
 daquela despesa.
 
+Ela é entre os membros do espaço em que a despesa está, e só entre eles. Quem está em
+dois espaços compartilhados com pessoas diferentes vê as pessoas do espaço que está
+aberto, tanto na divisão quanto no acerto. Uma parte pertence à pessoa para quem ela foi
+digitada, pelo identificador e nunca pela posição numa lista.
+
 A tela de acerto soma tudo e diz quem deve para quem, uma vez só, no menor número de
 pagamentos. Registrar um pagamento fecha aquela parte. Nada é movido entre contas: o
 produto registra o que aconteceu entre pessoas, ele não finge ser um banco.

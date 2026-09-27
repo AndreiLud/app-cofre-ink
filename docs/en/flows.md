@@ -62,6 +62,11 @@ A shared space has members. An expense can be split evenly, by share, or in prop
 to declared income. The split writes rows saying who owes what part of that one
 expense.
 
+It is between the members of the space the expense is in, and only them. Somebody who
+is in two shared spaces with different people sees the people of the space they are
+looking at, on the division and on the settle up alike. A share belongs to the person it
+was typed for, by identifier and never by the place they hold in a list.
+
 The settle up screen adds it all up and says who owes whom, once, in the fewest
 payments. Recording a payment closes that part. Nothing is moved between accounts: the
 product records what happened between people, it does not pretend to be a bank.

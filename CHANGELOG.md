@@ -26,6 +26,17 @@ space that already exists asked for no permission at all, so a member who could 
 read a shared space could put a file into it. It now asks for the role that exporting a
 space asks for, which is the same decision in the other direction.
 
+**Dividing by shares could hand each share to the wrong person.** The shares travelled
+as a list in the order the screen reads people, which is by name, and were applied in
+the order the space holds them, which is by when they arrived. The two agree only by
+luck. A share now travels with the identifier of the person it was typed for.
+
+**Somebody in two shared spaces could not divide anything.** The dialog offered
+everybody from every space the person is in, and the model refused a division with
+somebody who is not in the space the expense is in, which is right. The dialog now
+offers the people of the space that is open, on the division, on who paid, and on the
+settle up.
+
 ### Changed
 
 **Backup and copies are one section of the data screen.** Saving a copy took the space

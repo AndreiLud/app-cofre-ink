@@ -245,6 +245,7 @@ export function createRemoteSession(
 	return {
 		users: {
 			me: async () => (await get<{ user: User }>("/api/me")).user,
+			inSpace: (spaceId: string) => get<User[]>(`/api/spaces/${spaceId}/people`),
 			peers: () => get<User[]>("/api/peers"),
 		},
 

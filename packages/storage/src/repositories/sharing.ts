@@ -37,8 +37,15 @@ export type SplitInput = {
 	method: SplitMethod;
 	/** Who takes part. Empty means everybody active in the space. */
 	userIds?: string[];
-	/** Used by the shares method, in the same order as the people. */
-	weights?: number[];
+	/**
+	 * Used by the shares method: what each person's share is, by identifier.
+	 *
+	 * It used to be a list in the same order as the people, which meant the caller and
+	 * this file had to agree on an order neither of them stated. They did not: a screen
+	 * reads people by name and a space holds them by when they arrived, so the moment
+	 * those two disagreed a share landed on whoever was standing in that position.
+	 */
+	shares?: Record<string, number>;
 	/** Who actually paid. Empty leaves it as it is, or as whoever wrote the record. */
 	paidBy?: string | null;
 };
@@ -142,10 +149,10 @@ export function createSharingRepository(context: RepositoryContext) {
 				);
 			}
 
-			const participants = taking.map((member, index) => ({
+			const participants = taking.map((member) => ({
 				userId: member.userId,
 				monthlyIncome: member.monthlyIncome,
-				weight: input.weights?.[index],
+				weight: input.shares?.[member.userId],
 			}));
 
 			let parts: { userId: string; amount: number }[];

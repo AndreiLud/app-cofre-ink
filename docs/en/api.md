@@ -25,6 +25,7 @@ one.
 | --- | --- | --- |
 | `GET` | `/api/me` | who you are and which spaces you can read |
 | `GET` | `/api/peers` | everybody you share a space with |
+| `GET` | `/api/spaces/:id/people` | everybody in one space, which is who a division is between |
 | `GET` `POST` | `/api/spaces` | list, create |
 | `PATCH` `DELETE` | `/api/spaces/:id` | rename or recolour, remove |
 | `POST` | `/api/spaces/:id/adopt` | take a space that arrived from a device and has nobody in it |
@@ -90,7 +91,7 @@ The filters on the list are query parameters: `accountId`, `cardId`, `kind`, `st
 
 | method | path | what it does |
 | --- | --- | --- |
-| `GET` `POST` `DELETE` | `/api/transactions/:id/splits` | how one expense is divided |
+| `GET` `POST` `DELETE` | `/api/transactions/:id/splits` | how one expense is divided. A share is given by identifier, in `shares`, and never by position |
 | `GET` | `/api/spaces/:id/sharing/balances` | who owes what, in total |
 | `GET` | `/api/spaces/:id/sharing/suggested` | the fewest payments that close it |
 | `GET` `POST` | `/api/spaces/:id/sharing/settlements` | payments already recorded, record one |

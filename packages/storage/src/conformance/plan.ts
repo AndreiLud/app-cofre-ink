@@ -419,6 +419,53 @@ export function runPlanConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		/**
+		 * The order people are listed in is not the order they joined in, and a share
+		 * tied to a position rather than to a person lands on whoever happens to be
+		 * standing there. Three people are the fewest that show it: the interface reads
+		 * them by name, the space holds them by when they arrived, and the two orders
+		 * disagree from the second person on.
+		 */
+		it("gives each share to the person it was written for", async () => {
+			const ready = await sharedSpace();
+			try {
+				await ready.fixture.asAna.members.invite({
+					spaceId: ready.spaceId,
+					userId: ready.fixture.carla.id,
+					role: "editor",
+				});
+				await ready.fixture.asCarla.members.accept(ready.spaceId);
+
+				const [expense] = await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 600_000,
+					happenedOn: "2026-09-10",
+					description: "Reforma",
+					accountId: ready.accountId,
+				});
+
+				// By name: Ana, Carla, Joao. By arrival: Ana, Joao, Carla.
+				const parts = await ready.fixture.asAna.sharing.split({
+					transactionId: expense?.id ?? "",
+					method: "shares",
+					userIds: [ready.fixture.ana.id, ready.fixture.carla.id, ready.fixture.joao.id],
+					shares: {
+						[ready.fixture.ana.id]: 1,
+						[ready.fixture.carla.id]: 2,
+						[ready.fixture.joao.id]: 3,
+					},
+				});
+
+				const of = (userId: string) => parts.find((part) => part.userId === userId)?.amount;
+				expect(of(ready.fixture.ana.id)).toBe(100_000);
+				expect(of(ready.fixture.carla.id)).toBe(200_000);
+				expect(of(ready.fixture.joao.id)).toBe(300_000);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		it("splits in proportion to what each one earns", async () => {
 			const ready = await sharedSpace();
 			try {
@@ -467,7 +514,7 @@ export function runPlanConformance(adapter: AdapterUnderTest): void {
 					transactionId: expense?.id ?? "",
 					method: "shares",
 					userIds: [ready.fixture.ana.id, ready.fixture.joao.id],
-					weights: [2, 1],
+					shares: { [ready.fixture.ana.id]: 2, [ready.fixture.joao.id]: 1 },
 				});
 
 				expect(second).toHaveLength(2);
