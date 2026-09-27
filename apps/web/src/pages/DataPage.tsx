@@ -13,9 +13,10 @@
 // Nothing here happens without being asked, and the two that write into the space say
 // what they are about to do before they do it.
 
-import { mirrorToSheet } from "@cofre/cloud";
+import { mirrorToSheet, unpackBundle } from "@cofre/cloud";
 import { writeAmount, writeCsv } from "@cofre/importers";
 import type { Backup, RecordForExport, RestoreResult } from "@cofre/storage";
+import { backupFromBundle } from "@cofre/storage";
 import { Button, Callout, Dialog, Disclosure, Field, Icon, Panel, SectionTitle } from "@cofre/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -95,6 +96,12 @@ function RestoreSummary({ result }: { result: RestoreResult }) {
 	);
 }
 
+/** A refusal about a role, whichever side of the wire it came from. */
+function refused(error: unknown): boolean {
+	const named = error as { name?: string; status?: number } | null;
+	return named?.name === "PermissionError" || named?.status === 403;
+}
+
 const SHEET_KEY = "cofreSheet";
 
 function storedSheet(): { token: string; spreadsheetId: string } {
@@ -130,6 +137,16 @@ export function DataPage() {
 	function failed(error: unknown) {
 		if (error instanceof FileTooLargeError) {
 			setProblem(t("data.tooLarge", { megabytes: Math.round(LARGEST_FILE / 1024 / 1024) }));
+			return;
+		}
+		// A rule of the model says why in one word, and that word has a sentence in the
+		// language of whoever is reading it. Anything else is left as it came.
+		const rule =
+			error !== null && typeof error === "object" && "rule" in error
+				? String((error as { rule: unknown }).rule)
+				: null;
+		if (rule !== null) {
+			setProblem(t(`rules.${rule}`, { defaultValue: t("rules.unknown") }));
 			return;
 		}
 		setProblem(error instanceof Error ? error.message : String(error));
@@ -246,8 +263,16 @@ export function DataPage() {
 	const restore = useMutation({
 		mutationFn: async (file: File) => {
 			if (!session) throw new Error("no session");
-			const text = new TextDecoder().decode(await readPickedFile(file));
-			return session.backup.restore(JSON.parse(text) as Backup);
+			const bytes = await readPickedFile(file);
+			// Two files leave this application and both hold a whole space: the backup,
+			// which is the rows, and the file kept for syncing, which is every change ever
+			// made to them. The second one folds into the first, so both come back through
+			// this one door instead of the person having to know which is which.
+			const bundle = unpackBundle(bytes);
+			const backup = bundle
+				? backupFromBundle(bundle)
+				: (JSON.parse(new TextDecoder().decode(bytes)) as Backup);
+			return session.backup.restore(backup);
 		},
 		onSuccess: async (result) => {
 			setProblem(null);
@@ -258,6 +283,12 @@ export function DataPage() {
 		},
 		onError: (error: unknown) => {
 			setWaiting(null);
+			// The one refusal this door still has: a space that is already here and is
+			// run by somebody else. It is about a role, so it is said as one.
+			if (refused(error)) {
+				setProblem(t("data.restoreNotYours"));
+				return;
+			}
 			failed(error);
 		},
 	});
@@ -355,7 +386,7 @@ export function DataPage() {
 								{t("data.bringBackAction")}
 								<input
 									type="file"
-									accept=".json,application/json"
+									accept=".json,.gz,application/json,application/gzip"
 									className="sr-only"
 									onChange={(event) => {
 										const file = event.target.files?.[0];

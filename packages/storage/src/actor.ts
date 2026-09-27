@@ -70,6 +70,11 @@ export const PERMISSIONS = {
 	// it a screen at a time, and taking a copy of all of it away is a decision of the
 	// people who run the space.
 	"backup.export": ["owner", "admin"],
+	// Putting one back is the same decision in the other direction, and it only asks
+	// this much of a space that is already here. A space that arrives from a file and
+	// has nobody in it is nobody's to refuse, and whoever brings it in becomes its
+	// owner, which is what makes a backup a way out and not a way in.
+	"backup.restore": ["owner", "admin"],
 	// What somebody owns is part of what the space is worth, so everybody in it sees
 	// the total. Typing in a price is for the people who keep the space.
 	"investment.read": ["owner", "admin", "editor", "viewer", "logger"],

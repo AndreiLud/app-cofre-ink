@@ -78,6 +78,33 @@ wrong name is worse than a share that is missing and reported.
 A personal space goes back into the personal space the person already has, because
 nobody has two.
 
+A space that is already here asks for the role that exporting it asks for. Pouring a
+whole space into one that exists is the same decision as taking one out, and a member
+who writes a record at a time is not the person who makes it. A space that arrives from
+a file and has nobody in it asks for nothing, because until that moment it did not
+exist.
+
+### The file written for syncing comes back through the same door
+
+Added after somebody was left holding the only copy of their money and no way to open
+it. Two files leave this application and both hold a whole space: the backup, which is
+the rows, and the sync file, which is every change ever made to them. Only the first one
+could be brought back, and the screen offered both under words that sounded the same.
+
+Somebody whose device is gone and whose only copy is the second file used to be told to
+go back to that device and export a backup there. That is not advice, it is a wall.
+
+A log folds into the rows it describes, which is what replication already does on every
+pull, so `backupFromBundle` folds one and hands it to the restore unchanged. Every rule
+above holds: identifiers travel, a personal space merges, a row pointing at a stranger
+is left out and counted. What the sync file loses on the way in is what an export leaves
+out anyway, the deleted rows and the bookkeeping columns.
+
+Syncing still refuses to make a second personal space, because two personal spaces are
+two money lives and joining them is a merge and not a sync. What changed is when it says
+so, and what it says: with the file in hand, before a line of it is written, naming the
+other door and the same file.
+
 ### Sync is one button, in the browser, against a server of yours
 
 The engine landed in the previous block and is the same on both ends. What phase 6 adds

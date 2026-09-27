@@ -98,7 +98,16 @@ test.describe("a copy somewhere else", () => {
 		await second.close();
 	});
 
-	test("says what to do when the file holds another device's personal space", async ({
+	/**
+	 * The one thing syncing cannot do, and what happens next.
+	 *
+	 * Two personal spaces are two different money lives and joining them is not a sync,
+	 * it is a merge. This used to be said after the whole log had been written into a
+	 * space nobody belonged to, and it told the person to go back to a device they may
+	 * no longer have. Now it is said with the file in hand, and the way out is the same
+	 * file through the other door.
+	 */
+	test("sends another device's personal space through the door that merges it", async ({
 		browser,
 	}) => {
 		const folder = mkdtempSync(join(tmpdir(), "cofre"));
@@ -119,10 +128,19 @@ test.describe("a copy somewhere else", () => {
 
 		await pickDestination(two, "Um arquivo que você move");
 		await two.getByLabel("Arquivo do outro aparelho").setInputFiles(carried);
-		await two.getByRole("button", { name: "Trazer este espaço para cá" }).click();
 
-		// Not a refusal with no way out: it names the way out.
-		await expect(two.getByText(/use Restaurar aqui/)).toBeVisible();
+		// Before anything is written, and the button that would write it is off.
+		await expect(two.getByText(/Use Trazer de volta com este mesmo arquivo/)).toBeVisible();
+		await expect(two.getByRole("button", { name: "Trazer este espaço para cá" })).toBeDisabled();
+
+		// The same file, through the door it belongs to.
+		await two.getByLabel("Escolher arquivo").setInputFiles(carried);
+		await two.getByRole("dialog").getByRole("button", { name: "Trazer de volta" }).click();
+		await expect(two.getByText("Restaurado", { exact: true })).toBeVisible({ timeout: 20_000 });
+
+		// Still one personal space, now holding the money life of the other device.
+		await go(two, "Lançamentos");
+		await expect(record(two, "Café da esquina")).toBeVisible({ timeout: 20_000 });
 
 		await first.close();
 		await second.close();

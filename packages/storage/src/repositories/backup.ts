@@ -15,6 +15,8 @@ import { assertCan, readableSpaceIds } from "../actor.ts";
 import type { Row, SqlValue } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { marks } from "../sql.ts";
+import { rowsFromChanges } from "../sync.ts";
+import type { SyncBundle } from "../syncStore.ts";
 import { insertRow } from "../writer.ts";
 import type { RepositoryContext } from "./context.ts";
 
@@ -135,6 +137,62 @@ function plain(value: unknown): SqlValue {
 	if (typeof value === "string") return value;
 	// A json column arrives parsed from PostgreSQL and as text from SQLite.
 	return JSON.stringify(value);
+}
+
+/**
+ * The file kept for syncing, read as a backup.
+ *
+ * Two files leave this application and both hold a whole space: the backup, which is
+ * the rows, and the sync file, which is every change ever made to them. Somebody who
+ * has only the second one and no longer has the device it came from used to be told to
+ * go back to that device and export a backup, which is not advice, it is a wall. The
+ * log folds into the rows it describes, so the file that was written to meet another
+ * device also comes back through the door that brings a space home.
+ *
+ * What it gives up, it gives up on purpose. Deleted rows are dropped and the
+ * bookkeeping columns are left for the restore to write, so the result is the same
+ * shape an export produces and every rule about restoring holds unchanged.
+ */
+export function backupFromBundle(bundle: SyncBundle): Backup {
+	const folded = rowsFromChanges(bundle.changes ?? []);
+	const spaceRow = (folded.get("spaces") ?? []).find((row) => String(row.id) === bundle.spaceId);
+	if (!spaceRow) {
+		throw new RuleError(
+			"bundleHasNoSpace",
+			"this file carries changes but not the space they belong to, so there is nothing to bring back",
+		);
+	}
+
+	const tables: Record<string, Record<string, SqlValue>[]> = {};
+	for (const table of BACKUP_TABLES) {
+		const rows = (folded.get(table.name) ?? []).filter(
+			(row) => String(row.space_id) === bundle.spaceId,
+		);
+		tables[table.name] = rows.map((row) => {
+			const kept: Record<string, SqlValue> = { id: String(row.id) };
+			for (const name of columnsOf(table)) kept[name] = plain(row[name]);
+			return kept;
+		});
+	}
+
+	return {
+		format: BACKUP_FORMAT,
+		version: BACKUP_VERSION,
+		exportedAt: bundle.writtenAt ?? 0,
+		spaces: [
+			{
+				id: bundle.spaceId,
+				kind: String(spaceRow.kind),
+				name: String(spaceRow.name),
+				colour: String(spaceRow.colour),
+				icon: String(spaceRow.icon),
+				baseCurrency: String(spaceRow.base_currency),
+				timezone: String(spaceRow.timezone),
+				tables,
+			},
+		],
+		people: (bundle.people ?? []).map((person) => ({ id: person.id, name: person.name })),
+	};
 }
 
 function chunk<T>(items: readonly T[], size: number): T[][] {
@@ -391,6 +449,12 @@ export function createBackupRepository(context: RepositoryContext) {
 								already.length > 0
 								? uuidV7()
 								: space.id;
+
+				// Pouring a whole space into one that is already here is the decision that
+				// exporting one is, in the other direction, so it asks for the same role.
+				// A space that is created by this restore is not checked, because until a
+				// moment ago it did not exist and nobody had a role in it.
+				if (intoExisting) assertCan(actor, spaceId, "backup.restore");
 
 				const skipped = new Map<string, number>();
 				// Old identifier to new one, for the rows that had to be given another.

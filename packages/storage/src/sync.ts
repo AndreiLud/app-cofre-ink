@@ -132,6 +132,50 @@ function fold(history: readonly Change[]): Record<string, SqlValue> {
 	return values;
 }
 
+/**
+ * The rows a change log ends up describing, gathered by table.
+ *
+ * Folding a whole log gives back exactly the rows that are in the space, which is what
+ * lets a file written for syncing be read by something that expects rows: the restore.
+ * A row whose history ends in a deletion is left out, the way an export leaves it out,
+ * and each table comes back in the order it was written, so a row that points at another
+ * one of the same table is read after the row it points at.
+ */
+export function rowsFromChanges(
+	changes: readonly Change[],
+): Map<string, Record<string, SqlValue>[]> {
+	const histories = new Map<string, Change[]>();
+	for (const change of changes) {
+		const key = `${change.entity}\u0000${change.entityId}`;
+		const held = histories.get(key);
+		if (held) held.push(change);
+		else histories.set(key, [change]);
+	}
+
+	const byTable = new Map<string, Record<string, SqlValue>[]>();
+	for (const [key, history] of histories) {
+		const [entity = "", entityId = ""] = key.split("\u0000");
+		const row = fold(history);
+		if (row.deleted_at !== null && row.deleted_at !== undefined) continue;
+		// A history that lost its first entry to compaction still knows which row it is,
+		// because the log says so beside every entry.
+		row.id = entityId;
+
+		const rows = byTable.get(entity);
+		if (rows) rows.push(row);
+		else byTable.set(entity, [row]);
+	}
+
+	for (const rows of byTable.values()) {
+		rows.sort(
+			(one, other) =>
+				Number(one.created_at ?? 0) - Number(other.created_at ?? 0) ||
+				String(one.id).localeCompare(String(other.id)),
+		);
+	}
+	return byTable;
+}
+
 async function historyOf(driver: Driver, entity: string, entityId: string): Promise<Change[]> {
 	const rows = await driver.all(
 		`${SELECT_CHANGES} WHERE "entity" = ? AND "entity_id" = ? ORDER BY "hlc", "device_id"`,

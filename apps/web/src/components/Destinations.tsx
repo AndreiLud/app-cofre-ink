@@ -18,7 +18,13 @@ import {
 	packBundle,
 	unpackBundle,
 } from "@cofre/cloud";
-import { type StoredBundle, type SyncBundle, type SyncStore, syncWithStore } from "@cofre/storage";
+import {
+	backupFromBundle,
+	type StoredBundle,
+	type SyncBundle,
+	type SyncStore,
+	syncWithStore,
+} from "@cofre/storage";
 import { Button, Callout, Field, Select } from "@cofre/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -61,6 +67,34 @@ function saidWhy(error: unknown, t: (key: string, values?: Record<string, unknow
 	return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * Which space a picked file is about, without applying a line of it.
+ *
+ * The log folds into the rows it describes, and the row of the space is one of them, so
+ * the screen can say what the file holds before anything is written. It used to find out
+ * by writing everything down and then failing, which left a space nobody belonged to.
+ */
+function spaceInTheFile(bundle: SyncBundle): { kind: string; name: string } | null {
+	try {
+		const space = backupFromBundle(bundle).spaces[0];
+		return space ? { kind: space.kind, name: space.name } : null;
+	} catch {
+		// A file with changes and no space row. Syncing still works: the space is
+		// already here, or the entries wait for whichever file carries it.
+		return null;
+	}
+}
+
+/** A file that is a backup rather than a log, which is the other door on this screen. */
+function looksLikeABackup(bytes: Uint8Array): boolean {
+	try {
+		const parsed = JSON.parse(new TextDecoder().decode(bytes)) as { format?: unknown };
+		return parsed?.format === "cofre.backup";
+	} catch {
+		return false;
+	}
+}
+
 type Outcome = {
 	sent: number;
 	received: number;
@@ -78,7 +112,11 @@ export function Destinations() {
 
 	const spaceId = currentSpace?.id ?? "";
 	const [settings, setSettings] = useState<DestinationSettings>(storedDestination);
-	const [incoming, setIncoming] = useState<{ bundle: SyncBundle; name: string } | null>(null);
+	const [incoming, setIncoming] = useState<{
+		bundle: SyncBundle;
+		name: string;
+		kind: string;
+	} | null>(null);
 	const [outcome, setOutcome] = useState<Outcome | null>(null);
 	const [problem, setProblem] = useState<string | null>(null);
 	const [signedIn, setSignedIn] = useState(false);
@@ -126,6 +164,17 @@ export function Destinations() {
 	/** The space this exchange is about: the one that is open, or the one in the file. */
 	const target = incoming?.bundle.spaceId ?? spaceId;
 	const newToThisDevice = target !== "" && !spaces.some((space) => space.id === target);
+
+	/**
+	 * A file that would have to arrive as a second personal space, which is the one
+	 * thing syncing cannot do. It is said here, with the file in hand, instead of after
+	 * the whole log has been written into a space that would then belong to nobody.
+	 */
+	const wouldBeASecondPersonal =
+		incoming !== null &&
+		newToThisDevice &&
+		incoming.kind === "personal" &&
+		spaces.some((space) => space.kind === "personal");
 
 	const signIn = useMutation({
 		mutationFn: async () => {
@@ -263,10 +312,21 @@ export function Destinations() {
 									// Packed or not: a file written by an older version still reads.
 									const bundle = unpackBundle(bytes);
 									if (bundle === null) {
-										setProblem(t("destination.notABundle"));
+										// The other file this application writes. Saying which door
+										// it belongs to is the difference between a dead end and a
+										// sentence somebody can act on.
+										setProblem(
+											looksLikeABackup(bytes)
+												? t("destination.thatIsABackup")
+												: t("destination.notABundle"),
+										);
 										return;
 									}
-									setIncoming({ bundle, name: file.name });
+									setIncoming({
+										bundle,
+										name: file.name,
+										kind: spaceInTheFile(bundle)?.kind ?? "",
+									});
 									setProblem(null);
 								})
 								.catch(() => setProblem(t("destination.notABundle")));
@@ -281,6 +341,9 @@ export function Destinations() {
 								count: incoming.bundle.changes.length,
 							})}
 						</p>
+					) : null}
+					{wouldBeASecondPersonal ? (
+						<Callout tone="attention">{t("destination.personalFromAnotherDevice")}</Callout>
 					) : null}
 				</div>
 			) : null}
@@ -369,7 +432,7 @@ export function Destinations() {
 			<div className="space-y-2">
 				<Button
 					variant="primary"
-					disabled={!ready || target === "" || sync.isPending}
+					disabled={!ready || target === "" || sync.isPending || wouldBeASecondPersonal}
 					onClick={() => sync.mutate()}
 				>
 					{newToThisDevice

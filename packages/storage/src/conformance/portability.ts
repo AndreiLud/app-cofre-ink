@@ -7,11 +7,13 @@
 
 import { describe, expect, it } from "vitest";
 import type { Driver } from "../driver.ts";
-import { NotFoundError, RuleError } from "../errors.ts";
+import { NotFoundError, PermissionError, RuleError } from "../errors.ts";
 import { migrate } from "../migrate.ts";
 import type { User } from "../models.ts";
+import { backupFromBundle } from "../repositories/backup.ts";
 import { openSession, type Session } from "../session.ts";
-import { applyPeople } from "../sync.ts";
+import { applyPeople, changesSince, peopleInSpace, replicableOnly } from "../sync.ts";
+import { BUNDLE_FORMAT, BUNDLE_VERSION, type SyncBundle } from "../syncStore.ts";
 import { type AdapterUnderTest, prepare } from "./setup.ts";
 
 export function runPortabilityConformance(adapter: AdapterUnderTest): void {
@@ -514,6 +516,192 @@ export function runPortabilityConformance(adapter: AdapterUnderTest): void {
 			} finally {
 				await fixture.close();
 			}
+		});
+	});
+
+	/**
+	 * The other direction, and the one that had never been covered: a file coming back
+	 * into a space this database already holds. Every earlier case above restores into a
+	 * database that had never seen the space, which is the easy half.
+	 */
+	describe("bringing a backup into a space that is already here", () => {
+		it("adds what is missing and leaves alone what is not", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Casa" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta da casa",
+				});
+				await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 4290,
+					happenedOn: "2026-09-10",
+					description: "Mercado",
+					accountId: account.id,
+				});
+
+				const backup = await fixture.asAna.backup.exportSpace(space.id);
+
+				// Something written after the file was saved, which the file knows nothing
+				// about and must survive it.
+				await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 1000,
+					happenedOn: "2026-09-11",
+					description: "Cafe",
+					accountId: account.id,
+				});
+
+				const result = await fixture.asAna.backup.restore(backup);
+				expect(result.spaces[0]?.created).toBe(false);
+				expect(result.spaces[0]?.spaceId).toBe(space.id);
+				expect(result.spaces[0]?.written).toBe(0);
+
+				const after = await fixture.asAna.transactions.list({ spaceId: space.id });
+				expect(after.map((one) => one.description).sort()).toEqual(["Cafe", "Mercado"]);
+				expect(await fixture.asAna.accounts.list(space.id)).toHaveLength(1);
+				expect(
+					(await fixture.asAna.spaces.list()).filter((one) => one.id === space.id),
+				).toHaveLength(1);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("asks for the role that exporting asks for, when the space is already here", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Casa" });
+				await fixture.asAna.members.invite({
+					spaceId: space.id,
+					userId: fixture.joao.id,
+					role: "editor",
+				});
+				await fixture.asJoao.members.accept(space.id);
+				await fixture.asJoao.refresh();
+
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "cash",
+					name: "Dinheiro",
+				});
+				await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 1000,
+					happenedOn: "2026-09-10",
+					description: "Cafe",
+					accountId: account.id,
+				});
+
+				// Ana may export it, so Ana may pour it back.
+				const backup = await fixture.asAna.backup.exportSpace(space.id);
+				await expect(fixture.asAna.backup.restore(backup)).resolves.toBeTruthy();
+
+				// An editor writes one record at a time and does not pour a whole space in.
+				await expect(fixture.asJoao.backup.restore(backup)).rejects.toBeInstanceOf(PermissionError);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		/**
+		 * The file written to meet another device, read by the door that brings a space
+		 * home. Somebody whose only copy is that file used to be sent back to a device
+		 * they no longer have.
+		 */
+		it("reads the file kept for syncing, and merges a personal space like a backup", async () => {
+			const fixture = await prepare(adapter);
+			const other = await elsewhere([fixture.ana], fixture.ana, "bundleAsBackup");
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta corrente",
+					initialBalance: 100_000,
+				});
+				const category = await fixture.asAna.categories.create({
+					spaceId: space.id,
+					name: "Mercado",
+					kind: "expense",
+				});
+				const [kept] = await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 4290,
+					happenedOn: "2026-09-10",
+					description: "Mercado do bairro",
+					accountId: account.id,
+					categoryId: category.id,
+				});
+				const [gone] = await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 999,
+					happenedOn: "2026-09-11",
+					description: "Apagado",
+					accountId: account.id,
+				});
+				await fixture.asAna.transactions.remove(gone?.id ?? "");
+				// An edit after the fact, so the fold has more than one entry to resolve.
+				await fixture.asAna.transactions.update(kept?.id ?? "", { description: "Mercado da rua" });
+
+				const bundle: SyncBundle = {
+					format: BUNDLE_FORMAT,
+					version: BUNDLE_VERSION,
+					spaceId: space.id,
+					changes: replicableOnly(await changesSince(fixture.driver, space.id, null, 20_000)),
+					people: await peopleInSpace(fixture.driver, space.id),
+					writtenAt: 1_760_000_000_000,
+				};
+
+				const asBackup = backupFromBundle(bundle);
+				expect(asBackup.format).toBe("cofre.backup");
+				expect(asBackup.spaces[0]?.name).toBe("Pessoal");
+				expect(asBackup.spaces[0]?.kind).toBe("personal");
+				// The deleted one is left out, the way an export leaves it out, and the
+				// edit won.
+				expect(asBackup.spaces[0]?.tables.transactions).toHaveLength(1);
+				expect(asBackup.spaces[0]?.tables.transactions?.[0]?.description).toBe("Mercado da rua");
+
+				// The device is gone and this is a new one, which already made a personal
+				// space of its own the moment somebody opened it.
+				const fresh = await other.session.spaces.create({ name: "Pessoal", kind: "personal" });
+				const result = await other.session.backup.restore(asBackup);
+
+				expect(result.spaces[0]?.created).toBe(false);
+				expect(result.spaces[0]?.spaceId).toBe(fresh.id);
+				expect((await other.session.spaces.list()).length).toBe(1);
+
+				const records = await other.session.transactions.list({ spaceId: fresh.id });
+				expect(records.map((one) => one.description)).toEqual(["Mercado da rua"]);
+				expect(records[0]?.amount).toBe(-4290);
+				expect(records[0]?.categoryId).toBe(category.id);
+				expect(
+					(await other.session.accounts.list(fresh.id)).map((one) => one.initialBalance),
+				).toEqual([100_000]);
+			} finally {
+				await other.close();
+				await fixture.close();
+			}
+		});
+
+		it("refuses a sync file that never carried the space itself", async () => {
+			expect(() =>
+				backupFromBundle({
+					format: BUNDLE_FORMAT,
+					version: BUNDLE_VERSION,
+					spaceId: "01a00000-0000-7000-8000-000000000000",
+					changes: [],
+					people: [],
+					writtenAt: 0,
+				}),
+			).toThrow(RuleError);
 		});
 	});
 }

@@ -17,6 +17,7 @@ import { describe, expect, it } from "vitest";
 import { ALL_PERMISSIONS, PERMISSIONS, type Permission, type Role } from "../actor.ts";
 import { NotFoundError, PermissionError, RuleError } from "../errors.ts";
 import { migrate } from "../migrate.ts";
+import { BACKUP_FORMAT, BACKUP_VERSION } from "../repositories/backup.ts";
 import { createUser, listProfiles, renameProfile } from "../repositories/users.ts";
 import type { Session } from "../session.ts";
 import { runAdviceConformance } from "./advice.ts";
@@ -199,6 +200,30 @@ const PROBES: Probe[] = [
 	{
 		permission: "backup.export",
 		run: (session, where) => session.backup.exportSpace(where.spaceId),
+	},
+	{
+		// A file naming a space that is already here, with nothing in it: enough to be
+		// refused for the right reason, and harmless when it goes through.
+		permission: "backup.restore",
+		run: (session, where) =>
+			session.backup.restore({
+				format: BACKUP_FORMAT,
+				version: BACKUP_VERSION,
+				exportedAt: 0,
+				spaces: [
+					{
+						id: where.spaceId,
+						kind: "shared",
+						name: "Casa",
+						colour: "slate",
+						icon: "wallet",
+						baseCurrency: "BRL",
+						timezone: "America/Sao_Paulo",
+						tables: {},
+					},
+				],
+				people: [],
+			}),
 	},
 	{
 		permission: "investment.read",
@@ -785,6 +810,13 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 					};
 
 					for (const probe of PROBES) {
+						// Restoring is the one that answers, and it answers without saying
+						// anything: a file naming a space this person is not in never reaches
+						// that space, it becomes a copy of its own with new identifiers. There
+						// is nothing for it to reveal, and refusing would take away the case
+						// registry 0015 exists for, a backup restored beside its original.
+						if (probe.permission === "backup.restore") continue;
+
 						await expect(
 							probe.run(fixture.asJoao, where),
 							`${probe.permission} said too much`,
