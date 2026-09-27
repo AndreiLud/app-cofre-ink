@@ -6,9 +6,11 @@
 //
 // So it is ordered by how often it is done rather than by what the code calls it. Where
 // the data is and when it was last copied, first, because that is the question the
-// screen is really being asked. Then the three things somebody actually does: save a
-// copy, bring one back, read a statement in. Everything else is behind one line of text
-// that says what is inside, and the zone that erases is last and looks it.
+// screen is really being asked. Then everything about copies in one place, because
+// backing up was spread over three sections and two of them wrote a JSON file: one for
+// the space that happened to be open, one for all of them, hidden under a line about
+// taking the data to another program. Reading a statement in is not a backup and sits
+// on its own.
 //
 // Nothing here happens without being asked, and the two that write into the space say
 // what they are about to do before they do it.
@@ -18,7 +20,7 @@ import { writeAmount, writeCsv } from "@cofre/importers";
 import type { Backup, RecordForExport, RestoreResult } from "@cofre/storage";
 import { backupFromBundle } from "@cofre/storage";
 import { Button, Callout, Dialog, Disclosure, Field, Icon, Panel, SectionTitle } from "@cofre/ui";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -55,6 +57,32 @@ function backupAt(spaceId: string): number | null {
 	}
 }
 
+/**
+ * When the last copy was, over several spaces.
+ *
+ * A backup now takes whichever spaces were ticked, so there is no single date any more
+ * and the panel has to choose which one it shows. It shows the oldest, and says never
+ * when any of them has never been saved, because the question behind that line is
+ * whether the data is safe and the answer to that is the weakest of the spaces, not the
+ * luckiest.
+ */
+function oldestBackup(spaceIds: readonly string[]): number | null {
+	if (spaceIds.length === 0) return null;
+	let oldest: number | null = null;
+	for (const spaceId of spaceIds) {
+		const at = backupAt(spaceId);
+		if (at === null) return null;
+		if (oldest === null || at < oldest) oldest = at;
+	}
+	return oldest;
+}
+
+/** A refusal about a role, whichever side of the wire it came from. */
+function refused(error: unknown): boolean {
+	const named = error as { name?: string; status?: number } | null;
+	return named?.name === "PermissionError" || named?.status === 403;
+}
+
 /** One thing this screen can do: a sentence, and the button that does it. */
 function Action({
 	title,
@@ -76,6 +104,37 @@ function Action({
 	);
 }
 
+/** One space with a box in front of it, for the two lists on this screen. */
+function SpaceToTick({
+	name,
+	checked,
+	disabled,
+	why,
+	onChange,
+}: {
+	name: string;
+	checked: boolean;
+	disabled?: boolean;
+	why?: string;
+	onChange: (checked: boolean) => void;
+}) {
+	return (
+		<label className="flex items-start gap-3 text-sm">
+			<input
+				type="checkbox"
+				checked={checked}
+				disabled={disabled}
+				onChange={(event) => onChange(event.target.checked)}
+				className="mt-1 size-4 accent-[var(--ink)]"
+			/>
+			<span className="min-w-0">
+				<span className="font-medium text-ink">{name}</span>
+				{why ? <span className="block text-quiet">{why}</span> : null}
+			</span>
+		</label>
+	);
+}
+
 function RestoreSummary({ result }: { result: RestoreResult }) {
 	const { t } = useTranslation();
 	return (
@@ -94,12 +153,6 @@ function RestoreSummary({ result }: { result: RestoreResult }) {
 			</ul>
 		</Callout>
 	);
-}
-
-/** A refusal about a role, whichever side of the wire it came from. */
-function refused(error: unknown): boolean {
-	const named = error as { name?: string; status?: number } | null;
-	return named?.name === "PermissionError" || named?.status === 403;
 }
 
 const SHEET_KEY = "cofreSheet";
@@ -129,10 +182,21 @@ export function DataPage() {
 	const [openSync, setOpenSync] = useState(false);
 	const [problem, setProblem] = useState<string | null>(null);
 	const [restored, setRestored] = useState<RestoreResult | null>(null);
-	const [waiting, setWaiting] = useState<File | null>(null);
+	const [waiting, setWaiting] = useState<{ name: string; backup: Backup } | null>(null);
+	/** Unticked spaces, for the backup and for the file waiting to be brought back. */
+	const [leftOut, setLeftOut] = useState<Record<string, boolean>>({});
+	const [leftBehind, setLeftBehind] = useState<Record<string, boolean>>({});
 	const [sheet, setSheet] = useState(storedSheet);
 	const [mirrored, setMirrored] = useState<string | null>(null);
-	const [savedAt, setSavedAt] = useState<number | null>(() => backupAt(spaceId));
+
+	/** Which spaces this person may copy, which is a permission and not a guess. */
+	const copyable = useQuery({
+		queryKey: ["copyableSpaces"],
+		enabled: Boolean(session),
+		queryFn: () => session?.backup.copyable() ?? [],
+	});
+	const mayCopy = new Set(copyable.data ?? []);
+	const chosen = spaces.filter((space) => mayCopy.has(space.id) && !leftOut[space.id]);
 
 	function failed(error: unknown) {
 		if (error instanceof FileTooLargeError) {
@@ -199,28 +263,17 @@ export function DataPage() {
 		};
 	}
 
-	const exportSpace = useMutation({
+	const saveBackup = useMutation({
 		mutationFn: async () => {
 			if (!session) throw new Error("no session");
-			return session.backup.exportSpace(spaceId);
+			return session.backup.exportSpaces(chosen.map((space) => space.id));
 		},
 		onSuccess: (backup: Backup) => {
 			setProblem(null);
-			downloadJson(fileNameFor("cofre_espaco", "json"), backup);
-			rememberBackup(spaceId);
-			setSavedAt(Date.now());
-		},
-		onError: failed,
-	});
-
-	const exportAll = useMutation({
-		mutationFn: async () => {
-			if (!session) throw new Error("no session");
-			return session.backup.exportEverything();
-		},
-		onSuccess: (backup: Backup) => {
-			setProblem(null);
-			downloadJson(fileNameFor("cofre_completo", "json"), backup);
+			downloadJson(fileNameFor("cofre_backup", "json"), backup);
+			// Every space that went into the file was copied, so every one of them has a
+			// date now. The panel above reads them back on this same render.
+			for (const space of chosen) rememberBackup(space.id);
 		},
 		onError: failed,
 	});
@@ -260,9 +313,12 @@ export function DataPage() {
 		onError: failed,
 	});
 
-	const restore = useMutation({
-		mutationFn: async (file: File) => {
-			if (!session) throw new Error("no session");
+	/**
+	 * Reading the file happens when it is picked, not when it is confirmed, because the
+	 * dialog has to say which spaces are inside before anybody agrees to anything.
+	 */
+	async function readTheFile(file: File): Promise<void> {
+		try {
 			const bytes = await readPickedFile(file);
 			// Two files leave this application and both hold a whole space: the backup,
 			// which is the rows, and the file kept for syncing, which is every change ever
@@ -272,7 +328,22 @@ export function DataPage() {
 			const backup = bundle
 				? backupFromBundle(bundle)
 				: (JSON.parse(new TextDecoder().decode(bytes)) as Backup);
-			return session.backup.restore(backup);
+
+			setProblem(null);
+			setLeftBehind({});
+			setWaiting({ name: file.name, backup });
+		} catch (error) {
+			failed(error);
+		}
+	}
+
+	const insideTheFile = waiting?.backup.spaces ?? [];
+	const bringing = insideTheFile.filter((space) => !leftBehind[space.id]);
+
+	const restore = useMutation({
+		mutationFn: async () => {
+			if (!session || !waiting) throw new Error("no session");
+			return session.backup.restore(waiting.backup, { only: bringing.map((space) => space.id) });
 		},
 		onSuccess: async (result) => {
 			setProblem(null);
@@ -300,6 +371,8 @@ export function DataPage() {
 	// What this device is set up to keep a copy in, and when it last managed to.
 	const destination = storedDestination();
 	const met = spaceId === "" ? null : lastMet(spaceId, destination.kind);
+	const mine = spaces.filter((space) => mayCopy.has(space.id));
+	const savedAt = oldestBackup(mine.map((space) => space.id));
 
 	return (
 		<div className="space-y-5">
@@ -319,7 +392,12 @@ export function DataPage() {
 						</dd>
 					</div>
 					<div className="flex flex-wrap justify-between gap-2 py-2">
-						<dt className="text-quiet">{t("data.lastBackup")}</dt>
+						<dt className="text-quiet">
+							{t("data.lastBackup")}
+							{mine.length > 1 ? (
+								<span className="block text-xs">{t("data.lastBackupOldest")}</span>
+							) : null}
+						</dt>
 						<dd className={savedAt === null ? "text-seal" : "text-ink"}>
 							{savedAt === null ? t("data.neverBackedUp") : when(savedAt)}
 						</dd>
@@ -362,22 +440,46 @@ export function DataPage() {
 				)}
 			</Panel>
 
-			<Panel title={t("data.everydayTitle")} description={t("data.everydayBody")}>
+			{/* Everything about a copy, in one place: the file you keep, the file coming
+			    back, and the places that hold a space between two devices. */}
+			<Panel title={t("data.backupTitle")} description={t("data.backupBody")}>
 				<div className="divide-y divide-line">
-					<Action
-						title={t("data.saveCopy")}
-						action={
+					<div className="space-y-3 pb-4">
+						<span className="block text-sm font-medium text-ink">{t("data.saveCopy")}</span>
+						<span className="block max-w-[62ch] text-sm leading-relaxed text-quiet">
+							{t("data.saveCopyBody")}
+						</span>
+
+						{/* With one space there is nothing to choose, so nothing is asked. */}
+						{spaces.length > 1 ? (
+							<fieldset className="space-y-2">
+								<legend className="pb-1 text-sm text-quiet">{t("data.backupWhich")}</legend>
+								{spaces.map((space) => (
+									<SpaceToTick
+										key={space.id}
+										name={space.name}
+										checked={mayCopy.has(space.id) && !leftOut[space.id]}
+										disabled={!mayCopy.has(space.id)}
+										why={mayCopy.has(space.id) ? undefined : t("data.backupCannot")}
+										onChange={(checked) => setLeftOut({ ...leftOut, [space.id]: !checked })}
+									/>
+								))}
+							</fieldset>
+						) : null}
+
+						<div className="flex flex-wrap items-center gap-3">
 							<Button
 								variant="primary"
-								disabled={spaceId === "" || exportSpace.isPending}
-								onClick={() => exportSpace.mutate()}
+								disabled={chosen.length === 0 || saveBackup.isPending}
+								onClick={() => saveBackup.mutate()}
 							>
 								{t("data.saveCopyAction")}
 							</Button>
-						}
-					>
-						{t("data.saveCopyBody", { name: currentSpace.name })}
-					</Action>
+							{chosen.length === 0 ? (
+								<span className="text-sm text-seal">{t("data.backupPickOne")}</span>
+							) : null}
+						</div>
+					</div>
 
 					<Action
 						title={t("data.bringBack")}
@@ -391,9 +493,8 @@ export function DataPage() {
 									onChange={(event) => {
 										const file = event.target.files?.[0];
 										event.target.value = "";
-										// Chosen, not yet read: it writes into the space, so it
-										// says what it is about to do first.
-										if (file) setWaiting(file);
+										// Read, not written: the dialog says what is inside first.
+										if (file) void readTheFile(file);
 									}}
 								/>
 							</label>
@@ -401,52 +502,32 @@ export function DataPage() {
 					>
 						{t("data.bringBackBody")}
 					</Action>
+				</div>
 
-					<Action
-						title={t("data.importTitle")}
-						action={
-							<Button variant="secondary" onClick={() => void navigate({ to: ROUTES.import })}>
-								{t("data.importAction")}
-							</Button>
-						}
+				{/* Open already when it is set up, because then it is not a rarity any
+				    more: it is the button somebody came here to press. */}
+				<div id="copia">
+					<Disclosure
+						key={openSync ? "copiaAberta" : "copia"}
+						summary={t("data.syncTitle")}
+						hint={t("data.syncBody")}
+						open={openSync || destination.kind !== "file" || met !== null}
+						className="-mx-4 rounded-none border-x-0 border-b-0 bg-transparent sm:-mx-5"
 					>
-						{t("data.importBody")}
-					</Action>
+						<Destinations />
+					</Disclosure>
 				</div>
 			</Panel>
 
-			{/* Open already when it is set up, because then it is not a rarity any more:
-			    it is the button somebody came here to press. */}
-			<div id="copia">
-				<Disclosure
-					key={openSync ? "copiaAberta" : "copia"}
-					summary={t("data.syncTitle")}
-					hint={t("data.syncBody")}
-					open={openSync || destination.kind !== "file" || met !== null}
-				>
-					<Destinations />
-				</Disclosure>
-			</div>
+			{/* Not a backup: it reads a file from the bank and writes records. */}
+			<Panel title={t("data.importTitle")} description={t("data.importBody")}>
+				<Button variant="secondary" onClick={() => void navigate({ to: ROUTES.import })}>
+					{t("data.importAction")}
+				</Button>
+			</Panel>
 
 			<Disclosure summary={t("data.moreTitle")} hint={t("data.moreBody")}>
 				<div className="divide-y divide-line">
-					{spaces.length > 1 ? (
-						<Action
-							title={t("data.exportEverything")}
-							action={
-								<Button
-									variant="secondary"
-									disabled={exportAll.isPending}
-									onClick={() => exportAll.mutate()}
-								>
-									{t("data.saveCopyAction")}
-								</Button>
-							}
-						>
-							{t("data.exportEverythingBody")}
-						</Action>
-					) : null}
-
 					<Action
 						title={t("data.exportRecords")}
 						action={
@@ -518,20 +599,39 @@ export function DataPage() {
 						</Button>
 						<Button
 							variant="primary"
-							disabled={restore.isPending}
-							onClick={() => waiting && restore.mutate(waiting)}
+							disabled={restore.isPending || bringing.length === 0}
+							onClick={() => restore.mutate()}
 						>
 							{restore.isPending ? t("data.bringingBack") : t("data.bringBackNow")}
 						</Button>
 					</>
 				}
 			>
-				<Callout tone="neutral">
-					<span className="flex items-start gap-2">
-						<Icon name="check" className="mt-0.5 shrink-0 text-cedar" />
-						{t("data.bringBackAdds")}
-					</span>
-				</Callout>
+				<div className="space-y-3">
+					{insideTheFile.length > 1 ? (
+						<fieldset className="space-y-2">
+							<legend className="pb-1 text-sm text-quiet">{t("data.bringBackWhich")}</legend>
+							{insideTheFile.map((space) => (
+								<SpaceToTick
+									key={space.id}
+									name={space.name}
+									checked={!leftBehind[space.id]}
+									onChange={(checked) => setLeftBehind({ ...leftBehind, [space.id]: !checked })}
+								/>
+							))}
+							{bringing.length === 0 ? (
+								<p className="text-sm text-seal">{t("data.bringBackPickOne")}</p>
+							) : null}
+						</fieldset>
+					) : null}
+
+					<Callout tone="neutral">
+						<span className="flex items-start gap-2">
+							<Icon name="check" className="mt-0.5 shrink-0 text-cedar" />
+							{t("data.bringBackAdds")}
+						</span>
+					</Callout>
+				</div>
 			</Dialog>
 		</div>
 	);

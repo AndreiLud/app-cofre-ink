@@ -133,9 +133,10 @@ The series names come from a fixed list, so there is nothing a caller can point 
 | --- | --- | --- |
 | `GET` | `/api/spaces/:id/imports/existing` | what the space already has around the days a file covers, to spot a repeat |
 | `POST` | `/api/spaces/:id/imports` | write reviewed records, up to 3000 at a time |
-| `GET` | `/api/spaces/:id/backup` and `/api/backup` | a space, or everything |
+| `GET` | `/api/backup/spaces` | which spaces this person may take a copy of |
+| `GET` | `/api/spaces/:id/backup` and `/api/backup` | a space, or everything. `?spaces=a,b` for the ones that were ticked |
 | `GET` | `/api/spaces/:id/records` | the records alone, for a spreadsheet |
-| `POST` | `/api/backup/restore` | restore. Whoever is signed in becomes the owner of what they restore |
+| `POST` | `/api/backup/restore` | restore. The body is the file, and an optional `only` names the spaces of it to bring back. Whoever is signed in becomes the owner of what they restore |
 | `GET` | `/api/spaces/:id/changes` | the change log after a stamp |
 | `POST` | `/api/spaces/:id/sync` | one round trip: push what this device wrote, pull what it has not seen |
 

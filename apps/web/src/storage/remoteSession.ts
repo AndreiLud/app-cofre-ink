@@ -51,6 +51,7 @@ import type {
 	RecordForExport,
 	Recurrence,
 	ReportRange,
+	RestoreOptions,
 	RestoreResult,
 	SavedFilter,
 	SavingsProgress,
@@ -639,6 +640,9 @@ export function createRemoteSession(
 
 		backup: {
 			exportSpace: (spaceId: string) => get<Backup>(`/api/spaces/${spaceId}/backup`),
+			copyable: () => get<string[]>("/api/backup/spaces"),
+			exportSpaces: (spaceIds: string[]) =>
+				get<Backup>(`/api/backup?spaces=${encodeURIComponent(spaceIds.join(","))}`),
 			exportEverything: () => get<Backup>("/api/backup"),
 			recordsForExport: (spaceId: string, range: { from?: string; to?: string } = {}) => {
 				const query = new URLSearchParams();
@@ -650,7 +654,10 @@ export function createRemoteSession(
 					`/api/spaces/${spaceId}/records${search === "" ? "" : `?${search}`}`,
 				);
 			},
-			restore: (backup: Backup) => send<RestoreResult>("/api/backup/restore", "POST", backup),
+			// The chosen spaces ride beside the file rather than wrapping it, so the body
+			// of this route is what it has always been and one field more.
+			restore: (backup: Backup, options?: RestoreOptions) =>
+				send<RestoreResult>("/api/backup/restore", "POST", { ...backup, only: options?.only }),
 		},
 
 		changes: {

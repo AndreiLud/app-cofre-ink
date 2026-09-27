@@ -5,6 +5,41 @@ Every release, what changed in it, and what to do about it if you are running th
 Versions follow semantic versioning. While the first number is zero, the second one
 changes when something breaks and the third when nothing does.
 
+## Not released yet
+
+### Fixed
+
+**A backup that could not be brought back.** Two files leave this application and both
+hold a whole space: the backup, which is the rows, and the file kept for syncing, which
+is the change log two devices exchange. Only the first one could be restored, the second
+one was offered a few lines below it under words that sounded the same, and somebody
+whose device was gone was told to go back to it and export a backup there.
+
+Bringing a file back now reads both. A log folds into the rows it describes, so the sync
+file comes home through the same door, with every rule of a restore unchanged. The
+refusal that remains, a personal space of another device meeting the personal space that
+is here, is said with the file in hand instead of after the whole log has been written,
+and it names the door that does work.
+
+**A whole space could be poured into one that somebody else runs.** Restoring into a
+space that already exists asked for no permission at all, so a member who could only
+read a shared space could put a file into it. It now asks for the role that exporting a
+space asks for, which is the same decision in the other direction.
+
+### Changed
+
+**Backup and copies are one section of the data screen.** Saving a copy took the space
+that happened to be open, and the file with every space was hidden under a line about
+taking the data to another program. There is one button now. It writes one file, named
+`cofre_backup_YYYYMMDD.json`, with whichever spaces were ticked, all of them ticked to
+start with, and a space somebody may not copy is shown unticked with the reason. Files
+written by earlier versions are still read.
+
+Bringing a file back lists the spaces inside it, all ticked, and brings back the ticked
+ones. Reading a statement in is a panel of its own, because it is not a backup. The last
+copy saved now reads the oldest among the spaces, because the question behind that line
+is whether the data is safe.
+
 ## 0.1.1
 
 Released on 26 September 2026. Four things that were wrong on the path the guide

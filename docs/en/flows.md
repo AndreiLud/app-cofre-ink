@@ -96,16 +96,32 @@ other, carrying the same change log.
 
 ## Taking everything away
 
-**Export.** The whole thing as JSON, or as a spreadsheet, per space or all of it.
+Everything about a copy is in one section of the data screen, called Backups and
+copies, because two buttons that both wrote a JSON file, in two different sections, is
+how somebody ends up holding the wrong one.
 
-**Backup and restore.** The JSON restores anywhere, into a fresh installation or
-alongside what is already there. Whoever restores becomes the owner of what they
-restored and of nothing else.
+**Backup.** One file, whichever spaces were ticked, named `cofre_backup_YYYYMMDD.json`.
+All of them start ticked. A shared space where the person is neither Owner nor
+Administrator is shown unticked and says why, because taking a copy of a whole space is
+a decision of the people who run it. With one space there is nothing to choose and the
+list is not shown.
+
+**Bringing it back.** The same door takes a backup file and the file kept for syncing
+alike: the second one is a change log, and folding it gives back the rows the first one
+would have listed. A file holding several spaces is listed in the confirmation, all
+ticked, and only the ticked ones are brought back. It adds what is missing and changes
+nothing that is already there, whoever brings a space back that nobody here has becomes
+its owner, and a personal space merges into the personal space there already is.
+
+**Taking it to another program.** A spreadsheet or a CSV of the records, behind a line
+of text, because it is a once a year thing and it is not a backup: it carries no
+identifiers and nothing reads it back.
 
 **A copy that lives somewhere.** A file, a WebDAV folder, an online database, or a
 Google spreadsheet as a mirror. All of them are reached from the browser, with
 credentials that stay in that browser. The server never holds them and never calls
-them.
+them. This is one space at a time and it is how two devices agree, not how a copy is
+kept: the file you keep is the backup.
 
 **Erasing.** Two separate doors, because they do different things. Erasing a space
 empties it and removes it if it is shared. Erasing everything removes every space this

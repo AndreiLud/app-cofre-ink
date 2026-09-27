@@ -1050,6 +1050,41 @@ describe("the api", () => {
 			expect(mine.map((found) => found.name)).toEqual(["Casa"]);
 		});
 
+		it("writes a file of the spaces that were asked for, and brings back some of them", async () => {
+			const ana = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			const joao = createClient(app);
+			await joao.signUp({ name: "Joao", email: "joao@exemplo.com" });
+
+			const { space } = await spaceWithAccount(ana);
+			const other = await ana.json<{ id: string }>("/api/spaces", {
+				method: "POST",
+				body: JSON.stringify({ name: "Viagem" }),
+			});
+
+			// Which spaces may be copied, which is the list the screen offers to tick.
+			const copyable = await ana.json<string[]>("/api/backup/spaces");
+			expect(copyable.sort()).toEqual([space.id, other.id].sort());
+
+			const chosen = await ana.json<{ spaces: Array<{ id: string; name: string }> }>(
+				`/api/backup?spaces=${other.id}`,
+			);
+			expect(chosen.spaces.map((one) => one.name)).toEqual(["Viagem"]);
+
+			const both = await ana.json<{ spaces: Array<{ id: string; name: string }> }>("/api/backup");
+			expect(both.spaces).toHaveLength(2);
+
+			// The file holds two and only one of them was ticked.
+			const restored = await joao.json<{ spaces: Array<{ name: string }> }>("/api/backup/restore", {
+				method: "POST",
+				body: JSON.stringify({ ...both, only: [other.id] }),
+			});
+			expect(restored.spaces.map((one) => one.name)).toEqual(["Viagem"]);
+			expect(
+				(await joao.json<Array<{ name: string }>>("/api/spaces")).map((one) => one.name),
+			).toEqual(["Viagem"]);
+		});
+
 		it("refuses a file that is not a backup", async () => {
 			const ana = createClient(app);
 			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });

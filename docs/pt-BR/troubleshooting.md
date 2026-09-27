@@ -93,13 +93,13 @@ abrir um banco vazio, que pareceria exatamente com perder tudo.
 
 O navegador não concedeu armazenamento persistente, o que significa que ele pode limpar
 o banco sob pressão. Guardar a página na tela inicial costuma render a concessão.
-Exporte um backup de qualquer forma.
+Guarde uma cópia de qualquer forma, em Dados, Backup e cópias.
 
 ### Sumiu tudo depois de limpar os dados de navegação
 
 No modo navegador o banco é o armazenamento do site. Limpar os dados do site apaga ele,
 e não existe cópia em lugar nenhum, porque nada nunca foi enviado a lugar nenhum. É a
-troca que este modo faz. Exporte em Dados, Exportar tudo, antes de mexer nisso.
+troca que este modo faz. Guarde uma cópia em Dados, Backup e cópias, antes de mexer nisso.
 
 ### Um endereço de dentro do aplicativo responde 404
 
@@ -113,7 +113,7 @@ Netlify em [Publicar](deploy.md).
 O service worker serve o que guardou. Todo build tem um nome de cache novo e o antigo é
 apagado quando o worker novo assume, então isso se resolve na segunda carga. Para
 forçar: abra a página, limpe os dados do site, carregue de novo. Note que no modo
-navegador isso também apaga o banco, então exporte antes.
+navegador isso também apaga o banco, então guarde uma cópia antes.
 
 ## Importar um extrato
 

@@ -52,7 +52,7 @@ test.describe("state from before", () => {
 		await expect(page.getByRole("heading", { level: 1, name: "Dados" })).toBeVisible();
 
 		// It fell back to the one that always works, and they choose again from there.
-		await page.getByText("Manter uma cópia em outro lugar").click();
+		await page.getByText("Manter um espaço em dia em outro lugar", { exact: true }).click();
 		await expect(page.getByLabel("Onde guardar a cópia")).toHaveValue("file");
 	});
 });

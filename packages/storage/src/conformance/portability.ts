@@ -505,6 +505,74 @@ export function runPortabilityConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		/**
+		 * One file whether it holds one space or nine. Two shapes of file meant two
+		 * buttons with two names, and somebody deciding which of the two was the backup.
+		 */
+		it("hands over the spaces that were chosen, and says which ones may be", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const mine = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				const house = await fixture.asAna.spaces.create({ name: "Casa" });
+				const theirs = await fixture.asJoao.spaces.create({ name: "Casa do Joao" });
+				await fixture.asJoao.members.invite({
+					spaceId: theirs.id,
+					userId: fixture.ana.id,
+					role: "viewer",
+				});
+				await fixture.asAna.members.accept(theirs.id);
+				await fixture.asAna.refresh();
+
+				// Three spaces in reach, and one of them is somebody else's to copy.
+				expect((await fixture.asAna.spaces.list()).length).toBe(3);
+				expect((await fixture.asAna.backup.copyable()).sort()).toEqual([mine.id, house.id].sort());
+
+				const one = await fixture.asAna.backup.exportSpaces([house.id]);
+				expect(one.spaces.map((space) => space.name)).toEqual(["Casa"]);
+
+				const both = await fixture.asAna.backup.exportSpaces([mine.id, house.id]);
+				expect(both.spaces.map((space) => space.name)).toEqual(["Pessoal", "Casa"]);
+
+				// Asking for one that is only readable is refused rather than quietly
+				// dropped, because a file that silently holds less than it was asked for
+				// is a backup somebody trusts and should not.
+				await expect(fixture.asAna.backup.exportSpaces([theirs.id])).rejects.toBeInstanceOf(
+					PermissionError,
+				);
+
+				// And everything is still the same list, taken without being asked twice.
+				expect(
+					(await fixture.asAna.backup.exportEverything()).spaces.map((one) => one.name),
+				).toEqual(["Pessoal", "Casa"]);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("brings back only the spaces that were ticked", async () => {
+			const fixture = await prepare(adapter);
+			const other = await elsewhere([fixture.ana], fixture.ana, "restoreSome");
+			try {
+				const mine = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				const house = await fixture.asAna.spaces.create({ name: "Casa" });
+				for (const spaceId of [mine.id, house.id]) {
+					await fixture.asAna.accounts.create({ spaceId, kind: "cash", name: "Dinheiro" });
+				}
+
+				const backup = await fixture.asAna.backup.exportEverything();
+				expect(backup.spaces).toHaveLength(2);
+
+				const result = await other.session.backup.restore(backup, { only: [house.id] });
+				expect(result.spaces.map((space) => space.name)).toEqual(["Casa"]);
+
+				await other.session.refresh();
+				expect((await other.session.spaces.list()).map((space) => space.name)).toEqual(["Casa"]);
+			} finally {
+				await other.close();
+				await fixture.close();
+			}
+		});
+
 		it("keeps a space away from somebody who is not in it", async () => {
 			const fixture = await prepare(adapter);
 			try {

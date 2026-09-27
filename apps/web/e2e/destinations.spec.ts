@@ -20,7 +20,7 @@ async function openSync(page: import("@playwright/test").Page) {
 	await go(page, "Dados");
 	const where = page.getByLabel("Onde guardar a cópia");
 	if (!(await where.isVisible())) {
-		await page.getByText("Manter uma cópia em outro lugar").click();
+		await page.getByText("Manter um espaço em dia em outro lugar", { exact: true }).click();
 	}
 	await expect(where).toBeVisible();
 }

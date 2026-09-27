@@ -6,7 +6,7 @@
 
 import { type Browser, expect, type Page, test } from "@playwright/test";
 import { API_ADDRESS } from "../playwright.config.ts";
-import { openSetting } from "./support.ts";
+import { go, openSetting } from "./support.ts";
 
 const PASSWORD = "uma senha bem comprida";
 
@@ -57,6 +57,31 @@ test.describe("server mode", () => {
 		await expect(page.getByRole("listitem").filter({ hasText: "Pessoal" })).toContainText(
 			"Pessoal e privado",
 		);
+	});
+
+	/**
+	 * The same screen, with the data on a server instead of in the browser. The list of
+	 * spaces to tick is a permission, so it comes from there too, and the file is built
+	 * there and sent down.
+	 */
+	test("writes a backup of the ticked spaces, from the server", async ({ browser }) => {
+		const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
+
+		await openSetting(ana, "Gerenciar espaços");
+		await ana.getByRole("button", { name: "Novo espaço" }).click();
+		await ana.getByLabel("Nome do espaço").fill("Casa");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(ana.getByRole("banner")).toContainText("Casa");
+
+		await go(ana, "Dados");
+		await expect(ana.getByText("No seu servidor")).toBeVisible();
+		await expect(ana.getByRole("checkbox", { name: "Pessoal" })).toBeChecked();
+		await expect(ana.getByRole("checkbox", { name: "Casa" })).toBeChecked();
+
+		const download = ana.waitForEvent("download");
+		await ana.getByRole("button", { name: "Guardar", exact: true }).first().click();
+		const file = await download;
+		expect(file.suggestedFilename()).toMatch(/^cofre_backup_\d{8}\.json$/);
 	});
 
 	test("refuses a password that does not match the account", async ({ browser }) => {

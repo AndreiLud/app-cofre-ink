@@ -188,7 +188,13 @@ test.describe("reading a statement", () => {
 });
 
 test.describe("taking the data out", () => {
-	test("hands over a copy of the space, and then says when that was", async ({ page }) => {
+	/**
+	 * One file, whichever spaces go into it, and a date that tells the truth about all
+	 * of them. Saving the space that happens to be open and calling that a backup is
+	 * what the screen used to do, with the file that holds everything hidden under a
+	 * line about taking the data to another program.
+	 */
+	test("hands over one file with the spaces that were ticked", async ({ page }) => {
 		await openCofre(page, { space: "Meu dinheiro" });
 
 		await go(page, "Dados");
@@ -196,12 +202,39 @@ test.describe("taking the data out", () => {
 		// something being wrong.
 		await expect(page.getByText("Nunca", { exact: true })).toBeVisible();
 
+		// Both spaces of the demonstration are there and both are ticked.
+		await expect(page.getByRole("checkbox", { name: "Meu dinheiro" })).toBeChecked();
+		await expect(page.getByRole("checkbox", { name: "Casa" })).toBeChecked();
+
+		await page.getByRole("checkbox", { name: "Casa" }).uncheck();
+
 		const download = page.waitForEvent("download");
 		await page.getByRole("button", { name: "Guardar", exact: true }).first().click();
 		const file = await download;
+		expect(file.suggestedFilename()).toMatch(/^cofre_backup_\d{8}\.json$/);
 
-		expect(file.suggestedFilename()).toMatch(/^cofre_espaco_\d{8}\.json$/);
+		// One of the two was left out, so the honest answer to when the last copy was
+		// is still never. The line under it says which reading this is.
+		await expect(page.getByText("O mais antigo entre os seus espaços")).toBeVisible();
+		await expect(page.getByText("Nunca", { exact: true })).toBeVisible();
+
+		await page.getByRole("checkbox", { name: "Casa" }).check();
+		const second = page.waitForEvent("download");
+		await page.getByRole("button", { name: "Guardar", exact: true }).first().click();
+		await second;
+
 		await expect(page.getByText("Nunca", { exact: true })).toHaveCount(0);
+	});
+
+	test("refuses to write a file with no space in it", async ({ page }) => {
+		await openCofre(page, { space: "Meu dinheiro" });
+		await go(page, "Dados");
+
+		await page.getByRole("checkbox", { name: "Meu dinheiro" }).uncheck();
+		await page.getByRole("checkbox", { name: "Casa" }).uncheck();
+
+		await expect(page.getByText("Marque pelo menos um espaço")).toBeVisible();
+		await expect(page.getByRole("button", { name: "Guardar", exact: true }).first()).toBeDisabled();
 	});
 
 	test("hands over the records as a spreadsheet, from behind the line that hides it", async ({
@@ -221,8 +254,8 @@ test.describe("taking the data out", () => {
 		expect(file.suggestedFilename()).toMatch(/^cofre_lancamentos_\d{8}\.csv$/);
 	});
 
-	test("says what bringing a file back will do before it does it", async ({ page }) => {
-		await openCofre(page);
+	test("says what bringing a file back will do, and what is inside it", async ({ page }) => {
+		await openCofre(page, { space: "Meu dinheiro" });
 
 		await go(page, "Dados");
 		const download = page.waitForEvent("download");
@@ -230,12 +263,56 @@ test.describe("taking the data out", () => {
 		const saved = await download;
 		const path = await saved.path();
 
-		// Choosing a file does not write it: the screen says what it is about to do.
+		// Choosing a file does not write it: the screen says what it is about to do,
+		// and which spaces the file turned out to hold.
 		await page.getByLabel("Escolher arquivo").setInputFiles(path);
 		const dialog = page.getByRole("dialog");
+		await expect(dialog).toContainText("O que tem neste arquivo");
+		await expect(dialog.getByRole("checkbox", { name: "Meu dinheiro" })).toBeChecked();
+		await expect(dialog.getByRole("checkbox", { name: "Casa" })).toBeChecked();
 		await expect(dialog).toContainText("Só acrescenta o que está faltando");
 
 		await dialog.getByRole("button", { name: "Trazer de volta" }).click();
 		await expect(page.getByText("Restaurado", { exact: true })).toBeVisible({ timeout: 20_000 });
+	});
+
+	/**
+	 * A file of several spaces, opened somewhere that wants only one of them. The
+	 * browser that reads it is a second one, so the spaces arrive rather than being
+	 * recognised as already here, which is the only way to see which ones came.
+	 */
+	test("brings back only the spaces that were ticked", async ({ browser }) => {
+		const first = await browser.newContext({ acceptDownloads: true });
+		const one = await first.newPage();
+		await openCofre(one, { name: "Ana", space: "Meu dinheiro" });
+
+		await go(one, "Dados");
+		const download = one.waitForEvent("download");
+		await one.getByRole("button", { name: "Guardar", exact: true }).first().click();
+		const path = await (await download).path();
+
+		const second = await browser.newContext({ acceptDownloads: true });
+		const two = await second.newPage();
+		await openCofre(two, { name: "Ana", demo: false, space: "Pessoal" });
+
+		await go(two, "Dados");
+		await two.getByLabel("Escolher arquivo").setInputFiles(path);
+
+		const dialog = two.getByRole("dialog");
+		await dialog.getByRole("checkbox", { name: "Casa" }).uncheck();
+		await dialog.getByRole("button", { name: "Trazer de volta" }).click();
+
+		// The personal space merged into the one that was already here, and the shared
+		// one was left in the file.
+		await expect(two.getByText("Restaurado", { exact: true })).toBeVisible({ timeout: 20_000 });
+		await two.getByRole("button", { name: "Você está no espaço" }).click();
+		await expect(two.getByRole("menuitem", { name: "Casa" })).toHaveCount(0);
+		await two.keyboard.press("Escape");
+
+		await go(two, "Lançamentos");
+		await expect(record(two, "Café da esquina")).toBeVisible({ timeout: 20_000 });
+
+		await first.close();
+		await second.close();
 	});
 });

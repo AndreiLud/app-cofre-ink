@@ -50,6 +50,7 @@ import type {
 	RecordForExport,
 	Recurrence,
 	ReportRange,
+	RestoreOptions,
 	RestoreResult,
 	Role,
 	SavedFilter,
@@ -334,12 +335,15 @@ export type CofreSession = {
 	};
 	backup: {
 		exportSpace: (spaceId: string) => Promise<Backup>;
+		/** Which spaces this person may copy, which is the list the screen offers. */
+		copyable: () => Promise<string[]>;
+		exportSpaces: (spaceIds: string[]) => Promise<Backup>;
 		exportEverything: () => Promise<Backup>;
 		recordsForExport: (
 			spaceId: string,
 			range?: { from?: string; to?: string },
 		) => Promise<RecordForExport[]>;
-		restore: (backup: Backup) => Promise<RestoreResult>;
+		restore: (backup: Backup, options?: RestoreOptions) => Promise<RestoreResult>;
 	};
 	changes: {
 		list: (input: { spaceId: string; after?: string }) => Promise<Change[]>;

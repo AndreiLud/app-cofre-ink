@@ -337,8 +337,9 @@ docker run --rm -v cofre_cofreData:/data -v ${PWD}:/saida alpine tar czf /saida/
 docker compose start
 ```
 
-Também dá para exportar tudo pela própria interface, em Dados, que gera um arquivo que
-qualquer instalação do Cofre Ink lê de volta.
+Também dá para gerar um pela própria interface, em Dados, Backup e cópias, Guardar uma
+cópia. Ele escreve um arquivo só com os espaços que você marcar, e qualquer instalação
+do Cofre Ink lê ele de volta.
 
 ## Onde ficam os dados
 
@@ -348,8 +349,8 @@ qualquer instalação do Cofre Ink lê de volta.
 | guardado na tela inicial | o mesmo armazenamento, do mesmo navegador |
 | servidor seu | o arquivo SQLite ou o PostgreSQL que você apontou |
 
-Nos dois primeiros, limpar os dados do site apaga o banco. Exporte um backup antes de
-mexer nisso, em Dados, Exportar tudo.
+Nos dois primeiros, limpar os dados do site apaga o banco. Guarde uma cópia antes de
+mexer nisso, em Dados, Backup e cópias.
 
 O Cofre Ink não precisa de manutenção. O histórico que ele usa para sincronizar é
 compactado sozinho, no máximo uma vez por dia, e nenhum lançamento seu muda com isso:

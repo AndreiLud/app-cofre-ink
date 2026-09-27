@@ -292,6 +292,12 @@ const backupInput = z.object({
 		)
 		.max(50),
 	people: z.array(z.object({ id: z.string().min(1), name: z.string().max(120) })).max(500),
+	/**
+	 * Which spaces of the file to bring back, when somebody ticked only some of them.
+	 * It rides beside the backup rather than wrapping it, so a browser that does not
+	 * send it and a browser that does are both understood by the same route.
+	 */
+	only: z.array(z.string().min(1).max(80)).max(50).optional(),
 });
 
 const savedFilterInput = z.object({
@@ -1381,8 +1387,25 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		context.json(await context.get("session").backup.exportSpace(context.req.param("id"))),
 	);
 
-	app.get("/api/backup", async (context) =>
-		context.json(await context.get("session").backup.exportEverything()),
+	/** Everything, or the spaces named in the query, which is what the screen ticks. */
+	app.get("/api/backup", async (context) => {
+		const query = z.object({ spaces: z.string().max(4000).optional() }).parse(context.req.query());
+		const chosen = (query.spaces ?? "")
+			.split(",")
+			.map((one) => one.trim())
+			.filter((one) => one !== "");
+
+		const session = context.get("session");
+		return context.json(
+			chosen.length > 0
+				? await session.backup.exportSpaces(chosen)
+				: await session.backup.exportEverything(),
+		);
+	});
+
+	/** The spaces this person may take a copy of, so the screen knows what to offer. */
+	app.get("/api/backup/spaces", async (context) =>
+		context.json(await context.get("session").backup.copyable()),
 	);
 
 	app.get("/api/spaces/:id/records", async (context) => {
@@ -1400,8 +1423,8 @@ export function createApp({ config, database, auth }: AppDependencies) {
 	 * becomes the owner of what they restore, and of nothing else.
 	 */
 	app.post("/api/backup/restore", async (context) => {
-		const backup = backupInput.parse(await context.req.json());
-		return context.json(await context.get("session").backup.restore(backup));
+		const { only, ...backup } = backupInput.parse(await context.req.json());
+		return context.json(await context.get("session").backup.restore(backup, { only }));
 	});
 
 	// One place turns a rule of the model into a status code, so no route repeats it.

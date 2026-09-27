@@ -77,6 +77,11 @@ export type RestoreResult = {
 	spaces: RestoreOutcome[];
 };
 
+export type RestoreOptions = {
+	/** The spaces of the file to bring back. Leaving it out brings all of them. */
+	only?: readonly string[];
+};
+
 /** One row of a record, flattened for a spreadsheet. */
 export type RecordForExport = {
 	happenedOn: string;
@@ -299,15 +304,27 @@ export function createBackupRepository(context: RepositoryContext) {
 		},
 
 		/**
-		 * Every space this person may export. This is the file that moves somebody from
-		 * the browser to their own server, so it has to be one file and not a folder.
+		 * Which spaces this person may take a copy of.
+		 *
+		 * The screen offers a list to tick and has to know which lines it may offer, and
+		 * the answer is a permission, so it is answered here rather than worked out from
+		 * a role the screen would have to fetch and interpret for itself.
 		 */
-		async exportEverything(): Promise<Backup> {
-			const allowed = readableSpaceIds(context.actor()).filter((id) =>
-				context.can(id, "backup.export"),
-			);
+		async copyable(): Promise<string[]> {
+			return readableSpaceIds(context.actor()).filter((id) => context.can(id, "backup.export"));
+		},
+
+		/**
+		 * The spaces somebody ticked, in one file.
+		 *
+		 * One file whether it holds one space or nine, because two file shapes meant two
+		 * buttons, two names and a person deciding which of the two was their backup.
+		 */
+		async exportSpaces(spaceIds: readonly string[]): Promise<Backup> {
+			for (const spaceId of spaceIds) assertCan(context.actor(), spaceId, "backup.export");
+
 			const gathered: BackupSpace[] = [];
-			for (const spaceId of allowed) gathered.push(await gather(spaceId));
+			for (const spaceId of spaceIds) gathered.push(await gather(spaceId));
 
 			return {
 				format: BACKUP_FORMAT,
@@ -316,6 +333,14 @@ export function createBackupRepository(context: RepositoryContext) {
 				spaces: gathered,
 				people: await peopleIn(gathered),
 			};
+		},
+
+		/**
+		 * Every space this person may export. This is the file that moves somebody from
+		 * the browser to their own server, so it has to be one file and not a folder.
+		 */
+		async exportEverything(): Promise<Backup> {
+			return this.exportSpaces(await this.copyable());
 		},
 
 		/**
@@ -391,7 +416,7 @@ export function createBackupRepository(context: RepositoryContext) {
 		 * somebody else already has it. That row gets a new identifier, and everything
 		 * pointing at it follows, so the copy is whole and the original is untouched.
 		 */
-		async restore(backup: Backup): Promise<RestoreResult> {
+		async restore(backup: Backup, options: RestoreOptions = {}): Promise<RestoreResult> {
 			if (backup?.format !== BACKUP_FORMAT) {
 				throw new RuleError("notABackup", "this file is not a backup written by this application");
 			}
@@ -416,7 +441,14 @@ export function createBackupRepository(context: RepositoryContext) {
 				for (const row of rows) known.add(String(row.id));
 			}
 
+			// A file can hold more than one space and somebody may want only some of them
+			// back. Which ones is decided here rather than by trimming the file on the way
+			// in, so that both modes cut it the same way and the file itself is untouched.
+			const only = options.only ? new Set(options.only) : null;
+
 			for (const space of backup.spaces ?? []) {
+				if (only && !only.has(space.id)) continue;
+
 				// A personal space goes back into the personal space this person already
 				// has, because nobody has two.
 				const mine = await context.driver.all(

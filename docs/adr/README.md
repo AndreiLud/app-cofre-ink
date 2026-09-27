@@ -21,7 +21,7 @@ new one.
 | [0012](0012_rules_and_recurrences.md) | categories, rules that sort, and what repeats | accepted |
 | [0013](0013_budget_goals_and_splitting.md) | limits, goals, saving first and dividing an expense | accepted |
 | [0014](0014_charts_and_sizes.md) | charts drawn by hand, and screens that survive a resize | accepted |
-| [0015](0015_import_export_and_sync.md) | reading files in, taking everything out, and meeting a server | accepted |
+| [0015](0015_import_export_and_sync.md) | reading files in, taking everything out, and meeting a server | accepted, extended by 0035 |
 | [0016](0016_reading_a_document.md) | reading a card invoice and a receipt out of a PDF | accepted |
 | [0017](0017_where_a_copy_lives.md) | where a copy of a space can live, and what each place costs | accepted |
 | [0018](0018_making_the_history_smaller.md) | folding the change log up to a watermark, and packing what travels | accepted |
@@ -32,7 +32,7 @@ new one.
 | [0023](0023_surfaces_weight_and_one_colour.md) | three surfaces, two weights of line, and one interactive colour | accepted |
 | [0024](0024_the_plastic_and_the_money.md) | cards, the accounts they reach, and which pot a voucher is | accepted |
 | [0025](0025_taking_the_data_away.md) | erasing a space, erasing everything, and what neither can reach | accepted |
-| [0026](0026_a_copy_that_is_a_database.md) | a copy that is a database, and a screen ordered by how often | accepted |
+| [0026](0026_a_copy_that_is_a_database.md) | a copy that is a database, and a screen ordered by how often | accepted, the screen amended by 0035 |
 | [0027](0027_a_cost_before_a_password.md) | a cost before a password, and no captcha from anybody else | accepted |
 | [0028](0028_the_front_door.md) | the front door of an address anybody can open | accepted |
 | [0029](0029_four_signs_and_a_verdict.md) | four signs, and a word for the state of the money | accepted |
@@ -41,3 +41,4 @@ new one.
 | [0032](0032_the_year_ahead_and_the_one_income.md) | the year ahead, the one income, and what standing still costs | accepted |
 | [0033](0033_the_name_and_the_drop.md) | the name, the drop, and the one place the name lives | accepted |
 | [0034](0034_which_language_opens.md) | which language opens, and who is allowed to say | accepted |
+| [0035](0035_one_backup_and_one_place_for_it.md) | one backup, and one place on the screen for it | accepted |

@@ -97,14 +97,32 @@ outro, carregando o mesmo histórico de alterações.
 
 ## Levar tudo embora
 
-**Exportar.** Tudo em JSON, ou em planilha, por espaço ou inteiro.
+Tudo que é cópia está numa seção só da tela Dados, chamada Backup e cópias, porque dois
+botões que baixavam um JSON, em duas seções diferentes, é assim que alguém acaba com o
+arquivo errado na mão.
 
-**Backup e restauração.** O JSON restaura em qualquer lugar, numa instalação nova ou ao
-lado do que já existe. Quem restaura vira dono do que restaurou e de mais nada.
+**Backup.** Um arquivo só, com os espaços que você marcar, chamado
+`cofre_backup_AAAAMMDD.json`. Todos começam marcados. Um espaço compartilhado em que a
+pessoa não é Dono nem Administrador aparece desmarcado e diz por quê, porque tirar uma
+cópia de um espaço inteiro é decisão de quem cuida dele. Com um espaço só não há o que
+escolher e a lista não aparece.
+
+**Trazer de volta.** A mesma porta lê o arquivo de backup e o arquivo da sincronização:
+o segundo é um histórico de alterações, e dobrar ele devolve as mesmas linhas que o
+primeiro traria. Um arquivo com vários espaços é listado na confirmação, todos marcados,
+e só os marcados são trazidos. Ele acrescenta o que falta e não troca nada do que já
+está aqui, quem traz um espaço que ninguém aqui tem vira dono dele, e um espaço pessoal
+se junta ao espaço pessoal que já existe.
+
+**Levar para outro programa.** Uma planilha ou um CSV dos lançamentos, atrás de uma
+linha de texto, porque é coisa de uma vez por ano e não é backup: não leva identificador
+nenhum e nada lê ele de volta.
 
 **Uma cópia que mora em algum lugar.** Um arquivo, uma pasta WebDAV, um banco de dados
 online, ou uma planilha do Google como espelho. Todos são alcançados pelo navegador,
 com credenciais que ficam naquele navegador. O servidor nunca as tem e nunca os chama.
+É um espaço por vez e é assim que dois aparelhos combinam, não é onde a cópia fica: o
+arquivo que você guarda é o backup.
 
 **Apagar.** Duas portas separadas, porque fazem coisas diferentes. Apagar um espaço
 esvazia ele e o remove se for compartilhado. Apagar tudo remove todo espaço que esta

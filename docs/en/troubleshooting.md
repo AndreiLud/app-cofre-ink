@@ -92,14 +92,14 @@ database, which would look exactly like losing everything.
 ### It says the data is not being kept
 
 The browser has not granted persistent storage, which means it may clear the database
-under pressure. Keeping the page on the home screen usually earns the grant. Export a
-backup either way.
+under pressure. Keeping the page on the home screen usually earns the grant. Save a copy
+either way, under Data, Backups and copies.
 
 ### Everything is gone after clearing browsing data
 
 In browser mode the database is the storage of the site. Clearing site data deletes it,
 and there is no copy anywhere, because nothing was ever sent anywhere. That is the
-trade this mode makes. Export from Data, Export everything, before touching that.
+trade this mode makes. Save a copy from Data, Backups and copies, before touching that.
 
 ### An address inside the application answers 404
 
@@ -113,7 +113,7 @@ a file at `index.html`. There is an example for Nginx, for Caddy and for Netlify
 The service worker serves what it kept. Every build has a new cache name and the old
 one is deleted when the new worker takes over, so this resolves itself on the second
 load. To force it: open the page, clear site data, load again. Note that in browser mode
-this also deletes the database, so export first.
+this also deletes the database, so save a copy first.
 
 ## Importing a statement
 

@@ -133,9 +133,10 @@ quem chama possa apontar.
 | --- | --- | --- |
 | `GET` | `/api/spaces/:id/imports/existing` | o que o espaço já tem em volta dos dias que um arquivo cobre, para achar repetição |
 | `POST` | `/api/spaces/:id/imports` | gravar lançamentos revisados, até 3000 por vez |
-| `GET` | `/api/spaces/:id/backup` e `/api/backup` | um espaço, ou tudo |
+| `GET` | `/api/backup/spaces` | de quais espaços esta pessoa pode tirar cópia |
+| `GET` | `/api/spaces/:id/backup` e `/api/backup` | um espaço, ou tudo. `?spaces=a,b` para os que foram marcados |
 | `GET` | `/api/spaces/:id/records` | só os lançamentos, para uma planilha |
-| `POST` | `/api/backup/restore` | restaurar. Quem está logado vira dono do que restaurou |
+| `POST` | `/api/backup/restore` | restaurar. O corpo é o arquivo, e um `only` opcional diz quais espaços dele trazer. Quem está logado vira dono do que restaurou |
 | `GET` | `/api/spaces/:id/changes` | o histórico depois de um carimbo |
 | `POST` | `/api/spaces/:id/sync` | uma ida e volta: empurra o que este aparelho escreveu, puxa o que ele não viu |
 
