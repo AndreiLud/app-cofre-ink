@@ -2,10 +2,51 @@
 
 Every release, what changed in it, and what to do about it if you are running this.
 
-Versions follow semantic versioning. While the first number is zero, the second one
-changes when something breaks and the third when nothing does.
+Versions follow semantic versioning. The first number changes when something that worked
+breaks, the second when something is added, the third when something is corrected.
 
-## Not released yet
+## 1.0.0
+
+Released on 27 September 2026. The first version this project calls finished: everything
+it promises works, and two screens that were in the way are gone.
+
+There is a shorter way in. The front door asks the one question that cannot be changed
+afterwards, where the data lives, and then shows the application with money in it. And
+there is a copy that keeps itself, which is the thing a personal finance application is
+asked for most and is the last thing this one was missing.
+
+> **If you are updating from 0.1.1, read this.**
+>
+> Three things that worked are gone, and one of them may be in use.
+>
+> **A file the person carries is no longer a sync destination.** Two browsers with no
+> server between them used to agree by carrying a packed `cofre_sync_*.json.gz` back and
+> forth, merging record by record. That is gone. They exchange a backup instead, which
+> moves a money life across and adds what is missing, but does not merge two people
+> editing the same record at once. Whoever needs that runs a server, which is what a
+> server is for. Any `.json.gz` you already have is still read by Restore from a file.
+>
+> **A browser holds one person.** The profiles of a device, switching between them and
+> renaming yourself are gone. If you made a second profile on a machine, that person and
+> their spaces are still in the database and nothing was deleted, but the application
+> will not offer to become them again: open their backup, or use a second browser
+> profile from now on.
+>
+> **The form behind the door is gone.** Nothing is asked. What it used to ask is made
+> with a default and corrected in one screen.
+
+### Removed
+
+**The form at the door, and the profiles of a device.** A name, an email, a currency and
+a space name asked before anybody had seen anything, plus a menu that offered to rename
+you, to become somebody else on this machine, or to make room for them. The door asks
+one question now. A second person on the same machine uses a second browser profile,
+which separates more than this ever did. Registry 0037 has the reasoning.
+
+**The members screen.** Not the members: the screen. Who is in a space, with which role
+and what they said they earn, the invitation and the settling up are a section of the
+spaces screen now, under the list, for whichever space is open. Nothing was dropped in
+the move.
 
 ### Fixed
 
