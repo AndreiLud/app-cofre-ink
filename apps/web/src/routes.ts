@@ -14,7 +14,6 @@ export const ROUTES = {
 	invoices: "/faturas",
 	categories: "/categorias",
 	spaces: "/espacos",
-	members: "/membros",
 	accounts: "/contas",
 	projection: "/projecao",
 	investments: "/investimentos",

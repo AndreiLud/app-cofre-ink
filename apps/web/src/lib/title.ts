@@ -19,7 +19,6 @@ const NAMED: Record<string, string> = {
 	[ROUTES.invoices]: "nav.invoices",
 	[ROUTES.categories]: "nav.categories",
 	[ROUTES.spaces]: "nav.spaces",
-	[ROUTES.members]: "nav.members",
 	[ROUTES.accounts]: "nav.accounts",
 	[ROUTES.projection]: "nav.projection",
 	[ROUTES.investments]: "nav.investments",
