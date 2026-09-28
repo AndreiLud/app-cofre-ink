@@ -20,6 +20,7 @@ import {
 	applyChanges,
 	applyPeople,
 	changesSince,
+	compactedBefore,
 	latestStampOf,
 	type Person,
 	peopleInSpace,
@@ -173,7 +174,26 @@ export async function compareWithStore(
 	const here = new Set(mine.map((change) => change.id));
 	const there = new Set(theirs.map((change) => change.id));
 	const onlyMine = mine.filter((change) => !there.has(change.id)).length;
-	const onlyTheirs = theirs.filter((change) => !here.has(change.id)).length;
+
+	/**
+	 * How far this device has folded its own log, and which rows it still knows.
+	 *
+	 * Folding replaces the history of a row with the one entry it adds up to, and the
+	 * place keeps every entry it was ever sent. So the entries this device let go are
+	 * entries the place still holds, and counting them as something this device is
+	 * missing made a browser on its own report "both sides moved" the first time it
+	 * wrote anything after a fold, thirty days in. Keeping both did not help either,
+	 * because what it was missing was what it had decided to stop keeping.
+	 *
+	 * This is the same rule the engine already applies when entries arrive: one from
+	 * before the mark, about a row this database has, has already been counted.
+	 */
+	const mark = await compactedBefore(driver, input.spaceId);
+	const rowsHere = new Set(mine.map((change) => `${change.entity}\u0000${change.entityId}`));
+	const folded = (change: Change) =>
+		mark !== null && change.hlc <= mark && rowsHere.has(`${change.entity}\u0000${change.entityId}`);
+
+	const onlyTheirs = theirs.filter((change) => !here.has(change.id) && !folded(change)).length;
 
 	const state: StoreState =
 		bundle === null || theirs.length === 0

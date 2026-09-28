@@ -119,6 +119,60 @@ export function runSyncConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		/**
+		 * The log folds itself after thirty days, on every open, and the place keeps every
+		 * entry it was ever sent. So a browser on its own, which is the ordinary case,
+		 * would find the place holding entries it no longer has and report that both sides
+		 * had moved, on the first change after the first fold. Answering "keep both" did
+		 * not help: what it was missing was what it had decided to stop keeping.
+		 */
+		it("does not call a folded log a second side that moved", async () => {
+			const fixture = await prepare(adapter);
+			const store = createMemoryStore("um lugar");
+			try {
+				const spaceId = await aSpaceWithARecord(fixture);
+
+				// A row with a history, because folding is what turns a history into the one
+				// entry it adds up to, and a row written once has nothing to fold.
+				const [only] = await fixture.asAna.transactions.list({ spaceId });
+				await fixture.asAna.transactions.update(only?.id ?? "", { description: "Cafe da manha" });
+				await fixture.asAna.transactions.update(only?.id ?? "", { amount: 1500 });
+
+				// The place hears everything, as it would have before the thirty days.
+				await runBackup(fixture.driver, store, [spaceId]);
+				const sent = (await store.read(spaceId)).bundle?.changes.length ?? 0;
+				expect(sent).toBeGreaterThan(0);
+
+				// Thirty days later the log folds, and this device keeps fewer entries than
+				// the place does.
+				const newest = await latestStampOf(fixture.driver, spaceId);
+				const folded = await compactChanges(fixture.driver, spaceId, { before: newest ?? "" });
+				expect(folded.removed).toBeGreaterThan(0);
+				expect((await store.read(spaceId)).bundle?.changes.length).toBeGreaterThan(
+					(await changesSince(fixture.driver, spaceId, null, 20_000)).length,
+				);
+
+				// And then one more record, which is this device moving and nothing else.
+				const accounts = await fixture.asAna.accounts.list(spaceId);
+				await fixture.asAna.transactions.create({
+					spaceId,
+					kind: "expense",
+					amount: 900,
+					happenedOn: "2026-09-20",
+					description: "Padaria",
+					accountId: accounts[0]?.id ?? "",
+				});
+
+				const after = await runBackup(fixture.driver, store, [spaceId]);
+				expect(after.outcomes[0]?.comparison.state).toBe("mineAhead");
+				expect(after.outcomes[0]?.comparison.onlyTheirs).toBe(0);
+				expect(after.outcomes[0]?.did).toBe("sent");
+				expect(after.waiting).toHaveLength(0);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		it("brings back what the place holds when this side wrote nothing", async () => {
 			const fixture = await prepare(adapter);
 			const other = await otherDevice(fixture.ana, "outroAparelho");
