@@ -5,6 +5,96 @@ Every release, what changed in it, and what to do about it if you are running th
 Versions follow semantic versioning. The first number changes when something that worked
 breaks, the second when something is added, the third when something is corrected.
 
+## 1.0.2
+
+Released on 28 September 2026. The session that keeps the cofre.ink site read every
+sentence of the guide against the code while updating it for 1.0.0 and 1.0.1, and wrote
+down what did not match. Thirty five things. Every one of them was real, five of them not
+quite as described, and this is all of them.
+
+> **If you had picked "a server of yours" as the place for the automatic backup, read
+> this.**
+>
+> It is not one of the places any more, and it never worked: it was skipped by the thing
+> that runs on every change, so the panel said it was on and nothing ever left the
+> browser. You will find the backup off and no place chosen, with your data untouched.
+> Pick a WebDAV folder or an online database, or use your server the way a server is
+> used, by running in server mode. Registry 0040 says why.
+
+### Fixed
+
+**Erasing a space undid itself.** With the automatic backup on, an erasure left no
+deletion marks, so the copy in the folder was ahead and the next run brought the whole
+space back, called it a success and said nothing. The confirmation now asks: the copy goes
+with the space, or it stays and the backup is switched off, because a place still holding
+the space puts it back within seconds.
+
+**A month of ordinary use made the backup ask a question with no answer.** The change log
+folds itself after thirty days and the place keeps every entry it was ever sent, so this
+device ends up holding fewer than the place does. The comparison counted every one of
+those as something missing, so the first record typed after the first fold reported that
+both sides had moved. Keeping both did not help: what it was missing was what it had
+decided to stop keeping.
+
+**Changing where the data lives lost the person.** Going back to the first question and
+choosing this browser again made a new person every time, and the spaces of the one before
+stayed in the file with no screen that reached them. It comes back to the same person,
+which is what opening the application normally always did.
+
+**A restore of several spaces could be refused half way through.** Each space is its own
+transaction and the permission was asked for inside the loop, so a file of five whose
+fourth was refused left three of them written and showed only the refusal. Every refusal
+happens before the first write now.
+
+**Replacing the copy after a restore used the wrong identifiers**, the ones in the file
+rather than the ones the restore wrote, and threw a raw English sentence after the restore
+had already happened.
+
+**A file that is not a backup said nothing.** It opened the confirmation with no space in
+it and a button that could not be pressed. The three refusals have words now, in both
+languages, and they are said when the file is read.
+
+**A Viewer was offered buttons that refuse.** The save button on the month screen, and the
+menu that changes a role or removes somebody, which also failed in silence because the
+only place a problem was drawn was inside a dialog that was closed.
+
+**The spreadsheet handed a Logger every record of the space.** The list of records has
+always narrowed to the rows a Logger wrote; this is the same space through another door
+and now narrows the same way.
+
+**The monthly income read 4500.00 as four hundred and fifty thousand** in the English
+interface, because it stripped every dot by hand instead of reading the number the way the
+language writes it.
+
+**The count after erasing a space** counted the change log and the invitations, so
+somebody who had written a hundred records was told four hundred had gone.
+
+**The automatic backup set itself off.** Backing up by hand, testing the connection,
+writing the spreadsheet and handing over a CSV all started a second run four seconds
+later, against a place with nothing new to hear.
+
+**The name of a destination was glued to a preposition**, so Portuguese read "Falha ao
+conectar ao Uma pasta WebDAV" and English "Could not connect to A WebDAV folder".
+
+### Changed
+
+**A server of yours is not a place the automatic backup writes.** See the warning above.
+
+**Fourteen sentences that named something that is gone.** Three sent somebody to Members,
+which became a section of Spaces. Two talked about turning syncing on. One promised that
+what is written comes with you when the mode changes. One offered the statement importer a
+backup it cannot read. One told an English reader that cards are added in "Nova conta".
+The screen that writes a month said all of it lands on the last day of the month, which
+was never true of the card one. And the four guides still sent somebody to Data, Backups
+and copies, Save a copy.
+
+**The sentences under Viewer and Logger** say what those roles actually do: a Viewer does
+change one thing, their own monthly income, and a Logger writes any kind of record and not
+only spending.
+
+**Whoever is holding the screen is called "you"** on the division and the settling up too,
+in the language the screen is speaking.
+
 ## 1.0.1
 
 Released on 28 September 2026. What an audit of 1.0.0 found the morning after it went
