@@ -63,8 +63,8 @@ A permission check that leaks into a route protects that route and nothing else.
 
 They all implement one `Driver` interface, and `packages/storage/src/conformance` is a
 suite that runs against every one of them, including who is allowed to see what. An
-adapter is finished when it passes that suite, and not before. That is where 960 of the
-1399 tests in this repository are.
+adapter is finished when it passes that suite, and not before. That is where 1008 of the
+1474 tests in this repository are.
 
 PostgreSQL carries row level security on top, so a mistake in application code is
 caught by the database rather than by nobody.

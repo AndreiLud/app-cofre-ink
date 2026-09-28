@@ -77,8 +77,8 @@ behaves the same with no connection at all.
 2. **With a server of your own.** One container that carries the API and the interface,
    with accounts, shared spaces and invitations. SQLite in a file or a PostgreSQL you
    point it at.
-3. **With a cloud you pay for.** The browser mode, keeping a copy in a file, a WebDAV
-   folder, an online database or a spreadsheet you own.
+3. **With a cloud you pay for.** The browser mode, keeping a copy in a WebDAV folder, an
+   online database or a spreadsheet you own.
 
 ### Stack and architecture
 
@@ -191,11 +191,11 @@ only written to travel between them when both of those are true.
 ### Tests
 
 ```bash
-pnpm test        # 1399 across six packages
-pnpm test:e2e    # 90 flows in a real browser
+pnpm test        # 1474 across six packages
+pnpm test:e2e    # 113 flows in a real browser
 ```
 
-The heaviest part is the storage layer, where 960 of those run the same conformance
+The heaviest part is the storage layer, where 1008 of those run the same conformance
 suite against all four adapters, permissions included. The property tests use fast
 check. The flows use Playwright, including two browsers that share nothing carrying a
 space to each other through a file, and one that cuts the connection and reloads.
@@ -242,8 +242,8 @@ packages/
                 and the conformance suite every adapter has to pass
   importers/    readers for CSV, OFX, QIF, XLSX, JSON and PDF, and the pipeline that
                 turns a statement into records somebody can review
-  cloud/        where a copy can live: a file, WebDAV, an online database, a
-                spreadsheet, and the public indices from the Banco Central
+  cloud/        where a copy can live: WebDAV, an online database, a spreadsheet,
+                and the public indices from the Banco Central
   ui/           design tokens, components, and charts drawn as SVG by hand
 docs/
   adr/          every decision that is expensive to reverse, with what was rejected
@@ -262,7 +262,7 @@ names.
 ### Decisions
 
 Every decision that is expensive to reverse is written down in
-[docs/adr](docs/adr), with the options that were rejected and why. Thirty three of them,
+[docs/adr](docs/adr), with the options that were rejected and why. Thirty eight of them,
 from the monorepo to the way a projection is built. A few that shape everything else:
 
 1. **Money is always an integer number of minor units.** Never a floating point number.
@@ -367,8 +367,8 @@ abre no metrô.
 2. **Com um servidor seu.** Um container que carrega a API e a interface, com contas,
    espaços compartilhados e convites. SQLite num arquivo ou um PostgreSQL que você
    aponta.
-3. **Com uma nuvem que você paga.** O modo navegador, guardando uma cópia num arquivo,
-   numa pasta WebDAV, num banco de dados online ou numa planilha sua.
+3. **Com uma nuvem que você paga.** O modo navegador, guardando uma cópia numa pasta
+   WebDAV, num banco de dados online ou numa planilha sua.
 
 ### Stack e arquitetura
 
@@ -483,11 +483,11 @@ para viajar entre eles quando essas duas coisas são verdade.
 ### Testes
 
 ```bash
-pnpm test        # 1399 em seis pacotes
-pnpm test:e2e    # 90 fluxos num navegador de verdade
+pnpm test        # 1474 em seis pacotes
+pnpm test:e2e    # 113 fluxos num navegador de verdade
 ```
 
-A parte mais pesada é a camada de armazenamento, onde 960 deles rodam a mesma suíte de
+A parte mais pesada é a camada de armazenamento, onde 1008 deles rodam a mesma suíte de
 conformidade contra os quatro adaptadores, permissões inclusive. Os testes de
 propriedade usam fast check. Os fluxos usam Playwright, incluindo dois navegadores que
 não compartilham nada levando um espaço de um para o outro por um arquivo, e um que
@@ -535,8 +535,8 @@ packages/
                 permissão, e a suíte de conformidade que todo adaptador tem que passar
   importers/    leitores de CSV, OFX, QIF, XLSX, JSON e PDF, e o caminho que
                 transforma um extrato em lançamentos para alguém revisar
-  cloud/        onde uma cópia pode viver: um arquivo, WebDAV, um banco de dados
-                online, uma planilha, e os índices públicos do Banco Central
+  cloud/        onde uma cópia pode viver: WebDAV, um banco de dados online, uma
+                planilha, e os índices públicos do Banco Central
   ui/           tokens de design, componentes, e gráficos desenhados em SVG à mão
 docs/
   adr/          toda decisão cara de desfazer, com o que foi recusado
@@ -555,7 +555,7 @@ arquivo.
 ### Decisões
 
 Toda decisão cara de desfazer está escrita em [docs/adr](docs/adr), com as alternativas
-recusadas e o motivo. São trinta e três, do monorepo até o jeito de montar uma projeção.
+recusadas e o motivo. São trinta e oito, do monorepo até o jeito de montar uma projeção.
 Algumas que mandam em todo o resto:
 
 1. **Dinheiro é sempre um número inteiro de centavos.** Nunca um número de ponto

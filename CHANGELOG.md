@@ -283,7 +283,7 @@ The interface is a folder of static files that any host will serve. The server i
 container:
 
 ```bash
-docker run -d -p 4321:4321 -v cofre:/data -e COFRE_SECRET=... ghcr.io/andreilud/app-cofre-ink:0.1.1
+docker run -d -p 4321:4321 -v cofre:/data -e COFRE_SECRET=... ghcr.io/andreilud/app-cofre-ink:latest
 ```
 
 The full guide is in [docs/en/deploy.md](docs/en/deploy.md), and in

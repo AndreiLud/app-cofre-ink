@@ -11,7 +11,7 @@ new one.
 | [0002](0002_storage_adapters.md) | repository layer, the four storage adapters and SQLite in the browser | accepted |
 | [0003](0003_sync_strategy.md) | offline sync for shared spaces, change log and clocks | accepted |
 | [0004](0004_money_time_and_identifiers.md) | integer cents, calendar dates, instants, UUID version 7 | accepted |
-| [0005](0005_spaces_and_permissions.md) | spaces, roles, scoping and the permission matrix | accepted |
+| [0005](0005_spaces_and_permissions.md) | spaces, roles, scoping and the permission matrix | accepted, the members screen moved by 0037 |
 | [0006](0006_visual_direction.md) | visual direction, tokens, typography and motion | superseded by 0023 |
 | [0007](0007_language_and_writing_rule.md) | language per artifact and the writing rule | the default language replaced by 0034 |
 | [0008](0008_storage_implementation.md) | how the storage layer is actually built, replacing two tool choices in 0002 | accepted |
@@ -34,7 +34,7 @@ new one.
 | [0025](0025_taking_the_data_away.md) | erasing a space, erasing everything, and what neither can reach | accepted |
 | [0026](0026_a_copy_that_is_a_database.md) | a copy that is a database, and a screen ordered by how often | accepted, the screen amended by 0035 |
 | [0027](0027_a_cost_before_a_password.md) | a cost before a password, and no captcha from anybody else | accepted |
-| [0028](0028_the_front_door.md) | the front door of an address anybody can open | accepted |
+| [0028](0028_the_front_door.md) | the front door of an address anybody can open | accepted, the profiles replaced by 0037 |
 | [0029](0029_four_signs_and_a_verdict.md) | four signs, and a word for the state of the money | accepted |
 | [0030](0030_a_plan_with_a_month_on_it.md) | a plan with a month on it, and a target they have already hit | accepted |
 | [0031](0031_whether_it_is_getting_better.md) | whether it is getting better, and the months already spent | accepted |

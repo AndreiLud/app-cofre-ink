@@ -64,7 +64,7 @@ rota e mais nenhuma.
 
 Todos implementam uma interface `Driver`, e `packages/storage/src/conformance` é uma
 suíte que roda contra cada um deles, permissões inclusive. Um adaptador está pronto
-quando passa naquela suíte, e não antes. É ali que estão 960 dos 1399 testes deste
+quando passa naquela suíte, e não antes. É ali que estão 1008 dos 1474 testes deste
 repositório.
 
 O PostgreSQL ainda carrega row level security em cima, então um erro no código da
