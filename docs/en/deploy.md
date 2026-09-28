@@ -335,8 +335,8 @@ docker run --rm -v cofre_cofreData:/data -v ${PWD}:/out alpine tar czf /out/cofr
 docker compose start
 ```
 
-You can also write one from the interface itself, under Data, Backups and copies, Save
-a copy. It writes one file with every space you tick, and any Cofre Ink installation
+You can also write one from the interface itself, under Data, Manual copy, Download a
+copy. It writes one file with every space you tick, and any Cofre Ink installation
 reads it back.
 
 ## Where the data is
@@ -347,8 +347,8 @@ reads it back.
 | kept on the home screen | the same storage, of the same browser |
 | a server of your own | the SQLite file or the PostgreSQL you pointed at |
 
-In the first two, clearing the site data deletes the database. Save a copy before
-touching that, under Data, Backups and copies.
+In the first two, clearing the site data deletes the database. Download a copy before
+touching that, under Data, Manual copy.
 
 Cofre Ink needs no maintenance. The history it uses to sync is folded by itself, at most
 once a day, and no record of yours changes: only the intermediate version of rows older

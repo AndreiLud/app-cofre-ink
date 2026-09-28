@@ -429,6 +429,9 @@
 		"debitMakesNoAccount": "O cartão de débito gasta o saldo de uma conta que já existe, então ele não cria conta nova. Só o cartão é cadastrado."
 	},
 	"rules": {
+		"notABackup": "Esse arquivo não é um backup do {{app}}. Um backup sai daqui mesmo, no botão Baixar cópia, e o nome dele começa com cofre_backup. Extrato do banco entra por Importar extrato.",
+		"backupIsNewer": "Esse backup foi escrito por uma versão mais nova do {{app}}. Atualize este aqui antes de trazer o arquivo de volta.",
+		"backupHasNoSpace": "Esse arquivo é um backup, mas não tem nenhum espaço dentro. Não tem o que trazer de volta.",
 		"emailTaken": "Esse email já está em uso aqui. Use outro.",
 		"emailLooksWrong": "Esse email não parece um endereço válido.",
 		"nameIsRequired": "Escreva um nome.",

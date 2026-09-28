@@ -92,14 +92,17 @@ database, which would look exactly like losing everything.
 ### It says the data is not being kept
 
 The browser has not granted persistent storage, which means it may clear the database
-under pressure. Keeping the page on the home screen usually earns the grant. Save a copy
-either way, under Data, Backups and copies.
+under pressure. Keeping the page on the home screen usually earns the grant. Download a copy
+either way, under Data, Manual copy, and consider turning the automatic backup on.
 
 ### Everything is gone after clearing browsing data
 
-In browser mode the database is the storage of the site. Clearing site data deletes it,
-and there is no copy anywhere, because nothing was ever sent anywhere. That is the
-trade this mode makes. Save a copy from Data, Backups and copies, before touching that.
+In browser mode the database is the storage of the site. Clearing site data deletes it.
+There is no copy anywhere unless you made one: nothing is ever sent anywhere on its own,
+which is the trade this mode makes. Two things put a copy somewhere, both under Data.
+Manual copy, Download a copy writes a file you keep. The automatic backup keeps one up to
+date in a WebDAV folder or an online database of yours, and if it was on, bring that copy
+back with Restore from a file.
 
 ### An address inside the application answers 404
 

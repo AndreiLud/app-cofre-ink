@@ -22,7 +22,13 @@
 import { mirrorToSheet, unpackBundle } from "@cofre/cloud";
 import { writeAmount, writeCsv } from "@cofre/importers";
 import type { Backup, RecordForExport, RestoreResult } from "@cofre/storage";
-import { backupFromBundle, replaceTheCopy } from "@cofre/storage";
+import {
+	BACKUP_FORMAT,
+	BACKUP_VERSION,
+	backupFromBundle,
+	RuleError,
+	replaceTheCopy,
+} from "@cofre/storage";
 import { Button, Callout, Dialog, Disclosure, Field, Icon, Panel, SectionTitle } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -343,6 +349,19 @@ export function DataPage() {
 			const backup = bundle
 				? backupFromBundle(bundle)
 				: (JSON.parse(new TextDecoder().decode(bytes)) as Backup);
+
+			// Said here rather than after the person has agreed to something. A JSON file
+			// that is not a backup used to open the dialog with no space in it and a
+			// button that could not be pressed, and no sentence saying why.
+			if (backup?.format !== BACKUP_FORMAT) {
+				throw new RuleError("notABackup", "this file is not a backup of this application");
+			}
+			if (backup.version > BACKUP_VERSION) {
+				throw new RuleError("backupIsNewer", "this backup was written by a newer version");
+			}
+			if (backup.spaces.length === 0) {
+				throw new RuleError("backupHasNoSpace", "this backup carries no space at all");
+			}
 
 			setProblem(null);
 			setLeftBehind({});

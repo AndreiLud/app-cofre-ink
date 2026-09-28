@@ -282,6 +282,22 @@ test.describe("taking the data out", () => {
 		await expect(page.getByText("Restaurado", { exact: true })).toBeVisible({ timeout: 20_000 });
 	});
 
+	test("says why a file that is not a backup is not one", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Dados");
+
+		// A JSON file that parses and is not a backup. It used to open the dialog with no
+		// space in it and a button that could not be pressed, and no sentence at all.
+		await page.getByLabel("Escolher arquivo").setInputFiles({
+			name: "lista.json",
+			mimeType: "application/json",
+			buffer: Buffer.from(JSON.stringify([{ descricao: "Mercado", valor: 42.9 }])),
+		});
+
+		await expect(page.getByText(/não é um backup do/)).toBeVisible();
+		await expect(page.getByRole("dialog")).toHaveCount(0);
+	});
+
 	/**
 	 * A file of several spaces, opened somewhere that wants only one of them. The
 	 * browser that reads it is a second one, so the spaces arrive rather than being

@@ -93,13 +93,17 @@ abrir um banco vazio, que pareceria exatamente com perder tudo.
 
 O navegador não concedeu armazenamento persistente, o que significa que ele pode limpar
 o banco sob pressão. Guardar a página na tela inicial costuma render a concessão.
-Guarde uma cópia de qualquer forma, em Dados, Backup e cópias.
+Baixe uma cópia de qualquer forma, em Dados, Cópia manual, e pense em ligar o backup
+automático.
 
 ### Sumiu tudo depois de limpar os dados de navegação
 
-No modo navegador o banco é o armazenamento do site. Limpar os dados do site apaga ele,
-e não existe cópia em lugar nenhum, porque nada nunca foi enviado a lugar nenhum. É a
-troca que este modo faz. Guarde uma cópia em Dados, Backup e cópias, antes de mexer nisso.
+No modo navegador o banco é o armazenamento do site. Limpar os dados do site apaga ele.
+Não existe cópia em lugar nenhum, a não ser que você tenha feito uma: nada é enviado a
+lugar nenhum sozinho, e essa é a troca que este modo faz. Duas coisas guardam uma cópia,
+as duas em Dados. Cópia manual, Baixar cópia escreve um arquivo que fica com você. O
+backup automático mantém uma numa pasta WebDAV ou num banco de dados seu, e se ele estava
+ligado, traga essa cópia de volta em Restaurar de um arquivo.
 
 ### Um endereço de dentro do aplicativo responde 404
 

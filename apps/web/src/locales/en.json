@@ -429,6 +429,9 @@
 		"debitMakesNoAccount": "A debit card spends the balance of an account that already exists, so it makes no new account. Only the card is added."
 	},
 	"rules": {
+		"notABackup": "That file is not a {{app}} backup. A backup comes from here, from the Download a copy button, and its name starts with cofre_backup. A statement from the bank goes in through Import a statement.",
+		"backupIsNewer": "That backup was written by a newer version of {{app}}. Update this one before bringing the file back.",
+		"backupHasNoSpace": "That file is a backup, but there is no space inside it. There is nothing to bring back.",
 		"emailTaken": "That email is already in use here. Use another one.",
 		"emailLooksWrong": "That does not look like an email address.",
 		"nameIsRequired": "Write a name.",
