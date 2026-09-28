@@ -67,7 +67,7 @@ export type CofreValue = {
 	 * and their space, with whatever defaults the screen decided on.
 	 */
 	startHere: (setUp: (driver: Driver) => Promise<User>) => Promise<void>;
-	/** Called after a profile is created during onboarding, in browser mode. */
+	/** Called after a profile is created behind the front door, in browser mode. */
 	adoptUser: (user: User) => Promise<void>;
 	/** Called after signing in or signing up, in server mode. */
 	adoptServerSession: () => Promise<void>;
@@ -340,7 +340,7 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 	 * Everything this browser holds, gone: the database file, the profile, the mode and
 	 * whatever the screens remembered along the way. The page reloads afterwards because
 	 * what is in memory is a session over a file that no longer exists, and because
-	 * landing on onboarding is the honest picture of what is left.
+	 * landing back on the front door is the honest picture of what is left.
 	 */
 	const eraseDevice = useCallback(async () => {
 		const database = await connect();

@@ -1,9 +1,9 @@
 // Everything that has to exist before somebody can write down what they spent: a
 // person, a personal space, and the categories that space starts with.
 //
-// It lives on its own because two screens do it now. The onboarding form asks first
-// and then calls this. The front door asks nothing and calls this with the defaults,
-// which is the whole difference between them.
+// It lives on its own because two paths reach it, and neither of them asks anything: the
+// front door, which calls this with the defaults, and a browser that kept the database
+// and lost the profile, which calls it with the same ones rather than stopping to ask.
 
 import { createUser, type Driver, openSession, type User } from "@cofre/storage";
 import { seedDemo } from "../demo/seed.ts";

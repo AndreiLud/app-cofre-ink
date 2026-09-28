@@ -44,7 +44,12 @@ export function CardsSection({ accounts, cards, loading }: CardsSectionProps) {
 			{/* Saying where they come from, once, in the only place somebody would look
 			    for a button that is deliberately not here. */}
 			{!loading && cards.length === 0 ? (
-				<p className="max-w-[62ch] text-sm text-quiet">{t("cards.fromAccounts")}</p>
+				<p className="max-w-[62ch] text-sm text-quiet">
+					{/* The button is quoted by name, taken from the button itself, so the
+					    two can never drift apart and the English text can never end up
+					    quoting a Portuguese label. */}
+					{t("cards.fromAccounts", { where: t("accounts.create") })}
+				</p>
 			) : null}
 
 			<ul className="divide-y divide-line">
