@@ -40,12 +40,19 @@ function saidRule(rule: string, t: Translate): string {
 /**
  * The browser's own failure when nothing answered.
  *
- * fetch rejects with a TypeError and a message that changes with the browser, so the
- * shape is what identifies it: an error that is not one of ours and is not an ordinary
- * Error subclass we know.
+ * fetch rejects with a TypeError, and so does calling something that is not a function,
+ * so the class alone is not the answer: every coding defect of that shape was reported as
+ * a connection that failed, on an application that in browser mode has nothing to connect
+ * to. The message is the tell, and each browser writes its own, which is why three are
+ * listed. A request that was given up on rather than refused arrives as a DOMException and
+ * belongs here too.
  */
 function nothingAnswered(error: unknown): boolean {
-	return error instanceof TypeError;
+	if (error instanceof DOMException) {
+		return error.name === "AbortError" || error.name === "TimeoutError";
+	}
+	if (!(error instanceof TypeError)) return false;
+	return /failed to fetch|networkerror|load failed|network request failed/i.test(error.message);
 }
 
 export function sayWhy(error: unknown, t: Translate): string {
@@ -79,11 +86,14 @@ export function sayWhy(error: unknown, t: Translate): string {
 		return t("rules.unknown");
 	}
 
+	// Everything from here is a fault rather than an answer, so it goes to the console
+	// first, where it is for whoever is looking at the code. It used to return before
+	// this for exactly the class of failure where that mattered most.
+	if (error !== null && error !== undefined) console.error(error);
+
 	if (nothingAnswered(error)) return t("rules.noConnection");
 
-	// Whatever is left is a fault rather than an answer, so the person is told the one
-	// useful thing about it. The message itself goes to the console, where it is for
-	// whoever is looking at the code, and not onto the screen.
-	if (error !== null && error !== undefined) console.error(error);
+	// And the person is told the one useful thing, rather than the sentence the engine
+	// wrote for whoever wrote it.
 	return t("rules.unknown");
 }

@@ -12,7 +12,8 @@
 // would do.
 
 import type { CurrencyCode } from "@cofre/core";
-import { MoneyError, parseMoney, parseScaled } from "@cofre/core";
+import { parseMoney, parseScaled } from "@cofre/core";
+import { RuleError } from "@cofre/storage";
 
 /** What somebody typed, in cents. Throws a MoneyError, which every screen now translates. */
 export function readAmount(text: string, currency?: CurrencyCode): number {
@@ -26,11 +27,17 @@ export function readAmount(text: string, currency?: CurrencyCode): number {
  * not know which of the two it is and will use whichever separator they always use.
  */
 export function readQuantity(text: string, digits: number): number {
-	// A lone separator marks the decimals here, always. The thousands rule belongs to
-	// money, where a third digit after the separator says it was never a decimal mark; a
-	// field that takes eight decimal places has no such tell, and it turned an eighth of
-	// a unit into a hundred and twenty five of them.
-	return parseScaled(text, digits, { groupsOfThree: false });
+	try {
+		// A lone separator marks the decimals here, always. The thousands rule belongs to
+		// money, where a third digit after the separator says it was never a decimal mark; a
+		// field that takes eight decimal places has no such tell, and it turned an eighth of
+		// a unit into a hundred and twenty five of them.
+		return parseScaled(text, digits, { groupsOfThree: false });
+	} catch {
+		// Its own sentence, because the one about money told somebody to write 42,90 into
+		// a field that holds units of a fund.
+		throw new RuleError("quantityIsANumber", `"${text}" is not a number of units`);
+	}
 }
 
 /**
@@ -58,6 +65,24 @@ export function readPercentOrZero(text: string): number {
 }
 
 /**
+ * How many parts of a division somebody gets: a whole number, and at least none.
+ *
+ * Not money and not a percentage, and it used to go through Number(), so a comma, a word
+ * or a minus sign became NaN and the division refused it with the sentence about an
+ * amount that could not be read, inside a dialog that holds no amounts. A fraction was
+ * accepted in this browser and refused by a server, which is the same input saving in one
+ * place and failing in the other.
+ */
+export function readShare(text: string): number {
+	const trimmed = text.trim();
+	const value = Number(trimmed.replace(",", "."));
+	if (trimmed === "" || !Number.isInteger(value) || value < 0) {
+		throw new RuleError("shareIsAWholeNumber", `"${text}" is not a number of parts`);
+	}
+	return value;
+}
+
+/**
  * A share of something, in hundredths of a percent, read as tolerantly as an amount is.
  *
  * Not money, so it does not go through the money reader, but somebody typing into a field
@@ -65,9 +90,13 @@ export function readPercentOrZero(text: string): number {
  * put in front of them.
  */
 export function readPercent(text: string): number {
-	const value = Number(text.trim().replace(",", "."));
-	if (!Number.isFinite(value)) {
-		throw new MoneyError(`no percentage found in "${text}"`);
+	const trimmed = text.trim();
+	const value = Number(trimmed.replace(",", "."));
+	// Empty is not zero. It read as zero, so a blank field saved a promise to put nothing
+	// aside, silently, which is a rule that does nothing under a screen that says there is
+	// one.
+	if (trimmed === "" || !Number.isFinite(value)) {
+		throw new RuleError("percentIsANumber", `"${text}" is not a percentage`);
 	}
 	return Math.round(value * 100);
 }

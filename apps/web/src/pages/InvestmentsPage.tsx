@@ -12,6 +12,7 @@
 
 import { grow, growAtRates, independence, monthOf, todayIn } from "@cofre/core";
 import type { HoldingKind, HoldingValue, IndexRate } from "@cofre/storage";
+import { RuleError } from "@cofre/storage";
 import {
 	BarList,
 	Button,
@@ -144,7 +145,8 @@ export function InvestmentsPage() {
 			if (!session) throw new Error("no session");
 			const usable = (accounts.data ?? []).filter((account) => account.archivedAt === null);
 			const account = usable.find((one) => one.id === accountId) ?? usable[0];
-			if (!account) throw new Error(t("investments.noAccountBody"));
+			if (!account)
+				throw new RuleError("investmentNeedsAnAccount", "an investment sits in an account");
 
 			return session.investments.create({
 				spaceId,

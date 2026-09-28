@@ -9,6 +9,7 @@ import { Button, Callout, Dialog, Field, Segmented, Select } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { readShare } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { Value } from "./Value.tsx";
@@ -63,8 +64,14 @@ export function SplitDialog({ open, onOpenChange, record, people }: SplitDialogP
 				userIds: people.map((person) => person.id),
 				// Each share by the person it was typed for. A list in the order this
 				// screen reads people in was a list the space read in another order.
+				//
+				// Read, and not passed through Number(). A comma, a word or a minus sign
+				// became NaN, which the division then refused with the sentence about an
+				// amount it could not read, in a dialog with no amount in it. On a server
+				// it was worse: NaN travels as null and comes back as an unexplained
+				// refusal, and a fraction saved here and failed there.
 				shares: Object.fromEntries(
-					people.map((person) => [person.id, Number(weights[person.id] ?? "1")]),
+					people.map((person) => [person.id, readShare(weights[person.id] ?? "1")]),
 				),
 				paidBy,
 			});

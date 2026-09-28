@@ -7,22 +7,52 @@
 // inside a sentence that exists in one language and not the other is worse, because the
 // sentence comes out with a gap in it.
 //
-// So this walks both files and refuses three things:
+// So this walks both files and refuses four things:
 //
 //   1. a key one language has and the other does not
 //   2. an empty string, which is a key somebody meant to come back to
 //   3. a {{name}} in one language that is not in the other
+//   4. a rule the model can refuse with, that neither language has a sentence for
+//
+// The fourth one is the same class of fault seen from the other end. A refusal carries
+// the name of the rule and the interface looks that name up under "rules"; a name with
+// nothing behind it falls back to "I could not finish that. Try again." So the model
+// grows a rule, nobody writes the sentence, and the refusal that was written to explain
+// something explains nothing. There were eighteen of those.
 //
 // Plural forms count as one key: i18next chooses between "_one" and "_other" by the
 // count, and a language is allowed to need fewer of them than another.
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const locales = join(here, "..", "apps", "web", "src", "locales");
+const root = join(here, "..");
+const locales = join(root, "apps", "web", "src", "locales");
 const LANGUAGES = ["pt", "en"];
+
+/** Every TypeScript file that is not a test, under the folders that hold the rules. */
+function sourcesIn(dir) {
+	if (!existsSync(dir)) return [];
+	return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+		const path = join(dir, entry.name);
+		if (entry.isDirectory()) return entry.name === "node_modules" ? [] : sourcesIn(path);
+		return path.endsWith(".ts") && !path.endsWith(".test.ts") ? [path] : [];
+	});
+}
+
+/** The name of every rule the model can refuse with, and where it is thrown. */
+function rulesThrown() {
+	const found = new Map();
+	for (const file of [...sourcesIn(join(root, "packages")), ...sourcesIn(join(root, "apps"))]) {
+		const text = readFileSync(file, "utf8");
+		for (const match of text.matchAll(/new (?:RuleError|SplitError)\(\s*"([A-Za-z]+)"/g)) {
+			if (!found.has(match[1])) found.set(match[1], file.replace(root, "").replace(/^[\\/]/, ""));
+		}
+	}
+	return found;
+}
 
 /** Every key, flattened, with the plural suffix removed. */
 function keysOf(value, path, found) {
@@ -92,6 +122,16 @@ function main() {
 		}
 	}
 
+	const rules = rulesThrown();
+	for (const [name, file] of rules) {
+		for (const language of LANGUAGES) {
+			const table = tables.get(language);
+			if (table && !table.has(`rules.${name}`)) {
+				problems.push(`${language}.json has no sentence for the rule "${name}" (${file})`);
+			}
+		}
+	}
+
 	if (problems.length > 0) {
 		for (const problem of problems) console.error(problem);
 		console.error("");
@@ -101,7 +141,7 @@ function main() {
 	}
 
 	const total = tables.get(LANGUAGES[0])?.size ?? 0;
-	console.log(`Translations: ${total} keys, both languages, clean.`);
+	console.log(`Translations: ${total} keys, both languages, ${rules.size} rules, clean.`);
 }
 
 main();

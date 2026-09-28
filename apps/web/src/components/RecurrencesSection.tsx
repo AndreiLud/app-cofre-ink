@@ -6,6 +6,7 @@
 
 import { nextOccurrence, parseMoney } from "@cofre/core";
 import type { Recurrence, TransactionKind } from "@cofre/storage";
+import { RuleError } from "@cofre/storage";
 import {
 	Button,
 	Callout,
@@ -83,7 +84,8 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 		mutationFn: async () => {
 			if (!session) throw new Error("no session");
 			const parsed = parseMoney(amount, { currency: "BRL" });
-			if (parsed.amount <= 0) throw new Error(t("transactions.amountMissing"));
+			if (parsed.amount <= 0)
+				throw new RuleError("amountIsPositiveInteger", "an amount has to be more than nothing");
 
 			if (editing) {
 				return session.recurrences.update(editing.id, {

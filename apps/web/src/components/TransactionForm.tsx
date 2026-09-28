@@ -12,6 +12,7 @@ import type {
 	Transaction,
 	TransactionKind,
 } from "@cofre/storage";
+import { RuleError } from "@cofre/storage";
 import { Button, Callout, Dialog, Field, Segmented, Select } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
@@ -155,7 +156,7 @@ export function TransactionForm({
 
 			const parsed = { amount: readAmount(amount, chosen?.currency ?? "BRL") };
 			if (parsed.amount <= 0) {
-				throw new Error(t("transactions.amountMissing"));
+				throw new RuleError("amountIsPositiveInteger", "an amount has to be more than nothing");
 			}
 
 			// A transfer moves money between two accounts of the same person, so it is

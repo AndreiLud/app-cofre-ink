@@ -164,6 +164,49 @@ test.describe("dividing with the house", () => {
 		// And the reader's own row reads as a sentence about them.
 		await expect(page.getByText("tem a receber")).toBeVisible();
 	});
+
+	/**
+	 * A share is a number of parts, and the sentence about one says so.
+	 *
+	 * The shares went through Number(), so a comma, a word or a minus sign became NaN and
+	 * the division refused it with the sentence about an amount that could not be read,
+	 * offering an example of 42,90 inside a dialog that holds no amounts at all. A share
+	 * left empty said nothing and quietly wrote that person a part of zero.
+	 */
+	test("says what a share is when it cannot read one", async ({ page }) => {
+		await openCofre(page);
+
+		await openSetting(page, "Gerenciar espaços");
+		await page.getByRole("button", { name: "Entrar" }).click();
+		await expect(page.getByRole("banner")).toContainText("Casa");
+
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("400,00");
+		await page.getByRole("dialog").getByLabel("Descrição").fill("Reforma da casa");
+		await page.getByRole("button", { name: "Salvar" }).click();
+
+		await record(page, "Reforma da casa").getByRole("button", { name: "Ações" }).click();
+		await page.getByRole("menuitem", { name: "Dividir com a casa" }).click();
+
+		const dialog = page.getByRole("dialog");
+		await dialog.getByText("Por partes", { exact: true }).click();
+		await dialog.getByLabel("Você").fill("uma");
+		await page.getByRole("button", { name: "Salvar" }).click();
+
+		await expect(dialog.getByText("Cada parte é um número inteiro")).toBeVisible();
+		await expect(dialog.getByText(/42,90/)).toHaveCount(0);
+
+		// A share left empty is not a share of nothing.
+		await dialog.getByLabel("Você").fill("");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(dialog.getByText("Cada parte é um número inteiro")).toBeVisible();
+
+		// And a whole number saves.
+		await dialog.getByLabel("Você").fill("3");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(dialog).toHaveCount(0);
+	});
 });
 
 test.describe("what needs attention", () => {
