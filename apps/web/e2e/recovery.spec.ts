@@ -7,7 +7,7 @@
 // cannot again.
 
 import { expect, test } from "@playwright/test";
-import { go, openCofre } from "./support.ts";
+import { go, openCofre, record } from "./support.ts";
 
 test.describe("state from before", () => {
 	test("a server that does not answer asks to sign in, and not for nothing", async ({ page }) => {
@@ -34,6 +34,31 @@ test.describe("state from before", () => {
 		await expect(page.getByRole("navigation", { name: "Seções do aplicativo" })).toBeVisible({
 			timeout: 20_000,
 		});
+	});
+
+	test("changing where the data lives comes back to the same person", async ({ page }) => {
+		await openCofre(page);
+
+		// Something written, so there is a life in this browser to lose.
+		await go(page, "Lançamentos");
+		await page.getByLabel("Lançamento rápido").fill("lembrete disto 120,00 hoje");
+		await page.getByRole("button", { name: "Lançar", exact: true }).click();
+		await expect(record(page, "lembrete disto")).toBeVisible();
+
+		// Back to the first question, and in again by the same door.
+		await go(page, "Dados");
+		await page.getByRole("button", { name: "Mudar onde ficam os dados" }).click();
+		await expect(page.getByRole("button", { name: "Usar só neste navegador" })).toBeVisible();
+		await page.getByRole("button", { name: "Usar só neste navegador" }).click();
+
+		await expect(page.getByRole("navigation", { name: "Seções do aplicativo" })).toBeVisible({
+			timeout: 45_000,
+		});
+
+		// The same person, so the same spaces and the same records. It used to make
+		// another person, and everything written before sat in the file unreachable.
+		await go(page, "Lançamentos");
+		await expect(record(page, "lembrete disto")).toBeVisible();
 	});
 
 	test("a destination that was taken out does not take the data screen with it", async ({

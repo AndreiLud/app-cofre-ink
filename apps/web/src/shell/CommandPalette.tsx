@@ -210,8 +210,13 @@ export function CommandPalette({ state }: { state: PaletteState }) {
 				id: "signOut",
 				group: t("palette.actions"),
 				label: cofre.mode === "server" ? t("palette.signOut") : t("palette.changeMode"),
+				// Two different things wearing one entry. Signing out of a server ends a
+				// session. Changing where the data lives asks the first question again and
+				// must not forget who this browser holds, or the spaces in the file stop
+				// having a screen that reaches them.
 				run: () => {
-					void cofre.signOut();
+					if (cofre.mode === "server") void cofre.signOut();
+					else cofre.chooseAgain();
 					state.close();
 				},
 			},

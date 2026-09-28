@@ -276,6 +276,12 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 	 * look at is a form most of them close, and every answer on it (their name, the
 	 * currency, what the space is called) can be corrected later from inside. What
 	 * cannot be undone is losing them at the door.
+	 *
+	 * And this door is walked twice. Somebody who presses "change where the data lives"
+	 * comes back to it with a database already on this machine and a person already in
+	 * it, so the person is picked up rather than made again. Making a new one left their
+	 * spaces sitting in the file with no screen that reached them, which is what losing
+	 * somebody at the door looks like from the inside.
 	 */
 	const startHere = useCallback(
 		async (setUp: (database: Driver) => Promise<User>) => {
@@ -289,6 +295,13 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 				setPersistent(database.outcome === "persistent");
 				if (database.outcome === "busy") {
 					setStatus("busy");
+					return;
+				}
+
+				const known = storedUserId();
+				const already = known === null ? null : await findUserById(database.driver, known);
+				if (already) {
+					await startLocalSession(database.driver, already.id);
 					return;
 				}
 
