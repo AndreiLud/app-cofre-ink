@@ -5,6 +5,92 @@ Every release, what changed in it, and what to do about it if you are running th
 Versions follow semantic versioning. The first number changes when something that worked
 breaks, the second when something is added, the third when something is corrected.
 
+## 1.0.4
+
+Released on 28 September 2026. The site session read the guide against the code again, at
+1.0.3, and this time it did not bring a list of cases: it brought three families, and asked
+for the origin of each rather than the examples. Which role may do what, what a failure
+says, and how an amount is read. Every case it found was real.
+
+> **If you typed a limit, a savings rule, a goal or an investment price using a period for
+> the cents, check it.**
+>
+> The reader on those screens deleted every period before looking, so 1000.50 was saved as
+> a hundred thousand and 1,000.00 as one real, while the hint under the field said a comma
+> or a period would do. The same reader decided the quantities on the investments screen,
+> so ten and a half units of a fund were stored as a hundred and five. Nothing was
+> corrected for you, because guessing which of those was meant would be worse. Open
+> Orçamento and Investimentos and look at the numbers.
+>
+> **If you had a WebDAV folder set up and then pressed Continuar under "Um banco na
+> nuvem", or changed the place in the list, look at the backup panel.** The fields of the
+> folder were carried over into the database, so every run sent your application password
+> to the folder's address and failed. Each place keeps its own fields now, and yours are
+> where you left them.
+
+### Fixed
+
+**What a role may do is asked in one place.** Three screens read the member list and wrote
+their own lists of roles; every other screen that writes offered everything to everybody
+and let the model refuse it afterwards, in a sentence written for whoever wrote the code.
+The lists had already drifted from the matrix nobody was reading. Every control on every
+screen that writes now names the permission the repository behind it asks for, so a button
+and the refusal behind it cannot disagree. Accounts, categories, budgets, goals, the
+savings rule, rules, recurrences, investments, scenarios, spaces, the danger zone, the
+import, the records and the one button on the overview.
+
+An unknown role counts as no. Two screens read it as yes, on the strength of a comment
+that was not true: creating a space writes a member row for whoever made it, including the
+personal one, so a missing role means the list has not arrived or this person is not here.
+
+Importing is nothing but writing records, so a role that writes none of them is told so
+instead of being walked through a file, mapping the columns and marking the repeats, and
+refused at the end.
+
+**A failure says what happened.** Twenty one places turned an error into words and they
+disagreed: nine printed the model's own English, one answered "your role does not allow
+that" to everything including a dropped connection, one said the amount could not be read
+whatever had gone wrong. Fourteen writes had no handler at all and thirteen of those failed
+in silence, among them the quick entry and its undo, archiving and deleting an account,
+deleting a whole instalment plan, and marking something as paid on the overview. On a
+server it was worse than a bad guess: a rule of the model arrives there in a different
+shape, so every check for one was dead code and a genuine rule read as a refusal.
+
+**An amount is read one way.** There were four readers. Two deleted every period before
+looking, one read a period and nothing else and turned the Brazilian thousands form into
+NaN, and none of the three said anything when they could not read what was typed, so a
+word became a limit of zero. Writing one back had the same spread: three places put a
+comma in whatever language was speaking.
+
+**A logger reads their own rows on the import screen too.** The query that marks what looks
+familiar in a file filtered on the space alone, so it read back up to five thousand records
+of the whole space, with their descriptions and their amounts, for the one role that is
+meant to see only what it wrote.
+
+**A destination has to be somewhere else.** A blank address, or a path with no host on it,
+is resolved against the address this application is served from, and every one of those
+calls carries a credential. Erasing a space with the address blanked out sent a DELETE
+there with the application password in the header, and the 404 counted as the copy having
+been erased while it sat untouched in the folder. Restoring had the same hole.
+
+**A place that no longer exists is cleared when the application opens**, which is what the
+1.0.3 notes promised. It happened on a read of the settings, and the only screen that read
+them was the data screen.
+
+### Changed
+
+**The backup panel says what is happening and what was asked for**, which are two facts
+that can disagree, and says so plainly when they do. Switching it off no longer needs a
+complete place, so a missing field cannot leave a backup on with the only way out greyed
+out. The panel reads the settings again whenever they change, wherever they change.
+
+**When the copy has already gone and the erasure then fails**, the dialog says that, and
+says the next run writes the copy again.
+
+**Who owes whom reads as a sentence.** "You owes" and "You is owed" were what an English
+reader saw on their own row, which is the row they were certain to read. So was "João pays
+You", a capitalised pronoun in the middle of a sentence, in both languages.
+
 ## 1.0.3
 
 Released on 28 September 2026. The session that keeps the cofre.ink site read the guide
