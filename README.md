@@ -263,7 +263,7 @@ names.
 ### Decisions
 
 Every decision that is expensive to reverse is written down in
-[docs/adr](docs/adr), with the options that were rejected and why. Thirty eight of them,
+[docs/adr](docs/adr), with the options that were rejected and why. Thirty nine of them,
 from the monorepo to the way a projection is built. A few that shape everything else:
 
 1. **Money is always an integer number of minor units.** Never a floating point number.
@@ -557,7 +557,7 @@ arquivo.
 ### Decisões
 
 Toda decisão cara de desfazer está escrita em [docs/adr](docs/adr), com as alternativas
-recusadas e o motivo. São trinta e oito, do monorepo até o jeito de montar uma projeção.
+recusadas e o motivo. São trinta e nove, do monorepo até o jeito de montar uma projeção.
 Algumas que mandam em todo o resto:
 
 1. **Dinheiro é sempre um número inteiro de centavos.** Nunca um número de ponto

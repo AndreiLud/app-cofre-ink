@@ -5,6 +5,76 @@ Every release, what changed in it, and what to do about it if you are running th
 Versions follow semantic versioning. The first number changes when something that worked
 breaks, the second when something is added, the third when something is corrected.
 
+## 1.0.1
+
+Released on 28 September 2026. What an audit of 1.0.0 found the morning after it went
+out. One of the five is money on a screen and the rest are a screen that could write a
+record twice, a sentence in the wrong language, and a pile of figures in the documents
+that had stopped being true.
+
+> **If you used the month screen on 1.0.0, read this.**
+>
+> It charged the card invoice and never paid it. Your total was right the whole time and
+> your two accounts were not: the account your wages arrive in kept the invoice it really
+> handed over, and the card kept a debt nobody settled. Nothing is repaired on its own.
+> Open each month you wrote on that screen and press save again, and the payment is
+> written where it belongs.
+
+### Fixed
+
+**The card the month screen charges is now also paid.** An invoice is charged to the card
+and then paid from the account, and only the first half was written. So every month the
+current account climbed by the whole invoice and the card sank by the same amount. The
+two errors are equal and opposite, which is why the total always looked right and why
+nothing caught it.
+
+A fourth record is written from the same number, and nothing new is asked: a transfer out
+of the chosen account on the day that invoice falls due, which for a card that closes late
+in the month is the month after. An invoice that has not fallen due yet is written as
+planned rather than settled, so it counts in what is coming rather than in what is there.
+Registry 0039 has the reasoning, including why paying the card is not a fourth field.
+
+**A save that failed half way through wrote a second copy when it was tried again.** The
+screen only went back to look at what it had written when the save worked, so after a
+failure it still believed it had written nothing, and pressing the button again wrote
+another copy of whatever had already landed. It reads them again either way now.
+
+**The month screen looked for its own records in a page of days.** It asked for a range
+wide enough to hold all of them and read what came back, which in a busy space is a page
+that the records can fall off the end of. A record it could not see would have been
+written a second time. It asks for them by the mark they carry instead, which is an exact
+question, and the filter for that is in the repository, the route and the client alike.
+
+**The English amount example was written in Brazilian.** The one message that appears
+after somebody has already mistyped an amount told them to write it like 2.500,00, which
+in English reads as two and a half.
+
+### Changed
+
+**The figures and the lists in the documents.** The README counted thirty three decision
+records and there are thirty nine, and it repeated the test counts of 0.1.1 unchanged. It
+also still offered a file as a place a copy can live, which is the thing 1.0.0 took away.
+The only install command in this file pinned 0.1.1, and now reads `latest`. And the
+picture the README opens with was taken before the rename, so it showed a wordmark reading
+Cofre.
+
+### What is worth knowing before you rely on it
+
+Unchanged from 1.0.0, and worth repeating here rather than leaving in a section three
+releases down:
+
+1. **The statement readers have never seen a real bank statement.** They are built from
+   the formats and tested against files written for the tests. Expect to correct a column
+   mapping the first time, and expect the correction to be remembered.
+2. **A copy in a WebDAV folder has only been tested against a stand in**, never against a
+   real Nextcloud.
+3. **Turnstile has never been tested against the real Cloudflare service**, only against a
+   double. The proof of work in front of the sign in has, and it is the one that is on by
+   default.
+4. **In browser mode there is no password.** The address can be public without exposing
+   anything of yours, and whoever opens your browser sees your data. Both are true at the
+   same time and the front door says so.
+
 ## 1.0.0
 
 Released on 27 September 2026. The first version this project calls finished: everything
