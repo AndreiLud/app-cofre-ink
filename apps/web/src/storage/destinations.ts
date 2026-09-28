@@ -9,6 +9,7 @@
 // automatic backup is on, and when it is allowed to run.
 
 import type { DestinationKind } from "@cofre/cloud";
+import { looksReachable } from "@cofre/cloud";
 
 export type DestinationSettings = {
 	/** Null until somebody picks one, because there is no sensible default place. */
@@ -139,10 +140,16 @@ export function storedDestination(): DestinationSettings {
  * fail on every pass until the fields were filled in.
  */
 export function readyToBackUp(settings: DestinationSettings): boolean {
+	// Trimmed, because a field holding nothing but spaces counted as filled in and armed
+	// the run against credentials that cannot work. And the address has to be one: a line
+	// of text that is not an address counted as complete, the backup armed itself, and
+	// every pass died before it could say anything.
+	const filled = (value: string) => value.trim() !== "";
+	if (!looksReachable(settings.address)) return false;
 	if (settings.kind === "webdav") {
-		return settings.address !== "" && settings.user !== "" && settings.secret !== "";
+		return filled(settings.user) && filled(settings.secret);
 	}
-	if (settings.kind === "database") return settings.address !== "" && settings.secret !== "";
+	if (settings.kind === "database") return filled(settings.secret);
 	return false;
 }
 

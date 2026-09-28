@@ -951,7 +951,7 @@
 		"databaseShort": "online database",
 		"databaseHint": "The change log becomes rows in a table rather than a file. Two devices can write at the same time without one going over the other. Works with Turso or with a sqld you run yourself.",
 		"databaseAddress": "Address of the database",
-		"databaseAddressHint": "The address the service gave you, ending in turso.io, or the one of your own sqld."
+		"databaseAddressHint": "The address the service gave you, ending in turso.io, or the one of your own sqld. You can paste it the way Turso shows it, starting with libsql://, or just the host on its own."
 	},
 	"importing": {
 		"title": "Import a statement",

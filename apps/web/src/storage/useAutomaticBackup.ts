@@ -9,10 +9,12 @@
 // several times in a second. The other two cost a round trip when nothing changed, so
 // they are asked for: when the application opens, and on a clock.
 
+import { CloudError } from "@cofre/cloud";
 import { runBackup } from "@cofre/storage";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { afterTheTyping } from "./backupRunner.ts";
 import { setBackupState } from "./backupState.ts";
 import { useCofre } from "./CofreProvider.tsx";
@@ -51,29 +53,32 @@ export function useAutomaticBackup(): void {
 			if (!when.on || !readyToBackUp(settings)) return;
 			if (running || !driver) return;
 
-			// Loaded here and not at the top of the file. Everything in this module is in
-			// the shell, which every screen pays for on every load, and the package that
-			// speaks to a folder or a database is needed only when a copy is actually
-			// being written. Importing it eagerly doubled the time every page took.
-			const { storeFrom } = await import("./storeFrom.ts");
-			// The name a sentence about this place calls it, in the language on screen.
-			// It used to be handed the bare kind, so anything the store said came out as
-			// "webdav" or "database" in the middle of a translated sentence.
-			const store = storeFrom(
-				settings,
-				latest.current.t(`destination.${settings.kind ?? "webdav"}Short`),
-			);
-			if (store === null) return;
-
-			const allowed = await latest.current.session?.backup.copyable();
-			const covered = latest.current.spaces
-				.filter((space) => (allowed ?? []).includes(space.id))
-				.map((space) => space.id);
-			if (covered.length === 0) return;
-
 			running = true;
-			setBackupState({ busy: true, problem: null });
 			try {
+				// Everything that can fail is inside here. Building the store was outside
+				// it, and since a destination started refusing an address that is not an
+				// address, that throw took the whole run down as a rejection nobody was
+				// holding: no message, no time recorded, and a panel still saying Active.
+				// Loading the chunk can fail the same way, on a stale deploy or offline.
+				const { storeFrom } = await import("./storeFrom.ts");
+				// The name a sentence about this place calls it, in the language on screen.
+				// It used to be handed the bare kind, so anything the store said came out as
+				// "webdav" or "database" in the middle of a translated sentence.
+				const store = storeFrom(
+					settings,
+					latest.current.t(`destination.${settings.kind ?? "webdav"}Short`),
+				);
+				if (store === null) return;
+
+				const allowed = await latest.current.session?.backup.copyable();
+				const covered = latest.current.spaces
+					.filter((space) => (allowed ?? []).includes(space.id))
+					.map((space) => space.id);
+				if (covered.length === 0) return;
+
+				// Only once there is something to do. It used to be set before the two
+				// returns above, which left the screen saying a backup was under way.
+				setBackupState({ busy: true, problem: null });
 				const done = await runBackup(driver, store, covered);
 				for (const outcome of done.outcomes) {
 					if (outcome.did !== "asked") markMet(outcome.spaceId, settings.kind ?? "");
@@ -96,11 +101,18 @@ export function useAutomaticBackup(): void {
 				setBackupState({
 					busy: false,
 					said: null,
-					// The bare name of the place, not the one the picker shows: that one
-					// carries its own article and reads as "in A WebDAV folder".
-					problem: latest.current.t("auto.failed", {
-						where: latest.current.t(`destination.${settings.kind ?? "webdav"}Short`),
-					}),
+					// A destination that says what went wrong says it better than a sentence
+					// about the backup not finishing: an address that is not an address, a
+					// token that expired, a service that answered with a number. Anything
+					// else falls back to the bare name of the place, not the one the picker
+					// shows, because that one carries its own article and reads as "in A
+					// WebDAV folder".
+					problem:
+						error instanceof CloudError
+							? sayWhy(error, latest.current.t)
+							: latest.current.t("auto.failed", {
+									where: latest.current.t(`destination.${settings.kind ?? "webdav"}Short`),
+								}),
 				});
 				// The reason is in the console for whoever is looking, and on the screen in
 				// one sentence for whoever is not.

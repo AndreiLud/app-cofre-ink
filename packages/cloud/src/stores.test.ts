@@ -253,7 +253,7 @@ describe("a spreadsheet that keeps up", () => {
 		// make carries a credential. So a blank address used to send somebody's WebDAV
 		// application password to whoever serves the page, and a DELETE for a file that
 		// was never there came back 404, which counts as the file already being gone.
-		for (const bad of ["", "   ", "/cofre", "nuvem.exemplo.com/cofre", "ftp://x.exemplo.com"]) {
+		for (const bad of ["", "   ", "/cofre", "./cofre", "ftp://x.exemplo.com"]) {
 			expect(() => createWebdavStore({ url: bad, user: "ana", password: "segredo" })).toThrow(
 				CloudError,
 			);
@@ -263,6 +263,24 @@ describe("a spreadsheet that keeps up", () => {
 		// And an ordinary one is built without complaint.
 		expect(() =>
 			createWebdavStore({ url: "https://nuvem.exemplo.com/cofre/", user: "ana", password: "s" }),
+		).not.toThrow();
+	});
+
+	it("takes the two addresses a service hands somebody to paste", () => {
+		// Turso shows a database as libsql://name.turso.io, which is the same host over
+		// https, and the hint beside the field asks for a host on its own. Both were
+		// refused with a sentence about not reaching the destination, which sent people to
+		// check a connection and an address that were both fine.
+		const service = fakeService(() => ({ body: "{}" }));
+
+		for (const given of ["libsql://cofre.turso.io", "cofre.turso.io", "LIBSQL://cofre.turso.io"]) {
+			expect(() =>
+				createLibsqlStore({ url: given, token: "t", fetcher: service.fetcher }),
+			).not.toThrow();
+		}
+
+		expect(() =>
+			createWebdavStore({ url: "nuvem.exemplo.com/cofre", user: "ana", password: "s" }),
 		).not.toThrow();
 	});
 

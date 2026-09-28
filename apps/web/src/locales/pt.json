@@ -951,7 +951,7 @@
 		"databaseShort": "banco de dados online",
 		"databaseHint": "O log de mudanças vira linhas numa tabela, e não um arquivo. Dois aparelhos podem gravar ao mesmo tempo sem um passar por cima do outro. Funciona com o Turso ou com um sqld que você mesmo roda.",
 		"databaseAddress": "Endereço do banco",
-		"databaseAddressHint": "O endereço que o serviço te deu, terminando em turso.io, ou o do seu próprio sqld."
+		"databaseAddressHint": "O endereço que o serviço te deu, terminando em turso.io, ou o do seu próprio sqld. Pode colar como o Turso mostra, começando com libsql://, ou só o nome do servidor."
 	},
 	"importing": {
 		"title": "Importar extrato",

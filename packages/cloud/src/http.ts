@@ -25,6 +25,17 @@ export class CloudError extends Error {
 export type Fetcher = typeof globalThis.fetch;
 
 /**
+ * A name with dots in it and nothing else: what somebody copies out of a service.
+ *
+ * Deliberately narrow. A path, a relative one, a scheme of its own and anything with a
+ * space in it all fail this and are refused rather than guessed at, because guessing wrong
+ * here means sending a password somewhere it was not meant to go.
+ */
+function looksLikeAHost(first: string): boolean {
+	return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(:\d+)?$/i.test(first);
+}
+
+/**
  * The address of a destination has to be somewhere else.
  *
  * A blank one, or a path with no host on it, is resolved by fetch against whatever
@@ -35,7 +46,19 @@ export type Fetcher = typeof globalThis.fetch;
  * not a thing to do on the way to finding that out.
  */
 export function addressOfAPlace(url: string, where: string): string {
-	const trimmed = url.trim().replace(/\/+$/, "");
+	let trimmed = url.trim().replace(/\/+$/, "");
+
+	// Two shapes a person is handed by the service itself and pastes in whole. Turso shows
+	// a database as libsql://name.turso.io, which is the same host over https, and a host
+	// on its own is what the hint beside the field asks for. Refusing either of them is
+	// refusing the address the service gave them, which is not a thing they can be
+	// expected to work out from a sentence about not reaching the destination.
+	if (/^libsql:\/\//i.test(trimmed)) {
+		trimmed = `https://${trimmed.slice("libsql://".length)}`;
+	} else if (looksLikeAHost(trimmed.split("/")[0] ?? "")) {
+		trimmed = `https://${trimmed}`;
+	}
+
 	let parsed: URL;
 	try {
 		parsed = new URL(trimmed);
@@ -45,7 +68,26 @@ export function addressOfAPlace(url: string, where: string): string {
 	if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
 		throw new CloudError(where, 0, `"${url}" is not an address this can reach`);
 	}
+	if (parsed.hostname === "") {
+		throw new CloudError(where, 0, `"${url}" names no host`);
+	}
 	return trimmed;
+}
+
+/**
+ * The same question, asked before anything is armed rather than when it fails.
+ *
+ * A screen that knows an address cannot be turned into a request can say so while the
+ * person is looking at the field, instead of switching a backup on that dies on its first
+ * pass. Same rule, one place, so the two answers cannot drift apart.
+ */
+export function looksReachable(url: string): boolean {
+	try {
+		addressOfAPlace(url, "");
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 export type CallOptions = {

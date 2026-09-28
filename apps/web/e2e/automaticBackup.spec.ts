@@ -8,6 +8,7 @@
 // writes again by itself when a record is typed.
 
 import { expect, test } from "@playwright/test";
+
 import { go, openCofre, record } from "./support.ts";
 
 const FOLDER = "https://nuvem.exemplo.com/dav/cofre";
@@ -260,6 +261,76 @@ test.describe("the copy that keeps itself up to date", () => {
 		});
 		await page.getByRole("button", { name: "Cancelar" }).first().click();
 		await expect(page.getByRole("listitem").filter({ hasText: "Casa" })).toBeVisible();
+	});
+
+	/**
+	 * An address that cannot be turned into a request used to take the whole run down.
+	 *
+	 * The store was built outside the try, so the throw from a destination refusing an
+	 * address that is not one rejected a promise nobody was holding: no sentence, no time
+	 * recorded, and the panel still saying Active while nothing was ever copied.
+	 */
+	test("says so when the place cannot even be addressed", async ({ page }) => {
+		await aFolderThatAnswers(page);
+		await openCofre(page);
+		await setUpTheFolder(page);
+
+		await page.getByRole("button", { name: "Ligar" }).click();
+		await page.getByRole("button", { name: "Fazer backup agora" }).click();
+		await expect(page.getByText(/Backup salvo às \d{2}:\d{2}/)).toBeVisible({ timeout: 20_000 });
+
+		// Something that is not an address at all, which a person reaches by pasting the
+		// wrong half of something. It used to count as a complete place, so the backup
+		// stayed armed and every pass died before it could say a word.
+		for (const notAnAddress of ["a pasta do cofre", "ftp://nuvem.exemplo.com/cofre", "   "]) {
+			await page.getByLabel("Endereço da pasta").fill(notAnAddress);
+			await expect(page.getByText("nada está sendo copiado")).toBeVisible();
+			await expect(page.locator("#copia").getByText("Inativo", { exact: true })).toBeVisible();
+			await expect(page.getByRole("button", { name: "Fazer backup agora" })).toBeDisabled();
+			// And the way out is never greyed out.
+			await expect(page.getByRole("button", { name: "Desligar" })).toBeEnabled();
+		}
+
+		// Typing a real one back brings it to life without anybody pressing anything else.
+		await page.getByLabel("Endereço da pasta").fill(FOLDER);
+		await expect(page.getByText("nada está sendo copiado")).toHaveCount(0);
+		await expect(page.locator("#copia").getByText("Ativo", { exact: true })).toBeVisible();
+	});
+
+	/**
+	 * Turso shows a database address as libsql://name.turso.io, and the hint beside the
+	 * field asks for the host on its own. Both were refused before any call was made, with
+	 * a sentence blaming the connection.
+	 */
+	test("takes the database address the way the service shows it", async ({ page }) => {
+		await page.route("**cofre.turso.io/**", async (route) => {
+			const cors = {
+				"access-control-allow-origin": "*",
+				"access-control-allow-methods": "POST,OPTIONS",
+				"access-control-allow-headers": "authorization,content-type",
+			};
+			if (route.request().method() === "OPTIONS") {
+				return route.fulfill({ status: 204, headers: cors });
+			}
+			return route.fulfill({
+				status: 200,
+				headers: { ...cors, "content-type": "application/json" },
+				body: JSON.stringify({ results: [{ type: "ok", response: { type: "execute" } }] }),
+			});
+		});
+
+		await openCofre(page);
+		await go(page, "Dados");
+		await page
+			.getByLabel("Onde guardar a cópia")
+			.selectOption({ label: "Um banco de dados online" });
+		await page.getByLabel("Endereço do banco").fill("libsql://cofre.turso.io");
+		await page.getByLabel("Token", { exact: true }).fill("um token");
+
+		await page.getByRole("button", { name: "Testar conexão" }).click();
+		// Whatever the fake database answers, what must not happen is a complaint about
+		// the address before anything left the browser.
+		await expect(page.getByText(/Não consegui falar com o destino/)).toHaveCount(0);
 	});
 
 	test("writes again by itself once a record is typed", async ({ page }) => {

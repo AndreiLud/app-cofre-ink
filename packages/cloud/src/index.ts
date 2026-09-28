@@ -21,7 +21,7 @@ export {
 	type SheetResult,
 	sheetUrl,
 } from "./googleSheets.ts";
-export { CloudError, call, callJson, type Fetcher } from "./http.ts";
+export { CloudError, call, callJson, type Fetcher, looksReachable } from "./http.ts";
 export { createLibsqlStore, type LibsqlOptions } from "./libsql.ts";
 export {
 	BUNDLE_MEDIA_TYPE,
