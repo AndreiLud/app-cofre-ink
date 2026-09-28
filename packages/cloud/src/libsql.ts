@@ -300,5 +300,18 @@ export function createLibsqlStore(options: LibsqlOptions): SyncStore {
 			// appending to it cannot lose each other's writes.
 			return { revision: null };
 		},
+
+		async remove(spaceId: string) {
+			await run([
+				...SCHEMA.map((sql) => ({ sql, args: [] })),
+				{
+					sql: `DELETE FROM "${CHANGES}" WHERE "space_id" = ?`,
+					args: [text(spaceId)],
+				},
+			]);
+			// The people table is shared by every space in this database, so it stays. What
+			// went is the log of the one space that was erased.
+			known.clear();
+		},
 	};
 }

@@ -82,12 +82,22 @@ export function runErasureConformance(adapter: AdapterUnderTest): void {
 				for (const table of FILLED) {
 					expect(await countRows(fixture.driver, table, spaceId), table).toBeGreaterThan(0);
 				}
-				expect(await countRows(fixture.driver, "changes", spaceId)).toBeGreaterThan(0);
+				const logged = await countRows(fixture.driver, "changes", spaceId);
+				expect(logged).toBeGreaterThan(0);
+
+				// What the space actually held, counted the same way the message counts it.
+				let held = 0;
+				for (const table of FILLED) held += await countRows(fixture.driver, table, spaceId);
 
 				const result = await fixture.asAna.erasure.eraseSpace(spaceId);
 				expect(result.name).toBe("Casa");
 				expect(result.spaceRemoved).toBe(true);
-				expect(result.rows).toBeGreaterThan(0);
+
+				// The records of the space, and not every row that carried its identifier.
+				// The log holds an entry per record and then some, so counting it told
+				// somebody who wrote a hundred records that four hundred had been erased.
+				expect(result.rows).toBe(held);
+				expect(result.rows).toBeLessThan(held + logged);
 
 				// Not hidden. Gone.
 				for (const table of FILLED) {

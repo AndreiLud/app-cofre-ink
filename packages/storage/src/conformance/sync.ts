@@ -652,6 +652,7 @@ export function runSyncConformance(adapter: AdapterUnderTest): void {
 						}
 						return store.write(spaceId, bundle, revision);
 					},
+					remove: (spaceId) => store.remove(spaceId),
 				};
 
 				const done = await syncWithStore(one.driver, contested, { spaceId: space.id });

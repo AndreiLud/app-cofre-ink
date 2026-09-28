@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { rememberWhen, storedDestination, storedWhen } from "../storage/destinations.ts";
 
 type Target = { kind: "space"; space: Space } | { kind: "everything" };
 
@@ -27,6 +28,21 @@ export function DangerZone() {
 	const [busy, setBusy] = useState(false);
 	const [problem, setProblem] = useState<string | null>(null);
 	const [done, setDone] = useState<string | null>(null);
+	// Ticked by default, because somebody erasing a space means the space and not a copy
+	// of it left behind in a folder. Unticking it keeps the copy, and then the backup has
+	// to go off, which is the line under the box.
+	const [alsoTheCopy, setAlsoTheCopy] = useState(true);
+
+	const destination = storedDestination();
+	const backingUp = storedWhen();
+	/**
+	 * The automatic backup is on and pointed somewhere.
+	 *
+	 * It is the reason this dialog has a question in it. An erased space leaves no
+	 * deletion marks, so the copy in the place is simply ahead, and the next run brings
+	 * the whole space back, reports it as a success, and says nothing.
+	 */
+	const copyKeepsIt = backingUp.on && destination.kind !== null;
 
 	// In browser mode the whole database is one file on this machine, so erasing
 	// everything means the file. On a server it means the spaces of this account, and
@@ -38,6 +54,28 @@ export function DangerZone() {
 		setTyped("");
 		setProblem(null);
 		setDone(null);
+		setAlsoTheCopy(true);
+	}
+
+	/**
+	 * Take the copy of this space at the destination away, or switch the backup off.
+	 *
+	 * One of the two has to happen. The engine refuses on purpose to write an empty log
+	 * over a full one, so an erasure cannot travel to the place by itself, and a place
+	 * left holding the space is a place that puts it back within seconds.
+	 */
+	async function dealWithTheCopy(spaceId: string): Promise<void> {
+		if (!copyKeepsIt || destination.kind === null) return;
+
+		if (!alsoTheCopy) {
+			rememberWhen({ ...backingUp, on: false });
+			return;
+		}
+
+		const { storeFrom } = await import("../storage/storeFrom.ts");
+		const store = storeFrom(destination, t(`destination.${destination.kind}Short`));
+		if (store === null) return;
+		await store.remove(spaceId);
 	}
 
 	/** What has to be typed out, so that no amount of clicking alone is enough. */
@@ -52,13 +90,21 @@ export function DangerZone() {
 			if (target.kind === "space") {
 				if (!session) throw new Error("no session");
 				const result = await session.erasure.eraseSpace(target.space.id);
+				// Before anything reloads, because a reload is what sets the next run of
+				// the backup going, and that run is the one that would put it back.
+				await dealWithTheCopy(target.space.id);
 				queries.clear();
 				await reload();
 				setTarget(null);
 				setDone(
-					result.spaceRemoved
-						? t("danger.spaceGone", { name: result.name, count: result.rows })
-						: t("danger.spaceEmptied", { name: result.name, count: result.rows }),
+					[
+						result.spaceRemoved
+							? t("danger.spaceGone", { name: result.name, count: result.rows })
+							: t("danger.spaceEmptied", { name: result.name, count: result.rows }),
+						copyKeepsIt ? t(alsoTheCopy ? "danger.copyGone" : "danger.backupOff") : null,
+					]
+						.filter(Boolean)
+						.join(" "),
 				);
 				return;
 			}
@@ -159,6 +205,31 @@ export function DangerZone() {
 			>
 				<div className="space-y-4">
 					<Callout tone="problem">{t("danger.noUndo")}</Callout>
+
+					{/* Only for one space, and only when a copy of it is being kept
+					    somewhere. Erasing everything in browser mode takes the whole file
+					    and the settings with it, so there is nothing left to run a backup. */}
+					{target?.kind === "space" && copyKeepsIt ? (
+						<div className="rounded-sm border border-line bg-sunken p-3">
+							<label className="flex items-start gap-2 text-sm text-ink">
+								<input
+									type="checkbox"
+									className="mt-1"
+									checked={alsoTheCopy}
+									onChange={(event) => setAlsoTheCopy(event.target.checked)}
+								/>
+								<span>
+									{t("danger.alsoTheCopy", {
+										where: t(`destination.${destination.kind ?? "webdav"}Short`),
+									})}
+								</span>
+							</label>
+							<p className="mt-2 text-xs leading-relaxed text-quiet">
+								{t(alsoTheCopy ? "danger.alsoTheCopyHint" : "danger.keepTheCopyHint")}
+							</p>
+						</div>
+					) : null}
+
 					<Field
 						label={t("danger.typeToConfirm", { word })}
 						value={typed}

@@ -1243,7 +1243,7 @@
 		"personalKeeps": "Apaga tudo que está dentro. O espaço pessoal continua existindo, vazio.",
 		"sharedGoes": "Apaga tudo que está dentro, e o espaço deixa de existir aqui.",
 		"everythingTitle": "Apagar tudo",
-		"everythingHereBody": "Apaga o banco de dados inteiro deste navegador: todos os espaços, o seu perfil e as preferências. O {{app}} volta como se fosse a primeira vez.",
+		"everythingHereBody": "Apaga o banco de dados inteiro deste navegador: todos os espaços e as preferências. O {{app}} volta como se fosse a primeira vez.",
 		"everythingServerBody": "Apaga todos os espaços que são seus. Espaços de outras pessoas você só deixa, porque os lançamentos deles não são seus para apagar.",
 		"eraseEverything": "Apagar tudo",
 		"confirmWord": "APAGAR TUDO",
@@ -1251,7 +1251,7 @@
 		"confirmEverythingTitle": "Apagar tudo",
 		"confirmPersonalBody": "Somem os lançamentos, contas, cartões, categorias, orçamentos, metas, regras, investimentos e o histórico deste espaço. O espaço em si continua, vazio.",
 		"confirmSharedBody": "Somem os lançamentos, contas, cartões, categorias, orçamentos, metas, regras, investimentos e o histórico, e o espaço sai da sua lista. Quem estava nele em outro aparelho continua com a cópia que já tem.",
-		"confirmEverythingHereBody": "O arquivo do banco de dados é apagado deste navegador. Não tem cópia em outro lugar, a não ser a que você mesmo exportou.",
+		"confirmEverythingHereBody": "O arquivo do banco de dados é apagado deste navegador. Não tem cópia em outro lugar, a não ser a que você mesmo exportou e, se estiver ligado, a do backup automático.",
 		"confirmEverythingServerBody": "Todos os espaços que são seus somem do servidor. Você sai dos espaços de outras pessoas sem apagar nada deles. Sua conta continua existindo.",
 		"noUndo": "Isso não tem como desfazer.",
 		"typeToConfirm": "Escreva {{word}} para confirmar",
@@ -1260,7 +1260,12 @@
 		"spaceGone_one": "{{name}} foi apagado, com 1 registro.",
 		"spaceGone_other": "{{name}} foi apagado, com {{count}} registros.",
 		"spaceEmptied_one": "{{name}} ficou vazio. 1 registro foi apagado.",
-		"spaceEmptied_other": "{{name}} ficou vazio. {{count}} registros foram apagados."
+		"spaceEmptied_other": "{{name}} ficou vazio. {{count}} registros foram apagados.",
+		"alsoTheCopy": "Apagar também a cópia guardada em {{where}}",
+		"alsoTheCopyHint": "A cópia deste espaço sai do destino junto. O backup automático continua ligado para os outros espaços.",
+		"keepTheCopyHint": "A cópia fica onde está, e por isso o backup automático vai ser desligado: com ele ligado, a próxima rodada veria o destino na frente e traria este espaço de volta inteiro.",
+		"copyGone": "A cópia no destino também foi apagada.",
+		"backupOff": "O backup automático foi desligado, para o destino não trazer este espaço de volta."
 	},
 	"profiles": {
 		"you": "Você é {{name}}"

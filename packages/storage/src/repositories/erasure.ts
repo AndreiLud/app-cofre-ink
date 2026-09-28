@@ -55,17 +55,27 @@ type ToErase = {
  * the end are in the membership scope but carry a space, and the log is one of them: a
  * space erased with its history still in the log is a space that left a shadow.
  */
-const INSIDE_A_SPACE: ToErase[] = [
-	...SCHEMA.filter((table) => table.scope === "space")
-		.map((table) => ({
-			table: table.name,
-			selfReference:
-				table.columns.find((column) => column.references?.table === table.name)?.name ?? null,
-		}))
-		.reverse(),
+const OF_THE_SPACE: ToErase[] = SCHEMA.filter((table) => table.scope === "space")
+	.map((table) => ({
+		table: table.name,
+		selfReference:
+			table.columns.find((column) => column.references?.table === table.name)?.name ?? null,
+	}))
+	.reverse();
+
+/**
+ * Two more that carry a space without being records of it.
+ *
+ * They go with it and they are not counted. A person who erased a space reads the number
+ * as what they had written down, and a log entry for every one of those records, plus an
+ * invitation nobody accepted, makes it several times what they ever typed.
+ */
+const ALSO_GOES: ToErase[] = [
 	{ table: "space_invitations", selfReference: null },
 	{ table: "changes", selfReference: null },
 ];
+
+const INSIDE_A_SPACE: ToErase[] = [...OF_THE_SPACE, ...ALSO_GOES];
 
 export function createErasureRepository(context: RepositoryContext) {
 	async function spaceRow(spaceId: string): Promise<{ name: string; kind: string }> {
@@ -86,11 +96,18 @@ export function createErasureRepository(context: RepositoryContext) {
 		return Number(rows[0]?.how_many ?? 0);
 	}
 
-	/** Every row that belongs to a space, and the count of what went. */
+	/**
+	 * Every row that belongs to a space, and the count of what went.
+	 *
+	 * The count is the records of the space and not every row that carried its
+	 * identifier. The log and the invitations go too, and counting them told somebody
+	 * who had written two hundred records that eight hundred had been erased.
+	 */
 	async function eraseRowsOf(driver: Driver, spaceId: string): Promise<number> {
 		let gone = 0;
+		const counted = new Set(OF_THE_SPACE.map((one) => one.table));
 		for (const { table, selfReference } of INSIDE_A_SPACE) {
-			gone += await countIn(driver, table, spaceId);
+			if (counted.has(table)) gone += await countIn(driver, table, spaceId);
 			if (selfReference !== null) {
 				await driver.run(
 					`DELETE FROM ${quoted(table)} WHERE "space_id" = ? AND ${quoted(selfReference)} IS NOT NULL`,

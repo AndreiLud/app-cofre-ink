@@ -64,6 +64,14 @@ export type SyncStore = {
 		bundle: SyncBundle,
 		revision: string | null,
 	): Promise<{ revision: string | null }>;
+	/**
+	 * Take the copy of this space away, because the space itself was erased.
+	 *
+	 * Writing an empty log over a full one is refused on purpose, a few lines below, so
+	 * this is the only way an erasure can reach the place. Removing what is not there
+	 * succeeds: somebody erasing a space that was never copied is not an error.
+	 */
+	remove(spaceId: string): Promise<void>;
 };
 
 /** Thrown by a store when the file moved under us, so the merge is tried again. */
@@ -322,6 +330,10 @@ export function createMemoryStore(name = "memory"): SyncStore & { revision: stri
 			count += 1;
 			revision = String(count);
 			return { revision };
+		},
+		async remove() {
+			held = null;
+			revision = null;
 		},
 	};
 }

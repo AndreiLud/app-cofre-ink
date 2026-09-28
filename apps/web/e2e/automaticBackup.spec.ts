@@ -20,7 +20,7 @@ async function aFolderThatAnswers(page: import("@playwright/test").Page) {
 
 	const cors = {
 		"access-control-allow-origin": "*",
-		"access-control-allow-methods": "GET,PUT,OPTIONS",
+		"access-control-allow-methods": "GET,PUT,DELETE,OPTIONS",
 		"access-control-allow-headers": "authorization,content-type,if-match,if-none-match",
 		"access-control-expose-headers": "etag",
 	};
@@ -55,6 +55,12 @@ async function aFolderThatAnswers(page: import("@playwright/test").Page) {
 				status: 201,
 				headers: { ...cors, etag: `"${versions.get(name)}"` },
 			});
+		}
+
+		if (method === "DELETE") {
+			const had = held.delete(name);
+			versions.delete(name);
+			return route.fulfill({ status: had ? 204 : 404, headers: cors });
 		}
 
 		return route.fulfill({ status: 405, headers: cors });
@@ -146,6 +152,72 @@ test.describe("the copy that keeps itself up to date", () => {
 
 		// Both spaces of the file were written over the copy, on purpose.
 		expect(folder.writes).toBeGreaterThan(before);
+	});
+
+	/**
+	 * An erased space leaves no deletion marks, so the copy is simply ahead and the next
+	 * run brings the whole thing back and calls it a success. One of two things has to
+	 * happen, and the person picks which.
+	 */
+	test("erasing a space takes its copy too, or switches the backup off", async ({ page }) => {
+		const folder = await aFolderThatAnswers(page);
+		await openCofre(page);
+		await setUpTheFolder(page);
+
+		await page.getByRole("button", { name: "Ligar" }).click();
+		await page.getByRole("button", { name: "Fazer backup agora" }).click();
+		await expect(page.getByText(/Backup salvo às \d{2}:\d{2}/)).toBeVisible({ timeout: 20_000 });
+		expect(folder.files).toHaveLength(2);
+
+		// The shared space, so the space itself goes and not only what is in it.
+		await page
+			.getByRole("listitem")
+			.filter({ hasText: "Casa" })
+			.getByRole("button", { name: "Apagar os dados" })
+			.click();
+
+		const dialog = page.getByRole("dialog");
+		const alsoTheCopy = dialog.getByRole("checkbox", { name: /Apagar também a cópia/ });
+		await expect(alsoTheCopy).toBeChecked();
+
+		await dialog.getByLabel(/Escreva .* para confirmar/).fill("Casa");
+		await dialog.getByRole("button", { name: "Apagar agora" }).click();
+
+		await expect(page.getByText("A cópia no destino também foi apagada.")).toBeVisible({
+			timeout: 20_000,
+		});
+		// One file left, which is the personal space that was not erased.
+		expect(folder.files).toHaveLength(1);
+	});
+
+	test("keeps the copy and switches the backup off when asked to", async ({ page }) => {
+		const folder = await aFolderThatAnswers(page);
+		await openCofre(page);
+		await setUpTheFolder(page);
+
+		await page.getByRole("button", { name: "Ligar" }).click();
+		await page.getByRole("button", { name: "Fazer backup agora" }).click();
+		await expect(page.getByText(/Backup salvo às \d{2}:\d{2}/)).toBeVisible({ timeout: 20_000 });
+
+		await page
+			.getByRole("listitem")
+			.filter({ hasText: "Casa" })
+			.getByRole("button", { name: "Apagar os dados" })
+			.click();
+
+		const dialog = page.getByRole("dialog");
+		await dialog.getByRole("checkbox", { name: /Apagar também a cópia/ }).uncheck();
+		await expect(dialog.getByText(/o backup automático vai ser desligado/)).toBeVisible();
+
+		await dialog.getByLabel(/Escreva .* para confirmar/).fill("Casa");
+		await dialog.getByRole("button", { name: "Apagar agora" }).click();
+
+		await expect(page.getByText(/O backup automático foi desligado/)).toBeVisible({
+			timeout: 20_000,
+		});
+		// The copy is still there, and nothing is going to put it back into the browser.
+		expect(folder.files).toHaveLength(2);
+		await expect(page.getByRole("button", { name: "Ligar" })).toBeVisible();
 	});
 
 	test("writes again by itself once a record is typed", async ({ page }) => {

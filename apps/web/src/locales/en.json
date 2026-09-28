@@ -1243,7 +1243,7 @@
 		"personalKeeps": "Erases everything inside. The personal space stays, empty.",
 		"sharedGoes": "Erases everything inside, and the space stops existing here.",
 		"everythingTitle": "Erase everything",
-		"everythingHereBody": "Erases the whole database of this browser: every space, your profile and the preferences. {{app}} comes back as if it were the first time.",
+		"everythingHereBody": "Erases the whole database of this browser: every space and the preferences. {{app}} comes back as if it were the first time.",
 		"everythingServerBody": "Erases every space that is yours. A space of somebody else you only leave, because their records are not yours to erase.",
 		"eraseEverything": "Erase everything",
 		"confirmWord": "ERASE EVERYTHING",
@@ -1251,7 +1251,7 @@
 		"confirmEverythingTitle": "Erase everything",
 		"confirmPersonalBody": "The records, accounts, cards, categories, budgets, goals, rules, investments and the history of this space all go. The space itself stays, empty.",
 		"confirmSharedBody": "The records, accounts, cards, categories, budgets, goals, rules, investments and the history all go, and the space leaves your list. Whoever was in it on another device still has the copy they already have.",
-		"confirmEverythingHereBody": "The database file is erased from this browser. There is no copy anywhere else, other than the one you exported yourself.",
+		"confirmEverythingHereBody": "The database file is erased from this browser. There is no copy anywhere else, other than the one you exported yourself and, if it is on, the automatic backup.",
 		"confirmEverythingServerBody": "Every space that is yours goes from the server. You leave the spaces of other people without erasing anything of theirs. Your account stays.",
 		"noUndo": "There is no undoing this.",
 		"typeToConfirm": "Type {{word}} to confirm",
@@ -1260,7 +1260,12 @@
 		"spaceGone_one": "{{name}} was erased, with 1 record.",
 		"spaceGone_other": "{{name}} was erased, with {{count}} records.",
 		"spaceEmptied_one": "{{name}} is empty now. 1 record was erased.",
-		"spaceEmptied_other": "{{name}} is empty now. {{count}} records were erased."
+		"spaceEmptied_other": "{{name}} is empty now. {{count}} records were erased.",
+		"alsoTheCopy": "Also erase the copy kept in {{where}}",
+		"alsoTheCopyHint": "The copy of this space goes from the destination with it. The automatic backup stays on for the other spaces.",
+		"keepTheCopyHint": "The copy stays where it is, and the automatic backup is switched off because of it: with it on, the next run would see the destination as ahead and bring this whole space back.",
+		"copyGone": "The copy at the destination was erased too.",
+		"backupOff": "The automatic backup was switched off, so the destination does not bring this space back."
 	},
 	"profiles": {
 		"you": "You are {{name}}"

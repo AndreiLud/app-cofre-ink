@@ -87,5 +87,17 @@ export function createWebdavStore(options: WebdavOptions): SyncStore {
 			if (response.status === 412 || response.status === 409) throw new StoreConflictError();
 			return { revision: response.headers.get("etag") };
 		},
+
+		async remove(spaceId: string) {
+			await call(`${base}/${fileNameFor(spaceId)}`, {
+				where,
+				method: "DELETE",
+				headers,
+				fetcher: options.fetcher,
+				// A space that was erased before it was ever copied has no file here, and
+				// that is the same outcome as deleting one: there is nothing left.
+				allow: [404],
+			});
+		},
 	};
 }
