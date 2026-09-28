@@ -384,9 +384,25 @@ export function DataPage() {
 			// With a copy keeping itself up to date somewhere, this file just made the two
 			// sides differ. Either it becomes the copy too, or the next pass finds the
 			// difference and asks about it, and the person said which.
+			//
+			// The spaces the restore actually wrote, not the ones named in the file. A
+			// personal space of another device merges into the one here and a space that
+			// belongs to somebody else arrives with a new identifier, and asking to write
+			// over identifiers nobody has threw "there is nothing here to write over that"
+			// after the restore had already happened.
 			if (alsoTheBackup && driver) {
-				const store = storeFrom(storedDestination(), "");
-				if (store) await replaceTheCopy(driver, store, only);
+				const settings = storedDestination();
+				const store =
+					settings.kind === null
+						? null
+						: storeFrom(settings, t(`destination.${settings.kind}Short`));
+				if (store) {
+					await replaceTheCopy(
+						driver,
+						store,
+						result.spaces.map((one) => one.spaceId),
+					);
+				}
 			}
 			return result;
 		},

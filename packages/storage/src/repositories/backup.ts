@@ -452,10 +452,15 @@ export function createBackupRepository(context: RepositoryContext) {
 			// back. Which ones is decided here rather than by trimming the file on the way
 			// in, so that both modes cut it the same way and the file itself is untouched.
 			const only = options.only ? new Set(options.only) : null;
+			const chosen = (backup.spaces ?? []).filter((space) => !only || only.has(space.id));
 
-			for (const space of backup.spaces ?? []) {
-				if (only && !only.has(space.id)) continue;
-
+			/**
+			 * Where one space of the file lands, and whether that is a space that already
+			 * exists here. Read only, so it can be asked before anything is written.
+			 */
+			async function landingFor(
+				space: BackupSpace,
+			): Promise<{ spaceId: string; intoExisting: boolean }> {
 				// A personal space goes back into the personal space this person already
 				// has, because nobody has two.
 				const mine = await context.driver.all(
@@ -477,23 +482,37 @@ export function createBackupRepository(context: RepositoryContext) {
 				);
 
 				const theirsAlready = already.length > 0 && already[0]?.user_id !== null;
-				const intoExisting = (space.kind === "personal" && mine.length > 0) || theirsAlready;
+				return {
+					intoExisting: (space.kind === "personal" && mine.length > 0) || theirsAlready,
+					spaceId:
+						space.kind === "personal" && mine.length > 0
+							? String(mine[0]?.id)
+							: theirsAlready
+								? space.id
+								: // Somebody else's copy of the same space: a copy from here on.
+									already.length > 0
+									? uuidV7()
+									: space.id,
+				};
+			}
 
-				const spaceId =
-					space.kind === "personal" && mine.length > 0
-						? String(mine[0]?.id)
-						: theirsAlready
-							? space.id
-							: // Somebody else's copy of the same space: it is a copy from here on.
-								already.length > 0
-								? uuidV7()
-								: space.id;
-
-				// Pouring a whole space into one that is already here is the decision that
-				// exporting one is, in the other direction, so it asks for the same role.
-				// A space that is created by this restore is not checked, because until a
-				// moment ago it did not exist and nobody had a role in it.
+			// Every refusal, before the first write.
+			//
+			// Pouring a whole space into one that is already here is the decision that
+			// exporting one is, in the other direction, so it asks for the same role. A
+			// space this restore creates is not checked, because until a moment ago it did
+			// not exist and nobody had a role in it.
+			//
+			// This used to be asked inside the loop, one space at a time, and each space is
+			// its own transaction. A file of five spaces whose fourth was refused left three
+			// of them written, and the screen showed the refusal and nothing else.
+			for (const space of chosen) {
+				const { spaceId, intoExisting } = await landingFor(space);
 				if (intoExisting) assertCan(actor, spaceId, "backup.restore");
+			}
+
+			for (const space of chosen) {
+				const { spaceId, intoExisting } = await landingFor(space);
 
 				const skipped = new Map<string, number>();
 				// Old identifier to new one, for the rows that had to be given another.
