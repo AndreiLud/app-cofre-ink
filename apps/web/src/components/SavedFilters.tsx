@@ -117,7 +117,7 @@ export function SavedFilters({ spaceId, current, onApply }: SavedFiltersProps) {
 				{t("savedFilters.keep")}
 			</Button>
 
-			{problem ? (
+			{problem && !naming ? (
 				<span className="basis-full">
 					<Callout tone="problem">{problem}</Callout>
 				</span>
@@ -153,6 +153,9 @@ export function SavedFilters({ spaceId, current, onApply }: SavedFiltersProps) {
 						placeholder={t("savedFilters.namePlaceholder")}
 						autoFocus={true}
 					/>
+					{/* Keeping a filter is only ever done from in here, and the callout was
+					    drawn outside, behind this dialog. */}
+					{problem ? <Callout tone="problem">{problem}</Callout> : null}
 				</form>
 			</Dialog>
 		</div>

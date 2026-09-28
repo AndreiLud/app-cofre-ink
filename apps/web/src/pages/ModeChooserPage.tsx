@@ -18,6 +18,7 @@ import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DonateLink, LanguageToggle, ThemeToggle } from "../components/Controls.tsx";
 import { Wordmark } from "../components/Wordmark.tsx";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { useTheme } from "../lib/theme.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -107,9 +108,13 @@ export function ModeChooserPage() {
 			<h1 className="mt-6 text-3xl">{t("mode.title")}</h1>
 			<p className="mt-2 max-w-[60ch] text-quiet">{t("mode.subtitle")}</p>
 
+			{/* In words, through the one translator. It printed what the engine threw, in
+			    English, as the explanation under a Portuguese heading, and that heading
+			    says a connection failed when what usually fails here is opening the
+			    database in this browser, which connects to nothing. */}
 			{error ? (
 				<Callout tone="problem" className="mt-6" title={t("mode.failedTitle")}>
-					{error}
+					{sayWhy(error, t)}
 				</Callout>
 			) : null}
 

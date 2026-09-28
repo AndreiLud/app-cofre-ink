@@ -220,13 +220,26 @@ export function BudgetPage() {
 						: t("budget.headlineFine")}
 			</InsightTitle>
 
-			{problem ? <Callout tone="problem">{problem}</Callout> : null}
+			{/* Only when no dialog is over it. The three forms on this screen each show it
+			    inside themselves now, because the one at the top of the page sat behind
+			    whichever dialog was open and read, once the dialog was closed, as a
+			    complaint about the screen rather than about the field. */}
+			{problem && !open && !savingOpen && !goalOpen ? (
+				<Callout tone="problem">{problem}</Callout>
+			) : null}
 
 			<Panel
 				title={t("budget.savingsTitle")}
 				action={
 					mayWrite ? (
-						<Button size="small" variant="secondary" onClick={() => setSavingOpen(true)}>
+						<Button
+							size="small"
+							variant="secondary"
+							onClick={() => {
+								setProblem(null);
+								setSavingOpen(true);
+							}}
+						>
 							{savings.data?.rule ? t("budget.changeRule") : t("budget.setRule")}
 						</Button>
 					) : null
@@ -277,6 +290,7 @@ export function BudgetPage() {
 							size="small"
 							variant="secondary"
 							onClick={() => {
+								setProblem(null);
 								setGoalAccount(usable[0]?.id ?? "");
 								setGoalOpen(true);
 							}}
@@ -356,6 +370,7 @@ export function BudgetPage() {
 							variant="primary"
 							icon={<Icon name="plus" />}
 							onClick={() => {
+								setProblem(null);
 								setCategoryId(sorted[0]?.id ?? "");
 								setOpen(true);
 							}}
@@ -508,6 +523,7 @@ export function BudgetPage() {
 						placeholder={t("fields.amountPlaceholder")}
 						required={true}
 					/>
+					{problem ? <Callout tone="problem">{problem}</Callout> : null}
 				</form>
 			</Dialog>
 
@@ -566,6 +582,7 @@ export function BudgetPage() {
 							...usable.map((account) => ({ value: account.id, label: account.name })),
 						]}
 					/>
+					{problem ? <Callout tone="problem">{problem}</Callout> : null}
 				</form>
 			</Dialog>
 
@@ -629,6 +646,7 @@ export function BudgetPage() {
 						onChange={(event) => setGoalAccount(event.target.value)}
 						options={usable.map((account) => ({ value: account.id, label: account.name }))}
 					/>
+					{problem ? <Callout tone="problem">{problem}</Callout> : null}
 				</form>
 			</Dialog>
 		</div>

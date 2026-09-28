@@ -45,7 +45,14 @@ export type CofreStatus =
 
 export type CofreValue = {
 	status: CofreStatus;
-	error: string | null;
+	/**
+	 * What went wrong, as it was thrown.
+	 *
+	 * Kept whole rather than flattened to its message, because the message is the
+	 * sentence the engine wrote for whoever wrote it and it was going onto the screen.
+	 * The screens turn it into words themselves, through the one translator.
+	 */
+	error: unknown;
 	mode: StorageMode | null;
 	server: string | null;
 	/** False when the browser refused to keep the data, which the interface has to say. */
@@ -114,7 +121,7 @@ function tidyLater(database: Driver) {
 
 export function CofreProvider({ children }: { children: ReactNode }) {
 	const [status, setStatus] = useState<CofreStatus>("opening");
-	const [error, setError] = useState<string | null>(null);
+	const [error, setError] = useState<unknown>(null);
 	const [mode, setMode] = useState<StorageMode | null>(storedMode);
 	const [server, setServer] = useState<string | null>(storedServer);
 	const [persistent, setPersistent] = useState(true);
@@ -232,7 +239,7 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 				if (!cancelled) await openBrowserMode();
 			} catch (problem) {
 				if (cancelled) return;
-				setError(problem instanceof Error ? problem.message : String(problem));
+				setError(problem);
 				setStatus("failed");
 			}
 		})();
@@ -267,7 +274,7 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 					await openBrowserMode();
 				}
 			} catch (problem) {
-				setError(problem instanceof Error ? problem.message : String(problem));
+				setError(problem);
 				setStatus("failed");
 			}
 		},
@@ -314,7 +321,7 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 				rememberUser(person.id);
 				await startLocalSession(database.driver, person.id);
 			} catch (problem) {
-				setError(problem instanceof Error ? problem.message : String(problem));
+				setError(problem);
 				setStatus("failed");
 			}
 		},

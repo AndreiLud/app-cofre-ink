@@ -236,7 +236,11 @@ export function AccountsPage() {
 							size="small"
 							variant="primary"
 							icon={<Icon name="plus" />}
-							onClick={() => setOpen(true)}
+							onClick={() => {
+								// Nothing that failed before this form was opened belongs in it.
+								setProblem(null);
+								setOpen(true);
+							}}
 						>
 							{t("accounts.create")}
 						</Button>
@@ -245,6 +249,12 @@ export function AccountsPage() {
 			>
 				{t("accounts.title")}
 			</SectionTitle>
+
+			{/* Here as well as inside the form. Archiving, unarchiving and deleting are all
+			    done from a row menu on this screen, and their failure was written into a
+			    callout that only the Nova conta dialog drew, so it was invisible where it
+			    happened and then turned up, stale, in a form nobody had submitted. */}
+			{problem && !open ? <Callout tone="problem">{problem}</Callout> : null}
 
 			{accounts.isPending ? <Skeleton lines={4} /> : null}
 
@@ -255,7 +265,14 @@ export function AccountsPage() {
 					description={t("accounts.emptyBody")}
 					action={
 						mayCreate ? (
-							<Button variant="primary" onClick={() => setOpen(true)}>
+							<Button
+								variant="primary"
+								onClick={() => {
+									// Nothing that failed before this form was opened belongs in it.
+									setProblem(null);
+									setOpen(true);
+								}}
+							>
 								{t("accounts.create")}
 							</Button>
 						) : null

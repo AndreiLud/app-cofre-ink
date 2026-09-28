@@ -36,7 +36,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { type ChangeEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
-import { FileTooLargeError, LARGEST_FILE, readPickedFile } from "../lib/download.ts";
+import { readPickedFile } from "../lib/download.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -280,13 +280,10 @@ export function ImportPage() {
 			setPicked({ name: file.name, bytes: await readPickedFile(file) });
 		} catch (error) {
 			setPicked(null);
-			setProblem(
-				error instanceof FileTooLargeError
-					? t("data.tooLarge", { megabytes: Math.round(LARGEST_FILE / 1024 / 1024) })
-					: error instanceof Error
-						? error.message
-						: String(error),
-			);
+			// Through the one translator, like every other failure on this screen. A file
+			// the browser cannot read rejects with its own sentence, written by the
+			// browser, in English, and it went straight onto a Portuguese screen.
+			setProblem(sayWhy(error, t));
 		}
 	}
 

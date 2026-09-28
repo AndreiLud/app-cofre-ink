@@ -268,13 +268,24 @@ export function ProjectionPage() {
 						title={t("projection.scenarios")}
 						action={
 							mayWrite ? (
-								<Button size="small" variant="secondary" onClick={() => setOpen(true)}>
+								<Button
+									size="small"
+									variant="secondary"
+									onClick={() => {
+										setProblem(null);
+										setOpen(true);
+									}}
+								>
 									{t("projection.addScenario")}
 								</Button>
 							) : null
 						}
 					>
 						<p className="max-w-[60ch] text-sm text-quiet">{t("projection.scenariosBody")}</p>
+
+						{/* Deleting a scenario is done from a chip on this panel, and its failure
+						    was written into a callout that only the dialog drew. */}
+						{problem && !open ? <Callout tone="problem">{problem}</Callout> : null}
 
 						<div className="flex flex-wrap gap-2">
 							<Button

@@ -252,13 +252,20 @@ export function InvestmentsPage() {
 				</InsightTitle>
 
 				{mayWrite ? (
-					<Button variant="primary" onClick={() => setOpen(true)}>
+					<Button
+						variant="primary"
+						onClick={() => {
+							setProblem(null);
+							setOpen(true);
+						}}
+					>
 						{t("investments.add")}
 					</Button>
 				) : null}
 			</div>
 
-			{problem ? <Callout tone="problem">{problem}</Callout> : null}
+			{/* Only when no dialog is over it: both forms show it inside themselves. */}
+			{problem && !open && pricing === null ? <Callout tone="problem">{problem}</Callout> : null}
 			{holdings.isPending ? <Skeleton lines={3} /> : null}
 
 			{!holdings.isPending && list.length === 0 ? (
@@ -326,6 +333,7 @@ export function InvestmentsPage() {
 													size="small"
 													variant="quiet"
 													onClick={() => {
+														setProblem(null);
 														setPricing(holding);
 														setNewPrice("");
 													}}
@@ -642,6 +650,10 @@ export function InvestmentsPage() {
 						numeric={true}
 						required={true}
 					/>
+					{/* In here, where the person is. It was drawn at the top of the page,
+					    behind this dialog, so pressing Save with a word in the field looked
+					    like the button had done nothing. */}
+					{problem ? <Callout tone="problem">{problem}</Callout> : null}
 				</form>
 			</Dialog>
 		</div>

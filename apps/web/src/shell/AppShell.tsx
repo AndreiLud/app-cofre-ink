@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { DonateLink, LanguageToggle, PrivacyToggle, ThemeToggle } from "../components/Controls.tsx";
 import { Wordmark } from "../components/Wordmark.tsx";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { useTheme } from "../lib/theme.ts";
 import { useDocumentTitle } from "../lib/title.ts";
 import { ModeChooserPage } from "../pages/ModeChooserPage.tsx";
@@ -211,7 +212,7 @@ function Loading() {
  * With a way out on it, because this is a screen reached by accident and a paragraph
  * with no button under it is how somebody ends up unable to open their own money.
  */
-function Failure({ message }: { message: string | null }) {
+function Failure({ message }: { message: unknown }) {
 	const { t } = useTranslation();
 	const { chooseAgain } = useCofre();
 
@@ -227,7 +228,11 @@ function Failure({ message }: { message: string | null }) {
 				}
 			>
 				<p>{t("shell.failedBody")}</p>
-				{message ? <p className="mt-2 font-mono text-xs">{message}</p> : null}
+				{/* A sentence, not the one the engine wrote. The technical text is in the
+				    console for whoever is reading the code, which is where sayWhy puts it. */}
+				{message !== null && message !== undefined ? (
+					<p className="mt-2">{sayWhy(message, t)}</p>
+				) : null}
 			</Callout>
 		</div>
 	);
