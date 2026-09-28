@@ -349,20 +349,29 @@ export function DataPage() {
 			// ever made to them. The second folds into the first, so both come back
 			// through this one door instead of the person having to know which is which.
 			const bundle = unpackBundle(bytes);
-			const backup = bundle
-				? backupFromBundle(bundle)
-				: (JSON.parse(new TextDecoder().decode(bytes)) as Backup);
 
-			// Said here rather than after the person has agreed to something. A JSON file
-			// that is not a backup used to open the dialog with no space in it and a
-			// button that could not be pressed, and no sentence saying why.
+			// Said here rather than after the person has agreed to something, and said
+			// about every shape of wrong file. A renamed PDF used to reach JSON.parse and
+			// put its English complaint on the screen, and a JSON of the right shape with
+			// no list of spaces used to fall over reading the length of nothing.
+			let backup: Backup;
+			if (bundle) {
+				backup = backupFromBundle(bundle);
+			} else {
+				try {
+					backup = JSON.parse(new TextDecoder().decode(bytes)) as Backup;
+				} catch {
+					throw new RuleError("notABackup", "this file is not even JSON");
+				}
+			}
+
 			if (backup?.format !== BACKUP_FORMAT) {
 				throw new RuleError("notABackup", "this file is not a backup of this application");
 			}
 			if (backup.version > BACKUP_VERSION) {
 				throw new RuleError("backupIsNewer", "this backup was written by a newer version");
 			}
-			if (backup.spaces.length === 0) {
+			if (!Array.isArray(backup.spaces) || backup.spaces.length === 0) {
 				throw new RuleError("backupHasNoSpace", "this backup carries no space at all");
 			}
 
@@ -465,14 +474,19 @@ export function DataPage() {
 							{savedAt === null ? t("data.neverBackedUp") : when(savedAt)}
 						</dd>
 					</div>
-					<div className="flex flex-wrap justify-between gap-2 pt-2">
-						<dt className="text-quiet">{t("data.copyIn")}</dt>
-						<dd className={backingUp.on ? "text-ink" : "text-seal"}>
-							{backingUp.on && destination.kind !== null
-								? t("auto.onAt", { where: t(`destination.${destination.kind}Short`) })
-								: t("auto.off")}
-						</dd>
-					</div>
+					{/* The backup of this browser, so not a line to draw in server mode,
+					    where it never runs. Settings left over from browser mode used to
+					    make this say it was active in a place nothing was writing to. */}
+					{mode === "server" ? null : (
+						<div className="flex flex-wrap justify-between gap-2 pt-2">
+							<dt className="text-quiet">{t("data.copyIn")}</dt>
+							<dd className={backingUp.on ? "text-ink" : "text-seal"}>
+								{backingUp.on && destination.kind !== null
+									? t("auto.onAt", { where: t(`destination.${destination.kind}Short`) })
+									: t("auto.off")}
+							</dd>
+						</div>
+					)}
 				</dl>
 
 				{/* The way out of the answer above, which until now was only on screens

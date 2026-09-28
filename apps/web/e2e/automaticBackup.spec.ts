@@ -220,6 +220,48 @@ test.describe("the copy that keeps itself up to date", () => {
 		await expect(page.getByRole("button", { name: "Ligar" })).toBeVisible();
 	});
 
+	/**
+	 * The copy goes first and the space only once that worked. Erasing here and reaching
+	 * for the place afterwards left the space gone from this device, the backup still on,
+	 * and the place still holding it, so the next run brought the emptied space back.
+	 */
+	test("erases nothing when the place cannot be reached", async ({ page }) => {
+		const folder = await aFolderThatAnswers(page);
+		await openCofre(page);
+		await setUpTheFolder(page);
+
+		await page.getByRole("button", { name: "Ligar" }).click();
+		await page.getByRole("button", { name: "Fazer backup agora" }).click();
+		await expect(page.getByText(/Backup salvo às \d{2}:\d{2}/)).toBeVisible({ timeout: 20_000 });
+		expect(folder.files).toHaveLength(2);
+
+		// From here the folder refuses everything, which is a token that expired or a
+		// cloud that is down.
+		await page.route("**nuvem.exemplo.com/**", async (route) => {
+			if (route.request().method() === "OPTIONS") {
+				return route.fulfill({ status: 204, headers: { "access-control-allow-origin": "*" } });
+			}
+			return route.fulfill({ status: 401, headers: { "access-control-allow-origin": "*" } });
+		});
+
+		await page
+			.getByRole("listitem")
+			.filter({ hasText: "Casa" })
+			.getByRole("button", { name: "Apagar os dados" })
+			.click();
+
+		const dialog = page.getByRole("dialog");
+		await dialog.getByLabel(/Escreva .* para confirmar/).fill("Casa");
+		await dialog.getByRole("button", { name: "Apagar agora" }).click();
+
+		// It says why, in the language of the screen, and nothing was erased.
+		await expect(dialog.getByText(/Acesso recusado pelo destino/)).toBeVisible({
+			timeout: 20_000,
+		});
+		await page.getByRole("button", { name: "Cancelar" }).first().click();
+		await expect(page.getByRole("listitem").filter({ hasText: "Casa" })).toBeVisible();
+	});
+
 	test("writes again by itself once a record is typed", async ({ page }) => {
 		const folder = await aFolderThatAnswers(page);
 		await openCofre(page);

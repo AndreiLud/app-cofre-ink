@@ -256,6 +256,11 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 			setError(null);
 			try {
 				if (next === "server" && address) {
+					// The database of this browser is not this mode's database, and what
+					// runs the automatic backup only asks whether there is one. Left in
+					// place, it kept running the local file against the identifiers of the
+					// server's spaces until the page happened to be reloaded.
+					setDriver(null);
 					setServer(address);
 					await openServerMode(address);
 				} else {
@@ -389,6 +394,9 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 		setMode(null);
 		setServer(null);
 		setError(null);
+		// Nothing is holding this open any more, and leaving it set kept the automatic
+		// backup running against a session that has been put down.
+		setDriver(null);
 		setStatus("needsMode");
 	}, []);
 

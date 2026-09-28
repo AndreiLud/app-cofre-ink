@@ -298,6 +298,41 @@ test.describe("taking the data out", () => {
 		await expect(page.getByRole("dialog")).toHaveCount(0);
 	});
 
+	test("says the same about a file that is not even JSON", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Dados");
+
+		// A PDF that somebody renamed. It used to reach JSON.parse and put its own
+		// English complaint on the screen, in a Portuguese interface.
+		await page.getByLabel("Escolher arquivo").setInputFiles({
+			name: "fatura.json",
+			mimeType: "application/json",
+			buffer: Buffer.from("%PDF-1.4\n%pretend this is a statement\n"),
+		});
+
+		await expect(page.getByText(/não é um backup do/)).toBeVisible();
+		// And not the complaint of the parser, which is written in English by the
+		// language itself and reached the screen untranslated.
+		await expect(page.getByText(/Unexpected token/)).toHaveCount(0);
+		await expect(page.getByRole("dialog")).toHaveCount(0);
+	});
+
+	test("says a backup with no space in it has nothing to bring back", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Dados");
+
+		// The right marker and no list at all, which used to fall over reading the
+		// length of something that is not there.
+		await page.getByLabel("Escolher arquivo").setInputFiles({
+			name: "vazio.json",
+			mimeType: "application/json",
+			buffer: Buffer.from(JSON.stringify({ format: "cofre.backup", version: 1 })),
+		});
+
+		await expect(page.getByText(/não tem nenhum espaço dentro/)).toBeVisible();
+		await expect(page.getByRole("dialog")).toHaveCount(0);
+	});
+
 	/**
 	 * A file of several spaces, opened somewhere that wants only one of them. The
 	 * browser that reads it is a second one, so the spaces arrive rather than being

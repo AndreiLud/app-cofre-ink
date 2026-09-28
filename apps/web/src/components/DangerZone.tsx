@@ -8,6 +8,7 @@
 // It is here rather than behind a support address because of the promise the project
 // makes. Data that the owner cannot take back is data somebody else is holding.
 
+import { CloudError } from "@cofre/cloud";
 import type { Space } from "@cofre/storage";
 import { Button, Callout, Dialog, Field, Panel } from "@cofre/ui";
 import { useQueryClient } from "@tanstack/react-query";
@@ -42,7 +43,10 @@ export function DangerZone() {
 	 * deletion marks, so the copy in the place is simply ahead, and the next run brings
 	 * the whole space back, reports it as a success, and says nothing.
 	 */
-	const copyKeepsIt = backingUp.on && destination.kind !== null;
+	// Browser mode only. In server mode the data is on the server and this backup never
+	// runs, so settings left over from browser mode used to offer to delete a file named
+	// after a space of the server, at a place that has nothing to do with it.
+	const copyKeepsIt = mode === "browser" && backingUp.on && destination.kind !== null;
 
 	// In browser mode the whole database is one file on this machine, so erasing
 	// everything means the file. On a server it means the spaces of this account, and
@@ -78,6 +82,26 @@ export function DangerZone() {
 		await store.remove(spaceId);
 	}
 
+	/**
+	 * What happens when the place cannot be reached at the moment of erasing.
+	 *
+	 * The copy goes first, so a destination that is off, or a token that expired, stops
+	 * the whole thing with nothing lost. It used to erase here first and reach for the
+	 * place afterwards, and a failure there left the space gone from this device, the
+	 * backup still on, and the place still holding it, so the next run brought the
+	 * emptied space straight back.
+	 */
+	function couldNotReachIt(error: unknown): string {
+		if (error instanceof CloudError) {
+			if (error.status === 0) return t("destination.unreachable", { where: error.where });
+			if (error.status === 401 || error.status === 403) {
+				return t("destination.refused", { where: error.where });
+			}
+			return t("destination.answered", { where: error.where, status: error.status });
+		}
+		return error instanceof Error ? error.message : String(error);
+	}
+
 	/** What has to be typed out, so that no amount of clicking alone is enough. */
 	const word = target?.kind === "space" ? target.space.name : t("danger.confirmWord");
 	const ready = typed.trim().toLowerCase() === word.trim().toLowerCase();
@@ -89,10 +113,19 @@ export function DangerZone() {
 		try {
 			if (target.kind === "space") {
 				if (!session) throw new Error("no session");
+
+				// The place first, and the space only once that worked. The two failures
+				// are not the same size: a copy that goes while the erasure fails leaves
+				// the data here, and an erasure that goes while the copy stays leaves the
+				// place ahead, which puts the whole space back within seconds.
+				try {
+					await dealWithTheCopy(target.space.id);
+				} catch (error) {
+					setProblem(couldNotReachIt(error));
+					return;
+				}
+
 				const result = await session.erasure.eraseSpace(target.space.id);
-				// Before anything reloads, because a reload is what sets the next run of
-				// the backup going, and that run is the one that would put it back.
-				await dealWithTheCopy(target.space.id);
 				queries.clear();
 				await reload();
 				setTarget(null);
