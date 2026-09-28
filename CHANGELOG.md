@@ -5,6 +5,78 @@ Every release, what changed in it, and what to do about it if you are running th
 Versions follow semantic versioning. The first number changes when something that worked
 breaks, the second when something is added, the third when something is corrected.
 
+## 1.0.3
+
+Released on 28 September 2026. The session that keeps the cofre.ink site read the guide
+against the code again, at 1.0.2, and found twenty four things. Several of them were
+leftovers of the 1.0.2 fixes themselves, including the worst one, which is mine.
+
+> **If you had picked "a server of yours" as the place for the automatic backup, read
+> this.**
+>
+> 1.0.2 said you would find the backup off. Only the name of the place was dropped, so
+> the panel said Active beside None configured, offered to schedule it, and hid the one
+> button that could have switched it off. Your server address, your email and the
+> password you typed into that panel were still in this browser too. All of it goes now,
+> the first time you open the application. Your data was never touched.
+
+### Fixed
+
+**A backup with nowhere to write said it was on.** The place and the switch were two
+things that could disagree, and they did. The switch is derived from the place now, a
+place that no longer exists takes everything of itself away, and picking a name from the
+list no longer arms the run: it waits until there is an address and a secret to use,
+instead of failing on every pass until they are typed in.
+
+**Erasing a space reached the destination only after the space was already gone here.** A
+place that could not be reached at that moment left the space erased on this device, the
+backup still on, and the place still holding the whole of it, so the next run brought the
+emptied space back. That is the exact thing the question in that dialog was added to
+prevent. The copy goes first now, and a place that refuses stops everything with nothing
+lost.
+
+**The browser backup leaked into server mode.** Three readers of its settings did not look
+at the mode, so the erase dialog offered to delete a file named after a space of the
+server, and the panel at the top could say the backup was active in a place nothing was
+writing to. The database of the browser was also never put down when the mode changed, so
+the thing that backs up on every change kept running the local file against the
+identifiers of the server's spaces until the page was reloaded.
+
+**The door that leads to a database erased a WebDAV that was already set up**, address,
+user and application password, and left the backup on against nothing.
+
+**A file that is not even JSON showed the complaint of the parser**, in English, on a
+Portuguese screen. So did a backup with the right marker and no list of spaces.
+
+**A role was offered things it would be refused.** Inviting, marking a payment, undoing
+one, editing, deleting, dividing and ticking off against the bank were all drawn for
+everybody and turned down by the model afterwards, in a sentence written for whoever wrote
+the code. Undoing a payment failed in complete silence.
+
+**The month screen counted a household month twice.** A Logger only ever sees the records
+they wrote, so that screen looked empty to them even when somebody else had already
+written the month, and saving wrote a second set carrying the same three marks, which
+nothing refuses. The space then counted the month twice everywhere. That screen is about
+the month of the whole household, so it closes to a Logger, who writes through the list as
+before.
+
+**The monthly income** was drawn in Brazilian formatting in the English interface, filled
+the field with a comma for the cents in both languages, complained about an unreadable
+number on the section behind the open dialog, and was hidden from whoever may not set it
+under a sentence saying it had never been given, about people who had given it.
+
+### Changed
+
+**Fifteen sentences that were not quite true**, including "You pays João", three hints and
+an error message telling an English reader to write the cents after a comma, and two lists
+of what the import reads that left out JSON.
+
+**What brings a copy back, said honestly.** Nothing in the interface reads a copy out of a
+destination this browser does not already hold. The front door and the troubleshooting
+both said a new device brings that copy back, and it does not. They now say what does: a
+file you downloaded, and for a WebDAV folder, the file you can fetch from your own cloud
+by hand. From an online database there is no path through the interface today.
+
 ## 1.0.2
 
 Released on 28 September 2026. The session that keeps the cofre.ink site read every
