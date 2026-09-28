@@ -799,8 +799,8 @@
 	"roleHint": {
 		"admin": "Does everything, except deleting the space or transferring it.",
 		"editor": "Writes and edits transactions, accounts, goals and budgets.",
-		"viewer": "Only looks, changes nothing.",
-		"logger": "Only records expenses and sees their own. Meant for a child, or for whoever helps with the house."
+		"viewer": "Sees everything in the space and changes nothing of it. Their own monthly income stays theirs.",
+		"logger": "Writes and sees only their own records, of any kind. Meant for a child, or for whoever helps with the house."
 	},
 	"memberState": {
 		"invited": "Invited",

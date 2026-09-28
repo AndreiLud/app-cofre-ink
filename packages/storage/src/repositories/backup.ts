@@ -11,7 +11,7 @@
 
 import { uuidV7 } from "@cofre/core";
 import { SCHEMA, spaceMembers, spaces, type Table } from "@cofre/db";
-import { assertCan, readableSpaceIds } from "../actor.ts";
+import { assertCan, readableSpaceIds, seesOwnRowsOnly } from "../actor.ts";
 import type { Row, SqlValue } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { marks } from "../sql.ts";
@@ -356,6 +356,13 @@ export function createBackupRepository(context: RepositoryContext) {
 
 			const where = [`t."space_id" = ?`, `t."deleted_at" IS NULL`];
 			const params: SqlValue[] = [spaceId];
+			// The same narrowing the list itself carries. A logger sees the records they
+			// wrote and no others, and this door handed them the whole space in a
+			// spreadsheet, which is the one place the role was not being kept.
+			if (seesOwnRowsOnly(context.actor(), spaceId)) {
+				where.push(`t."created_by" = ?`);
+				params.push(context.actor().userId);
+			}
 			if (range.from) {
 				where.push(`t."happened_on" >= ?`);
 				params.push(range.from);

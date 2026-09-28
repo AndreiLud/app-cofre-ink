@@ -22,7 +22,7 @@ export type SettleSectionProps = {
 
 export function SettleSection({ spaceId, people, currency, timezone }: SettleSectionProps) {
 	const { t } = useTranslation();
-	const { session } = useCofre();
+	const { session, user } = useCofre();
 	const queries = useQueryClient();
 	const [problem, setProblem] = useState<string | null>(null);
 
@@ -63,8 +63,11 @@ export function SettleSection({ spaceId, people, currency, timezone }: SettleSec
 		onSuccess: () => void queries.invalidateQueries({ queryKey: ["sharing"] }),
 	});
 
-	const nameOf = (userId: string) =>
-		people.find((person) => person.id === userId)?.name ?? t("members.someone");
+	/** Whoever is holding the screen is "you", in the language the screen is speaking. */
+	const nameOf = (userId: string) => {
+		if (userId === user?.id) return t("members.you", { name: user?.name ?? "" });
+		return people.find((person) => person.id === userId)?.name ?? t("members.someone");
+	};
 
 	const rows = balances.data ?? [];
 	const payments = suggested.data ?? [];

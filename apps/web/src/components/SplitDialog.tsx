@@ -96,8 +96,17 @@ export function SplitDialog({ open, onOpenChange, record, people }: SplitDialogP
 		onError: complain,
 	});
 
-	const nameOf = (userId: string) =>
-		people.find((person) => person.id === userId)?.name ?? t("members.someone");
+	/**
+	 * Whoever is holding the screen is "you", in the language the screen is speaking.
+	 *
+	 * The name stored for somebody who started in browser mode is the word "Você" or
+	 * "You", written once when the profile was made, so a person who started in
+	 * Portuguese saw "Você" sitting in the middle of the English interface.
+	 */
+	const nameOf = (userId: string) => {
+		if (userId === user?.id) return t("members.you", { name: user?.name ?? "" });
+		return people.find((person) => person.id === userId)?.name ?? t("members.someone");
+	};
 
 	const parts = existing.data ?? [];
 
@@ -141,7 +150,7 @@ export function SplitDialog({ open, onOpenChange, record, people }: SplitDialogP
 					hint={t("sharing.paidByHint")}
 					value={paidBy}
 					onChange={(event) => setPaidBy(event.target.value)}
-					options={people.map((person) => ({ value: person.id, label: person.name }))}
+					options={people.map((person) => ({ value: person.id, label: nameOf(person.id) }))}
 				/>
 
 				{method === "shares" ? (
@@ -150,7 +159,7 @@ export function SplitDialog({ open, onOpenChange, record, people }: SplitDialogP
 						{people.map((person) => (
 							<Field
 								key={person.id}
-								label={person.name}
+								label={nameOf(person.id)}
 								value={weights[person.id] ?? "1"}
 								onChange={(event) => setWeights({ ...weights, [person.id]: event.target.value })}
 								numeric={true}

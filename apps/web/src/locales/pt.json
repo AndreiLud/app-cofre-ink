@@ -799,8 +799,8 @@
 	"roleHint": {
 		"admin": "Faz tudo, menos apagar o espaço ou transferir a posse.",
 		"editor": "Registra e edita lançamentos, contas, metas e orçamentos.",
-		"viewer": "Só visualiza, não altera nada.",
-		"logger": "Só lança gastos e vê os próprios. Pensado para filhos ou para quem ajuda com a casa."
+		"viewer": "Vê tudo do espaço e não muda nada dele. A própria renda mensal continua sendo dela.",
+		"logger": "Lança e vê só os próprios lançamentos, de qualquer tipo. Pensado para filhos ou para quem ajuda com a casa."
 	},
 	"memberState": {
 		"invited": "Convidado",

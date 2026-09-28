@@ -505,6 +505,53 @@ export function runPortabilityConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		it("gives a logger the records of that logger, and no others", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Casa" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta corrente",
+				});
+				await fixture.asAna.members.invite({
+					spaceId: space.id,
+					userId: fixture.joao.id,
+					role: "logger",
+				});
+				await fixture.asJoao.members.accept(space.id);
+
+				await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 4290,
+					happenedOn: "2026-09-10",
+					description: "Mercado do bairro",
+					accountId: account.id,
+				});
+				await fixture.asJoao.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 1200,
+					happenedOn: "2026-09-11",
+					description: "Pao",
+					accountId: account.id,
+				});
+
+				// The list already kept the role. The spreadsheet did not, and it is the
+				// same space read through a different door.
+				expect(await fixture.asJoao.transactions.list({ spaceId: space.id })).toHaveLength(1);
+
+				const mine = await fixture.asJoao.backup.recordsForExport(space.id);
+				expect(mine.map((row) => row.description)).toEqual(["Pao"]);
+
+				const hers = await fixture.asAna.backup.recordsForExport(space.id);
+				expect(hers).toHaveLength(2);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		/**
 		 * One file whether it holds one space or nine. Two shapes of file meant two
 		 * buttons with two names, and somebody deciding which of the two was the backup.

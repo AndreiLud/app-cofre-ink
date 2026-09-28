@@ -44,20 +44,26 @@ export function ModeChooserPage() {
 
 	const language = i18n.resolvedLanguage === "en" ? "en" : "pt";
 
-	/** Everything they would have been asked, answered with what can be changed later. */
-	function enter(driver: Driver) {
+	/**
+	 * Everything they would have been asked, answered with what can be changed later.
+	 *
+	 * The demonstration data is an argument rather than the state, because the box that
+	 * asks for it is inside the browser section and only that door offers it. The other
+	 * door used to take the same flag along without ever having shown the box.
+	 */
+	function enter(driver: Driver, withDemo: boolean) {
 		return startLocalProfile(driver, {
 			name: t("mode.defaultName"),
 			spaceName: t("onboarding.personalDefault"),
 			language,
-			demo,
+			demo: withDemo,
 		});
 	}
 
 	async function keepItHere() {
 		if (busy) return;
 		setBusy(true);
-		await startHere(enter);
+		await startHere((driver) => enter(driver, demo));
 		setBusy(false);
 	}
 
@@ -71,7 +77,7 @@ export function ModeChooserPage() {
 		setBusy(true);
 		rememberDestination({ ...EMPTY_SETTINGS, kind: "database" });
 		void navigate({ to: ROUTES.data });
-		await startHere(enter);
+		await startHere((driver) => enter(driver, false));
 		setBusy(false);
 	}
 
