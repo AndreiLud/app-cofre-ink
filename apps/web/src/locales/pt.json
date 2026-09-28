@@ -681,6 +681,8 @@
 		"whatItWrites": "O que isto escreve",
 		"whatItWritesHint": "Nada é guardado em outro lugar nem de outro jeito.",
 		"whatItWritesBody": "Lançamentos comuns: um de entrada e um de gasto, no último dia do mês, e o do cartão no último dia que a fatura daquele mês ainda pega, que é o dia do fechamento menos um. Com cartão, um quarto: o pagamento da fatura, que sai da sua conta e quita o cartão no dia do vencimento. Sem ele, a conta onde cai o salário subiria o valor da fatura todo mês e o cartão afundaria o mesmo tanto, com o total certo e as duas contas erradas. Se o vencimento ainda não chegou, esse pagamento entra como previsto. Todos aparecem na lista, contam no saldo, no orçamento, nos relatórios e na projeção, e você abre e corrige qualquer um deles como faria com outro lançamento qualquer. Escrever o mesmo mês de novo corrige esses lançamentos em vez de escrever outros.",
+		"cannotWriteTitle": "Você é Leitor neste espaço",
+		"cannotWriteBody": "Um Leitor vê tudo e não escreve nada. Peça a quem cuida do espaço para mudar o seu papel, se você precisa lançar aqui.",
 		"noAccountTitle": "Nenhuma conta neste espaço",
 		"noAccountBody": "Os números precisam de uma conta para entrar. Crie uma e volte aqui.",
 		"descriptionIncome": "Entradas de {{month}}",

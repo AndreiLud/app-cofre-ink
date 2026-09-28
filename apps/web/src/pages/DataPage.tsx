@@ -285,6 +285,7 @@ export function DataPage() {
 	}
 
 	const saveBackup = useMutation({
+		mutationKey: ["theCopyItself"],
 		mutationFn: async () => {
 			if (!session) throw new Error("no session");
 			return session.backup.exportSpaces(chosen.map((space) => space.id));
@@ -300,6 +301,7 @@ export function DataPage() {
 	});
 
 	const exportRecords = useMutation({
+		mutationKey: ["theCopyItself"],
 		mutationFn: async () => {
 			if (!session) throw new Error("no session");
 			return session.backup.recordsForExport(spaceId);
@@ -313,6 +315,7 @@ export function DataPage() {
 	});
 
 	const mirror = useMutation({
+		mutationKey: ["theCopyItself"],
 		mutationFn: async () => {
 			if (!session) throw new Error("no session");
 			const table = asTable(await session.backup.recordsForExport(spaceId));

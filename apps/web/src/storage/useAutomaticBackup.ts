@@ -99,8 +99,16 @@ export function useAutomaticBackup(): void {
 
 		// Every change, once the typing stops. A mutation that succeeded is the only
 		// signal this needs, and there is one place that sees all of them.
+		//
+		// Apart from the ones that are the copy itself. Backing up by hand, testing the
+		// connection, writing a spreadsheet and handing over a CSV are all mutations that
+		// succeed and none of them changed a record, so each of them used to set a second
+		// run going four seconds later, against a place that had nothing new to hear.
 		const stopWatching = queries.getMutationCache().subscribe((event) => {
-			if (event.mutation?.state.status === "success") waited.poke();
+			if (event.mutation?.state.status !== "success") return;
+			const about = event.mutation.options.mutationKey?.[0];
+			if (about === "theCopyItself") return;
+			waited.poke();
 		});
 
 		// The clock, rebuilt whenever somebody changes what it was built from. Waiting an

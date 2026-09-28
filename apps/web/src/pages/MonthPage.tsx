@@ -126,7 +126,7 @@ function likeliest(accounts: readonly Account[]): Account | null {
 
 export function MonthPage() {
 	const { t, i18n } = useTranslation();
-	const { session, currentSpace } = useCofre();
+	const { session, currentSpace, user } = useCofre();
 	const queries = useQueryClient();
 
 	const spaceId = currentSpace?.id ?? "";
@@ -162,6 +162,16 @@ export function MonthPage() {
 		enabled,
 		queryFn: () => session?.accounts.list(spaceId) ?? [],
 	});
+
+	// A role that does not write should not be handed a button that writes. It used to
+	// be offered, pressed, and refused afterwards in a raw English sentence.
+	const members = useQuery({
+		queryKey: ["members", spaceId],
+		enabled,
+		queryFn: () => session?.members.list(spaceId) ?? [],
+	});
+	const myRole = (members.data ?? []).find((one) => one.userId === user?.id)?.role;
+	const mayWrite = myRole === undefined || myRole !== "viewer";
 
 	const everyAccount = accounts.data ?? [];
 	const moneyAccounts = everyAccount.filter((one) => one.kind !== "credit");
@@ -548,7 +558,13 @@ export function MonthPage() {
 						</Callout>
 					) : null}
 
-					<Button type="submit" variant="primary" disabled={write.isPending}>
+					{mayWrite ? null : (
+						<Callout tone="attention" title={t("theMonth.cannotWriteTitle")}>
+							{t("theMonth.cannotWriteBody")}
+						</Callout>
+					)}
+
+					<Button type="submit" variant="primary" disabled={write.isPending || !mayWrite}>
 						{write.isPending ? t("theMonth.saving") : t("theMonth.save")}
 					</Button>
 				</form>

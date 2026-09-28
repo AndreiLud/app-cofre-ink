@@ -135,6 +135,7 @@ export function AutomaticBackup() {
 
 	/** Does this place answer, and does it let this browser in. Nothing is written. */
 	const test = useMutation({
+		mutationKey: ["theCopyItself"],
 		mutationFn: async () => {
 			await storeFor().read(PROBE);
 		},
@@ -154,6 +155,7 @@ export function AutomaticBackup() {
 	 * it could not finish.
 	 */
 	const backUp = useMutation({
+		mutationKey: ["theCopyItself"],
 		mutationFn: async () => {
 			if (!driver) throw new Error("no database");
 			if (covered.length === 0) throw new Error("no spaces");
@@ -199,6 +201,7 @@ export function AutomaticBackup() {
 	 * other file: restore it.
 	 */
 	const answer = useMutation({
+		mutationKey: ["theCopyItself"],
 		mutationFn: async (choice: "both" | "mine" | "theirs") => {
 			if (!driver || !question) throw new Error("no question");
 			const store = storeFor();
