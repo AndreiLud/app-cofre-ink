@@ -52,6 +52,7 @@ import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { useWhatIMayDo } from "../storage/roles.ts";
 
 /** The three that come from a field. The payment is worked out from the invoice. */
 type MonthField = "income" | "spending" | "invoice";
@@ -126,7 +127,7 @@ function likeliest(accounts: readonly Account[]): Account | null {
 
 export function MonthPage() {
 	const { t, i18n } = useTranslation();
-	const { session, currentSpace, user } = useCofre();
+	const { session, currentSpace } = useCofre();
 	const queries = useQueryClient();
 
 	const spaceId = currentSpace?.id ?? "";
@@ -165,20 +166,16 @@ export function MonthPage() {
 
 	// A role that does not write should not be handed a button that writes. It used to
 	// be offered, pressed, and refused afterwards in a raw English sentence.
-	const members = useQuery({
-		queryKey: ["members", spaceId],
-		enabled,
-		queryFn: () => session?.members.list(spaceId) ?? [],
-	});
-	const myRole = (members.data ?? []).find((one) => one.userId === user?.id)?.role;
+	const { may, seesOwnRowsOnly } = useWhatIMayDo(spaceId);
 	/**
-	 * A Viewer writes nothing at all. A Logger writes, but only ever sees the records
-	 * they wrote themselves, and this screen is about the month of the whole household:
-	 * it would look empty to them even when somebody else had already filled it in, and
-	 * saving would write a second set of the same three marks, which nothing refuses,
-	 * and the space would count the month twice.
+	 * Two reasons, and they are not the same reason. A Viewer writes nothing at all. A
+	 * Logger writes, but only ever sees the records they wrote themselves, and this
+	 * screen is about the month of the whole household: it would look empty to them even
+	 * when somebody else had already filled it in, and saving would write a second set of
+	 * the same three marks, which nothing refuses, and the space would count the month
+	 * twice.
 	 */
-	const mayWrite = myRole === undefined || (myRole !== "viewer" && myRole !== "logger");
+	const mayWrite = may("transaction.create") && !seesOwnRowsOnly;
 
 	const everyAccount = accounts.data ?? [];
 	const moneyAccounts = everyAccount.filter((one) => one.kind !== "credit");
@@ -568,9 +565,9 @@ export function MonthPage() {
 					{mayWrite ? null : (
 						<Callout
 							tone="attention"
-							title={t(myRole === "logger" ? "theMonth.loggerTitle" : "theMonth.cannotWriteTitle")}
+							title={t(seesOwnRowsOnly ? "theMonth.loggerTitle" : "theMonth.cannotWriteTitle")}
 						>
-							{t(myRole === "logger" ? "theMonth.loggerBody" : "theMonth.cannotWriteBody")}
+							{t(seesOwnRowsOnly ? "theMonth.loggerBody" : "theMonth.cannotWriteBody")}
 						</Callout>
 					)}
 

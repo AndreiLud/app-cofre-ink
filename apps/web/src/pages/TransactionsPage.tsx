@@ -33,6 +33,7 @@ import { SplitDialog } from "../components/SplitDialog.tsx";
 import { TransactionForm } from "../components/TransactionForm.tsx";
 import { Value } from "../components/Value.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { useWhatIMayDo } from "../storage/roles.ts";
 
 type Filters = {
 	kind: TransactionKind | "";
@@ -62,7 +63,7 @@ function filtersFrom(query: FilterQuery, fallbackMonth: string): Filters {
 
 export function TransactionsPage() {
 	const { t } = useTranslation();
-	const { session, currentSpace, user } = useCofre();
+	const { session, currentSpace } = useCofre();
 	const queries = useQueryClient();
 
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
@@ -94,24 +95,24 @@ export function TransactionsPage() {
 	});
 
 	/**
-	 * Which of the actions in the menu of a row this person may actually use.
+	 * Which of the actions on this screen this person may actually use.
 	 *
-	 * This screen read no role at all, so every item was offered to everybody and the
-	 * model refused them afterwards, in English. A space with one person in it has no
-	 * member row to find, and there the answer is yes to everything, which is what it
-	 * has always been.
+	 * Every one of them names the permission the repository behind it asks for, so the
+	 * button and the refusal cannot disagree. This screen used to hold its own list of
+	 * roles, which is how "Apagar o parcelamento inteiro" ended up offered to a Viewer
+	 * and doing nothing at all when it was pressed.
 	 */
-	const members = useQuery({
-		queryKey: ["members", spaceId],
-		enabled: Boolean(session && currentSpace),
-		queryFn: () => session?.members.list(spaceId) ?? [],
-	});
-	const myRole = (members.data ?? []).find((one) => one.userId === user?.id)?.role;
-	const mayEdit = myRole === undefined || myRole !== "viewer";
-	// A logger writes and reads their own rows, and does neither of these two: one is a
-	// decision about the whole space, the other is ticking it off against a bank.
-	const mayShare = myRole === undefined || (myRole !== "viewer" && myRole !== "logger");
-	const mayReconcile = mayShare;
+	const { may } = useWhatIMayDo(spaceId);
+	const mayWrite = may("transaction.create");
+	const mayUpdate = may("transaction.update");
+	const mayDelete = may("transaction.delete");
+	const mayTeach = may("rule.write");
+	const mayShare = may("sharing.write");
+	const mayReconcile = may("transaction.reconcile");
+	/** The checkboxes are worth drawing when at least one thing can be done with them. */
+	const mayPick = mayUpdate || mayDelete;
+	/** And the menu of a row, when at least one item of it would be drawn. */
+	const mayActOnARow = mayUpdate || mayTeach || mayShare || mayReconcile || mayDelete;
 
 	const categories = useQuery({
 		queryKey: ["categories", spaceId],
@@ -291,25 +292,29 @@ export function TransactionsPage() {
 			<SectionTitle
 				level="h1"
 				action={
-					<Button
-						size="small"
-						variant="primary"
-						icon={<Icon name="plus" />}
-						onClick={() => {
-							setEditing(null);
-							setOpen(true);
-						}}
-					>
-						{t("transactions.create")}
-					</Button>
+					mayWrite ? (
+						<Button
+							size="small"
+							variant="primary"
+							icon={<Icon name="plus" />}
+							onClick={() => {
+								setEditing(null);
+								setOpen(true);
+							}}
+						>
+							{t("transactions.create")}
+						</Button>
+					) : null
 				}
 			>
 				{t("transactions.title")}
 			</SectionTitle>
 
-			<Panel>
-				<QuickEntry spaceId={spaceId} accounts={accounts.data ?? []} today={today} />
-			</Panel>
+			{mayWrite ? (
+				<Panel>
+					<QuickEntry spaceId={spaceId} accounts={accounts.data ?? []} today={today} />
+				</Panel>
+			) : null}
 
 			{/* Six filters open at all times took a third of the screen before a single
 			    record appeared. The month is the one everybody changes, and searching is
@@ -473,74 +478,80 @@ export function TransactionsPage() {
 					<span className="font-medium text-ink">
 						{t("transactions.picked", { count: picked.length })}
 					</span>
-					<Button
-						size="small"
-						variant="secondary"
-						onClick={() => changeMany.mutate({ status: "settled" })}
-						disabled={changeMany.isPending}
-					>
-						{t("transactions.settle")}
-					</Button>
-					<label className="flex items-center gap-2 text-quiet">
-						{t("transactions.moveTo")}
-						<select
-							value={moveTo}
-							aria-label={t("transactions.moveTo")}
-							onChange={(event) => {
-								setMoveTo(event.target.value);
-								if (event.target.value !== "") {
-									changeMany.mutate({ accountId: event.target.value });
-								}
-							}}
-							className="h-8 rounded-sm border border-line bg-panel px-2 text-sm text-ink"
-						>
-							<option value="">{t("transactions.pickAccount")}</option>
-							{(accounts.data ?? [])
-								.filter((account) => account.archivedAt === null)
-								.map((account) => (
-									<option key={account.id} value={account.id}>
-										{account.name}
-									</option>
-								))}
-						</select>
-					</label>
-					<label className="flex items-center gap-2 text-quiet">
-						{t("transactions.sortInto")}
-						<select
-							value=""
-							aria-label={t("transactions.sortInto")}
-							onChange={(event) => {
-								if (event.target.value !== "") {
-									changeMany.mutate({ categoryId: event.target.value });
-								}
-							}}
-							className="h-8 rounded-sm border border-line bg-panel px-2 text-sm text-ink"
-						>
-							<option value="">{t("transactions.pickCategory")}</option>
-							{(categories.data ?? [])
-								.filter((category) => category.parentId === null)
-								.flatMap((parent) => [
-									<option key={parent.id} value={parent.id}>
-										{parent.name}
-									</option>,
-									...(categories.data ?? [])
-										.filter((child) => child.parentId === parent.id)
-										.map((child) => (
-											<option key={child.id} value={child.id}>
-												{`  ${child.name}`}
+					{mayUpdate ? (
+						<>
+							<Button
+								size="small"
+								variant="secondary"
+								onClick={() => changeMany.mutate({ status: "settled" })}
+								disabled={changeMany.isPending}
+							>
+								{t("transactions.settle")}
+							</Button>
+							<label className="flex items-center gap-2 text-quiet">
+								{t("transactions.moveTo")}
+								<select
+									value={moveTo}
+									aria-label={t("transactions.moveTo")}
+									onChange={(event) => {
+										setMoveTo(event.target.value);
+										if (event.target.value !== "") {
+											changeMany.mutate({ accountId: event.target.value });
+										}
+									}}
+									className="h-8 rounded-sm border border-line bg-panel px-2 text-sm text-ink"
+								>
+									<option value="">{t("transactions.pickAccount")}</option>
+									{(accounts.data ?? [])
+										.filter((account) => account.archivedAt === null)
+										.map((account) => (
+											<option key={account.id} value={account.id}>
+												{account.name}
 											</option>
-										)),
-								])}
-						</select>
-					</label>
-					<Button
-						size="small"
-						variant="destructive"
-						onClick={() => removeManyPicked.mutate()}
-						disabled={removeManyPicked.isPending}
-					>
-						{t("actions.delete")}
-					</Button>
+										))}
+								</select>
+							</label>
+							<label className="flex items-center gap-2 text-quiet">
+								{t("transactions.sortInto")}
+								<select
+									value=""
+									aria-label={t("transactions.sortInto")}
+									onChange={(event) => {
+										if (event.target.value !== "") {
+											changeMany.mutate({ categoryId: event.target.value });
+										}
+									}}
+									className="h-8 rounded-sm border border-line bg-panel px-2 text-sm text-ink"
+								>
+									<option value="">{t("transactions.pickCategory")}</option>
+									{(categories.data ?? [])
+										.filter((category) => category.parentId === null)
+										.flatMap((parent) => [
+											<option key={parent.id} value={parent.id}>
+												{parent.name}
+											</option>,
+											...(categories.data ?? [])
+												.filter((child) => child.parentId === parent.id)
+												.map((child) => (
+													<option key={child.id} value={child.id}>
+														{`  ${child.name}`}
+													</option>
+												)),
+										])}
+								</select>
+							</label>
+						</>
+					) : null}
+					{mayDelete ? (
+						<Button
+							size="small"
+							variant="destructive"
+							onClick={() => removeManyPicked.mutate()}
+							disabled={removeManyPicked.isPending}
+						>
+							{t("actions.delete")}
+						</Button>
+					) : null}
 					<Button size="small" variant="quiet" onClick={() => setPicked([])}>
 						{t("transactions.clearPicked")}
 					</Button>
@@ -552,15 +563,19 @@ export function TransactionsPage() {
 					<Table caption={t("transactions.caption")}>
 						<TableHead>
 							<TableRow>
-								<TableHeader>
-									<input
-										type="checkbox"
-										checked={allPicked}
-										aria-label={t("transactions.pickAll")}
-										onChange={(event) => setPicked(event.target.checked ? visible : [])}
-										className="size-4 accent-[var(--ink)]"
-									/>
-								</TableHeader>
+								{/* The column itself goes when nothing can be done with a selection,
+								    header and cells together, so the table keeps its shape. */}
+								{mayPick ? (
+									<TableHeader>
+										<input
+											type="checkbox"
+											checked={allPicked}
+											aria-label={t("transactions.pickAll")}
+											onChange={(event) => setPicked(event.target.checked ? visible : [])}
+											className="size-4 accent-[var(--ink)]"
+										/>
+									</TableHeader>
+								) : null}
 								<TableHeader>{t("transactions.day")}</TableHeader>
 								<TableHeader>{t("transactions.description")}</TableHeader>
 								{/* The account is the first thing to go when the screen is narrow:
@@ -577,15 +592,17 @@ export function TransactionsPage() {
 						<TableBody>
 							{rows.map((row) => (
 								<TableRow key={row.id}>
-									<TableCell>
-										<input
-											type="checkbox"
-											checked={picked.includes(row.id)}
-											aria-label={t("transactions.pick", { description: row.description })}
-											onChange={() => toggle(row.id)}
-											className="size-4 accent-[var(--ink)]"
-										/>
-									</TableCell>
+									{mayPick ? (
+										<TableCell>
+											<input
+												type="checkbox"
+												checked={picked.includes(row.id)}
+												aria-label={t("transactions.pick", { description: row.description })}
+												onChange={() => toggle(row.id)}
+												className="size-4 accent-[var(--ink)]"
+											/>
+										</TableCell>
+									) : null}
 									<TableCell className="whitespace-nowrap font-mono text-quiet">
 										{row.happenedOn.slice(8)}/{row.happenedOn.slice(5, 7)}
 									</TableCell>
@@ -621,60 +638,68 @@ export function TransactionsPage() {
 										/>
 									</TableCell>
 									<TableCell numeric={true}>
-										<Menu
-											align="end"
-											trigger={
-												<Button size="small" variant="quiet" aria-label={t("accounts.actions")}>
-													<Icon name="settings" />
-												</Button>
-											}
-										>
-											{mayEdit ? (
-												<MenuItem
-													onSelect={() => {
-														setEditing(row);
-														setOpen(true);
-													}}
-												>
-													{t("transactions.edit")}
-												</MenuItem>
-											) : null}
-											{row.status === "planned" && mayEdit ? (
-												<MenuItem onSelect={() => settle.mutate(row.id)}>
-													{t("transactions.settle")}
-												</MenuItem>
-											) : null}
-											{row.categoryId && mayShare ? (
-												<MenuItem onSelect={() => teach.mutate(row)}>
-													{t("transactions.alwaysSortLikeThis")}
-												</MenuItem>
-											) : null}
-											{currentSpace.kind === "shared" && row.kind === "expense" && mayShare ? (
-												<MenuItem onSelect={() => setDividing(row)}>{t("sharing.divide")}</MenuItem>
-											) : null}
-											{mayReconcile ? (
-												<MenuItem
-													onSelect={() =>
-														reconcile.mutate({ id: row.id, reconciled: row.reconciledAt === null })
-													}
-												>
-													{row.reconciledAt === null
-														? t("transactions.reconcile")
-														: t("transactions.unreconcile")}
-												</MenuItem>
-											) : null}
-											<MenuSeparator />
-											{mayEdit ? (
-												<MenuItem onSelect={() => remove.mutate(row.id)}>
-													{t("actions.delete")}
-												</MenuItem>
-											) : null}
-											{row.installmentGroup ? (
-												<MenuItem onSelect={() => removeGroup.mutate(row.installmentGroup ?? "")}>
-													{t("transactions.deleteGroup")}
-												</MenuItem>
-											) : null}
-										</Menu>
+										{/* A button that opens an empty popup is worse than no button. */}
+										{mayActOnARow ? (
+											<Menu
+												align="end"
+												trigger={
+													<Button size="small" variant="quiet" aria-label={t("accounts.actions")}>
+														<Icon name="settings" />
+													</Button>
+												}
+											>
+												{mayUpdate ? (
+													<MenuItem
+														onSelect={() => {
+															setEditing(row);
+															setOpen(true);
+														}}
+													>
+														{t("transactions.edit")}
+													</MenuItem>
+												) : null}
+												{row.status === "planned" && mayUpdate ? (
+													<MenuItem onSelect={() => settle.mutate(row.id)}>
+														{t("transactions.settle")}
+													</MenuItem>
+												) : null}
+												{row.categoryId && mayTeach ? (
+													<MenuItem onSelect={() => teach.mutate(row)}>
+														{t("transactions.alwaysSortLikeThis")}
+													</MenuItem>
+												) : null}
+												{currentSpace.kind === "shared" && row.kind === "expense" && mayShare ? (
+													<MenuItem onSelect={() => setDividing(row)}>
+														{t("sharing.divide")}
+													</MenuItem>
+												) : null}
+												{mayReconcile ? (
+													<MenuItem
+														onSelect={() =>
+															reconcile.mutate({
+																id: row.id,
+																reconciled: row.reconciledAt === null,
+															})
+														}
+													>
+														{row.reconciledAt === null
+															? t("transactions.reconcile")
+															: t("transactions.unreconcile")}
+													</MenuItem>
+												) : null}
+												{mayDelete ? <MenuSeparator /> : null}
+												{mayDelete ? (
+													<MenuItem onSelect={() => remove.mutate(row.id)}>
+														{t("actions.delete")}
+													</MenuItem>
+												) : null}
+												{mayDelete && row.installmentGroup ? (
+													<MenuItem onSelect={() => removeGroup.mutate(row.installmentGroup ?? "")}>
+														{t("transactions.deleteGroup")}
+													</MenuItem>
+												) : null}
+											</Menu>
+										) : null}
 									</TableCell>
 								</TableRow>
 							))}

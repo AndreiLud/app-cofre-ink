@@ -100,9 +100,17 @@ export function isMember(actor: Actor, spaceId: string): boolean {
 /**
  * True for the role meant for a child, or for whoever helps with the house: they
  * record what they spent and see what they recorded, and nothing else.
+ *
+ * This is not a permission and is not in the matrix: it is what a role sees rather than
+ * what it may do, which is why a screen about the whole household closes to it while the
+ * list of records stays open.
  */
+export function roleSeesOwnRowsOnly(role: Role | null | undefined): boolean {
+	return role === "logger";
+}
+
 export function seesOwnRowsOnly(actor: Actor, spaceId: string): boolean {
-	return roleIn(actor, spaceId) === "logger";
+	return roleSeesOwnRowsOnly(roleIn(actor, spaceId));
 }
 
 /** Every space this person can read, which is what the consolidated view is made of. */
@@ -112,10 +120,30 @@ export function readableSpaceIds(actor: Actor): string[] {
 		.map((membership) => membership.spaceId);
 }
 
+/**
+ * What a role may do, asked without an actor.
+ *
+ * A screen holds a role and not an actor: it has read the member list of the space it is
+ * drawing, and every row in it is a person and a role. This is the same matrix the
+ * repositories are checked against, so a button and the refusal behind it cannot disagree,
+ * and a change to the model reaches the interface without anybody copying a list of roles
+ * into a component.
+ *
+ * Nothing counts as not being a member, which is also the right answer while a member
+ * list is still being read: a button that appears a moment late is better than one that
+ * is refused when it is pressed.
+ */
+export function roleCan(role: Role | null | undefined, permission: Permission): boolean {
+	if (role === null || role === undefined) return false;
+	// A permission the matrix does not hold is not a permission. The types say this
+	// cannot happen, and the day one is taken out of the matrix while a screen still
+	// names it, the answer that keeps somebody safe is no.
+	const allowed = PERMISSIONS[permission] as readonly Role[] | undefined;
+	return allowed?.includes(role) === true;
+}
+
 export function can(actor: Actor, spaceId: string, permission: Permission): boolean {
-	const role = roleIn(actor, spaceId);
-	if (role === null) return false;
-	return (PERMISSIONS[permission] as readonly Role[]).includes(role);
+	return roleCan(roleIn(actor, spaceId), permission);
 }
 
 /**

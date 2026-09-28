@@ -34,6 +34,7 @@ import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import type { AssignableRole } from "../storage/cofreSession.ts";
+import { useWhatIMayDo } from "../storage/roles.ts";
 import { SettleSection } from "./SettleSection.tsx";
 
 const ASSIGNABLE: AssignableRole[] = ["admin", "editor", "viewer", "logger"];
@@ -67,6 +68,8 @@ export function SpacePeople() {
 		enabled: Boolean(session && currentSpace),
 		queryFn: () => session?.members.list(spaceId) ?? [],
 	});
+
+	const { may } = useWhatIMayDo(spaceId);
 
 	// The people of this space: this screen names its members and settles up between
 	// them, and somebody from another space of this person's is neither.
@@ -152,8 +155,9 @@ export function SpacePeople() {
 
 	const rows = members.data ?? [];
 	const isPersonal = currentSpace.kind === "personal";
-	const myRole = rows.find((member) => member.userId === user?.id)?.role;
-	const canManage = myRole === "owner" || myRole === "admin";
+	/** Setting somebody else's income asks the same thing as changing their role. */
+	const maySetAnybodys = may("member.changeRole");
+	const mayRemove = may("member.remove");
 
 	// The language on screen, not the one this application was written in. The income
 	// used to be drawn as R$ 4.500,00 in the middle of the English interface, and the
@@ -169,11 +173,10 @@ export function SpacePeople() {
 			minimumFractionDigits: 2,
 			useGrouping: false,
 		}).format(cents / 100);
-	// False while the members are still being read, which is the safe direction: a button
-	// that appears a moment late is better than one that is refused when pressed.
-	const canInvite = onAServer && canManage;
-	// Who may settle up. The same three the model lets write a settlement.
-	const maySettle = myRole === "owner" || myRole === "admin" || myRole === "editor";
+	// An invitation only means anything where there is a server to accept it.
+	const canInvite = onAServer && may("member.invite");
+	const maySettle = may("sharing.write");
+	const mayLeave = may("space.leave");
 
 	async function copyLink() {
 		if (!link) return;
@@ -285,7 +288,7 @@ export function SpacePeople() {
 											    and what the model already hands down: hiding it here said
 											    "not said" about people who had said, and the number was
 											    in this browser the whole time. */}
-											{member.userId === user?.id || canManage ? (
+											{member.userId === user?.id || maySetAnybodys ? (
 												<Button
 													size="small"
 													variant="quiet"
@@ -314,7 +317,9 @@ export function SpacePeople() {
 										{/* Only for somebody who may actually do either of these. An
 										    Editor, a Viewer or a Logger was shown the menu and had
 										    every item in it refused without a word. */}
-										{!canManage || member.role === "owner" || member.userId === user?.id ? null : (
+										{(!maySetAnybodys && !mayRemove) ||
+										member.role === "owner" ||
+										member.userId === user?.id ? null : (
 											<Menu
 												align="end"
 												trigger={
@@ -323,19 +328,23 @@ export function SpacePeople() {
 													</Button>
 												}
 											>
-												{ASSIGNABLE.filter((option) => option !== member.role).map((option) => (
-													<MenuItem
-														key={option}
-														onSelect={() =>
-															changeRole.mutate({ userId: member.userId, role: option })
-														}
-													>
-														{t("members.makeRole", { role: t(`role.${option}`) })}
+												{maySetAnybodys
+													? ASSIGNABLE.filter((option) => option !== member.role).map((option) => (
+															<MenuItem
+																key={option}
+																onSelect={() =>
+																	changeRole.mutate({ userId: member.userId, role: option })
+																}
+															>
+																{t("members.makeRole", { role: t(`role.${option}`) })}
+															</MenuItem>
+														))
+													: null}
+												{mayRemove ? (
+													<MenuItem onSelect={() => remove.mutate(member.userId)}>
+														{t("members.remove")}
 													</MenuItem>
-												))}
-												<MenuItem onSelect={() => remove.mutate(member.userId)}>
-													{t("members.remove")}
-												</MenuItem>
+												) : null}
 											</Menu>
 										)}
 									</TableCell>
@@ -346,7 +355,7 @@ export function SpacePeople() {
 				</Panel>
 			) : null}
 
-			{!isPersonal && rows.find((member) => member.userId === user?.id)?.role !== "owner" ? (
+			{!isPersonal && mayLeave ? (
 				<Button variant="destructive" size="small" onClick={() => leave.mutate()}>
 					{t("members.leave")}
 				</Button>
