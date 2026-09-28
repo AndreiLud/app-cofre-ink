@@ -16,6 +16,8 @@ import {
 	addMonthsToMonth,
 	type CardCycle,
 	dateInMonth,
+	MONTH_FIELDS,
+	MONTH_PARTS,
 	type MonthPart,
 	monthMark,
 	monthOf,
@@ -24,7 +26,7 @@ import {
 	readMonthMark,
 	todayIn,
 } from "@cofre/core";
-import type { Account, Transaction } from "@cofre/storage";
+import type { Account, Transaction, TransactionStatus } from "@cofre/storage";
 import {
 	Button,
 	Callout,
@@ -50,6 +52,16 @@ import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
+
+/** The three that come from a field. The payment is worked out from the invoice. */
+type MonthField = "income" | "spending" | "invoice";
+
+const DESCRIPTION: Record<MonthPart, string> = {
+	income: "theMonth.descriptionIncome",
+	spending: "theMonth.descriptionSpending",
+	invoice: "theMonth.descriptionInvoice",
+	payment: "theMonth.descriptionPayment",
+};
 
 /**
  * What was typed, in cents.
@@ -159,21 +171,22 @@ export function MonthPage() {
 		cardAccounts.find((one) => one.id === cardAccountId) ?? cardAccounts[0] ?? null;
 	const cycle = cycleOf(cardAccount);
 
-	// A card that closes on the first puts the invoice of this month on a day of the month
-	// before, so the window has to start there or the record would be read as missing and
-	// written a second time.
-	const from = dateInMonth(addMonthsToMonth(shown, -1), 1);
-	const to = dateInMonth(shown, 31);
-
-	const records = useQuery({
-		queryKey: ["transactions", spaceId, "theMonth", shown],
+	// Asked for by name, not by a range of days.
+	//
+	// These four sit on four different days, one of which is in the month before and one
+	// in the month after, and a range wide enough to hold all four is wide enough for a
+	// busy space to fill the page it comes back in. A record that fell off that page would
+	// be read as missing and written a second time, which is the one thing this screen
+	// must never do.
+	const marks = MONTH_PARTS.map((part) => monthMark(shown, part));
+	const written = useQuery({
+		queryKey: ["transactions", spaceId, "theMonth", "mine", shown],
 		enabled: enabled && shown !== "",
-		queryFn: () => session?.transactions.list({ spaceId, from, to, limit: 500 }) ?? [],
+		queryFn: () => session?.transactions.list({ spaceId, externalIds: marks }) ?? [],
 	});
 
-	const rows = records.data ?? [];
 	const mine = new Map<MonthPart, Transaction>();
-	for (const row of rows) {
+	for (const row of written.data ?? []) {
 		const mark = readMonthMark(row.externalId);
 		if (mark && mark.month === shown) mine.set(mark.part, row);
 	}
@@ -181,12 +194,16 @@ export function MonthPage() {
 	// What is in this month that somebody wrote a line at a time. It counts too, and
 	// saying so is the only thing standing between this screen and a month counted twice.
 	const firstOfMonth = dateInMonth(shown, 1);
-	const byHand = rows.filter(
-		(row) =>
-			readMonthMark(row.externalId) === null &&
-			row.happenedOn >= firstOfMonth &&
-			row.happenedOn <= to &&
-			row.kind !== "transfer",
+	const to = dateInMonth(shown, 31);
+	const records = useQuery({
+		queryKey: ["transactions", spaceId, "theMonth", "month", shown],
+		enabled: enabled && shown !== "",
+		queryFn: () =>
+			session?.transactions.list({ spaceId, from: firstOfMonth, to, limit: 1000 }) ?? [],
+	});
+
+	const byHand = (records.data ?? []).filter(
+		(row) => readMonthMark(row.externalId) === null && row.kind !== "transfer",
 	);
 	const byHandIn = byHand
 		.filter((row) => row.kind === "income")
@@ -215,64 +232,120 @@ export function MonthPage() {
 		timeZone: "UTC",
 	}).format(new Date(`${shown}-01T00:00:00Z`));
 
-	const text: Record<MonthPart, string> = {
+	const text: Record<MonthField, string> = {
 		income: income ?? asText(mine.get("income")),
 		spending: spending ?? asText(mine.get("spending")),
 		invoice: invoice ?? asText(mine.get("invoice")),
 	};
-	const cents: Record<MonthPart, number | null> = {
+	const cents: Record<MonthField, number | null> = {
 		income: typedAmount(text.income, currency),
 		spending: typedAmount(text.spending, currency),
 		invoice: typedAmount(text.invoice, currency),
 	};
 	const left = (cents.income ?? 0) - (cents.spending ?? 0) - (cents.invoice ?? 0);
 
+	// The day the card is paid, which decides whether that payment already happened.
+	const paidOn = monthPartDay(shown, "payment", cycle);
+
+	/**
+	 * What the month should end up holding.
+	 *
+	 * Four rows from three fields. The fourth is the payment of the invoice, and it is
+	 * not a question: an invoice is paid, and leaving that out was what made the account
+	 * the wages arrive in climb by the whole invoice every month while the card sank by
+	 * the same amount. The total was right and both accounts were wrong.
+	 */
+	function wanted(): Array<{
+		part: MonthPart;
+		amount: number | null;
+		into: Account;
+		kind: "income" | "expense" | "transfer";
+		counter: string | null;
+		status: TransactionStatus;
+	}> {
+		if (account === null) return [];
+
+		const rows: ReturnType<typeof wanted> = [
+			{
+				part: "income",
+				amount: cents.income,
+				into: account,
+				kind: "income",
+				counter: null,
+				status: "settled",
+			},
+			{
+				part: "spending",
+				amount: cents.spending,
+				into: account,
+				kind: "expense",
+				counter: null,
+				status: "settled",
+			},
+		];
+
+		if (cardAccount !== null) {
+			rows.push({
+				part: "invoice",
+				amount: cents.invoice,
+				into: cardAccount,
+				kind: "expense",
+				counter: null,
+				status: "settled",
+			});
+			rows.push({
+				part: "payment",
+				amount: cents.invoice,
+				into: account,
+				kind: "transfer",
+				counter: cardAccount.id,
+				// An invoice that has not fallen due yet has not been paid yet, and the
+				// application already has a word for that. It counts in what is coming
+				// rather than in what is there.
+				status: paidOn <= today ? "settled" : "planned",
+			});
+		}
+
+		return rows;
+	}
+
 	const write = useMutation({
 		mutationFn: async () => {
-			if (!session || account === null) return;
+			if (!session) return;
 
-			for (const part of ["income", "spending", "invoice"] as const) {
-				if (part === "invoice" && cardAccount === null) continue;
+			for (const one of wanted()) {
+				const existing = mine.get(one.part);
 
-				const into = part === "invoice" ? cardAccount : account;
-				if (into === null) continue;
-
-				const existing = mine.get(part);
-				const amount = cents[part];
-
-				if (amount === null) {
+				if (one.amount === null) {
 					if (existing) await session.transactions.remove(existing.id);
 					continue;
 				}
 
-				const happenedOn = monthPartDay(shown, part, part === "invoice" ? cycle : null);
-				const description = t(
-					part === "income"
-						? "theMonth.descriptionIncome"
-						: part === "spending"
-							? "theMonth.descriptionSpending"
-							: "theMonth.descriptionInvoice",
-					{ month: withYear },
-				);
+				const happenedOn = monthPartDay(shown, one.part, cycle);
+				const description = t(DESCRIPTION[one.part], { month: withYear });
 
 				if (existing) {
 					await session.transactions.update(existing.id, {
-						amount,
+						amount: one.amount,
 						happenedOn,
 						description,
-						accountId: into.id,
+						accountId: one.into.id,
+						counterAccountId: one.counter,
+						status: one.status,
 					});
 					continue;
 				}
 
 				await session.transactions.create({
 					spaceId,
-					kind: part === "income" ? "income" : "expense",
-					amount,
+					kind: one.kind,
+					amount: one.amount,
 					happenedOn,
 					description,
-					accountId: into.id,
-					externalId: monthMark(shown, part),
+					accountId: one.into.id,
+					counterAccountId: one.counter,
+					status: one.status,
+					externalId: monthMark(shown, one.part),
 				});
 			}
 		},
@@ -282,9 +355,6 @@ export function MonthPage() {
 			setInvoice(null);
 			setProblem(null);
 			setSaved(shown);
-			void queries.invalidateQueries({ queryKey: ["transactions"] });
-			void queries.invalidateQueries({ queryKey: ["balances"] });
-			void queries.invalidateQueries({ queryKey: ["advice"] });
 		},
 		onError: (error: unknown) => {
 			setSaved(null);
@@ -300,6 +370,14 @@ export function MonthPage() {
 					: t(`rules.${rule}`, { defaultValue: t("rules.unknown") }),
 			);
 		},
+		// On the way out either way, and not only when it worked. A save that failed half
+		// way through still wrote some of the rows, and a screen that did not go and look
+		// would still believe it had written none of them and write those again.
+		onSettled: () => {
+			void queries.invalidateQueries({ queryKey: ["transactions"] });
+			void queries.invalidateQueries({ queryKey: ["balances"] });
+			void queries.invalidateQueries({ queryKey: ["advice"] });
+		},
 	});
 
 	function submit(event: FormEvent) {
@@ -307,8 +385,8 @@ export function MonthPage() {
 		setProblem(null);
 		setSaved(null);
 
-		const unreadable = (["income", "spending", "invoice"] as const).some((part) =>
-			isUnreadable(text[part], currency),
+		const unreadable = MONTH_FIELDS.some((part) =>
+			isUnreadable(text[part as MonthField], currency),
 		);
 		if (unreadable) {
 			setProblem(t("theMonth.unreadable"));
@@ -317,11 +395,10 @@ export function MonthPage() {
 		// Nothing in all three, with nothing written for the month either, is somebody who
 		// opened the screen and pressed the button. Taking away what is not there and
 		// saying it worked would read as having lost something.
-		if (cents.income === null && cents.spending === null && cents.invoice === null) {
-			if (mine.size === 0) {
-				setProblem(t("theMonth.nothingTyped"));
-				return;
-			}
+		const nothing = MONTH_FIELDS.every((part) => cents[part as MonthField] === null);
+		if (nothing && mine.size === 0) {
+			setProblem(t("theMonth.nothingTyped"));
+			return;
 		}
 		write.mutate();
 	}
@@ -490,17 +567,30 @@ export function MonthPage() {
 								</TableRow>
 							</TableHead>
 							<TableBody>
-								{(["income", "spending", "invoice"] as const).map((part) => {
+								{MONTH_PARTS.map((part) => {
 									const row = mine.get(part);
 									if (!row) return null;
 									return (
 										<TableRow key={part}>
-											<TableCell>{row.description}</TableCell>
+											<TableCell>
+												{row.description}
+												{row.status === "planned" ? (
+													<span className="ml-2 text-xs text-quiet">
+														{t("transactionStatus.planned")}
+													</span>
+												) : null}
+											</TableCell>
 											<TableCell className="whitespace-nowrap font-mono text-quiet">
 												{dayAndMonth(row.happenedOn)}
 											</TableCell>
 											<TableCell numeric={true}>
-												<Value amount={row.amount} currency={row.currency} tone="auto" />
+												{/* A transfer is neither money in nor money out of the space, so
+												    it is not coloured like one. */}
+												<Value
+													amount={row.amount}
+													currency={row.currency}
+													tone={row.kind === "transfer" ? "neutral" : "auto"}
+												/>
 											</TableCell>
 										</TableRow>
 									);

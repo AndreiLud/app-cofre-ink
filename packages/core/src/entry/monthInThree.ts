@@ -11,7 +11,7 @@
 // What the three carry is a mark, so that typing the same month again corrects what is
 // there instead of writing it twice.
 
-import { type CardCycle, invoicePeriod } from "../cards/invoice.ts";
+import { type CardCycle, invoiceDueDate, invoicePeriod } from "../cards/invoice.ts";
 import {
 	type CalendarDate,
 	type CalendarMonth,
@@ -19,10 +19,18 @@ import {
 	parseCalendarMonth,
 } from "../time/calendar.ts";
 
-/** The three questions a month is reduced to. */
-export type MonthPart = "income" | "spending" | "invoice";
+/**
+ * What a month is reduced to. Three of these are numbers somebody types, and the fourth
+ * is not asked about at all: paying the card is not a fourth decision, it is what always
+ * happens to an invoice, and leaving it out made the accounts drift apart by the whole
+ * invoice every month while the total stayed right.
+ */
+export type MonthPart = "income" | "spending" | "invoice" | "payment";
 
-export const MONTH_PARTS: readonly MonthPart[] = ["income", "spending", "invoice"];
+export const MONTH_PARTS: readonly MonthPart[] = ["income", "spending", "invoice", "payment"];
+
+/** The three that come from a field. The fourth follows the invoice. */
+export const MONTH_FIELDS: readonly MonthPart[] = ["income", "spending", "invoice"];
 
 const MARK = "mes";
 
@@ -68,17 +76,24 @@ export function readMonthMark(
  * day to its last one. Putting it in the middle would claim the money had all gone by
  * the fifteenth.
  *
- * The card is the exception. Its record has to land on the invoice of that month, and
- * which days do that is the card's business rather than the calendar's, so it is written
- * on the last day that invoice still takes. A card with no closing day has no invoices
- * to land on, and falls back to the last day like the other two.
+ * The card is the exception, twice over. The invoice has to land on the invoice of that
+ * month, and which days do that is the card's business rather than the calendar's, so it
+ * is written on the last day that invoice still takes. The payment goes on the day that
+ * invoice falls due, which is the day the money actually leaves the account and is often
+ * in the month after.
+ *
+ * A card with no closing day has no invoices to land on and no due date to pay on, so
+ * both fall back to the last day like the other two.
  */
 export function monthPartDay(
 	month: CalendarMonth,
 	part: MonthPart,
 	cycle?: CardCycle | null,
 ): CalendarDate {
-	if (part === "invoice" && cycle) return invoicePeriod(month, cycle).to;
+	if (cycle) {
+		if (part === "invoice") return invoicePeriod(month, cycle).to;
+		if (part === "payment") return invoiceDueDate(month, cycle);
+	}
 	// Clamped, so this is the last day of whatever length the month is.
 	return dateInMonth(month, 31);
 }

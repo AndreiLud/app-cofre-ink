@@ -55,6 +55,32 @@ describe("the day one of the three is written on", () => {
 
 	it("falls back to the last day when the card has no cycle", () => {
 		expect(monthPartDay("2026-09", "invoice", null)).toBe("2026-09-30");
+		expect(monthPartDay("2026-09", "payment", null)).toBe("2026-09-30");
+	});
+
+	it("pays the card on the day that invoice falls due", () => {
+		// Closes on the third and falls due on the tenth, so both are in the same month.
+		expect(monthPartDay("2026-09", "payment", { closingDay: 3, dueDay: 10 })).toBe("2026-09-10");
+		// Closes on the twenty eighth and falls due on the fifth, which is the month after,
+		// and that is the month the money really leaves the account in.
+		expect(monthPartDay("2026-09", "payment", { closingDay: 28, dueDay: 5 })).toBe("2026-10-05");
+	});
+
+	it("never pays an invoice before it closed", () => {
+		fc.assert(
+			fc.property(
+				fc.integer({ min: 1, max: 31 }),
+				fc.integer({ min: 1, max: 31 }),
+				fc.integer({ min: 1, max: 12 }),
+				(closingDay, dueDay, month) => {
+					const cycle: CardCycle = { closingDay, dueDay };
+					const named = `2026-${String(month).padStart(2, "0")}` as const;
+					const closes = monthPartDay(named, "invoice", cycle);
+					const pays = monthPartDay(named, "payment", cycle);
+					expect(pays >= closes).toBe(true);
+				},
+			),
+		);
 	});
 
 	it("always lands the card on the invoice of the month it was written for", () => {
