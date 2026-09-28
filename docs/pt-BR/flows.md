@@ -165,10 +165,14 @@ se junta ao espaço pessoal que já existe.
 linha de texto, porque é coisa de uma vez por ano e não é backup: não leva identificador
 nenhum e nada lê ele de volta.
 
-**O backup automático.** Um lugar só, escolhido entre três: um servidor seu, um banco de
-dados online, uma pasta WebDAV. Ele leva todos os espaços de uma vez. É alcançado pelo
-navegador, com credenciais que ficam naquele navegador, e o servidor nunca as tem e nunca
-os chama.
+**O backup automático.** Um lugar só, escolhido entre dois: um banco de dados online, uma
+pasta WebDAV. Ele leva todos os espaços de uma vez. É alcançado pelo navegador, com
+credenciais que ficam naquele navegador, e o servidor nunca as tem e nunca os chama.
+
+Um servidor seu era um terceiro, e não é mais. Ele nunca guardou uma cópia dos espaços,
+ele guarda os espaços, que é o que o modo servidor é e não o que um backup é. O
+[registro de decisão 0040](../adr/0040_a_server_is_not_a_destination.md) diz o que isso
+custou.
 
 Ligar ele é a ação explícita que a quinta regra de ouro pede, e depois disso ele roda a
 cada alteração, quando a digitação para, mais o que mandarem entre dois: ao abrir o

@@ -46,13 +46,16 @@ export function fileNameFor(spaceId: string): string {
 export function createWebdavStore(options: WebdavOptions): SyncStore {
 	const base = options.url.replace(/\/+$/, "");
 	const headers = { Authorization: authorisation(options) };
+	// What a sentence about this place calls it. The screen passes the words of the
+	// language it is speaking, and this is the fallback for anything that does not.
+	const where = options.name ?? "WebDAV";
 
 	return {
-		name: options.name ?? "WebDAV",
+		name: where,
 
 		async read(spaceId: string): Promise<StoredBundle> {
 			const response = await call(`${base}/${fileNameFor(spaceId)}`, {
-				where: "WebDAV",
+				where,
 				headers,
 				fetcher: options.fetcher,
 				// Nothing there yet is the ordinary state of the first sync.
@@ -67,7 +70,7 @@ export function createWebdavStore(options: WebdavOptions): SyncStore {
 
 		async write(spaceId: string, bundle: SyncBundle, revision: string | null) {
 			const response = await call(`${base}/${fileNameFor(spaceId)}`, {
-				where: "WebDAV",
+				where,
 				method: "PUT",
 				fetcher: options.fetcher,
 				headers: {

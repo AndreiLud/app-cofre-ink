@@ -3,7 +3,12 @@
 // This used to be four destinations of equal weight, one of which was a file the person
 // carried, which put a thing somebody does by hand beside three things a machine does on
 // its own. Carrying a file is now its own half of the screen, and what is left here is
-// the half a machine can do: a server of theirs, an online database, a WebDAV folder.
+// the half a machine can do: an online database, a WebDAV folder.
+//
+// A server of theirs was here too, and was never the same kind of thing. The two that
+// remain hold a file this device writes, reads back and compares; a server holds the same
+// spaces and merges them record by record, which is what server mode is. Registry 0040
+// says why it left and what that costs.
 //
 // Three rules hold whichever one is picked. It covers every space at once, because a
 // backup that covers some of them is a backup somebody trusts and should not. It says
@@ -46,12 +51,9 @@ import {
 	storedWhen,
 	type WhenToBackUp,
 } from "../storage/destinations.ts";
-import { normaliseServer } from "../storage/mode.ts";
-import { createServerClient } from "../storage/remoteSession.ts";
 import { storeFrom } from "../storage/storeFrom.ts";
-import { SyncError, syncWithServer } from "../storage/syncClient.ts";
 
-const KINDS: DestinationKind[] = ["server", "database", "webdav"];
+const KINDS: DestinationKind[] = ["database", "webdav"];
 
 /** A space that exists nowhere, for asking a place whether it answers at all. */
 const PROBE = "conexao";
@@ -75,12 +77,11 @@ function saidWhy(error: unknown, t: (key: string, values?: Record<string, unknow
 		}
 		return t("destination.answered", { where: error.where, status: error.status });
 	}
-	if (error instanceof SyncError) return error.message;
 	return error instanceof Error ? error.message : String(error);
 }
 
 export function AutomaticBackup() {
-	const { session, driver, mode, server, user, spaces, reload } = useCofre();
+	const { session, driver, spaces, reload } = useCofre();
 	const { t, i18n } = useTranslation();
 	const queries = useQueryClient();
 
@@ -88,7 +89,6 @@ export function AutomaticBackup() {
 	const [when, setWhen] = useState<WhenToBackUp>(storedWhen);
 	const [problem, setProblem] = useState<string | null>(null);
 	const [said, setSaid] = useState<string | null>(null);
-	const [signedIn, setSignedIn] = useState(false);
 
 	// What the thing that runs on its own has been doing, which happens around the whole
 	// application and not inside this screen.
@@ -97,24 +97,20 @@ export function AutomaticBackup() {
 	const question = asking ?? running.waiting[0] ?? null;
 
 	const kind = settings.kind;
-	// Somebody already in server mode has an address. It is the one this would use.
-	const serverAddress = settings.address === "" ? (server ?? "") : settings.address;
 
 	/**
 	 * A backup takes the spaces somebody may take a copy of, which is not the same list
 	 * as the spaces they can read: a shared space they are a member of belongs to the
-	 * people who run it. A server of theirs is the exception and takes everything they
-	 * read, because there the two sides are the same space rather than a copy of it.
+	 * people who run it.
 	 */
 	const copyable = useQuery({
 		queryKey: ["copyableSpaces"],
 		enabled: Boolean(session),
 		queryFn: () => session?.backup.copyable() ?? [],
 	});
-	const covered =
-		kind === "server"
-			? spaces.map((space) => space.id)
-			: spaces.filter((space) => (copyable.data ?? []).includes(space.id)).map((space) => space.id);
+	const covered = spaces
+		.filter((space) => (copyable.data ?? []).includes(space.id))
+		.map((space) => space.id);
 
 	const change = (next: Partial<DestinationSettings>) => {
 		const merged = { ...settings, ...next };
@@ -129,35 +125,17 @@ export function AutomaticBackup() {
 	};
 
 	function storeFor(): SyncStore {
-		const store = storeFrom(settings, t(`destination.${kind ?? "webdav"}`));
-		if (store === null) throw new Error("a server of theirs is not a store");
+		const store = storeFrom(settings, t(`destination.${kind ?? "webdav"}Short`));
+		if (store === null) throw new Error("no destination has been picked");
 		return store;
 	}
 
-	const where = kind === null ? "" : kind === "server" ? normaliseServer(serverAddress) : kind;
+	const where = kind ?? "";
 	const met = kind === null ? null : lastBackupAt(covered, where);
-
-	const signIn = useMutation({
-		mutationFn: async () => {
-			const client = createServerClient(normaliseServer(serverAddress));
-			await client.signIn({ email: settings.user.trim(), password: settings.secret });
-			return client.me();
-		},
-		onSuccess: () => {
-			setProblem(null);
-			setSignedIn(true);
-			change({ secret: "" });
-		},
-		onError: (error: unknown) => setProblem(saidWhy(error, t)),
-	});
 
 	/** Does this place answer, and does it let this browser in. Nothing is written. */
 	const test = useMutation({
 		mutationFn: async () => {
-			if (kind === "server") {
-				await createServerClient(normaliseServer(serverAddress)).me();
-				return;
-			}
 			await storeFor().read(PROBE);
 		},
 		onSuccess: () => {
@@ -179,24 +157,6 @@ export function AutomaticBackup() {
 		mutationFn: async () => {
 			if (!driver) throw new Error("no database");
 			if (covered.length === 0) throw new Error("no spaces");
-
-			// A server of theirs is the other kind of agreement: it merges by record and
-			// has nothing to ask anybody. A place that keeps a file is compared first and
-			// stops on the one answer a machine may not give.
-			if (kind === "server") {
-				for (const spaceId of covered) {
-					await syncWithServer(
-						driver,
-						normaliseServer(serverAddress),
-						spaceId,
-						user
-							? { id: user.id, email: user.email, name: user.name, image: user.image }
-							: undefined,
-					);
-					markMet(spaceId, where);
-				}
-				return Date.now();
-			}
 
 			const done = await runBackup(driver, storeFor(), covered);
 			for (const outcome of done.outcomes) {
@@ -220,19 +180,11 @@ export function AutomaticBackup() {
 		},
 		onError: (error: unknown) => {
 			setSaid(null);
-			if (error instanceof SyncError && error.status === 404) {
-				setProblem(t("data.syncNotYours"));
-				return;
-			}
-			const rule =
-				error !== null && typeof error === "object" && "rule" in error
-					? String((error as { rule: unknown }).rule)
-					: null;
-			if (rule === "onePersonalSpace") {
-				setProblem(t("destination.personalFromAnotherDevice"));
-				return;
-			}
-			setProblem(t("auto.failed", { where: t(`destination.${kind ?? "webdav"}`) }));
+			// What went wrong is worth saying. The place answering with a number, or not
+			// answering at all, is the usual reason, and saidWhy turns each of those into a
+			// sentence rather than into "could not connect", which sends somebody off to
+			// check an address that was fine.
+			setProblem(saidWhy(error, t));
 		},
 	});
 
@@ -286,13 +238,11 @@ export function AutomaticBackup() {
 	});
 
 	const ready =
-		kind === "server"
-			? serverAddress !== "" && (signedIn || mode === "server")
-			: kind === "webdav"
-				? settings.address !== "" && settings.user !== "" && settings.secret !== ""
-				: kind === "database"
-					? settings.address !== "" && settings.secret !== ""
-					: false;
+		kind === "webdav"
+			? settings.address !== "" && settings.user !== "" && settings.secret !== ""
+			: kind === "database"
+				? settings.address !== "" && settings.secret !== ""
+				: false;
 
 	return (
 		<div className="space-y-4">
@@ -314,43 +264,6 @@ export function AutomaticBackup() {
 
 			{kind !== null && !DESTINATIONS[kind].worksInABrowser ? (
 				<Callout tone="attention">{t("destination.needsPermission")}</Callout>
-			) : null}
-
-			{kind === "server" ? (
-				<div className="max-w-md space-y-3">
-					<Field
-						label={t("data.server")}
-						value={serverAddress}
-						onChange={(event) => change({ address: event.target.value })}
-						placeholder="https://cofre.seudominio.com"
-						hint={t("data.serverHint")}
-					/>
-					{signedIn || mode === "server" ? null : (
-						<>
-							<Field
-								label={t("onboarding.email")}
-								type="email"
-								autoComplete="email"
-								value={settings.user}
-								onChange={(event) => change({ user: event.target.value })}
-							/>
-							<Field
-								label={t("signIn.password")}
-								type="password"
-								autoComplete="current-password"
-								value={settings.secret}
-								onChange={(event) => change({ secret: event.target.value })}
-							/>
-							<Button
-								variant="secondary"
-								disabled={serverAddress === "" || signIn.isPending}
-								onClick={() => signIn.mutate()}
-							>
-								{t("data.connect")}
-							</Button>
-						</>
-					)}
-				</div>
 			) : null}
 
 			{kind === "webdav" ? (

@@ -394,9 +394,8 @@ export function DataPage() {
 
 	const when = (at: number) => new Date(at).toLocaleString(i18n.resolvedLanguage ?? "pt-BR");
 
-	/** A place that holds a file, switched on. A server of theirs is not one of these. */
-	const keepingACopy =
-		backingUp.on && destination.kind !== null && destination.kind !== "server" && driver !== null;
+	/** A place that holds a file, switched on, with a database here to copy from. */
+	const keepingACopy = backingUp.on && destination.kind !== null && driver !== null;
 	const mine = spaces.filter((space) => mayCopy.has(space.id));
 	const savedAt = oldestBackup(mine.map((space) => space.id));
 
@@ -432,7 +431,7 @@ export function DataPage() {
 						<dt className="text-quiet">{t("data.copyIn")}</dt>
 						<dd className={backingUp.on ? "text-ink" : "text-seal"}>
 							{backingUp.on && destination.kind !== null
-								? t("auto.onAt", { where: t(`destination.${destination.kind}`) })
+								? t("auto.onAt", { where: t(`destination.${destination.kind}Short`) })
 								: t("auto.off")}
 						</dd>
 					</div>
@@ -524,12 +523,18 @@ export function DataPage() {
 				</div>
 			</Panel>
 
-			{/* The second: a machine makes it, in a place of theirs. */}
-			<div id="copia">
-				<Panel title={t("auto.title")} description={t("auto.body")}>
-					<AutomaticBackup />
-				</Panel>
-			</div>
+			{/* The second: a machine makes it, in a place of theirs.
+			    Only where there is a database in this browser for it to copy from. In
+			    server mode the data is on the server and the copy of it is made there,
+			    and this panel would have offered to turn on something that cannot run:
+			    it said "Active in a WebDAV folder" and then never wrote anything. */}
+			{mode === "server" ? null : (
+				<div id="copia">
+					<Panel title={t("auto.title")} description={t("auto.body")}>
+						<AutomaticBackup />
+					</Panel>
+				</div>
+			)}
 
 			{/* Not a copy at all: it reads a file from the bank and writes records. */}
 			<Panel title={t("data.importTitle")} description={t("data.importBody")}>

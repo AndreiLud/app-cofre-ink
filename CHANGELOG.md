@@ -176,10 +176,11 @@ the reasoning.
 
 What it does not give is anything that needs a category or a day.
 
-**A backup that keeps itself up to date.** Pick one place, a server of yours, an online
-database or a WebDAV folder, test the connection, and turn it on. It covers every space
-at once, and after that it runs on every change once the typing stops, plus whichever of
-two you asked for: when the application opens, and every so often.
+**A backup that keeps itself up to date.** Pick one place, an online database or a WebDAV
+folder, test the connection, and turn it on. It covers every space at once, and after that
+it runs on every change once the typing stops, plus whichever of two you asked for: when
+the application opens, and every so often. A server of yours was offered here too in
+1.0.0 and 1.0.1, and 1.0.2 took it out: see that section.
 
 It reads the place before it writes to it, and compares by which entries each side holds
 rather than by a date, because two devices that each wrote one record are both newer than

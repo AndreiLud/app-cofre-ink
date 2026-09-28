@@ -43,8 +43,13 @@ export { createWebdavStore, fileNameFor, type WebdavOptions } from "./webdav.ts"
  * downloads folder is somewhere a person goes. Carrying a copy by hand is still there
  * and is its own thing on the screen, with a button that writes one and a button that
  * reads one back.
+ *
+ * A server of theirs was one of these too, and is not any more. It was never the same
+ * kind of thing: the other two hold a file this device writes and compares, and a server
+ * holds the same spaces and merges them record by record. Registry 0040 has the reasoning
+ * and what it costs.
  */
-export type DestinationKind = "server" | "webdav" | "database";
+export type DestinationKind = "webdav" | "database";
 
 /** What each destination needs, and what it can promise. Read by the screen. */
 export const DESTINATIONS: Record<
@@ -56,7 +61,6 @@ export const DESTINATIONS: Record<
 		worksInABrowser: boolean;
 	}
 > = {
-	server: { safeTogether: true, worksInABrowser: true },
 	webdav: { safeTogether: true, worksInABrowser: false },
 	database: { safeTogether: true, worksInABrowser: true },
 };

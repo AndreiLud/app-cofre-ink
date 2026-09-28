@@ -39,9 +39,7 @@ export function useAutomaticBackup(): void {
 		async function run(): Promise<void> {
 			const settings = storedDestination();
 			const when = storedWhen();
-			// A place that keeps a file is what this drives. A server of theirs is the
-			// other kind of agreement and is pressed by hand, on the screen that has it.
-			if (!when.on || settings.kind === null || settings.kind === "server") return;
+			if (!when.on || settings.kind === null) return;
 			if (running || !driver) return;
 
 			// Loaded here and not at the top of the file. Everything in this module is in
@@ -83,8 +81,10 @@ export function useAutomaticBackup(): void {
 				setBackupState({
 					busy: false,
 					said: null,
+					// The bare name of the place, not the one the picker shows: that one
+					// carries its own article and reads as "in A WebDAV folder".
 					problem: latest.current.t("auto.failed", {
-						where: latest.current.t(`destination.${settings.kind ?? "webdav"}`),
+						where: latest.current.t(`destination.${settings.kind ?? "webdav"}Short`),
 					}),
 				});
 				// The reason is in the console for whoever is looking, and on the screen in

@@ -163,10 +163,13 @@ its owner, and a personal space merges into the personal space there already is.
 of text, because it is a once a year thing and it is not a backup: it carries no
 identifiers and nothing reads it back.
 
-**The automatic backup.** One place, picked from three: a server of yours, an online
-database, a WebDAV folder. It covers every space at once. It is reached from the browser
-with credentials that stay in that browser, and the server never holds them and never
-calls them.
+**The automatic backup.** One place, picked from two: an online database, a WebDAV folder.
+It covers every space at once. It is reached from the browser with credentials that stay
+in that browser, and the server never holds them and never calls them.
+
+A server of yours was a third, and is not one any more. It never held a copy of the
+spaces, it held the spaces, which is what server mode is rather than what a backup is.
+[Decision record 0040](../adr/0040_a_server_is_not_a_destination.md) says what that cost.
 
 Turning it on is the explicit action the fifth golden rule asks for, and after that it
 runs on every change, once the typing stops, plus whichever of two it was told: when the

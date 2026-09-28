@@ -11,8 +11,8 @@ import type { SyncStore } from "@cofre/storage";
 import type { DestinationSettings } from "./destinations.ts";
 
 /**
- * Nothing for a server of theirs, which is the other kind of agreement: it merges by
- * record over a route of its own and has nothing to compare as a file.
+ * Null until somebody has picked a place. The name is what a sentence about that place
+ * calls it, so it is the bare one, "the WebDAV folder", and not the one the picker shows.
  */
 export function storeFrom(settings: DestinationSettings, name: string): SyncStore | null {
 	if (settings.kind === "webdav") {

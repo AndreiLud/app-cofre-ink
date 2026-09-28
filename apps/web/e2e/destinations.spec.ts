@@ -1,12 +1,13 @@
 // The half of a copy that a machine makes.
 //
 // A file somebody carries used to be one of the destinations here, which put a thing a
-// person does by hand beside three things a machine does on its own. It moved to its own
-// half of the screen, and what is left is a place: a server of theirs, an online
-// database, a WebDAV folder. None of them can be reached from a test runner, so what is
-// checked here is what the screen promises before anything is reached: only the fields
-// of the place that was picked, a connection that says why it failed, and a state
-// anybody can read at a glance.
+// person does by hand beside things a machine does on its own. It moved to its own half
+// of the screen. A server of theirs was here too and left for a different reason, in
+// registry 0040: it holds the same spaces rather than a copy of them. What is left is a
+// place that keeps a file: an online database, a WebDAV folder. Neither can be reached
+// from a test runner, so what is checked here is what the screen promises before anything
+// is reached: only the fields of the place that was picked, a connection that says why it
+// failed, and a state anybody can read at a glance.
 
 import { expect, test } from "@playwright/test";
 import { go, openCofre } from "./support.ts";
@@ -30,6 +31,14 @@ test.describe("the automatic backup", () => {
 		// Nothing chosen is the honest starting state: there is no sensible default place
 		// to keep somebody's money in.
 		await expect(page.getByLabel("Onde guardar a cópia")).toHaveValue("");
+
+		// Two places, and a server of theirs is not one of them. It used to be, and it
+		// never ran on its own, which is registry 0040.
+		await expect(page.getByLabel("Onde guardar a cópia").locator("option")).toHaveText([
+			"Escolha um lugar",
+			"Um banco de dados online",
+			"Uma pasta WebDAV",
+		]);
 		await expect(page.getByLabel("Endereço da pasta")).toHaveCount(0);
 		await expect(page.getByRole("button", { name: "Testar conexão" })).toHaveCount(0);
 

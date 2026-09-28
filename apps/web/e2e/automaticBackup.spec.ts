@@ -103,7 +103,9 @@ test.describe("the copy that keeps itself up to date", () => {
 		const whereItIs = page
 			.locator("section")
 			.filter({ has: page.getByRole("heading", { name: "Onde estão os seus dados" }) });
-		await expect(whereItIs.getByText("Ativo em Uma pasta WebDAV")).toBeVisible();
+		// The name of the place, said without a preposition glued to it: the two places
+		// have different genders in Portuguese and no single preposition fits both.
+		await expect(whereItIs.getByText("Ativo. Destino: pasta WebDAV")).toBeVisible();
 	});
 
 	/**

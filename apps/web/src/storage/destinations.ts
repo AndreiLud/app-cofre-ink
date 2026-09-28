@@ -13,7 +13,7 @@ import type { DestinationKind } from "@cofre/cloud";
 export type DestinationSettings = {
 	/** Null until somebody picks one, because there is no sensible default place. */
 	kind: DestinationKind | null;
-	/** The address of a server of the person, or of a WebDAV folder. */
+	/** The address of the WebDAV folder, or of the online database. */
 	address: string;
 	user: string;
 	/** An application password or a database token, depending on the destination. */
@@ -67,7 +67,7 @@ function write(key: string, value: string): void {
 }
 
 /** The ones that exist now. A browser can be holding the name of one that does not. */
-const KINDS = new Set<DestinationKind>(["server", "webdav", "database"]);
+const KINDS = new Set<DestinationKind>(["webdav", "database"]);
 
 export function storedDestination(): DestinationSettings {
 	const raw = read(KEY);
@@ -75,9 +75,10 @@ export function storedDestination(): DestinationSettings {
 	try {
 		const kept = { ...EMPTY_SETTINGS, ...(JSON.parse(raw) as Partial<DestinationSettings>) };
 		// Somebody who had chosen Dropbox or Drive before those were taken out, or the
-		// file that stopped being a destination of its own, is still carrying the word in
-		// this browser. Reading it back as a destination that no longer exists is a screen
-		// that cannot be drawn at all, so it comes back as nothing chosen.
+		// file that stopped being a destination of its own, or a server of theirs, is
+		// still carrying the word in this browser. Reading it back as a destination that
+		// no longer exists is a screen that cannot be drawn at all, so it comes back as
+		// nothing chosen, which is also what turns the backup off for them.
 		return kept.kind !== null && KINDS.has(kept.kind) ? kept : { ...kept, kind: null };
 	} catch {
 		return { ...EMPTY_SETTINGS };
