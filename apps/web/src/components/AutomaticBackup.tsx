@@ -45,6 +45,7 @@ import {
 	INTERVALS,
 	lastBackupAt,
 	markMet,
+	readyToBackUp,
 	rememberDestination,
 	rememberWhen,
 	storedDestination,
@@ -240,12 +241,8 @@ export function AutomaticBackup() {
 		},
 	});
 
-	const ready =
-		kind === "webdav"
-			? settings.address !== "" && settings.user !== "" && settings.secret !== ""
-			: kind === "database"
-				? settings.address !== "" && settings.secret !== ""
-				: false;
+	// The same question the run asks before it touches anything, asked in one place.
+	const ready = readyToBackUp(settings);
 
 	return (
 		<div className="space-y-4">

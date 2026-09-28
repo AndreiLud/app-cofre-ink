@@ -16,7 +16,13 @@ import { useTranslation } from "react-i18next";
 import { afterTheTyping } from "./backupRunner.ts";
 import { setBackupState } from "./backupState.ts";
 import { useCofre } from "./CofreProvider.tsx";
-import { markMet, storedDestination, storedWhen, whenSettingsChange } from "./destinations.ts";
+import {
+	markMet,
+	readyToBackUp,
+	storedDestination,
+	storedWhen,
+	whenSettingsChange,
+} from "./destinations.ts";
 
 /** Long enough for a form to be filled in, short enough to feel like it is looking. */
 const AFTER_THE_TYPING = 4000;
@@ -39,7 +45,10 @@ export function useAutomaticBackup(): void {
 		async function run(): Promise<void> {
 			const settings = storedDestination();
 			const when = storedWhen();
-			if (!when.on || settings.kind === null) return;
+			// Picked is not the same as reachable. Without this the run armed itself the
+			// moment a name was chosen from the list and failed on every pass until the
+			// address and the secret were typed in.
+			if (!when.on || !readyToBackUp(settings)) return;
 			if (running || !driver) return;
 
 			// Loaded here and not at the top of the file. Everything in this module is in
@@ -47,7 +56,13 @@ export function useAutomaticBackup(): void {
 			// speaks to a folder or a database is needed only when a copy is actually
 			// being written. Importing it eagerly doubled the time every page took.
 			const { storeFrom } = await import("./storeFrom.ts");
-			const store = storeFrom(settings, settings.kind);
+			// The name a sentence about this place calls it, in the language on screen.
+			// It used to be handed the bare kind, so anything the store said came out as
+			// "webdav" or "database" in the middle of a translated sentence.
+			const store = storeFrom(
+				settings,
+				latest.current.t(`destination.${settings.kind ?? "webdav"}Short`),
+			);
 			if (store === null) return;
 
 			const allowed = await latest.current.session?.backup.copyable();

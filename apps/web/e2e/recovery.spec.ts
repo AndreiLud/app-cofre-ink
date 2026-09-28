@@ -82,4 +82,50 @@ test.describe("state from before", () => {
 		await expect(page.getByLabel("Onde guardar a cópia")).toHaveValue("");
 		await expect(page.getByLabel("Onde guardar a cópia")).toContainText("Escolha um lugar");
 	});
+
+	/**
+	 * The server was a destination until 1.0.2 took it out, and its notes said somebody
+	 * who had chosen it would find the backup off. Only the name of the place was dropped:
+	 * the switch stayed on, so the panel said Active beside None configured, offered the
+	 * schedule, and hid the one button that could have turned it off.
+	 */
+	test("a destination that was taken out takes the backup and the secret with it", async ({
+		page,
+	}) => {
+		await page.addInitScript(() => {
+			localStorage.setItem(
+				"cofreDestination",
+				JSON.stringify({
+					kind: "server",
+					address: "https://casa.exemplo.com",
+					user: "ana@exemplo.com",
+					secret: "a senha da conta",
+				}),
+			);
+			localStorage.setItem(
+				"cofreBackupWhen",
+				JSON.stringify({ on: true, onLoad: true, everyMinutes: 60 }),
+			);
+		});
+
+		await openCofre(page);
+		await go(page, "Dados");
+
+		// Off, nowhere, and no schedule offered for a backup that cannot run.
+		await expect(page.locator("#copia").getByText("Inativo")).toBeVisible();
+		await expect(page.locator("#copia").getByText("Nenhuma configurada")).toBeVisible();
+		await expect(page.getByText("Quando fazer o backup")).toHaveCount(0);
+
+		// And the password of the account they used to sign in with is not sitting in
+		// this browser any more.
+		const kept = await page.evaluate(() => localStorage.getItem("cofreDestination"));
+		expect(kept).not.toContain("a senha da conta");
+		expect(kept).not.toContain("casa.exemplo.com");
+
+		// Picking a place does not arm it: the fields are empty, so there is nothing to
+		// write and the run would only fail on every pass.
+		await page.getByLabel("Onde guardar a cópia").selectOption({ label: "Uma pasta WebDAV" });
+		await expect(page.getByLabel("Endereço da pasta")).toHaveValue("");
+		await expect(page.getByRole("button", { name: "Ligar" })).toBeDisabled();
+	});
 });

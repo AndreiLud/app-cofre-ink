@@ -74,15 +74,42 @@ export function storedDestination(): DestinationSettings {
 	if (raw === null) return { ...EMPTY_SETTINGS };
 	try {
 		const kept = { ...EMPTY_SETTINGS, ...(JSON.parse(raw) as Partial<DestinationSettings>) };
+		if (kept.kind !== null && KINDS.has(kept.kind)) return kept;
+
 		// Somebody who had chosen Dropbox or Drive before those were taken out, or the
 		// file that stopped being a destination of its own, or a server of theirs, is
-		// still carrying the word in this browser. Reading it back as a destination that
-		// no longer exists is a screen that cannot be drawn at all, so it comes back as
-		// nothing chosen, which is also what turns the backup off for them.
-		return kept.kind !== null && KINDS.has(kept.kind) ? kept : { ...kept, kind: null };
+		// still carrying the word in this browser.
+		//
+		// Everything of that place goes, not only its name. Keeping the address, the user
+		// and the secret left the next place somebody picked already filled in with the
+		// old one, and in the case of a server that secret was the password of their
+		// account. And the backup goes off, because a backup that is on with nowhere to
+		// write is a panel that says Active next to None configured and offers no way out
+		// of it, which is what 1.0.2 shipped while its own notes promised otherwise.
+		//
+		// Silently: this is a read, and a screen calls it while it is drawing. Telling
+		// the listeners here would set state in the middle of somebody else's render,
+		// which React refuses and which took the data screen down with it.
+		clearStored();
+		return { ...EMPTY_SETTINGS };
 	} catch {
 		return { ...EMPTY_SETTINGS };
 	}
+}
+
+/**
+ * Enough of a place to write to it.
+ *
+ * Picking a name in the list is not the same as being able to reach anything, and the
+ * run has to know the difference: it used to arm itself the moment a name was picked and
+ * fail on every pass until the fields were filled in.
+ */
+export function readyToBackUp(settings: DestinationSettings): boolean {
+	if (settings.kind === "webdav") {
+		return settings.address !== "" && settings.user !== "" && settings.secret !== "";
+	}
+	if (settings.kind === "database") return settings.address !== "" && settings.secret !== "";
+	return false;
 }
 
 /**
@@ -108,6 +135,17 @@ export function rememberDestination(settings: DestinationSettings): void {
 	tellThem();
 }
 
+function clearStored(): void {
+	write(KEY, JSON.stringify(EMPTY_SETTINGS));
+	write(WHEN_KEY, JSON.stringify({ ...NOT_BACKING_UP, on: false }));
+}
+
+/** The place, everything it needed, and the backup that was pointed at it, all gone. */
+export function forgetDestination(): void {
+	clearStored();
+	tellThem();
+}
+
 export function storedWhen(): WhenToBackUp {
 	const raw = read(WHEN_KEY);
 	if (raw === null) return { ...NOT_BACKING_UP };
@@ -115,7 +153,9 @@ export function storedWhen(): WhenToBackUp {
 		const kept = { ...NOT_BACKING_UP, ...(JSON.parse(raw) as Partial<WhenToBackUp>) };
 		const every = kept.everyMinutes;
 		return {
-			on: kept.on === true,
+			// Derived, and not only stored. Two keys that can disagree will, and the one
+			// that matters is the place: on with nowhere to write is not on.
+			on: kept.on === true && storedDestination().kind !== null,
 			onLoad: kept.onLoad !== false,
 			everyMinutes:
 				typeof every === "number" && INTERVALS.includes(every as (typeof INTERVALS)[number])
