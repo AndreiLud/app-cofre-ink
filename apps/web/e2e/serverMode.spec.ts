@@ -202,6 +202,21 @@ test.describe("server mode", () => {
 		for (const gone of ["Editar", "Apagar", "Dividir com a casa", "Conferir com o banco"]) {
 			await expect(joao.getByRole("menuitem", { name: gone })).toHaveCount(0);
 		}
+		await joao.keyboard.press("Escape");
+
+		// He reads the income of the people he shares the money with, because the number
+		// was already in his browser and the hint beside the field promises only that it
+		// stays inside this list. It used to say "não informada" about people who had
+		// said, which reads as them not having done their part.
+		await openSetting(ana, "Gerenciar espaços");
+		await ana.getByRole("button", { name: "Dizer" }).first().click();
+		await ana.getByRole("dialog").getByLabel("Renda mensal").fill("4.500,00");
+		await ana.getByRole("dialog").getByRole("button", { name: "Salvar" }).click();
+		await expect(ana.getByRole("dialog")).toHaveCount(0);
+
+		await joao.reload();
+		await openSetting(joao, "Gerenciar espaços");
+		await expect(joao.getByText("R$ 4.500,00")).toBeVisible({ timeout: 20_000 });
 	});
 
 	/**

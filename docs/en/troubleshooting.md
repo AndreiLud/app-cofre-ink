@@ -99,10 +99,18 @@ either way, under Data, Manual copy, and consider turning the automatic backup o
 
 In browser mode the database is the storage of the site. Clearing site data deletes it.
 There is no copy anywhere unless you made one: nothing is ever sent anywhere on its own,
-which is the trade this mode makes. Two things put a copy somewhere, both under Data.
-Manual copy, Download a copy writes a file you keep. The automatic backup keeps one up to
-date in a WebDAV folder or an online database of yours, and if it was on, bring that copy
-back with Restore from a file.
+which is the trade this mode makes.
+
+What brings the data back is a file, and only a file. Under Data, Manual copy, Download a
+copy writes it, and Restore from a file reads it back into any browser. Keep one now and
+then.
+
+The automatic backup is a different thing and does not stand in for that file. It keeps a
+copy up to date in a WebDAV folder or an online database of yours for the day **this**
+browser loses the data, but **no screen reads that copy back on its own**. From a WebDAV
+folder you can rescue it by hand: go to your own cloud, download the
+`cofre_<identifier>.json.gz` file from the folder, and bring it in through Restore from a
+file. From an online database there is no path through the interface today.
 
 ### An address inside the application answers 404
 

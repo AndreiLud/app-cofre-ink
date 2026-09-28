@@ -100,10 +100,18 @@ automático.
 
 No modo navegador o banco é o armazenamento do site. Limpar os dados do site apaga ele.
 Não existe cópia em lugar nenhum, a não ser que você tenha feito uma: nada é enviado a
-lugar nenhum sozinho, e essa é a troca que este modo faz. Duas coisas guardam uma cópia,
-as duas em Dados. Cópia manual, Baixar cópia escreve um arquivo que fica com você. O
-backup automático mantém uma numa pasta WebDAV ou num banco de dados seu, e se ele estava
-ligado, traga essa cópia de volta em Restaurar de um arquivo.
+lugar nenhum sozinho, e essa é a troca que este modo faz.
+
+O que traz os dados de volta é um arquivo, e só ele. Em Dados, Cópia manual, Baixar cópia
+escreve esse arquivo, e Restaurar de um arquivo lê ele de volta em qualquer navegador.
+Guarde um de vez em quando.
+
+O backup automático é outra coisa, e não substitui esse arquivo. Ele mantém uma cópia numa
+pasta WebDAV ou num banco de dados seu para o dia em que **este** navegador perder os
+dados, mas **nenhuma tela lê essa cópia de volta sozinha**. Numa pasta WebDAV dá para
+resgatar na mão: entre na sua nuvem, baixe o arquivo `cofre_<identificador>.json.gz` da
+pasta, e traga ele em Restaurar de um arquivo. Num banco de dados online não existe
+caminho pela interface hoje.
 
 ### Um endereço de dentro do aplicativo responde 404
 

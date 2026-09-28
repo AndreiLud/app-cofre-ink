@@ -104,6 +104,18 @@ export function SettleSection({
 		return people.find((person) => person.id === userId)?.name ?? t("members.someone");
 	};
 
+	/**
+	 * Who pays whom, as a sentence rather than as a name dropped into a slot.
+	 *
+	 * "{{from}} pays {{to}}" with "You" in the first slot comes out as "You pays João",
+	 * because English conjugates and a template cannot. Portuguese does not care, and
+	 * gets its own key anyway so the two files stay the same shape.
+	 */
+	const saying = (from: string, to: string) =>
+		from === user?.id
+			? t("sharing.paymentFromYou", { to: nameOf(to) })
+			: t("sharing.payment", { from: nameOf(from), to: nameOf(to) });
+
 	const rows = balances.data ?? [];
 	const payments = suggested.data ?? [];
 	const past = history.data ?? [];
@@ -145,10 +157,7 @@ export function SettleSection({
 								className="flex flex-wrap items-center justify-between gap-3 text-sm"
 							>
 								<span className="text-quiet">
-									{t("sharing.payment", {
-										from: nameOf(payment.fromUserId),
-										to: nameOf(payment.toUserId),
-									})}{" "}
+									{saying(payment.fromUserId, payment.toUserId)}{" "}
 									<Value amount={payment.amount} currency={currency} tone="neutral" />
 								</span>
 								{maySettle ? (
@@ -177,10 +186,7 @@ export function SettleSection({
 									<span className="font-mono text-xs">
 										{one.happenedOn.slice(8)}/{one.happenedOn.slice(5, 7)}
 									</span>{" "}
-									{t("sharing.payment", {
-										from: nameOf(one.fromUserId),
-										to: nameOf(one.toUserId),
-									})}{" "}
+									{saying(one.fromUserId, one.toUserId)}{" "}
 									<Value amount={one.amount} currency={one.currency} tone="neutral" />
 								</span>
 								{maySettle ? (

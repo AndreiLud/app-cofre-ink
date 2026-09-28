@@ -63,8 +63,9 @@ always narrowed to the rows a Logger wrote; this is the same space through anoth
 and now narrows the same way.
 
 **The monthly income read 4500.00 as four hundred and fifty thousand** in the English
-interface, because it stripped every dot by hand instead of reading the number the way the
-language writes it.
+interface, because it stripped every dot by hand instead of handing it to the reader every
+other amount on screen goes through, which decides the decimal mark from the last
+separator in what was typed.
 
 **The count after erasing a space** counted the change log and the invitations, so
 somebody who had written a hundred records was told four hundred had gone.

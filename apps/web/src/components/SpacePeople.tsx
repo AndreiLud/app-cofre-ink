@@ -39,7 +39,7 @@ import { SettleSection } from "./SettleSection.tsx";
 const ASSIGNABLE: AssignableRole[] = ["admin", "editor", "viewer", "logger"];
 
 export function SpacePeople() {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const { session, currentSpace, user, reload, linkInvitations, chooseAgain } = useCofre();
 	const queries = useQueryClient();
 
@@ -50,6 +50,10 @@ export function SpacePeople() {
 	const [link, setLink] = useState<string | null>(null);
 	const [copied, setCopied] = useState(false);
 	const [problem, setProblem] = useState<string | null>(null);
+	// The income dialog keeps its own, because the one above is drawn on the section
+	// behind it: a number that could not be read used to complain where nobody could see
+	// it while the dialog stayed open saying nothing.
+	const [incomeProblem, setIncomeProblem] = useState<string | null>(null);
 
 	const spaceId = currentSpace?.id ?? "";
 	// A server, a shared space, and somebody who may actually make an invitation. The
@@ -105,8 +109,9 @@ export function SpacePeople() {
 		mutationFn: async () => {
 			if (!session || incomeFor === null) return;
 			// Read the way every other amount on screen is read, which is the way the
-			// language writes numbers. Stripping every dot by hand turned 4500.00 typed in
-			// the English interface into four hundred and fifty thousand.
+			// same reader every other amount on screen goes through, which decides the
+			// decimal mark from the last separator in what was typed. Stripping every dot
+			// by hand turned 4500.00 into four hundred and fifty thousand.
 			const amount =
 				income.trim() === ""
 					? null
@@ -115,9 +120,12 @@ export function SpacePeople() {
 		},
 		onSuccess: () => {
 			setIncomeFor(null);
+			setIncomeProblem(null);
 			invalidate();
 		},
-		onError: complain,
+		// Inside the dialog, where the person is looking, and in words. It used to put the
+		// English complaint of the money reader on the section behind the open dialog.
+		onError: () => setIncomeProblem(t("members.incomeUnreadable")),
 	});
 
 	const remove = useMutation({
@@ -146,6 +154,21 @@ export function SpacePeople() {
 	const isPersonal = currentSpace.kind === "personal";
 	const myRole = rows.find((member) => member.userId === user?.id)?.role;
 	const canManage = myRole === "owner" || myRole === "admin";
+
+	// The language on screen, not the one this application was written in. The income
+	// used to be drawn as R$ 4.500,00 in the middle of the English interface, and the
+	// field was filled with a comma for the cents whichever language was speaking.
+	const locale = i18n.resolvedLanguage === "en" ? "en" : "pt-BR";
+	const asMoney = (cents: number) =>
+		new Intl.NumberFormat(locale, {
+			style: "currency",
+			currency: currentSpace.baseCurrency,
+		}).format(cents / 100);
+	const asFigures = (cents: number) =>
+		new Intl.NumberFormat(locale, {
+			minimumFractionDigits: 2,
+			useGrouping: false,
+		}).format(cents / 100);
 	// False while the members are still being read, which is the safe direction: a button
 	// that appears a moment late is better than one that is refused when pressed.
 	const canInvite = onAServer && canManage;
@@ -229,7 +252,11 @@ export function SpacePeople() {
 
 			{rows.length > 0 ? (
 				<Panel flush>
-					<Table caption={t("members.caption", { space: currentSpace.name })}>
+					<Table
+						caption={t(isPersonal ? "members.captionPersonal" : "members.caption", {
+							space: currentSpace.name,
+						})}
+					>
 						<TableHead>
 							<TableRow>
 								<TableHeader>{t("members.person")}</TableHeader>
@@ -251,30 +278,35 @@ export function SpacePeople() {
 									<TableCell className="text-quiet">{t(`memberState.${member.state}`)}</TableCell>
 									{isPersonal ? null : (
 										<TableCell numeric={true}>
-											{/* Only the division that follows income reads this, and only the
-											    person themselves or whoever runs the space may set it. */}
+											{/* Two different questions, and they used to be one. Who may
+											    SET this is the person themselves and whoever runs the
+											    space. Who may SEE it is everybody who can read the list,
+											    which is what the hint beside the field already promises
+											    and what the model already hands down: hiding it here said
+											    "not said" about people who had said, and the number was
+											    in this browser the whole time. */}
 											{member.userId === user?.id || canManage ? (
 												<Button
 													size="small"
 													variant="quiet"
 													onClick={() => {
 														setIncomeFor(member.userId);
+														setIncomeProblem(null);
 														setIncome(
-															member.monthlyIncome === null
-																? ""
-																: String(member.monthlyIncome / 100).replace(".", ","),
+															member.monthlyIncome === null ? "" : asFigures(member.monthlyIncome),
 														);
 													}}
 												>
 													{member.monthlyIncome === null
 														? t("members.sayIncome")
-														: new Intl.NumberFormat("pt-BR", {
-																style: "currency",
-																currency: currentSpace.baseCurrency,
-															}).format(member.monthlyIncome / 100)}
+														: asMoney(member.monthlyIncome)}
 												</Button>
 											) : (
-												<span className="text-quiet">{t("members.incomeHidden")}</span>
+												<span className="text-quiet">
+													{member.monthlyIncome === null
+														? t("members.incomeNotSaid")
+														: asMoney(member.monthlyIncome)}
+												</span>
 											)}
 										</TableCell>
 									)}
@@ -349,11 +381,15 @@ export function SpacePeople() {
 					<Field
 						label={t("members.income")}
 						hint={t("members.incomeHint")}
+						error={incomeProblem}
 						value={income}
-						onChange={(event) => setIncome(event.target.value)}
+						onChange={(event) => {
+							setIncomeProblem(null);
+							setIncome(event.target.value);
+						}}
 						numeric={true}
 						inputMode="decimal"
-						placeholder="0,00"
+						placeholder={t("fields.amountPlaceholder")}
 						autoFocus={true}
 					/>
 				</form>
