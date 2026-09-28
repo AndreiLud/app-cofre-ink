@@ -23,13 +23,14 @@ import type { BackupOutcome, SyncStore } from "@cofre/storage";
 import { keepMine, keepTheirs, runBackup, syncWithStore } from "@cofre/storage";
 import { Button, Callout, Dialog, Field, Select } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { downloadBytes, downloadJson, fileNameFor } from "../lib/download.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { backupState, setBackupState, subscribeToBackup } from "../storage/backupState.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import {
+	chooseDestination,
 	type DestinationSettings,
 	INTERVALS,
 	lastBackupAt,
@@ -40,6 +41,7 @@ import {
 	storedDestination,
 	storedWhen,
 	type WhenToBackUp,
+	whenSettingsChange,
 } from "../storage/destinations.ts";
 import { storeFrom } from "../storage/storeFrom.ts";
 
@@ -53,8 +55,22 @@ export function AutomaticBackup() {
 	const { t, i18n } = useTranslation();
 	const queries = useQueryClient();
 
+	// Read again whenever they change, wherever they change. These were read once when the
+	// panel was first drawn and never again, so setting the place back to none left this
+	// half of the screen saying Active beside None configured while the line at the top of
+	// the same screen already said Inactive, and the front door could rewrite the
+	// destination without this panel ever noticing.
 	const [settings, setSettings] = useState<DestinationSettings>(storedDestination);
 	const [when, setWhen] = useState<WhenToBackUp>(storedWhen);
+	useEffect(
+		() =>
+			whenSettingsChange(() => {
+				setSettings(storedDestination());
+				setWhen(storedWhen());
+			}),
+		[],
+	);
+
 	const [problem, setProblem] = useState<string | null>(null);
 	const [said, setSaid] = useState<string | null>(null);
 
@@ -210,6 +226,8 @@ export function AutomaticBackup() {
 
 	// The same question the run asks before it touches anything, asked in one place.
 	const ready = readyToBackUp(settings);
+	/** Asked for, and with somewhere to write it. Both, or nothing is being copied. */
+	const working = when.on && ready;
 
 	return (
 		<div className="space-y-4">
@@ -220,7 +238,9 @@ export function AutomaticBackup() {
 					setSaid(null);
 					setProblem(null);
 					const picked = event.target.value;
-					change({ kind: picked === "" ? null : (picked as DestinationKind) });
+					// Only which place, never the fields of one. Each place keeps its own, so
+					// coming back to a folder that was set up finds it set up.
+					chooseDestination(picked === "" ? null : (picked as DestinationKind));
 				}}
 				options={[
 					{ value: "", label: t("auto.pick") },
@@ -285,10 +305,13 @@ export function AutomaticBackup() {
 					>
 						{t("auto.test")}
 					</Button>
+					{/* Switching it off never needs a complete place. It shared the same guard
+					    as the other two, so blanking one field left it on, copying nothing,
+					    with the only button that could have stopped it greyed out. */}
 					<Button
 						variant={when.on ? "quiet" : "primary"}
 						size="small"
-						disabled={!ready}
+						disabled={!when.on && !ready}
 						onClick={() => {
 							changeWhen({ on: !when.on });
 							setSaid(null);
@@ -307,6 +330,13 @@ export function AutomaticBackup() {
 					</Button>
 				</div>
 			)}
+
+			{/* Asked for, and nowhere to write it. Neither half is wrong on its own and the
+			    pair of them is, so it is said out loud instead of being shown as a state
+			    the panel cannot explain. */}
+			{when.on && !ready && kind !== null ? (
+				<Callout tone="attention">{t("auto.onWithNowhereToWrite")}</Callout>
+			) : null}
 
 			{(problem ?? running.problem) ? (
 				<Callout tone="problem">{problem ?? running.problem}</Callout>
@@ -331,8 +361,10 @@ export function AutomaticBackup() {
 			<dl className="divide-y divide-line border-t border-line pt-3 text-sm">
 				<div className="flex flex-wrap justify-between gap-2 pb-2">
 					<dt className="text-quiet">{t("auto.state")}</dt>
-					<dd className={when.on ? "text-ink" : "text-seal"}>
-						{when.on ? t("auto.on") : t("auto.off")}
+					{/* What is happening, not what was asked for. Those are two facts and
+					    they can disagree, which is the whole of this line's job. */}
+					<dd className={working ? "text-ink" : "text-seal"}>
+						{working ? t("auto.on") : t("auto.off")}
 					</dd>
 				</div>
 				<div className="flex flex-wrap justify-between gap-2 py-2">

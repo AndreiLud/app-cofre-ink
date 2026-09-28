@@ -21,7 +21,7 @@ import { Wordmark } from "../components/Wordmark.tsx";
 import { useTheme } from "../lib/theme.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
-import { rememberDestination, storedDestination } from "../storage/destinations.ts";
+import { chooseDestination } from "../storage/destinations.ts";
 import { normaliseServer } from "../storage/mode.ts";
 import { startLocalProfile } from "../storage/startProfile.ts";
 
@@ -75,10 +75,11 @@ export function ModeChooserPage() {
 	async function throughADatabase() {
 		if (busy) return;
 		setBusy(true);
-		// What is already there, with the kind changed. Writing the empty settings threw
+		// Only which place, and never the fields of one. Writing the empty settings threw
 		// away the address, the user and the application password of a WebDAV folder that
-		// somebody had set up, and left the backup on against nothing.
-		rememberDestination({ ...storedDestination(), kind: "database" });
+		// somebody had set up, and carrying them over handed a database the folder's
+		// password as a token, which every run then sent to the folder's address.
+		chooseDestination("database");
 		void navigate({ to: ROUTES.data });
 		await startHere((driver) => enter(driver, false));
 		setBusy(false);

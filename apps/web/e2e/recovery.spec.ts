@@ -128,4 +128,94 @@ test.describe("state from before", () => {
 		await expect(page.getByLabel("Endereço da pasta")).toHaveValue("");
 		await expect(page.getByRole("button", { name: "Ligar" })).toBeDisabled();
 	});
+
+	/**
+	 * The clearing above happened when the settings were read, and the only screen that
+	 * read them was this one. Somebody who never opened it kept the address of their
+	 * server, the email of their account and the password they typed into that panel,
+	 * whatever the notes of 1.0.3 said.
+	 */
+	test("takes the place that is gone on the way in, not when somebody looks", async ({ page }) => {
+		await page.addInitScript(() => {
+			localStorage.setItem(
+				"cofreDestination",
+				JSON.stringify({
+					kind: "server",
+					address: "https://casa.exemplo.com",
+					user: "ana@exemplo.com",
+					secret: "a senha da conta",
+				}),
+			);
+		});
+
+		await openCofre(page);
+		// Straight to the records, which is where somebody actually goes, and nowhere near
+		// the screen that holds the destination.
+		await go(page, "Lançamentos");
+
+		const kept = await page.evaluate(() => localStorage.getItem("cofreDestination"));
+		expect(kept).not.toContain("a senha da conta");
+		expect(kept).not.toContain("ana@exemplo.com");
+		expect(kept).not.toContain("casa.exemplo.com");
+	});
+
+	/**
+	 * Each place keeps its own fields.
+	 *
+	 * 1.0.2 emptied them whenever the name in the list changed, which threw away a folder
+	 * somebody had set up. 1.0.3 kept them and carried them across, so a database was
+	 * handed the folder's address and the folder's application password as a token, and
+	 * every run posted that password to the folder.
+	 */
+	test("keeps the fields of each place apart from the fields of the other", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Dados");
+
+		await page.getByLabel("Onde guardar a cópia").selectOption({ label: "Uma pasta WebDAV" });
+		await page.getByLabel("Endereço da pasta").fill("https://nuvem.exemplo.com/cofre");
+		await page.getByLabel("Usuário").fill("ana");
+		await page.getByLabel("Senha de aplicativo").fill("a senha do aplicativo");
+
+		// Over to the other place: nothing of the folder comes with it.
+		await page
+			.getByLabel("Onde guardar a cópia")
+			.selectOption({ label: "Um banco de dados online" });
+		await expect(page.getByLabel("Endereço do banco")).toHaveValue("");
+		await expect(page.getByRole("button", { name: "Ligar" })).toBeDisabled();
+
+		// And back again: the folder is exactly as it was left.
+		await page.getByLabel("Onde guardar a cópia").selectOption({ label: "Uma pasta WebDAV" });
+		await expect(page.getByLabel("Endereço da pasta")).toHaveValue(
+			"https://nuvem.exemplo.com/cofre",
+		);
+		await expect(page.getByLabel("Usuário")).toHaveValue("ana");
+	});
+
+	/**
+	 * A backup that is on with one field of its place missing copies nothing, and the
+	 * panel said Active and greyed out the only button that could have stopped it, because
+	 * switching it off shared a guard with testing the connection and running it now.
+	 */
+	test("can always be switched off, whatever the place is missing", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Dados");
+
+		await page.getByLabel("Onde guardar a cópia").selectOption({ label: "Uma pasta WebDAV" });
+		await page.getByLabel("Endereço da pasta").fill("https://nuvem.exemplo.com/cofre");
+		await page.getByLabel("Usuário").fill("ana");
+		await page.getByLabel("Senha de aplicativo").fill("a senha do aplicativo");
+		await page.getByRole("button", { name: "Ligar" }).click();
+		await expect(page.locator("#copia").getByText("Ativo", { exact: true })).toBeVisible();
+
+		// One field out, and nothing can be written any more.
+		await page.getByLabel("Endereço da pasta").fill("");
+		await expect(page.locator("#copia").getByText("Inativo", { exact: true })).toBeVisible();
+		await expect(page.getByText("nada está sendo copiado")).toBeVisible();
+
+		// The way out is not greyed out.
+		const off = page.getByRole("button", { name: "Desligar" });
+		await expect(off).toBeEnabled();
+		await off.click();
+		await expect(page.getByText("nada está sendo copiado")).toHaveCount(0);
+	});
 });

@@ -40,7 +40,12 @@ import { downloadCsv, downloadJson, fileNameFor, readPickedFile } from "../lib/d
 import { sayWhy } from "../lib/sayWhy.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
-import { storedDestination, storedWhen, whenSettingsChange } from "../storage/destinations.ts";
+import {
+	readyToBackUp,
+	storedDestination,
+	storedWhen,
+	whenSettingsChange,
+} from "../storage/destinations.ts";
 import { storeFrom } from "../storage/storeFrom.ts";
 
 const BACKUP_KEY = "cofreBackupAt";
@@ -421,8 +426,14 @@ export function DataPage() {
 
 	const when = (at: number) => new Date(at).toLocaleString(i18n.resolvedLanguage ?? "pt-BR");
 
-	/** A place that holds a file, switched on, with a database here to copy from. */
-	const keepingACopy = backingUp.on && destination.kind !== null && driver !== null;
+	/**
+	 * A place that holds a file, switched on, complete, with a database here to copy from.
+	 *
+	 * Complete matters as much as chosen: with the address blanked out this aimed a read
+	 * and a write of every restored space at the address this application is served from,
+	 * carrying the person's application password in the header.
+	 */
+	const keepingACopy = backingUp.on && readyToBackUp(destination) && driver !== null;
 	const mine = spaces.filter((space) => mayCopy.has(space.id));
 	const savedAt = oldestBackup(mine.map((space) => space.id));
 
@@ -460,8 +471,11 @@ export function DataPage() {
 					{mode === "server" ? null : (
 						<div className="flex flex-wrap justify-between gap-2 pt-2">
 							<dt className="text-quiet">{t("data.copyIn")}</dt>
-							<dd className={backingUp.on ? "text-ink" : "text-seal"}>
-								{backingUp.on && destination.kind !== null
+							{/* What is happening, which is being asked for and having somewhere
+							    to write it. This line and the panel below it used to answer
+							    that question differently on the same screen. */}
+							<dd className={keepingACopy ? "text-ink" : "text-seal"}>
+								{keepingACopy && destination.kind !== null
 									? t("auto.onAt", { where: t(`destination.${destination.kind}Short`) })
 									: t("auto.off")}
 							</dd>

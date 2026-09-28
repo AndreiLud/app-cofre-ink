@@ -1280,6 +1280,7 @@
 		"alsoTheCopyHint": "The copy of this space goes from the destination with it. The automatic backup stays on for the other spaces.",
 		"keepTheCopyHint": "The copy stays where it is, and the automatic backup is switched off because of it: with it on, the next run would see the destination as ahead and bring this whole space back.",
 		"copyGone": "The copy at the destination was erased too.",
+		"copyWentFirst": "The copy at the destination had already been erased, and the space is still here, whole. The backup is still on, so the next run writes the copy again.",
 		"backupOff": "The automatic backup was switched off, so the destination does not bring this space back."
 	},
 	"profiles": {
@@ -1298,6 +1299,7 @@
 		"on": "On",
 		"off": "Off",
 		"onAt": "On. Destination: {{where}}",
+		"onWithNowhereToWrite": "The backup is on and the place is not filled in, so nothing is being copied. Fill the fields above, or switch it off.",
 		"place": "Where",
 		"lastRun": "Last backup",
 		"when": "When to back up",

@@ -69,32 +69,68 @@ function write(key: string, value: string): void {
 /** The ones that exist now. A browser can be holding the name of one that does not. */
 const KINDS = new Set<DestinationKind>(["webdav", "database"]);
 
-export function storedDestination(): DestinationSettings {
-	const raw = read(KEY);
-	if (raw === null) return { ...EMPTY_SETTINGS };
-	try {
-		const kept = { ...EMPTY_SETTINGS, ...(JSON.parse(raw) as Partial<DestinationSettings>) };
-		if (kept.kind !== null && KINDS.has(kept.kind)) return kept;
+/** What one place needs, without the name of which place it is. */
+type Fields = { address: string; user: string; secret: string };
 
-		// Somebody who had chosen Dropbox or Drive before those were taken out, or the
-		// file that stopped being a destination of its own, or a server of theirs, is
-		// still carrying the word in this browser.
-		//
-		// Everything of that place goes, not only its name. Keeping the address, the user
-		// and the secret left the next place somebody picked already filled in with the
-		// old one, and in the case of a server that secret was the password of their
-		// account. And the backup goes off, because a backup that is on with nowhere to
-		// write is a panel that says Active next to None configured and offers no way out
-		// of it, which is what 1.0.2 shipped while its own notes promised otherwise.
-		//
-		// Silently: this is a read, and a screen calls it while it is drawing. Telling
-		// the listeners here would set state in the middle of somebody else's render,
-		// which React refuses and which took the data screen down with it.
-		clearStored();
-		return { ...EMPTY_SETTINGS };
+const NO_FIELDS: Fields = { address: "", user: "", secret: "" };
+
+/**
+ * What this browser is holding: which place is chosen, and the fields of each place it
+ * has ever had.
+ *
+ * Kept per place rather than in one set of three fields, because changing the name in the
+ * list used to carry the address, the user and the application password of the old place
+ * into the new one. A WebDAV folder answered for a database, so every run posted to the
+ * folder's address with the folder's password as a token, and the panel said the copy was
+ * going to a database while nothing was going anywhere. The other way round, emptying them
+ * on every change, is what 1.0.2 did, and it threw away a folder somebody had set up
+ * because they pressed a button on the front door.
+ */
+type StoredDestinations = {
+	kind: DestinationKind | null;
+	places: Partial<Record<DestinationKind, Fields>>;
+};
+
+const NOTHING_STORED: StoredDestinations = { kind: null, places: {} };
+
+/** The shape before places were kept apart, which a browser can still be holding. */
+type OldShape = Partial<DestinationSettings> & { places?: unknown };
+
+function readStored(): StoredDestinations {
+	const raw = read(KEY);
+	if (raw === null) return { kind: null, places: {} };
+	try {
+		const kept = JSON.parse(raw) as OldShape & Partial<StoredDestinations>;
+		const kind =
+			kept.kind !== undefined && kept.kind !== null && KINDS.has(kept.kind) ? kept.kind : null;
+
+		if (kept.places !== undefined && typeof kept.places === "object" && kept.places !== null) {
+			return { kind, places: kept.places as Partial<Record<DestinationKind, Fields>> };
+		}
+
+		// The old shape. What it holds belongs to the place it was holding it for, and a
+		// place that no longer exists takes its fields with it rather than handing them to
+		// whichever place is picked next.
+		if (kind === null) return { kind: null, places: {} };
+		return {
+			kind,
+			places: {
+				[kind]: {
+					address: kept.address ?? "",
+					user: kept.user ?? "",
+					secret: kept.secret ?? "",
+				},
+			},
+		};
 	} catch {
-		return { ...EMPTY_SETTINGS };
+		return { kind: null, places: {} };
 	}
+}
+
+export function storedDestination(): DestinationSettings {
+	const stored = readStored();
+	if (stored.kind === null) return { ...EMPTY_SETTINGS };
+	return { kind: stored.kind, ...NO_FIELDS, ...(stored.places[stored.kind] ?? NO_FIELDS) };
 }
 
 /**
@@ -131,21 +167,52 @@ function tellThem(): void {
 }
 
 export function rememberDestination(settings: DestinationSettings): void {
-	write(KEY, JSON.stringify(settings));
+	const stored = readStored();
+	const places = { ...stored.places };
+	if (settings.kind !== null) {
+		places[settings.kind] = {
+			address: settings.address,
+			user: settings.user,
+			secret: settings.secret,
+		};
+	}
+	write(KEY, JSON.stringify({ kind: settings.kind, places } satisfies StoredDestinations));
+
+	// Choosing no place at all is a decision, so it switches the backup off rather than
+	// leaving an intention behind that arms itself again the day a place is picked.
+	if (settings.kind === null) write(WHEN_KEY, JSON.stringify({ ...storedWhen(), on: false }));
 	tellThem();
 }
 
-function clearStored(): void {
-	write(KEY, JSON.stringify(EMPTY_SETTINGS));
-	write(WHEN_KEY, JSON.stringify({ ...NOT_BACKING_UP, on: false }));
+/**
+ * Which place is chosen. The fields of every place stay exactly where they are.
+ *
+ * Changing the name in the list is not the same as typing into it, and treating the two
+ * as one write is what carried a WebDAV address and its application password into a
+ * database destination, where every run then posted the folder's password to the folder's
+ * address as a token and failed, on a screen that said the copy was going to a database.
+ */
+export function chooseDestination(kind: DestinationKind | null): void {
+	const stored = readStored();
+	write(KEY, JSON.stringify({ kind, places: stored.places } satisfies StoredDestinations));
+	if (kind === null) write(WHEN_KEY, JSON.stringify({ ...storedWhen(), on: false }));
+	tellThem();
 }
 
-/** The place, everything it needed, and the backup that was pointed at it, all gone. */
+/** The place, everything every place needed, and the backup pointed at it, all gone. */
 export function forgetDestination(): void {
-	clearStored();
+	write(KEY, JSON.stringify(NOTHING_STORED));
+	write(WHEN_KEY, JSON.stringify({ ...NOT_BACKING_UP, on: false }));
 	tellThem();
 }
 
+/**
+ * Whether the person asked for a backup, which is not the same as whether one can happen.
+ *
+ * Kept apart on purpose. A place with a field missing is a backup that is on and cannot
+ * run, and the two facts have to be sayable separately or the panel either lies about
+ * what it is doing or takes away the button that switches it off.
+ */
 export function storedWhen(): WhenToBackUp {
 	const raw = read(WHEN_KEY);
 	if (raw === null) return { ...NOT_BACKING_UP };
@@ -153,9 +220,7 @@ export function storedWhen(): WhenToBackUp {
 		const kept = { ...NOT_BACKING_UP, ...(JSON.parse(raw) as Partial<WhenToBackUp>) };
 		const every = kept.everyMinutes;
 		return {
-			// Derived, and not only stored. Two keys that can disagree will, and the one
-			// that matters is the place: on with nowhere to write is not on.
-			on: kept.on === true && storedDestination().kind !== null,
+			on: kept.on === true,
 			onLoad: kept.onLoad !== false,
 			everyMinutes:
 				typeof every === "number" && INTERVALS.includes(every as (typeof INTERVALS)[number])
@@ -170,6 +235,55 @@ export function storedWhen(): WhenToBackUp {
 export function rememberWhen(when: WhenToBackUp): void {
 	write(WHEN_KEY, JSON.stringify(when));
 	tellThem();
+}
+
+/**
+ * Whether a copy is actually being kept: asked for, and with somewhere to write it.
+ *
+ * This is what a screen says out loud and what the run obeys. The two halves were one
+ * value before, which is how a panel came to say Active beside None configured.
+ */
+export function backupIsRunning(): boolean {
+	return storedWhen().on && readyToBackUp(storedDestination());
+}
+
+/**
+ * What a browser is still holding for a place that no longer exists.
+ *
+ * A server of theirs was a destination until 1.0.2, and Dropbox and Drive before that.
+ * The name, the address, the account email and the password typed into that panel are all
+ * still here, and the password of an account is not a thing to leave lying in storage.
+ *
+ * This runs when the application opens, which is what the 1.0.3 notes promised and did not
+ * do: the clearing happened on a read, so anybody who never opened the data screen kept
+ * all of it. It answers whether it took anything, so the one caller can say so.
+ */
+export function forgetPlacesThatAreGone(): boolean {
+	const raw = read(KEY);
+	if (raw === null) return false;
+	try {
+		const kept = JSON.parse(raw) as OldShape & Partial<StoredDestinations>;
+		const named = new Set<string>();
+		if (typeof kept.kind === "string") named.add(kept.kind);
+		if (kept.places !== undefined && typeof kept.places === "object" && kept.places !== null) {
+			for (const name of Object.keys(kept.places)) named.add(name);
+		}
+
+		const gone = [...named].filter((name) => !KINDS.has(name as DestinationKind));
+		if (gone.length === 0) return false;
+
+		const stored = readStored();
+		const places: Partial<Record<DestinationKind, Fields>> = {};
+		for (const [name, fields] of Object.entries(stored.places)) {
+			if (KINDS.has(name as DestinationKind)) places[name as DestinationKind] = fields as Fields;
+		}
+		write(KEY, JSON.stringify({ kind: stored.kind, places } satisfies StoredDestinations));
+		if (stored.kind === null) write(WHEN_KEY, JSON.stringify({ ...storedWhen(), on: false }));
+		tellThem();
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 /** The last time this device met each destination, per space. */

@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { keepWorkingOffline } from "./lib/install.ts";
 import { router } from "./router.tsx";
 import { CofreProvider } from "./storage/CofreProvider.tsx";
+import { forgetPlacesThatAreGone } from "./storage/destinations.ts";
 import "./i18n/index.ts";
 import "./styles/app.css";
 
@@ -27,6 +28,13 @@ if (!container) {
 
 // What makes it open on a phone with no connection. It does nothing in development.
 keepWorkingOffline();
+
+// Before anything is drawn, and whether or not anybody opens the data screen. A place
+// that stopped being a destination leaves its address and its secret in this browser, and
+// in the case of a server of theirs that secret was the password of their account. The
+// 1.0.3 notes said this happened the first time the application opened, and it happened on
+// a read of the settings, which most people never did.
+forgetPlacesThatAreGone();
 
 createRoot(container).render(
 	<StrictMode>

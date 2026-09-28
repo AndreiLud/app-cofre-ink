@@ -1280,6 +1280,7 @@
 		"alsoTheCopyHint": "A cópia deste espaço sai do destino junto. O backup automático continua ligado para os outros espaços.",
 		"keepTheCopyHint": "A cópia fica onde está, e por isso o backup automático vai ser desligado: com ele ligado, a próxima rodada veria o destino na frente e traria este espaço de volta inteiro.",
 		"copyGone": "A cópia no destino também foi apagada.",
+		"copyWentFirst": "A cópia no destino já tinha sido apagada, e o espaço continua aqui, inteiro. O backup segue ligado, então a próxima rodada escreve a cópia de novo.",
 		"backupOff": "O backup automático foi desligado, para o destino não trazer este espaço de volta."
 	},
 	"profiles": {
@@ -1298,6 +1299,7 @@
 		"on": "Ativo",
 		"off": "Inativo",
 		"onAt": "Ativo. Destino: {{where}}",
+		"onWithNowhereToWrite": "O backup está ligado e o lugar está incompleto, então nada está sendo copiado. Preencha os campos acima, ou desligue.",
 		"place": "Onde",
 		"lastRun": "Último backup",
 		"when": "Quando fazer o backup",

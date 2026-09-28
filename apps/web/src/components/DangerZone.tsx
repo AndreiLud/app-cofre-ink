@@ -15,7 +15,12 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
-import { rememberWhen, storedDestination, storedWhen } from "../storage/destinations.ts";
+import {
+	readyToBackUp,
+	rememberWhen,
+	storedDestination,
+	storedWhen,
+} from "../storage/destinations.ts";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
 type Target = { kind: "space"; space: Space } | { kind: "everything" };
@@ -77,7 +82,12 @@ export function DangerZone() {
 	// Browser mode only. In server mode the data is on the server and this backup never
 	// runs, so settings left over from browser mode used to offer to delete a file named
 	// after a space of the server, at a place that has nothing to do with it.
-	const copyKeepsIt = mode === "browser" && backingUp.on && destination.kind !== null;
+	// Ready, and not merely chosen. With the address of the folder blanked out, the copy
+	// step sent a DELETE to a relative path, which is the address this application is
+	// served from, with the person's application password in the header. A 404 counts as
+	// the file already being gone, so the screen said the copy had been erased while it
+	// sat untouched in the folder, and the backup was still pointed at it.
+	const copyKeepsIt = mode === "browser" && backingUp.on && readyToBackUp(destination);
 
 	// In browser mode the whole database is one file on this machine, so erasing
 	// everything means the file. On a server it means the spaces of this account, and
@@ -141,7 +151,21 @@ export function DangerZone() {
 					return;
 				}
 
-				const result = await session.erasure.eraseSpace(target.space.id);
+				// From here the copy is already gone, so a failure has to say so rather than
+				// leave somebody believing nothing happened. The space is still here, which
+				// is the recoverable side, and the backup is still on in the ticked branch,
+				// so the next run writes the copy again on its own.
+				let result: Awaited<ReturnType<typeof session.erasure.eraseSpace>>;
+				try {
+					result = await session.erasure.eraseSpace(target.space.id);
+				} catch (error) {
+					setProblem(
+						copyKeepsIt && alsoTheCopy
+							? `${sayWhy(error, t)} ${t("danger.copyWentFirst")}`
+							: sayWhy(error, t),
+					);
+					return;
+				}
 				queries.clear();
 				await reload();
 				setTarget(null);
