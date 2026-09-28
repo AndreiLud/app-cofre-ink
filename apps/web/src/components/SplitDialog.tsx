@@ -56,13 +56,18 @@ export function SplitDialog({ open, onOpenChange, record, people }: SplitDialogP
 			error !== null && typeof error === "object" && "rule" in error
 				? String((error as { rule: unknown }).rule)
 				: null;
-		setProblem(
-			rule === null
-				? error instanceof Error
-					? error.message
-					: String(error)
-				: t(`rules.${rule}`, { defaultValue: t("rules.unknown") }),
-		);
+		if (rule !== null) {
+			setProblem(t(`rules.${rule}`, { defaultValue: t("rules.unknown") }));
+			return;
+		}
+		// A refusal from the permission model is not a rule of the money: it arrives as a
+		// sentence written for whoever wrote the code, and it used to reach the screen
+		// exactly as thrown, in English, saying "not allowed to sharing.write in ...".
+		if (error instanceof Error && error.name === "PermissionError") {
+			setProblem(t("rules.notAllowedHere"));
+			return;
+		}
+		setProblem(error instanceof Error ? error.message : String(error));
 	};
 
 	const save = useMutation({

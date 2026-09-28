@@ -6,7 +6,7 @@
 
 import { type Browser, expect, type Page, test } from "@playwright/test";
 import { API_ADDRESS } from "../playwright.config.ts";
-import { go, openSetting } from "./support.ts";
+import { go, openSetting, record } from "./support.ts";
 
 const PASSWORD = "uma senha bem comprida";
 
@@ -135,6 +135,73 @@ test.describe("server mode", () => {
 		await openSetting(ana, "Gerenciar espaços");
 		await expect(ana.getByRole("cell", { name: "João" })).toBeVisible();
 		await expect(ana.getByRole("cell", { name: "Editor" })).toBeVisible();
+	});
+
+	/**
+	 * A role that cannot do a thing is not offered the button for it.
+	 *
+	 * Every one of these was drawn for everybody and refused by the model afterwards, in
+	 * a sentence written for whoever wrote the code: "not allowed to sharing.write in the
+	 * space ...". One of them, undoing a payment, failed in complete silence.
+	 */
+	test("offers a Viewer nothing it would refuse", async ({ browser }) => {
+		const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
+
+		await openSetting(ana, "Gerenciar espaços");
+		await ana.getByRole("button", { name: "Novo espaço" }).click();
+		await ana.getByLabel("Nome do espaço").fill("Casa");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(ana.getByRole("banner")).toContainText("Casa");
+
+		// An account, because a space with none of them has no month to write and the
+		// screen says so before it says anything about a role.
+		await go(ana, "Contas");
+		await ana.getByRole("button", { name: "Nova conta" }).first().click();
+		await ana.getByRole("dialog").getByLabel("Nome").fill("Conta conjunta");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(ana.getByRole("cell", { name: "Conta conjunta" })).toBeVisible();
+
+		await openSetting(ana, "Gerenciar espaços");
+		await ana.getByRole("button", { name: "Convidar" }).first().click();
+		await ana.getByLabel("Papel").selectOption({ label: "Leitor" });
+		await ana.getByRole("button", { name: "Gerar link" }).click();
+		const link = await ana.getByRole("dialog").locator("p.font-mono").innerText();
+		// Closed, or it sits over everything and the next click on her page never lands.
+		await ana.keyboard.press("Escape");
+		await expect(ana.getByRole("dialog")).toHaveCount(0);
+
+		const joao = await arrive(browser, { name: "João", email: uniqueEmail("joao") });
+		await joao.goto(link);
+		await joao.getByRole("button", { name: "Entrar no espaço" }).click();
+		await expect(joao.getByRole("banner")).toContainText("Casa");
+
+		// Inviting belongs to whoever runs the space, and a Viewer does not.
+		await openSetting(joao, "Gerenciar espaços");
+		await expect(joao.getByRole("button", { name: "Convidar" })).toHaveCount(0);
+
+		// The month of the household is not a screen a Viewer writes.
+		await go(joao, "O mês");
+		await expect(joao.getByText("Você é Leitor neste espaço")).toBeVisible();
+		await expect(joao.getByRole("button", { name: "Guardar o mês" })).toBeDisabled();
+
+		// And the menu of a record offers reading and nothing else.
+		await go(ana, "Lançamentos");
+		await ana.getByRole("button", { name: "Novo lançamento" }).first().click();
+		await ana.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("80,00");
+		await ana.getByRole("dialog").getByLabel("Descrição").fill("Conta de luz");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(record(ana, "Conta de luz")).toBeVisible();
+
+		// He was already looking at the space when she wrote it, so his copy of the list
+		// is from before.
+		await joao.reload();
+		await go(joao, "Lançamentos");
+		const hers = joao.getByRole("row").filter({ hasText: "Conta de luz" });
+		await expect(hers).toBeVisible({ timeout: 20_000 });
+		await hers.getByRole("button", { name: "Ações" }).click();
+		for (const gone of ["Editar", "Apagar", "Dividir com a casa", "Conferir com o banco"]) {
+			await expect(joao.getByRole("menuitem", { name: gone })).toHaveCount(0);
+		}
 	});
 
 	/**

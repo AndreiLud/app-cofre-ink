@@ -18,9 +18,23 @@ export type SettleSectionProps = {
 	people: User[];
 	currency: string;
 	timezone: string;
+	/**
+	 * Whether this person may record a payment between two people.
+	 *
+	 * Everybody reads who owes whom, because a debt nobody can see is not a debt. Only
+	 * the three roles the model lets write a settlement are offered the buttons: a Viewer
+	 * and a Logger were shown them and refused afterwards, one of the two in silence.
+	 */
+	maySettle: boolean;
 };
 
-export function SettleSection({ spaceId, people, currency, timezone }: SettleSectionProps) {
+export function SettleSection({
+	spaceId,
+	people,
+	currency,
+	timezone,
+	maySettle,
+}: SettleSectionProps) {
 	const { t } = useTranslation();
 	const { session, user } = useCofre();
 	const queries = useQueryClient();
@@ -44,6 +58,21 @@ export function SettleSection({ spaceId, people, currency, timezone }: SettleSec
 		queryFn: () => session?.sharing.settlements(spaceId) ?? [],
 	});
 
+	/**
+	 * What went wrong, in the language of the screen.
+	 *
+	 * A refusal from the permission model arrives as an English sentence meant for
+	 * whoever wrote the code, and it used to go straight onto the screen.
+	 */
+	const complain = (error: unknown) => {
+		if (error !== null && typeof error === "object" && "rule" in error) {
+			const rule = String((error as { rule: unknown }).rule);
+			setProblem(t(`rules.${rule}`, { defaultValue: t("rules.unknown") }));
+			return;
+		}
+		setProblem(t("rules.notAllowedHere"));
+	};
+
 	const settle = useMutation({
 		mutationFn: async (payment: { fromUserId: string; toUserId: string; amount: number }) =>
 			session?.sharing.settle({
@@ -55,12 +84,18 @@ export function SettleSection({ spaceId, people, currency, timezone }: SettleSec
 			setProblem(null);
 			void queries.invalidateQueries({ queryKey: ["sharing"] });
 		},
-		onError: (error: unknown) => setProblem(error instanceof Error ? error.message : String(error)),
+		onError: complain,
 	});
 
 	const forget = useMutation({
 		mutationFn: async (id: string) => session?.sharing.forgetSettlement(id),
-		onSuccess: () => void queries.invalidateQueries({ queryKey: ["sharing"] }),
+		onSuccess: () => {
+			setProblem(null);
+			void queries.invalidateQueries({ queryKey: ["sharing"] });
+		},
+		// It had none at all, so a refusal here happened in complete silence: the row
+		// stayed, nothing was said, and the only way to know was to reload.
+		onError: complain,
 	});
 
 	/** Whoever is holding the screen is "you", in the language the screen is speaking. */
@@ -116,14 +151,16 @@ export function SettleSection({ spaceId, people, currency, timezone }: SettleSec
 									})}{" "}
 									<Value amount={payment.amount} currency={currency} tone="neutral" />
 								</span>
-								<Button
-									size="small"
-									variant="secondary"
-									onClick={() => settle.mutate(payment)}
-									disabled={settle.isPending}
-								>
-									{t("sharing.markPaid")}
-								</Button>
+								{maySettle ? (
+									<Button
+										size="small"
+										variant="secondary"
+										onClick={() => settle.mutate(payment)}
+										disabled={settle.isPending}
+									>
+										{t("sharing.markPaid")}
+									</Button>
+								) : null}
 							</li>
 						))}
 					</ul>
@@ -146,9 +183,11 @@ export function SettleSection({ spaceId, people, currency, timezone }: SettleSec
 									})}{" "}
 									<Value amount={one.amount} currency={one.currency} tone="neutral" />
 								</span>
-								<Button size="small" variant="quiet" onClick={() => forget.mutate(one.id)}>
-									{t("sharing.undoPayment")}
-								</Button>
+								{maySettle ? (
+									<Button size="small" variant="quiet" onClick={() => forget.mutate(one.id)}>
+										{t("sharing.undoPayment")}
+									</Button>
+								) : null}
 							</li>
 						))}
 					</ul>

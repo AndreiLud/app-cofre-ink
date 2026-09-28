@@ -171,7 +171,14 @@ export function MonthPage() {
 		queryFn: () => session?.members.list(spaceId) ?? [],
 	});
 	const myRole = (members.data ?? []).find((one) => one.userId === user?.id)?.role;
-	const mayWrite = myRole === undefined || myRole !== "viewer";
+	/**
+	 * A Viewer writes nothing at all. A Logger writes, but only ever sees the records
+	 * they wrote themselves, and this screen is about the month of the whole household:
+	 * it would look empty to them even when somebody else had already filled it in, and
+	 * saving would write a second set of the same three marks, which nothing refuses,
+	 * and the space would count the month twice.
+	 */
+	const mayWrite = myRole === undefined || (myRole !== "viewer" && myRole !== "logger");
 
 	const everyAccount = accounts.data ?? [];
 	const moneyAccounts = everyAccount.filter((one) => one.kind !== "credit");
@@ -559,8 +566,11 @@ export function MonthPage() {
 					) : null}
 
 					{mayWrite ? null : (
-						<Callout tone="attention" title={t("theMonth.cannotWriteTitle")}>
-							{t("theMonth.cannotWriteBody")}
+						<Callout
+							tone="attention"
+							title={t(myRole === "logger" ? "theMonth.loggerTitle" : "theMonth.cannotWriteTitle")}
+						>
+							{t(myRole === "logger" ? "theMonth.loggerBody" : "theMonth.cannotWriteBody")}
 						</Callout>
 					)}
 

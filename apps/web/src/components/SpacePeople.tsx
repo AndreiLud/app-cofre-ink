@@ -52,7 +52,11 @@ export function SpacePeople() {
 	const [problem, setProblem] = useState<string | null>(null);
 
 	const spaceId = currentSpace?.id ?? "";
-	const canInvite = linkInvitations !== null && currentSpace?.kind === "shared";
+	// A server, a shared space, and somebody who may actually make an invitation. The
+	// role is added further down, once the members are in hand, because until then
+	// nobody knows which one this person holds and offering the button is the wrong
+	// guess: it was offered to an Editor, a Viewer and a Logger and refused every time.
+	const onAServer = linkInvitations !== null && currentSpace?.kind === "shared";
 
 	const members = useQuery({
 		queryKey: ["members", spaceId],
@@ -142,6 +146,11 @@ export function SpacePeople() {
 	const isPersonal = currentSpace.kind === "personal";
 	const myRole = rows.find((member) => member.userId === user?.id)?.role;
 	const canManage = myRole === "owner" || myRole === "admin";
+	// False while the members are still being read, which is the safe direction: a button
+	// that appears a moment late is better than one that is refused when pressed.
+	const canInvite = onAServer && canManage;
+	// Who may settle up. The same three the model lets write a settlement.
+	const maySettle = myRole === "owner" || myRole === "admin" || myRole === "editor";
 
 	async function copyLink() {
 		if (!link) return;
@@ -356,6 +365,7 @@ export function SpacePeople() {
 					people={people.data ?? []}
 					currency={currentSpace.baseCurrency}
 					timezone={currentSpace.timezone}
+					maySettle={maySettle}
 				/>
 			)}
 

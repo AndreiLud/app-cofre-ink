@@ -62,7 +62,7 @@ function filtersFrom(query: FilterQuery, fallbackMonth: string): Filters {
 
 export function TransactionsPage() {
 	const { t } = useTranslation();
-	const { session, currentSpace } = useCofre();
+	const { session, currentSpace, user } = useCofre();
 	const queries = useQueryClient();
 
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
@@ -92,6 +92,26 @@ export function TransactionsPage() {
 		enabled: Boolean(session && currentSpace),
 		queryFn: () => session?.accounts.list(spaceId, { includeArchived: true }) ?? [],
 	});
+
+	/**
+	 * Which of the actions in the menu of a row this person may actually use.
+	 *
+	 * This screen read no role at all, so every item was offered to everybody and the
+	 * model refused them afterwards, in English. A space with one person in it has no
+	 * member row to find, and there the answer is yes to everything, which is what it
+	 * has always been.
+	 */
+	const members = useQuery({
+		queryKey: ["members", spaceId],
+		enabled: Boolean(session && currentSpace),
+		queryFn: () => session?.members.list(spaceId) ?? [],
+	});
+	const myRole = (members.data ?? []).find((one) => one.userId === user?.id)?.role;
+	const mayEdit = myRole === undefined || myRole !== "viewer";
+	// A logger writes and reads their own rows, and does neither of these two: one is a
+	// decision about the whole space, the other is ticking it off against a bank.
+	const mayShare = myRole === undefined || (myRole !== "viewer" && myRole !== "logger");
+	const mayReconcile = mayShare;
 
 	const categories = useQuery({
 		queryKey: ["categories", spaceId],
@@ -609,40 +629,46 @@ export function TransactionsPage() {
 												</Button>
 											}
 										>
-											<MenuItem
-												onSelect={() => {
-													setEditing(row);
-													setOpen(true);
-												}}
-											>
-												{t("transactions.edit")}
-											</MenuItem>
-											{row.status === "planned" ? (
+											{mayEdit ? (
+												<MenuItem
+													onSelect={() => {
+														setEditing(row);
+														setOpen(true);
+													}}
+												>
+													{t("transactions.edit")}
+												</MenuItem>
+											) : null}
+											{row.status === "planned" && mayEdit ? (
 												<MenuItem onSelect={() => settle.mutate(row.id)}>
 													{t("transactions.settle")}
 												</MenuItem>
 											) : null}
-											{row.categoryId ? (
+											{row.categoryId && mayShare ? (
 												<MenuItem onSelect={() => teach.mutate(row)}>
 													{t("transactions.alwaysSortLikeThis")}
 												</MenuItem>
 											) : null}
-											{currentSpace.kind === "shared" && row.kind === "expense" ? (
+											{currentSpace.kind === "shared" && row.kind === "expense" && mayShare ? (
 												<MenuItem onSelect={() => setDividing(row)}>{t("sharing.divide")}</MenuItem>
 											) : null}
-											<MenuItem
-												onSelect={() =>
-													reconcile.mutate({ id: row.id, reconciled: row.reconciledAt === null })
-												}
-											>
-												{row.reconciledAt === null
-													? t("transactions.reconcile")
-													: t("transactions.unreconcile")}
-											</MenuItem>
+											{mayReconcile ? (
+												<MenuItem
+													onSelect={() =>
+														reconcile.mutate({ id: row.id, reconciled: row.reconciledAt === null })
+													}
+												>
+													{row.reconciledAt === null
+														? t("transactions.reconcile")
+														: t("transactions.unreconcile")}
+												</MenuItem>
+											) : null}
 											<MenuSeparator />
-											<MenuItem onSelect={() => remove.mutate(row.id)}>
-												{t("actions.delete")}
-											</MenuItem>
+											{mayEdit ? (
+												<MenuItem onSelect={() => remove.mutate(row.id)}>
+													{t("actions.delete")}
+												</MenuItem>
+											) : null}
 											{row.installmentGroup ? (
 												<MenuItem onSelect={() => removeGroup.mutate(row.installmentGroup ?? "")}>
 													{t("transactions.deleteGroup")}
