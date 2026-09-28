@@ -8,6 +8,7 @@ import { BUNDLE_FORMAT, type SyncBundle } from "@cofre/storage";
 import { describe, expect, it } from "vitest";
 import { mirrorToSheet } from "./googleSheets.ts";
 import { CloudError } from "./http.ts";
+import { createLibsqlStore } from "./libsql.ts";
 import { isPacked, packBundle, unpackBundle } from "./pack.ts";
 import { createWebdavStore } from "./webdav.ts";
 
@@ -244,6 +245,25 @@ describe("a spreadsheet that keeps up", () => {
 		expect(result.spreadsheetId).toBe("sheet1");
 		expect(result.url).toBe("https://docs.google.com/spreadsheets/d/sheet1");
 		expect(result.rows).toBe(1);
+	});
+
+	it("refuses an address that is not somewhere else", () => {
+		// An empty field, or a path with no host on it, is resolved by fetch against
+		// whatever address this application is served from, and every call these stores
+		// make carries a credential. So a blank address used to send somebody's WebDAV
+		// application password to whoever serves the page, and a DELETE for a file that
+		// was never there came back 404, which counts as the file already being gone.
+		for (const bad of ["", "   ", "/cofre", "nuvem.exemplo.com/cofre", "ftp://x.exemplo.com"]) {
+			expect(() => createWebdavStore({ url: bad, user: "ana", password: "segredo" })).toThrow(
+				CloudError,
+			);
+			expect(() => createLibsqlStore({ url: bad, token: "t" })).toThrow(CloudError);
+		}
+
+		// And an ordinary one is built without complaint.
+		expect(() =>
+			createWebdavStore({ url: "https://nuvem.exemplo.com/cofre/", user: "ana", password: "s" }),
+		).not.toThrow();
 	});
 
 	it("empties the tab before writing, so nothing is counted twice", async () => {

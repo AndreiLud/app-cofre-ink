@@ -18,7 +18,7 @@
 
 import type { Change, Person, StoredBundle, SyncBundle, SyncStore } from "@cofre/storage";
 import { BUNDLE_FORMAT, BUNDLE_VERSION } from "@cofre/storage";
-import { callJson, type Fetcher } from "./http.ts";
+import { addressOfAPlace, callJson, type Fetcher } from "./http.ts";
 
 export type LibsqlOptions = {
 	/**
@@ -128,11 +128,11 @@ function asRecords(
 }
 
 export function createLibsqlStore(options: LibsqlOptions): SyncStore {
-	const base = options.url.replace(/\/+$/, "");
 	// What a sentence about this place calls it. The screen passes the words of the
 	// language it is speaking, and this is the fallback for anything that does not, so it
 	// is in the language of the code rather than in one of the two the interface speaks.
 	const where = options.name ?? "the database";
+	const base = addressOfAPlace(options.url, where);
 	const batch = options.batch ?? 200;
 
 	/**

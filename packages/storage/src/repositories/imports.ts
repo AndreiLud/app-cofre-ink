@@ -19,7 +19,7 @@ import {
 	pickRule,
 } from "@cofre/core";
 import { transactions } from "@cofre/db";
-import { assertCan } from "../actor.ts";
+import { assertCan, seesOwnRowsOnly } from "../actor.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { type Account, type SpendingPriority, toAccount, toCategorizationRule } from "../models.ts";
 import { marks } from "../sql.ts";
@@ -95,10 +95,20 @@ export function createImportsRepository(context: RepositoryContext) {
 			spaceId: string,
 			range: { from?: CalendarDate; to?: CalendarDate; accountId?: string } = {},
 		): Promise<KnownRecord[]> {
-			assertCan(context.actor(), spaceId, "transaction.read");
+			const actor = context.actor();
+			assertCan(actor, spaceId, "transaction.read");
 
 			const where = [`"space_id" = ?`, `"deleted_at" IS NULL`];
 			const params: (string | number)[] = [spaceId];
+
+			// A logger reads their own rows, here as everywhere else. This query missed
+			// that rule, so the screen that marks what looks familiar read back every
+			// record of the space, up to five thousand of them with their descriptions and
+			// their amounts, for somebody who is meant to see only what they wrote.
+			if (seesOwnRowsOnly(actor, spaceId)) {
+				where.push(`"created_by" = ?`);
+				params.push(actor.userId);
+			}
 
 			if (range.accountId) {
 				where.push(`"account_id" = ?`);

@@ -684,6 +684,30 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		/**
+		 * The same rule, on the query behind the import screen.
+		 *
+		 * It asked whether the caller may read transactions and then filtered on the space
+		 * alone, so the screen that marks what looks familiar handed a logger every record
+		 * of the space, with its description and its amount, which is the one thing the
+		 * role exists to prevent.
+		 */
+		it("reads only their own rows back when a file is checked for repeats", async () => {
+			const { ready, asLogger } = await withLogger();
+			try {
+				const known = await asLogger.imports.existing(ready.spaceId);
+				expect(known.map((row) => row.description)).toEqual(["Padaria do Joao"]);
+
+				const everything = await ready.fixture.asAna.imports.existing(ready.spaceId);
+				expect(everything.map((row) => row.description).sort()).toEqual([
+					"Mercado da Ana",
+					"Padaria do Joao",
+				]);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		it("keeps seeing their own rows across spaces they belong to", async () => {
 			const { ready, asLogger } = await withLogger();
 			try {

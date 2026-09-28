@@ -15,7 +15,7 @@ import {
 	type SyncBundle,
 	type SyncStore,
 } from "@cofre/storage";
-import { call, type Fetcher } from "./http.ts";
+import { addressOfAPlace, call, type Fetcher } from "./http.ts";
 import { BUNDLE_MEDIA_TYPE, packBundle, storedFileName, unpackBundle } from "./pack.ts";
 
 export type WebdavOptions = {
@@ -44,11 +44,11 @@ export function fileNameFor(spaceId: string): string {
 }
 
 export function createWebdavStore(options: WebdavOptions): SyncStore {
-	const base = options.url.replace(/\/+$/, "");
-	const headers = { Authorization: authorisation(options) };
 	// What a sentence about this place calls it. The screen passes the words of the
 	// language it is speaking, and this is the fallback for anything that does not.
 	const where = options.name ?? "WebDAV";
+	const base = addressOfAPlace(options.url, where);
+	const headers = { Authorization: authorisation(options) };
 
 	return {
 		name: where,

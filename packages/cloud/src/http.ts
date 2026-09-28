@@ -24,6 +24,30 @@ export class CloudError extends Error {
 /** The fetch a store uses, which the tests replace. */
 export type Fetcher = typeof globalThis.fetch;
 
+/**
+ * The address of a destination has to be somewhere else.
+ *
+ * A blank one, or a path with no host on it, is resolved by fetch against whatever
+ * address this application is being served from, and every call in this package carries a
+ * credential: a Basic header built from an application password, or a database token as a
+ * Bearer. So an empty field does not mean "ask the page we are on", it means the caller
+ * has nothing to talk to, and sending somebody's password to whoever serves the page is
+ * not a thing to do on the way to finding that out.
+ */
+export function addressOfAPlace(url: string, where: string): string {
+	const trimmed = url.trim().replace(/\/+$/, "");
+	let parsed: URL;
+	try {
+		parsed = new URL(trimmed);
+	} catch {
+		throw new CloudError(where, 0, `"${url}" is not the address of anything`);
+	}
+	if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+		throw new CloudError(where, 0, `"${url}" is not an address this can reach`);
+	}
+	return trimmed;
+}
+
 export type CallOptions = {
 	method?: string;
 	headers?: Record<string, string>;
