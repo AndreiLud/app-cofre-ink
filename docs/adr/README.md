@@ -44,4 +44,5 @@ new one.
 | [0035](0035_one_backup_and_one_place_for_it.md) | one backup, and one place on the screen for it | accepted, the screen amended by 0036 |
 | [0036](0036_a_copy_that_keeps_itself_up_to_date.md) | a copy that keeps itself up to date, and the one question it may not answer | accepted |
 | [0037](0037_one_person_per_browser_and_no_form_at_the_door.md) | one person per browser, and no form at the door | accepted |
-| [0038](0038_a_month_in_three_numbers.md) | a month in three numbers, for whoever will not keep a ledger | accepted |
+| [0038](0038_a_month_in_three_numbers.md) | a month in three numbers, for whoever will not keep a ledger | accepted, the payment added by 0039 |
+| [0039](0039_the_invoice_is_also_paid.md) | the invoice is also paid, so the accounts stop drifting | accepted |

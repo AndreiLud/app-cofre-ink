@@ -65,17 +65,27 @@ Para quem não vai lançar uma linha de cada vez. A tela fica ao lado da lista, 
 lançamentos, e pergunta um mês e três valores: quanto entrou, quanto saiu fora o cartão, e
 quanto veio na fatura.
 
-O que ela escreve são três lançamentos comuns, um por número, no último dia daquele mês. O
-do cartão vai para a conta de crédito, no último dia que a fatura daquele mês ainda pega,
-então ele cai naquela fatura. Todo o resto do aplicativo lê esses três como lê qualquer
-lançamento: os saldos, os relatórios, o diagnóstico, a projeção, o backup e a replicação
-funcionam sem nenhuma mudança, e qualquer um dos três pode ser aberto na lista e
-corrigido.
+O que ela escreve são lançamentos comuns, no último dia daquele mês. O do cartão vai para
+a conta de crédito, no último dia que a fatura daquele mês ainda pega, então ele cai
+naquela fatura.
 
-Cada um carrega uma marca no campo que uma importação usa, `mes:2026-09:income`, então
-escrever o mesmo mês de novo corrige esses três em vez de escrever outros três. Um campo
-vazio quer dizer que o mês não tem aquele número, então ele tira o lançamento em vez de
-gravar um zero.
+Com cartão existe um quarto, e nada é perguntado para ele: o pagamento daquela fatura,
+escrito a partir do mesmo número como uma transferência que sai da conta escolhida no dia
+do vencimento, que num cartão que fecha no fim do mês cai no mês seguinte. Sem ele, a
+conta onde cai o salário ficaria com a fatura inteira que ela de fato entregou e o cartão
+deveria uma dívida que ninguém nunca quitou, com o total certo e as duas contas erradas.
+Uma fatura que ainda não venceu entra como prevista, e não como realizada. O
+[registro de decisão 0039](../adr/0039_the_invoice_is_also_paid.md) tem o raciocínio.
+
+Todo o resto do aplicativo lê esses lançamentos como lê qualquer outro: os saldos, os
+relatórios, o diagnóstico, a projeção, o backup e a replicação funcionam sem nenhuma
+mudança, e qualquer um deles pode ser aberto na lista e corrigido.
+
+Cada um carrega uma marca no campo que uma importação usa, `mes:2026-09:income`, e eles
+são procurados por essa marca em vez de por um intervalo de dias, então escrever o mesmo
+mês de novo corrige esses lançamentos em vez de escrever outros. Um campo vazio quer dizer
+que o mês não tem aquele número, então ele tira o lançamento, e o pagamento vai junto com
+a fatura que ele pagou.
 
 Antes dos campos, a tela diz quantos lançamentos o mês já tem e quanto eles somam. Quem
 escreve alguns à mão e depois digita o mês inteiro como total contou aqueles alguns duas

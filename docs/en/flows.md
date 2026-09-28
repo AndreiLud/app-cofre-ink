@@ -64,16 +64,26 @@ For somebody who is not going to log a line at a time. The screen is beside the 
 the records section, and it asks for a month and three amounts: what came in, what went
 out apart from the card, and what the card invoice came to.
 
-What it writes are three ordinary records, one per number, on the last day of that month.
-The card one goes to the credit account, on the last day the invoice of that month still
-takes, so it lands on that invoice. Everything else in the application reads them as it
-reads any record: the balances, the reports, the check up, the projection, the backup and
-the replication all work with no change, and any of the three can be opened in the list
-and corrected.
+What it writes are ordinary records, on the last day of that month. The card one goes to
+the credit account, on the last day the invoice of that month still takes, so it lands on
+that invoice.
 
-Each carries a mark in the field an import uses, `mes:2026-09:income`, so typing the same
-month again corrects those three rather than writing three more. An empty field means the
-month has no such number, so it takes that record away rather than writing a zero.
+With a card there is a fourth, and nothing is asked for it: paying that invoice, written
+from the same number as a transfer out of the chosen account on the day the invoice falls
+due, which for a card that closes late in the month is the month after. Without it the
+account the wages arrive in would keep the whole invoice it really handed over and the
+card would owe a debt nobody ever settled, with the total right and both accounts wrong.
+An invoice that has not fallen due yet is written as planned rather than settled.
+[Decision record 0039](../adr/0039_the_invoice_is_also_paid.md) has the reasoning.
+
+Everything else in the application reads them as it reads any record: the balances, the
+reports, the check up, the projection, the backup and the replication all work with no
+change, and any of them can be opened in the list and corrected.
+
+Each carries a mark in the field an import uses, `mes:2026-09:income`, and they are looked
+up by that mark rather than by a range of days, so typing the same month again corrects
+them rather than writing more. An empty field means the month has no such number, so it
+takes that record away, and the payment goes with the invoice it paid.
 
 Before the fields, the screen says how many records the month already holds and what they
 add up to. Somebody who writes a few by hand and then types the whole month as a total has
