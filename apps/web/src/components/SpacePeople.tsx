@@ -8,6 +8,7 @@
 // that leads nowhere: in browser mode there is one person in one browser, so an
 // invitation would have nobody to accept it.
 
+import { parseMoney } from "@cofre/core";
 import {
 	Button,
 	Callout,
@@ -39,7 +40,7 @@ const ASSIGNABLE: AssignableRole[] = ["admin", "editor", "viewer", "logger"];
 
 export function SpacePeople() {
 	const { t } = useTranslation();
-	const { session, currentSpace, user, reload, linkInvitations, chooseMode } = useCofre();
+	const { session, currentSpace, user, reload, linkInvitations, chooseAgain } = useCofre();
 	const queries = useQueryClient();
 
 	const [isOpen, setOpen] = useState(false);
@@ -86,32 +87,39 @@ export function SpacePeople() {
 		onError: (error: unknown) => setProblem(error instanceof Error ? error.message : String(error)),
 	});
 
+	const complain = (error: unknown) =>
+		setProblem(error instanceof Error ? error.message : String(error));
+
 	const changeRole = useMutation({
 		mutationFn: async (input: { userId: string; role: AssignableRole }) =>
 			session?.members.changeRole(spaceId, input.userId, input.role),
 		onSuccess: invalidate,
+		onError: complain,
 	});
 
 	const saveIncome = useMutation({
 		mutationFn: async () => {
 			if (!session || incomeFor === null) return;
-			const cleaned = income
-				.replace(/[^\d,.]/g, "")
-				.replace(/\./g, "")
-				.replace(",", ".");
-			const amount = income.trim() === "" ? null : Math.round(Number(cleaned) * 100);
+			// Read the way every other amount on screen is read, which is the way the
+			// language writes numbers. Stripping every dot by hand turned 4500.00 typed in
+			// the English interface into four hundred and fifty thousand.
+			const amount =
+				income.trim() === ""
+					? null
+					: Math.abs(parseMoney(income, { currency: currentSpace?.baseCurrency }).amount);
 			return session.members.setIncome(spaceId, incomeFor, amount);
 		},
 		onSuccess: () => {
 			setIncomeFor(null);
 			invalidate();
 		},
-		onError: (error: unknown) => setProblem(error instanceof Error ? error.message : String(error)),
+		onError: complain,
 	});
 
 	const remove = useMutation({
 		mutationFn: async (userId: string) => session?.members.remove(spaceId, userId),
 		onSuccess: invalidate,
+		onError: complain,
 	});
 
 	const leave = useMutation({
@@ -120,6 +128,7 @@ export function SpacePeople() {
 			await reload();
 			void queries.invalidateQueries();
 		},
+		onError: complain,
 	});
 
 	if (!currentSpace) return null;
@@ -169,6 +178,11 @@ export function SpacePeople() {
 				{t("members.title", { space: currentSpace.name })}
 			</SectionTitle>
 
+			{/* A refusal from any of these has to land somewhere. Changing a role or
+			    removing somebody used to fail in silence, because the only place this was
+			    drawn was inside the invitation dialog. */}
+			{problem && !isOpen ? <Callout tone="problem">{problem}</Callout> : null}
+
 			{isPersonal ? (
 				<Callout title={t("members.personalTitle")}>{t("members.personalBody")}</Callout>
 			) : null}
@@ -177,8 +191,11 @@ export function SpacePeople() {
 				<Callout
 					tone="attention"
 					title={t("members.needsServerTitle")}
+					// Back to the question itself, and not to one of its two answers. It
+					// used to reopen browser mode, which is the mode somebody reading this
+					// callout is already in.
 					action={
-						<Button size="small" variant="secondary" onClick={() => void chooseMode("browser")}>
+						<Button size="small" variant="secondary" onClick={chooseAgain}>
 							{t("members.aboutModes")}
 						</Button>
 					}
@@ -253,7 +270,10 @@ export function SpacePeople() {
 										</TableCell>
 									)}
 									<TableCell numeric={true}>
-										{member.role === "owner" || member.userId === user?.id ? null : (
+										{/* Only for somebody who may actually do either of these. An
+										    Editor, a Viewer or a Logger was shown the menu and had
+										    every item in it refused without a word. */}
+										{!canManage || member.role === "owner" || member.userId === user?.id ? null : (
 											<Menu
 												align="end"
 												trigger={
