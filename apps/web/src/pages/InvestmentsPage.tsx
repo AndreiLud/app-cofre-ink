@@ -36,6 +36,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
+import { readAmount, readAmountOrZero, readPercentOrZero, readQuantity } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
@@ -53,17 +54,8 @@ const KINDS: HoldingKind[] = [
 /** Quantities are scaled by ten to the eighth, so a fund can have fractions of a unit. */
 const QUANTITY_SCALE = 100_000_000;
 
-function parseAmount(value: string): number {
-	const cleaned = value.replace(/\./g, "").replace(",", ".");
-	const parsed = Number.parseFloat(cleaned);
-	return Number.isFinite(parsed) ? Math.round(parsed * 100) : 0;
-}
-
-function parseQuantity(value: string): number {
-	const cleaned = value.replace(/\./g, "").replace(",", ".");
-	const parsed = Number.parseFloat(cleaned);
-	return Number.isFinite(parsed) ? Math.round(parsed * QUANTITY_SCALE) : 0;
-}
+/** Ten to the eighth, as a number of decimal places rather than as a multiplier. */
+const QUANTITY_DIGITS = 8;
 
 export function InvestmentsPage() {
 	const { t, i18n } = useTranslation();
@@ -159,9 +151,9 @@ export function InvestmentsPage() {
 				accountId: account.id,
 				name: name.trim(),
 				kind,
-				quantity: parseQuantity(quantity),
-				unitPrice: parseAmount(unitPrice),
-				cost: cost.trim() === "" ? undefined : parseAmount(cost),
+				quantity: readQuantity(quantity, QUANTITY_DIGITS),
+				unitPrice: readAmount(unitPrice, currency),
+				cost: cost.trim() === "" ? undefined : readAmount(cost, currency),
 			});
 		},
 		onSuccess: async () => {
@@ -180,7 +172,7 @@ export function InvestmentsPage() {
 			if (!session || !pricing) throw new Error("no session");
 			return session.investments.price({
 				id: pricing.id,
-				unitPrice: parseAmount(newPrice),
+				unitPrice: readAmount(newPrice, currency),
 				onDay: today,
 			});
 		},
@@ -207,10 +199,13 @@ export function InvestmentsPage() {
 		rates.map((month) => month.rate),
 	);
 
+	// Read while it is being typed, so half of what is there is half a number. The two
+	// simulators below redraw on every keystroke, which is not the place for a sentence
+	// about an amount that cannot be read.
 	const simulated = grow({
 		initial: value,
-		monthly: parseAmount(monthly),
-		yearly: Math.round(Number(rate.replace(",", ".") || "0") * 100),
+		monthly: readAmountOrZero(monthly, currency),
+		yearly: readPercentOrZero(rate),
 		months: Math.max(1, Math.min(Number(years) || 1, 50)) * 12,
 	});
 
@@ -224,8 +219,8 @@ export function InvestmentsPage() {
 		// the argument is not one this application is going to settle.
 		withdrawalRate: 400,
 		saved: value,
-		monthly: parseAmount(monthly),
-		yearly: Math.round(Number(rate.replace(",", ".") || "0") * 100),
+		monthly: readAmountOrZero(monthly, currency),
+		yearly: readPercentOrZero(rate),
 	});
 
 	return (

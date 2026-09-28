@@ -22,6 +22,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { fillAmount } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
@@ -33,7 +34,7 @@ export type RecurrencesSectionProps = {
 };
 
 export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const { session } = useCofre();
 	const queries = useQueryClient();
 
@@ -141,7 +142,7 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 		setEditing(one);
 		setKind(one?.kind ?? "expense");
 		setDescription(one?.description ?? "");
-		setAmount(one ? String(one.amount / 100).replace(".", ",") : "");
+		setAmount(one ? fillAmount(one.amount, i18n.resolvedLanguage) : "");
 		setAccountId(one?.accountId ?? usable[0]?.id ?? "");
 		setCategoryId(one?.categoryId ?? "");
 		setFrequency(one?.frequency ?? "monthly");
@@ -292,7 +293,7 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 							onChange={(event) => setAmount(event.target.value)}
 							numeric={true}
 							inputMode="decimal"
-							placeholder="0,00"
+							placeholder={t("fields.amountPlaceholder")}
 							required={true}
 						/>
 						<Field

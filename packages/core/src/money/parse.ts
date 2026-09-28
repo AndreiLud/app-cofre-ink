@@ -57,10 +57,18 @@ function guessDecimalSeparator(text: string, digits: number): "," | "." | null {
 	return separator;
 }
 
-export function parseMoney(input: string, options: ParseMoneyOptions = {}): Money {
-	const currency = options.currency ?? DEFAULT_CURRENCY;
-	const digits = minorDigits(currency);
-
+/**
+ * The same reading, to a number of decimal places that is not a currency.
+ *
+ * A quantity of units of a fund is not money and is still typed by a person with whatever
+ * separator their keyboard puts in front of them, so it deserves the same heuristic rather
+ * than a second one written by hand on the screen that needed it.
+ */
+export function parseScaled(
+	input: string,
+	digits: number,
+	options: { decimalSeparator?: "," | "." } = {},
+): number {
 	const { sign, rest } = detectSign(String(input));
 	const cleaned = rest.replace(/[^\d.,]/g, "");
 	if (cleaned === "") {
@@ -94,5 +102,13 @@ export function parseMoney(input: string, options: ParseMoneyOptions = {}): Mone
 	let amount = Number(whole || "0") * 10 ** digits + Number(kept || "0");
 	if (next !== "" && Number(next) >= 5) amount += 1;
 
-	return money(sign * amount, currency);
+	return sign * amount;
+}
+
+export function parseMoney(input: string, options: ParseMoneyOptions = {}): Money {
+	const currency = options.currency ?? DEFAULT_CURRENCY;
+	return money(
+		parseScaled(input, minorDigits(currency), { decimalSeparator: options.decimalSeparator }),
+		currency,
+	);
 }

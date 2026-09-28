@@ -5,7 +5,6 @@
 // changes with that choice: a transfer needs a destination, a card purchase can be
 // split, and neither makes sense for the other.
 
-import { parseMoney } from "@cofre/core";
 import type {
 	Account,
 	Category,
@@ -17,6 +16,7 @@ import { Button, Callout, Dialog, Field, Segmented, Select } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { fillAmount, readAmount } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 
@@ -39,7 +39,7 @@ export function TransactionForm({
 	editing,
 	today,
 }: TransactionFormProps) {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const { session } = useCofre();
 	const queries = useQueryClient();
 
@@ -122,7 +122,7 @@ export function TransactionForm({
 		setProblem(null);
 		if (editing) {
 			setKind(editing.kind);
-			setAmount(String(Math.abs(editing.amount) / 100).replace(".", ","));
+			setAmount(fillAmount(Math.abs(editing.amount), i18n.resolvedLanguage));
 			setHappenedOn(editing.happenedOn);
 			setDescription(editing.description);
 			setAccountId(editing.accountId);
@@ -147,13 +147,13 @@ export function TransactionForm({
 		setCategoryId("");
 		setPriority("");
 		setWay("");
-	}, [open, editing, today, usable[0]?.id]);
+	}, [open, editing, today, usable[0]?.id, i18n.resolvedLanguage]);
 
 	const save = useMutation({
 		mutationFn: async () => {
 			if (!session) throw new Error("no session");
 
-			const parsed = parseMoney(amount, { currency: chosen?.currency ?? "BRL" });
+			const parsed = { amount: readAmount(amount, chosen?.currency ?? "BRL") };
 			if (parsed.amount <= 0) {
 				throw new Error(t("transactions.amountMissing"));
 			}
@@ -266,7 +266,7 @@ export function TransactionForm({
 						onChange={(event) => setAmount(event.target.value)}
 						numeric={true}
 						inputMode="decimal"
-						placeholder="0,00"
+						placeholder={t("fields.amountPlaceholder")}
 						required={true}
 					/>
 					<Field

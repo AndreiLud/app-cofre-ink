@@ -50,6 +50,7 @@ import { Link } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
+import { fillAmount } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -93,10 +94,15 @@ function isUnreadable(text: string, currency: string): boolean {
 	}
 }
 
-/** The same shape the rest of the interface puts an amount into a field in. */
-function asText(row: Transaction | undefined): string {
+/**
+ * The same shape the rest of the interface puts an amount into a field in.
+ *
+ * Which stopped being true the moment the income field was taught to follow the language
+ * on screen, so it takes the language now and the sentence above is true again.
+ */
+function asText(row: Transaction | undefined, language: string | undefined): string {
 	if (!row) return "";
-	return String(Math.abs(row.amount) / 100).replace(".", ",");
+	return fillAmount(Math.abs(row.amount), language);
 }
 
 /** The same short day the invoice screen prints, because the month is in the caption. */
@@ -247,10 +253,11 @@ export function MonthPage() {
 		timeZone: "UTC",
 	}).format(new Date(`${shown}-01T00:00:00Z`));
 
+	const language = i18n.resolvedLanguage;
 	const text: Record<MonthField, string> = {
-		income: income ?? asText(mine.get("income")),
-		spending: spending ?? asText(mine.get("spending")),
-		invoice: invoice ?? asText(mine.get("invoice")),
+		income: income ?? asText(mine.get("income"), language),
+		spending: spending ?? asText(mine.get("spending"), language),
+		invoice: invoice ?? asText(mine.get("invoice"), language),
 	};
 	const cents: Record<MonthField, number | null> = {
 		income: typedAmount(text.income, currency),
@@ -481,7 +488,7 @@ export function MonthPage() {
 						inputMode="decimal"
 						value={text.income}
 						onChange={(event) => setIncome(event.target.value)}
-						placeholder="0,00"
+						placeholder={t("fields.amountPlaceholder")}
 					/>
 					<Field
 						label={t("theMonth.spending")}
@@ -492,7 +499,7 @@ export function MonthPage() {
 						inputMode="decimal"
 						value={text.spending}
 						onChange={(event) => setSpending(event.target.value)}
-						placeholder="0,00"
+						placeholder={t("fields.amountPlaceholder")}
 					/>
 					{cardAccounts.length > 0 ? (
 						<Field
@@ -502,7 +509,7 @@ export function MonthPage() {
 							inputMode="decimal"
 							value={text.invoice}
 							onChange={(event) => setInvoice(event.target.value)}
-							placeholder="0,00"
+							placeholder={t("fields.amountPlaceholder")}
 						/>
 					) : null}
 

@@ -485,7 +485,7 @@ export function AccountsPage() {
 							onChange={(event) => setBalance(event.target.value)}
 							numeric={true}
 							inputMode="decimal"
-							placeholder="0,00"
+							placeholder={t("fields.amountPlaceholder")}
 						/>
 					) : null}
 					{problem ? <Callout tone="problem">{problem}</Callout> : null}

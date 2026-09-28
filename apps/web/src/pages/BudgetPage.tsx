@@ -29,6 +29,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
+import { readAmount, readPercent } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
@@ -41,15 +42,6 @@ const BAR = {
 	tight: "bg-ochre",
 	over: "bg-seal",
 };
-
-function parseAmount(text: string): number {
-	const cleaned = text
-		.replace(/[^\d,.]/g, "")
-		.replace(/\./g, "")
-		.replace(",", ".");
-	const value = Number(cleaned);
-	return Number.isFinite(value) ? Math.round(value * 100) : 0;
-}
 
 export function BudgetPage() {
 	const { t, i18n } = useTranslation();
@@ -124,7 +116,7 @@ export function BudgetPage() {
 			session?.budgets.create({
 				spaceId,
 				scope,
-				amount: parseAmount(amount),
+				amount: readAmount(amount, currency),
 				categoryId: scope === "category" ? categoryId : null,
 				priority: scope === "priority" ? priority : null,
 			}),
@@ -148,10 +140,12 @@ export function BudgetPage() {
 			session?.goals.setRule({
 				spaceId,
 				mode: savingMode,
+				// One field, two meanings, so two readers: a share of what comes in, or an
+				// amount. Both of them say so when they cannot read what was typed, which
+				// the pair of one line expressions here never did: a word became zero and a
+				// second comma became zero, and a limit of nothing was saved either way.
 				value:
-					savingMode === "percent"
-						? Math.round(Number(savingValue.replace(",", ".")) * 100)
-						: parseAmount(savingValue),
+					savingMode === "percent" ? readPercent(savingValue) : readAmount(savingValue, currency),
 				accountId: savingAccount === "" ? null : savingAccount,
 			}),
 		onSuccess: () => {
@@ -173,7 +167,7 @@ export function BudgetPage() {
 			session?.goals.create({
 				spaceId,
 				name: goalName,
-				targetAmount: parseAmount(goalAmount),
+				targetAmount: readAmount(goalAmount, currency),
 				accountId: goalAccount,
 				targetDate: goalDate === "" ? null : goalDate,
 			}),
@@ -511,7 +505,7 @@ export function BudgetPage() {
 						onChange={(event) => setAmount(event.target.value)}
 						numeric={true}
 						inputMode="decimal"
-						placeholder="0,00"
+						placeholder={t("fields.amountPlaceholder")}
 						required={true}
 					/>
 				</form>
@@ -617,7 +611,7 @@ export function BudgetPage() {
 							onChange={(event) => setGoalAmount(event.target.value)}
 							numeric={true}
 							inputMode="decimal"
-							placeholder="0,00"
+							placeholder={t("fields.amountPlaceholder")}
 							required={true}
 						/>
 						<Field

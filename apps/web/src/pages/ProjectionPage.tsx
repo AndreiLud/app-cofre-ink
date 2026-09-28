@@ -39,6 +39,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
+import { readAmount, readPercent } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
@@ -104,10 +105,13 @@ export function ProjectionPage() {
 		mutationFn: async () => {
 			if (!session) throw new Error("no session");
 
+			// The third reader this application had. It handled 1000.50 by accident and
+			// turned 1.000,50, which is how a Brazilian writes a thousand, into NaN, and
+			// wrote that NaN into the scenario.
 			const adjustment: SavedAdjustment = {
 				kind,
-				percent: percent.trim() === "" ? 0 : Math.round(Number(percent.replace(",", ".")) * 100),
-				amount: amount.trim() === "" ? 0 : Math.round(Number(amount.replace(",", ".")) * 100),
+				percent: percent.trim() === "" ? 0 : readPercent(percent),
+				amount: amount.trim() === "" ? 0 : readAmount(amount, currentSpace?.baseCurrency),
 				from,
 			};
 

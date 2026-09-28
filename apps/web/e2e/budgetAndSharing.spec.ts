@@ -20,6 +20,38 @@ test.describe("the budget", () => {
 		await expect(limit).toContainText("R$ 1.000,00");
 	});
 
+	/**
+	 * The hint under the field promises a comma or a period will do for the cents, and on
+	 * this screen a period did the opposite of what it says.
+	 *
+	 * The reader here deleted every period before looking, so a limit of 1000.50 was saved
+	 * as a hundred thousand and the bar said everything was comfortable all month, and
+	 * 1,000.00 was saved as one real and the bar was over on the first purchase. The same
+	 * reader decided the amount of the savings rule and the target of a goal, and a second
+	 * copy of it, byte for byte, decided every price on the investments screen.
+	 */
+	test("reads a period as the cents, which is what the hint promises", async ({ page }) => {
+		await openCofre(page, { demo: false });
+		await go(page, "Orçamento");
+
+		await page.getByRole("button", { name: "Novo limite" }).first().click();
+		await page.getByRole("dialog").getByText("Tudo", { exact: true }).click();
+		await page.getByRole("dialog").getByLabel("Quanto por mês").fill("1000.50");
+		await page.getByRole("button", { name: "Salvar" }).click();
+
+		const limit = page.getByRole("listitem").filter({ hasText: "Tudo" });
+		await expect(limit).toContainText("R$ 1.000,50");
+		await expect(limit).not.toContainText("R$ 100.050,00");
+
+		// And a word is not an amount, which used to be saved as a limit of nothing
+		// without anybody being told.
+		await page.getByRole("button", { name: "Novo limite" }).first().click();
+		await page.getByRole("dialog").getByText("Tudo", { exact: true }).click();
+		await page.getByRole("dialog").getByLabel("Quanto por mês").fill("mil");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByText("Não consegui ler esse valor")).toBeVisible();
+	});
+
 	test("promises to save first and says whether the promise was kept", async ({ page }) => {
 		await openCofre(page);
 		await go(page, "Orçamento");

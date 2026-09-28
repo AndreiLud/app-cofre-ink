@@ -17,6 +17,7 @@ import {
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type Language, LOCALE_OF } from "../i18n/index.ts";
+import { fillAmount } from "../lib/amounts.ts";
 import { readToken, useTheme } from "../lib/theme.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 
@@ -151,7 +152,7 @@ export function DesignSystemPage() {
 							label={t("fields.amount")}
 							hint={t("fields.amountHint")}
 							numeric={true}
-							defaultValue="42,90"
+							defaultValue={fillAmount(4290, i18n.resolvedLanguage)}
 							inputMode="decimal"
 						/>
 						<Field
