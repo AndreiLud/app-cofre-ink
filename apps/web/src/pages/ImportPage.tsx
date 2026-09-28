@@ -23,6 +23,7 @@ import {
 	SectionTitle,
 	Segmented,
 	Select,
+	Skeleton,
 	Table,
 	TableBody,
 	TableCell,
@@ -46,6 +47,7 @@ import {
 	rememberColumns,
 	rememberSign,
 } from "../storage/importMemory.ts";
+import { useWhatIMayDo } from "../storage/roles.ts";
 
 const FIELDS: FieldName[] = [
 	"happenedOn",
@@ -118,6 +120,15 @@ export function ImportPage() {
 	const [left, setLeft] = useState<Set<number>>(new Set());
 	const [problem, setProblem] = useState<string | null>(null);
 	const [written, setWritten] = useState<number | null>(null);
+
+	/**
+	 * This screen is nothing but writing records, so a role that writes none of them has
+	 * no reason to be walked through it. It used to read the file, guess the account, map
+	 * the columns and mark the repeats, and only refuse at the end, throwing the whole of
+	 * that work away.
+	 */
+	const { may, ready, role } = useWhatIMayDo(spaceId);
+	const mayWrite = may("transaction.create");
 
 	const accounts = useQuery({
 		queryKey: ["accounts", spaceId, "open"],
@@ -327,6 +338,33 @@ export function ImportPage() {
 
 	const duplicates = marked.filter((record) => record.duplicateOf !== null).length;
 	const unsure = marked.filter((record) => record.confidence < SURE_ENOUGH).length;
+
+	if (!mayWrite) {
+		return (
+			<div className="space-y-6">
+				<SectionTitle
+					level="h1"
+					action={
+						<Button size="small" variant="quiet" onClick={() => void navigate({ to: ROUTES.data })}>
+							{t("data.title")}
+						</Button>
+					}
+				>
+					{t("importing.title")}
+				</SectionTitle>
+
+				{/* Not while the member list is still being read: a sentence saying the screen
+				    is closed, shown for a moment and then taken back, is worse than waiting. */}
+				{ready && role !== null ? (
+					<Callout tone="attention" title={t("roles.youAre", { role: t(`role.${role}`) })}>
+						{t("importing.cannotWriteBody")}
+					</Callout>
+				) : (
+					<Skeleton lines={3} />
+				)}
+			</div>
+		);
+	}
 
 	return (
 		<div className="space-y-6">

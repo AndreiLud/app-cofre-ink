@@ -22,6 +22,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { useWhatIMayDo } from "../storage/roles.ts";
 
 export type RulesSectionProps = {
 	spaceId: string;
@@ -64,6 +65,9 @@ export function RulesSection({ spaceId, categories }: RulesSectionProps) {
 				: t(`rules.${rule}`, { defaultValue: t("rules.unknown") }),
 		);
 	};
+
+	// A rule writes records into the space, so it is set by the people who may write them.
+	const mayWrite = useWhatIMayDo(spaceId).may("rule.write");
 
 	const save = useMutation({
 		mutationFn: async () => {
@@ -131,21 +135,23 @@ export function RulesSection({ spaceId, categories }: RulesSectionProps) {
 		<Panel
 			title={t("rulesSection.title")}
 			action={
-				<span className="flex items-center gap-2">
-					{rows.length > 0 ? (
-						<Button
-							size="small"
-							variant="quiet"
-							onClick={() => applyNow.mutate()}
-							disabled={applyNow.isPending}
-						>
-							{t("rulesSection.applyNow")}
+				mayWrite ? (
+					<span className="flex items-center gap-2">
+						{rows.length > 0 ? (
+							<Button
+								size="small"
+								variant="quiet"
+								onClick={() => applyNow.mutate()}
+								disabled={applyNow.isPending}
+							>
+								{t("rulesSection.applyNow")}
+							</Button>
+						) : null}
+						<Button size="small" variant="secondary" onClick={() => open(null)}>
+							{t("rulesSection.create")}
 						</Button>
-					) : null}
-					<Button size="small" variant="secondary" onClick={() => open(null)}>
-						{t("rulesSection.create")}
-					</Button>
-				</span>
+					</span>
+				) : null
 			}
 		>
 			<p className="max-w-[60ch] text-sm text-quiet">{t("rulesSection.explain")}</p>
@@ -170,21 +176,23 @@ export function RulesSection({ spaceId, categories }: RulesSectionProps) {
 								category: nameOf(rule.categoryId),
 							})}
 						</span>
-						<Menu
-							align="end"
-							trigger={
-								<Button size="small" variant="quiet" aria-label={t("rulesSection.actions")}>
-									<Icon name="settings" />
-								</Button>
-							}
-						>
-							<MenuItem onSelect={() => open(rule)}>{t("rulesSection.edit")}</MenuItem>
-							<MenuItem onSelect={() => toggle.mutate(rule)}>
-								{rule.disabledAt === null ? t("rulesSection.disable") : t("rulesSection.enable")}
-							</MenuItem>
-							<MenuSeparator />
-							<MenuItem onSelect={() => remove.mutate(rule.id)}>{t("actions.delete")}</MenuItem>
-						</Menu>
+						{mayWrite ? (
+							<Menu
+								align="end"
+								trigger={
+									<Button size="small" variant="quiet" aria-label={t("rulesSection.actions")}>
+										<Icon name="settings" />
+									</Button>
+								}
+							>
+								<MenuItem onSelect={() => open(rule)}>{t("rulesSection.edit")}</MenuItem>
+								<MenuItem onSelect={() => toggle.mutate(rule)}>
+									{rule.disabledAt === null ? t("rulesSection.disable") : t("rulesSection.enable")}
+								</MenuItem>
+								<MenuSeparator />
+								<MenuItem onSelect={() => remove.mutate(rule.id)}>{t("actions.delete")}</MenuItem>
+							</Menu>
+						) : null}
 					</li>
 				))}
 			</ul>

@@ -37,6 +37,7 @@ import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { useWhatIMayDo } from "../storage/roles.ts";
 
 const KINDS: HoldingKind[] = [
 	"fixedIncome",
@@ -121,6 +122,14 @@ export function InvestmentsPage() {
 		queryFn: async () =>
 			(await session?.indices.latest()) ?? ({} as Record<string, IndexRate | null>),
 	});
+
+	/**
+	 * What somebody owns is part of what the space is worth, so everybody in it sees the
+	 * total. Typing in a price is for the people who keep the space. Refreshing the
+	 * indices is neither: CDI, Selic and IPCA are public figures in a table with no space
+	 * of its own, so that button stays for everybody.
+	 */
+	const mayWrite = useWhatIMayDo(spaceId).may("investment.write");
 
 	const refresh = useMutation({
 		mutationFn: async () => {
@@ -244,9 +253,11 @@ export function InvestmentsPage() {
 							})}
 				</InsightTitle>
 
-				<Button variant="primary" onClick={() => setOpen(true)}>
-					{t("investments.add")}
-				</Button>
+				{mayWrite ? (
+					<Button variant="primary" onClick={() => setOpen(true)}>
+						{t("investments.add")}
+					</Button>
+				) : null}
 			</div>
 
 			{problem ? <Callout tone="problem">{problem}</Callout> : null}
@@ -310,16 +321,20 @@ export function InvestmentsPage() {
 											<Value amount={holding.gain} currency={holding.currency} tone="auto" />
 										</TableCell>
 										<TableCell className="print:hidden">
-											<Button
-												size="small"
-												variant="quiet"
-												onClick={() => {
-													setPricing(holding);
-													setNewPrice("");
-												}}
-											>
-												{t("investments.newPrice")}
-											</Button>
+											{/* The column stays so the table keeps its shape, and the button
+											    goes for whoever would only be refused by it. */}
+											{mayWrite ? (
+												<Button
+													size="small"
+													variant="quiet"
+													onClick={() => {
+														setPricing(holding);
+														setNewPrice("");
+													}}
+												>
+													{t("investments.newPrice")}
+												</Button>
+											) : null}
 										</TableCell>
 									</TableRow>
 								))}

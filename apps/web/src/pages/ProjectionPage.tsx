@@ -40,6 +40,7 @@ import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { useWhatIMayDo } from "../storage/roles.ts";
 
 const HORIZONS = [3, 6, 12, 24, 36];
 
@@ -94,6 +95,9 @@ export function ProjectionPage() {
 		enabled: Boolean(session && spaceId !== ""),
 		queryFn: () => session?.scenarios.list(spaceId) ?? [],
 	});
+
+	// A scenario is part of the plan of the space, so it asks what a limit or a goal asks.
+	const mayWrite = useWhatIMayDo(spaceId).may("plan.write");
 
 	const save = useMutation({
 		mutationFn: async () => {
@@ -255,9 +259,11 @@ export function ProjectionPage() {
 					<Panel
 						title={t("projection.scenarios")}
 						action={
-							<Button size="small" variant="secondary" onClick={() => setOpen(true)}>
-								{t("projection.addScenario")}
-							</Button>
+							mayWrite ? (
+								<Button size="small" variant="secondary" onClick={() => setOpen(true)}>
+									{t("projection.addScenario")}
+								</Button>
+							) : null
 						}
 					>
 						<p className="max-w-[60ch] text-sm text-quiet">{t("projection.scenariosBody")}</p>
@@ -279,14 +285,16 @@ export function ProjectionPage() {
 									>
 										{scenario.name}
 									</Button>
-									<Button
-										size="small"
-										variant="quiet"
-										aria-label={t("projection.removeScenario", { name: scenario.name })}
-										onClick={() => remove.mutate(scenario.id)}
-									>
-										×
-									</Button>
+									{mayWrite ? (
+										<Button
+											size="small"
+											variant="quiet"
+											aria-label={t("projection.removeScenario", { name: scenario.name })}
+											onClick={() => remove.mutate(scenario.id)}
+										>
+											×
+										</Button>
+									) : null}
 								</span>
 							))}
 						</div>

@@ -16,8 +16,39 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { rememberWhen, storedDestination, storedWhen } from "../storage/destinations.ts";
+import { useWhatIMayDo } from "../storage/roles.ts";
 
 type Target = { kind: "space"; space: Space } | { kind: "everything" };
+
+/**
+ * One space, and whether this person may erase that one.
+ *
+ * Only the owner of a space may. It used to be offered to every member of every space,
+ * and the refusal came back in the sentence the model writes for whoever wrote the code.
+ * The question is per space, so the row is a component of its own.
+ */
+function EraseSpaceRow({ space, onErase }: { space: Space; onErase: () => void }) {
+	const { t } = useTranslation();
+	const mayErase = useWhatIMayDo(space.id).may("space.delete");
+
+	return (
+		<li className="flex flex-wrap items-baseline justify-between gap-3 py-3">
+			<span className="min-w-0">
+				<span className="text-sm text-ink">{space.name}</span>
+				<span className="block text-xs text-quiet">
+					{space.kind === "personal"
+						? t("danger.personalKeeps")
+						: t("danger.sharedGoes", { name: space.name })}
+				</span>
+			</span>
+			{mayErase ? (
+				<Button size="small" variant="destructive" onClick={onErase}>
+					{t("danger.eraseSpace")}
+				</Button>
+			) : null}
+		</li>
+	);
+}
 
 export function DangerZone() {
 	const { t } = useTranslation();
@@ -173,23 +204,11 @@ export function DangerZone() {
 
 			<ul className="divide-y divide-line">
 				{spaces.map((space) => (
-					<li key={space.id} className="flex flex-wrap items-baseline justify-between gap-3 py-3">
-						<span className="min-w-0">
-							<span className="text-sm text-ink">{space.name}</span>
-							<span className="block text-xs text-quiet">
-								{space.kind === "personal"
-									? t("danger.personalKeeps")
-									: t("danger.sharedGoes", { name: space.name })}
-							</span>
-						</span>
-						<Button
-							size="small"
-							variant="destructive"
-							onClick={() => open({ kind: "space", space })}
-						>
-							{t("danger.eraseSpace")}
-						</Button>
-					</li>
+					<EraseSpaceRow
+						key={space.id}
+						space={space}
+						onErase={() => open({ kind: "space", space })}
+					/>
 				))}
 
 				<li className="flex flex-wrap items-baseline justify-between gap-3 py-3">

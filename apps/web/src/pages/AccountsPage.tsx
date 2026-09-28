@@ -31,6 +31,7 @@ import { CardDialog } from "../components/CardDialog.tsx";
 import { CardsSection } from "../components/CardsSection.tsx";
 import { Value } from "../components/Value.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { useWhatIMayDo } from "../storage/roles.ts";
 
 const KINDS: AccountKind[] = ["checking", "savings", "cash", "credit", "voucher", "investment"];
 const BENEFITS: BenefitKind[] = ["meal", "transport", "culture", "mobility"];
@@ -174,6 +175,17 @@ export function AccountsPage() {
 		},
 	});
 
+	/**
+	 * Four questions, not one. Deleting an account is the decision of whoever runs the
+	 * space, and everything else on this screen is open to an Editor too, so a single
+	 * "may write here" would have been wrong in both directions.
+	 */
+	const { may } = useWhatIMayDo(spaceId);
+	const mayCreate = may("account.create");
+	const mayUpdate = may("account.update");
+	const mayArchive = may("account.archive");
+	const mayDelete = may("account.delete");
+
 	const archive = useMutation({
 		mutationFn: async (id: string) => session?.accounts.archive(id),
 		onSuccess: invalidate,
@@ -223,14 +235,16 @@ export function AccountsPage() {
 			<SectionTitle
 				level="h1"
 				action={
-					<Button
-						size="small"
-						variant="primary"
-						icon={<Icon name="plus" />}
-						onClick={() => setOpen(true)}
-					>
-						{t("accounts.create")}
-					</Button>
+					mayCreate ? (
+						<Button
+							size="small"
+							variant="primary"
+							icon={<Icon name="plus" />}
+							onClick={() => setOpen(true)}
+						>
+							{t("accounts.create")}
+						</Button>
+					) : null
 				}
 			>
 				{t("accounts.title")}
@@ -244,9 +258,11 @@ export function AccountsPage() {
 					title={t("accounts.emptyTitle")}
 					description={t("accounts.emptyBody")}
 					action={
-						<Button variant="primary" onClick={() => setOpen(true)}>
-							{t("accounts.create")}
-						</Button>
+						mayCreate ? (
+							<Button variant="primary" onClick={() => setOpen(true)}>
+								{t("accounts.create")}
+							</Button>
+						) : null
 					}
 				/>
 			) : null}
@@ -287,37 +303,47 @@ export function AccountsPage() {
 										/>
 									</TableCell>
 									<TableCell numeric={true}>
-										<Menu
-											align="end"
-											trigger={
-												<Button size="small" variant="quiet" aria-label={t("accounts.actions")}>
-													<Icon name="settings" />
-												</Button>
-											}
-										>
-											{/* Only the cards that already reach this account. Adding one is
-											    "Nova conta", where a card is one of the things you can add,
-											    and a second door onto the same form is a second door to keep
-											    in step. */}
-											{cardsOf(account.id).map((card) => (
-												<MenuItem key={card.id} onSelect={() => setCardTarget(card)}>
-													{t("cards.editNamed", { name: card.name })}
-												</MenuItem>
-											))}
-											{cardsOf(account.id).length > 0 ? <MenuSeparator /> : null}
-											{account.archivedAt ? (
-												<MenuItem onSelect={() => unarchive.mutate(account.id)}>
-													{t("accounts.unarchive")}
-												</MenuItem>
-											) : (
-												<MenuItem onSelect={() => archive.mutate(account.id)}>
-													{t("accounts.archive")}
-												</MenuItem>
-											)}
-											<MenuItem onSelect={() => remove.mutate(account.id)}>
-												{t("actions.delete")}
-											</MenuItem>
-										</Menu>
+										{/* Nothing to offer is no button, rather than a button that opens
+										    an empty popup. */}
+										{mayUpdate || mayArchive || mayDelete ? (
+											<Menu
+												align="end"
+												trigger={
+													<Button size="small" variant="quiet" aria-label={t("accounts.actions")}>
+														<Icon name="settings" />
+													</Button>
+												}
+											>
+												{/* Only the cards that already reach this account. Adding one is
+												    "Nova conta", where a card is one of the things you can add,
+												    and a second door onto the same form is a second door to keep
+												    in step. */}
+												{mayUpdate
+													? cardsOf(account.id).map((card) => (
+															<MenuItem key={card.id} onSelect={() => setCardTarget(card)}>
+																{t("cards.editNamed", { name: card.name })}
+															</MenuItem>
+														))
+													: null}
+												{mayUpdate && cardsOf(account.id).length > 0 ? <MenuSeparator /> : null}
+												{mayArchive ? (
+													account.archivedAt ? (
+														<MenuItem onSelect={() => unarchive.mutate(account.id)}>
+															{t("accounts.unarchive")}
+														</MenuItem>
+													) : (
+														<MenuItem onSelect={() => archive.mutate(account.id)}>
+															{t("accounts.archive")}
+														</MenuItem>
+													)
+												) : null}
+												{mayDelete ? (
+													<MenuItem onSelect={() => remove.mutate(account.id)}>
+														{t("actions.delete")}
+													</MenuItem>
+												) : null}
+											</Menu>
+										) : null}
 									</TableCell>
 								</TableRow>
 							))}

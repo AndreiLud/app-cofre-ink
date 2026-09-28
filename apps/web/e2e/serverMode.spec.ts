@@ -184,7 +184,8 @@ test.describe("server mode", () => {
 		await expect(joao.getByText("Você é Leitor neste espaço")).toBeVisible();
 		await expect(joao.getByRole("button", { name: "Guardar o mês" })).toBeDisabled();
 
-		// And the menu of a record offers reading and nothing else.
+		// A record, and one split into parts, because the item that erases a whole
+		// instalment plan was the one nobody had put a question in front of.
 		await go(ana, "Lançamentos");
 		await ana.getByRole("button", { name: "Novo lançamento" }).first().click();
 		await ana.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("80,00");
@@ -198,11 +199,66 @@ test.describe("server mode", () => {
 		await go(joao, "Lançamentos");
 		const hers = joao.getByRole("row").filter({ hasText: "Conta de luz" });
 		await expect(hers).toBeVisible({ timeout: 20_000 });
-		await hers.getByRole("button", { name: "Ações" }).click();
-		for (const gone of ["Editar", "Apagar", "Dividir com a casa", "Conferir com o banco"]) {
-			await expect(joao.getByRole("menuitem", { name: gone })).toHaveCount(0);
-		}
-		await joao.keyboard.press("Escape");
+
+		// Nothing that writes: not the button, not the one line entry, not the column that
+		// picks rows for an action on many of them.
+		await expect(joao.getByRole("button", { name: "Novo lançamento" })).toHaveCount(0);
+		await expect(joao.getByRole("button", { name: "Lançar" })).toHaveCount(0);
+		await expect(
+			joao.getByRole("checkbox", { name: "Selecionar tudo que está na tela" }),
+		).toHaveCount(0);
+
+		// And no menu at all, on any row of the screen. It used to be a button that opened
+		// an empty popup, except on a row split into parts, where one item had survived
+		// every question: pressing it did nothing and said nothing.
+		await expect(hers.getByRole("button", { name: "Ações" })).toHaveCount(0);
+		await expect(joao.getByRole("button", { name: "Ações" })).toHaveCount(0);
+
+		// The rest of the screens he can reach, each one without the buttons that would
+		// only be refused.
+		await go(joao, "Contas");
+		await expect(joao.getByRole("button", { name: "Nova conta" })).toHaveCount(0);
+		await expect(joao.getByRole("button", { name: "Ações da conta" })).toHaveCount(0);
+
+		await go(joao, "Categorias");
+		await expect(joao.getByRole("button", { name: "Nova categoria" })).toHaveCount(0);
+		await expect(joao.getByRole("button", { name: "Nova regra" })).toHaveCount(0);
+
+		await go(joao, "Orçamento");
+		await expect(joao.getByRole("button", { name: "Novo limite" })).toHaveCount(0);
+		await expect(joao.getByRole("button", { name: "Nova meta" })).toHaveCount(0);
+		await expect(joao.getByRole("button", { name: "Definir a regra" })).toHaveCount(0);
+
+		await go(joao, "Investimentos");
+		await expect(joao.getByRole("button", { name: "Novo investimento" })).toHaveCount(0);
+
+		// Importing is nothing but writing records, so it says so instead of walking him
+		// through a file it would refuse at the end.
+		await go(joao, "Dados");
+		await joao.getByRole("button", { name: "Abrir a importação" }).click();
+		await expect(joao.getByText("Você é Leitor neste espaço")).toBeVisible();
+		await expect(joao.getByLabel("Arquivo do banco")).toHaveCount(0);
+
+		// Erasing a space belongs to whoever owns it, and the question is asked per space:
+		// he is a Viewer in Casa and the owner of his own personal space, so one of the two
+		// rows keeps the button and the other does not.
+		await go(joao, "Dados");
+		const zone = joao.getByRole("listitem");
+		await expect(
+			zone.filter({ hasText: "Casa" }).getByRole("button", { name: "Apagar os dados" }),
+		).toHaveCount(0);
+		await expect(
+			zone.filter({ hasText: "Pessoal" }).getByRole("button", { name: "Apagar os dados" }),
+		).toBeVisible();
+
+		// And correcting the name or the currency of the space is not his either.
+		await openSetting(joao, "Gerenciar espaços");
+		await expect(
+			joao
+				.getByRole("listitem")
+				.filter({ hasText: "Casa" })
+				.getByRole("button", { name: "Editar" }),
+		).toHaveCount(0);
 
 		// He reads the income of the people he shares the money with, because the number
 		// was already in his browser and the hint beside the field promises only that it
@@ -217,6 +273,82 @@ test.describe("server mode", () => {
 		await joao.reload();
 		await openSetting(joao, "Gerenciar espaços");
 		await expect(joao.getByText("R$ 4.500,00")).toBeVisible({ timeout: 20_000 });
+	});
+
+	/**
+	 * The other half of the same question, because a role that is offered too little is
+	 * the same defect as one offered too much.
+	 *
+	 * A Logger writes records and only ever sees the ones they wrote. So the list is
+	 * theirs to write in and to correct, and the three things that are decisions about
+	 * the whole household are not.
+	 */
+	test("offers a Logger what it would allow, and only that", async ({ browser }) => {
+		const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
+
+		await openSetting(ana, "Gerenciar espaços");
+		await ana.getByRole("button", { name: "Novo espaço" }).click();
+		await ana.getByLabel("Nome do espaço").fill("Casa");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(ana.getByRole("banner")).toContainText("Casa");
+
+		await go(ana, "Contas");
+		await ana.getByRole("button", { name: "Nova conta" }).first().click();
+		await ana.getByRole("dialog").getByLabel("Nome").fill("Conta conjunta");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(ana.getByRole("cell", { name: "Conta conjunta" })).toBeVisible();
+
+		await openSetting(ana, "Gerenciar espaços");
+		await ana.getByRole("button", { name: "Convidar" }).first().click();
+		await ana.getByLabel("Papel").selectOption({ label: "Registrador" });
+		await ana.getByRole("button", { name: "Gerar link" }).click();
+		const link = await ana.getByRole("dialog").locator("p.font-mono").innerText();
+		await ana.keyboard.press("Escape");
+		await expect(ana.getByRole("dialog")).toHaveCount(0);
+
+		const bia = await arrive(browser, { name: "Bia", email: uniqueEmail("bia") });
+		await bia.goto(link);
+		await bia.getByRole("button", { name: "Entrar no espaço" }).click();
+		await expect(bia.getByRole("banner")).toContainText("Casa");
+
+		// She writes, which is the whole point of the role.
+		await go(bia, "Lançamentos");
+		await bia.getByRole("button", { name: "Novo lançamento" }).first().click();
+		await bia.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("30,00");
+		await bia.getByRole("dialog").getByLabel("Descrição").fill("Feira");
+		await bia.getByRole("button", { name: "Salvar" }).click();
+		const mine = record(bia, "Feira");
+		await expect(mine).toBeVisible();
+
+		// And corrects what she wrote. The three that go are decisions about the whole
+		// household: a rule for everybody, a division between people, and ticking a
+		// record off against a bank statement.
+		await mine.getByRole("button", { name: "Ações" }).click();
+		for (const kept of ["Editar", "Apagar"]) {
+			await expect(bia.getByRole("menuitem", { name: kept })).toBeVisible();
+		}
+		for (const gone of [
+			"Sempre categorizar assim",
+			"Dividir com a casa",
+			"Conferido com o banco",
+		]) {
+			await expect(bia.getByRole("menuitem", { name: gone })).toHaveCount(0);
+		}
+		await bia.keyboard.press("Escape");
+
+		// The month of the household is not hers to write, and the reason is not that she
+		// may not write: it is that she would only ever see her own half of it.
+		await go(bia, "O mês");
+		await expect(bia.getByText("Você é Registrador neste espaço")).toBeVisible();
+		await expect(bia.getByRole("button", { name: "Guardar o mês" })).toBeDisabled();
+
+		// The plan of the space is not hers either, and importing a statement is.
+		await go(bia, "Orçamento");
+		await expect(bia.getByRole("button", { name: "Novo limite" })).toHaveCount(0);
+
+		await go(bia, "Dados");
+		await bia.getByRole("button", { name: "Abrir a importação" }).click();
+		await expect(bia.getByLabel("Arquivo do banco")).toBeVisible();
 	});
 
 	/**

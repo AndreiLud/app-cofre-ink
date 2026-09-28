@@ -166,7 +166,7 @@ export function MonthPage() {
 
 	// A role that does not write should not be handed a button that writes. It used to
 	// be offered, pressed, and refused afterwards in a raw English sentence.
-	const { may, seesOwnRowsOnly } = useWhatIMayDo(spaceId);
+	const { may, role, seesOwnRowsOnly } = useWhatIMayDo(spaceId);
 	/**
 	 * Two reasons, and they are not the same reason. A Viewer writes nothing at all. A
 	 * Logger writes, but only ever sees the records they wrote themselves, and this
@@ -562,11 +562,8 @@ export function MonthPage() {
 						</Callout>
 					) : null}
 
-					{mayWrite ? null : (
-						<Callout
-							tone="attention"
-							title={t(seesOwnRowsOnly ? "theMonth.loggerTitle" : "theMonth.cannotWriteTitle")}
-						>
+					{mayWrite || role === null ? null : (
+						<Callout tone="attention" title={t("roles.youAre", { role: t(`role.${role}`) })}>
 							{t(seesOwnRowsOnly ? "theMonth.loggerBody" : "theMonth.cannotWriteBody")}
 						</Callout>
 					)}

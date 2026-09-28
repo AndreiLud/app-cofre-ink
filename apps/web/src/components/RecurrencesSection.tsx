@@ -23,6 +23,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { useWhatIMayDo } from "../storage/roles.ts";
 import { Value } from "./Value.tsx";
 
 export type RecurrencesSectionProps = {
@@ -84,6 +85,9 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 				: t(`rules.${rule}`, { defaultValue: t("rules.unknown") }),
 		);
 	};
+
+	// A series writes records into the space, like a rule does.
+	const mayWrite = useWhatIMayDo(spaceId).may("recurrence.write");
 
 	const save = useMutation({
 		mutationFn: async () => {
@@ -170,9 +174,11 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 		<div className="space-y-3">
 			<div className="flex items-center justify-between gap-4">
 				<p className="max-w-[60ch] text-sm text-quiet">{t("recurrences.explain")}</p>
-				<Button size="small" variant="secondary" onClick={() => open(null)}>
-					{t("recurrences.create")}
-				</Button>
+				{mayWrite ? (
+					<Button size="small" variant="secondary" onClick={() => open(null)}>
+						{t("recurrences.create")}
+					</Button>
+				) : null}
 			</div>
 
 			{problem ? <Callout tone="problem">{problem}</Callout> : null}
@@ -223,21 +229,25 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 									currency={one.currency}
 									tone="auto"
 								/>
-								<Menu
-									align="end"
-									trigger={
-										<Button size="small" variant="quiet" aria-label={t("recurrences.actions")}>
-											<Icon name="settings" />
-										</Button>
-									}
-								>
-									<MenuItem onSelect={() => open(one)}>{t("recurrences.edit")}</MenuItem>
-									<MenuItem onSelect={() => pause.mutate(one)}>
-										{one.pausedAt === null ? t("recurrences.pause") : t("recurrences.resume")}
-									</MenuItem>
-									<MenuSeparator />
-									<MenuItem onSelect={() => remove.mutate(one.id)}>{t("actions.delete")}</MenuItem>
-								</Menu>
+								{mayWrite ? (
+									<Menu
+										align="end"
+										trigger={
+											<Button size="small" variant="quiet" aria-label={t("recurrences.actions")}>
+												<Icon name="settings" />
+											</Button>
+										}
+									>
+										<MenuItem onSelect={() => open(one)}>{t("recurrences.edit")}</MenuItem>
+										<MenuItem onSelect={() => pause.mutate(one)}>
+											{one.pausedAt === null ? t("recurrences.pause") : t("recurrences.resume")}
+										</MenuItem>
+										<MenuSeparator />
+										<MenuItem onSelect={() => remove.mutate(one.id)}>
+											{t("actions.delete")}
+										</MenuItem>
+									</Menu>
+								) : null}
 							</span>
 						</li>
 					);

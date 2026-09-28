@@ -683,9 +683,7 @@
 		"whatItWrites": "What this writes",
 		"whatItWritesHint": "Nothing is kept anywhere else, or in any other shape.",
 		"whatItWritesBody": "Ordinary records: one for what came in and one for what went out, on the last day of the month, and the card one on the last day the invoice of that month still takes, which is the closing day minus one. With a card there is a fourth: paying that invoice, which leaves your account and clears the card on the day it falls due. Without it the account your wages arrive in would climb by the whole invoice every month and the card would sink by the same amount, with the total right and both accounts wrong. If the due date has not come yet, that payment goes in as planned. They all show up in the list, they count towards the balance, the budget, the reports and the projection, and you open and correct any of them exactly as you would any other record. Writing the same month again corrects these rather than writing more.",
-		"loggerTitle": "You are a Logger in this space",
 		"loggerBody": "This screen writes the month of the whole household, and a Logger only ever sees the records they wrote themselves. It would look empty to you even with the month already written by somebody else, and saving would count the month twice. Write your own spending through the List.",
-		"cannotWriteTitle": "You are a Viewer in this space",
 		"cannotWriteBody": "A Viewer sees everything and writes nothing. Ask whoever runs the space to change your role, if you need to write here.",
 		"noAccountTitle": "No account in this space",
 		"noAccountBody": "The numbers need an account to go into. Create one and come back here.",
@@ -799,6 +797,9 @@
 		"personalBody": "This space is yours alone and takes no members. To split bills, create a shared space.",
 		"needsServerTitle": "Inviting needs a server",
 		"needsServerBody": "In this mode the data sits in this browser alone, so there is nowhere for an invitation to point. With a server of yours, you make a link and the person comes in through it."
+	},
+	"roles": {
+		"youAre": "Your role in this space is {{role}}"
 	},
 	"role": {
 		"owner": "Owner",
@@ -951,6 +952,7 @@
 		"title": "Import a statement",
 		"explain": "Pick the file, check what {{app}} understood, and only then write it down. Nothing is written before that.",
 		"pick": "File from the bank",
+		"cannotWriteBody": "Importing a statement is writing records, and your role in this space writes none. Ask whoever runs the space to change your role, if you need to import here.",
 		"pickHint": "A PDF invoice or receipt, CSV, OFX, QIF, XLSX or JSON. A {{app}} backup does not come in here: it goes back through Data, Restore from a file. The file does not leave this device.",
 		"kind": {
 			"statement": "This looks like a statement",

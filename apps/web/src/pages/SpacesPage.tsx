@@ -19,11 +19,60 @@ import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SpacePeople } from "../components/SpacePeople.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { useWhatIMayDo } from "../storage/roles.ts";
 
 const CURRENCIES = ["BRL", "USD", "EUR", "GBP"];
 
 /** The space the dialog is about: one being made, or one being corrected. */
 type Target = { made: true } | { made: false; space: Space };
+
+/**
+ * One row of the list, and its own question about that one space.
+ *
+ * What may be done here is a question per space and not per screen, and a question cannot
+ * be asked inside a list that changes length, so the row is a component. Editing used to
+ * be offered on every row to every role, and the dialog behind it offered the base
+ * currency every amount in the space is counted in.
+ */
+function SpaceRow({
+	space,
+	isOpen,
+	onEnter,
+	onEdit,
+}: {
+	space: Space;
+	isOpen: boolean;
+	onEnter: () => void;
+	onEdit: () => void;
+}) {
+	const { t } = useTranslation();
+	const mayEdit = useWhatIMayDo(space.id).may("space.update");
+
+	return (
+		<li className="flex items-center justify-between gap-4 py-3">
+			<span className="flex flex-col gap-0.5">
+				<SpaceMark name={space.name} colour={space.colour as SpaceColour} />
+				<span className="pl-4 text-xs text-quiet">
+					{space.kind === "personal" ? t("spaces.personalKind") : t("spaces.sharedKind")}
+					{` · ${space.baseCurrency}`}
+					{isOpen ? ` · ${t("spaces.open")}` : ""}
+				</span>
+			</span>
+			<span className="flex gap-2">
+				{isOpen ? null : (
+					<Button size="small" variant="secondary" onClick={onEnter}>
+						{t("spaces.enter")}
+					</Button>
+				)}
+				{mayEdit ? (
+					<Button size="small" variant="quiet" onClick={onEdit}>
+						{t("spaces.edit")}
+					</Button>
+				) : null}
+			</span>
+		</li>
+	);
+}
 
 export function SpacesPage() {
 	const { t, i18n } = useTranslation();
@@ -110,26 +159,13 @@ export function SpacesPage() {
 
 			<ul className="divide-y divide-line border-y border-line">
 				{spaces.map((space) => (
-					<li key={space.id} className="flex items-center justify-between gap-4 py-3">
-						<span className="flex flex-col gap-0.5">
-							<SpaceMark name={space.name} colour={space.colour as SpaceColour} />
-							<span className="pl-4 text-xs text-quiet">
-								{space.kind === "personal" ? t("spaces.personalKind") : t("spaces.sharedKind")}
-								{` · ${space.baseCurrency}`}
-								{space.id === currentSpace?.id ? ` · ${t("spaces.open")}` : ""}
-							</span>
-						</span>
-						<span className="flex gap-2">
-							{space.id === currentSpace?.id ? null : (
-								<Button size="small" variant="secondary" onClick={() => selectSpace(space.id)}>
-									{t("spaces.enter")}
-								</Button>
-							)}
-							<Button size="small" variant="quiet" onClick={() => openEdit(space)}>
-								{t("spaces.edit")}
-							</Button>
-						</span>
-					</li>
+					<SpaceRow
+						key={space.id}
+						space={space}
+						isOpen={space.id === currentSpace?.id}
+						onEnter={() => selectSpace(space.id)}
+						onEdit={() => openEdit(space)}
+					/>
 				))}
 			</ul>
 

@@ -11,6 +11,7 @@ import { Findings } from "../components/Findings.tsx";
 import { Value } from "../components/Value.tsx";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { useWhatIMayDo } from "../storage/roles.ts";
 
 /** Lines about the months behind, here. The rest of them have a screen of their own. */
 const SHOWN = 4;
@@ -106,6 +107,9 @@ export function DashboardPage() {
 		enabled: Boolean(session && currentSpace) && balances.isSuccess,
 		queryFn: () => session?.advice.findings({ spaceId, today }) ?? [],
 	});
+
+	// Marking something as paid changes a record, which a Viewer does not do.
+	const mayUpdate = useWhatIMayDo(spaceId).may("transaction.update");
 
 	const settle = useMutation({
 		mutationFn: async (id: string) => session?.transactions.settle(id),
@@ -301,9 +305,11 @@ export function DashboardPage() {
 							</span>
 							<span className="flex shrink-0 items-center gap-3">
 								<Value amount={row.amount} currency={row.currency} tone="auto" />
-								<Button size="small" variant="secondary" onClick={() => settle.mutate(row.id)}>
-									{t("actions.markPaid")}
-								</Button>
+								{mayUpdate ? (
+									<Button size="small" variant="secondary" onClick={() => settle.mutate(row.id)}>
+										{t("actions.markPaid")}
+									</Button>
+								) : null}
 							</span>
 						</li>
 					))}

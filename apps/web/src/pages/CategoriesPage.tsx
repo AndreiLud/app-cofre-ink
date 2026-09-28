@@ -26,6 +26,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RulesSection } from "../components/RulesSection.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { useWhatIMayDo } from "../storage/roles.ts";
 
 const PRIORITIES: SpendingPriority[] = ["essential", "important", "desirable", "superfluous"];
 
@@ -97,6 +98,10 @@ export function CategoriesPage() {
 		);
 	};
 
+	// One question for the whole screen: the list of categories is a decision about the
+	// space, so creating, editing, archiving and deleting all ask the same thing.
+	const mayWrite = useWhatIMayDo(spaceId).may("category.write");
+
 	const save = useMutation({
 		mutationFn: async () => {
 			if (!session) throw new Error("no session");
@@ -167,28 +172,30 @@ export function CategoriesPage() {
 						</span>
 					) : null}
 				</span>
-				<Menu
-					align="end"
-					trigger={
-						<Button size="small" variant="quiet" aria-label={t("categories.actions")}>
-							<Icon name="settings" />
-						</Button>
-					}
-				>
-					<MenuItem
-						onSelect={() => {
-							setEditing(category);
-							setOpen(true);
-						}}
+				{mayWrite ? (
+					<Menu
+						align="end"
+						trigger={
+							<Button size="small" variant="quiet" aria-label={t("categories.actions")}>
+								<Icon name="settings" />
+							</Button>
+						}
 					>
-						{t("categories.edit")}
-					</MenuItem>
-					<MenuItem onSelect={() => archive.mutate(category.id)}>
-						{t("categories.archive")}
-					</MenuItem>
-					<MenuSeparator />
-					<MenuItem onSelect={() => remove.mutate(category.id)}>{t("actions.delete")}</MenuItem>
-				</Menu>
+						<MenuItem
+							onSelect={() => {
+								setEditing(category);
+								setOpen(true);
+							}}
+						>
+							{t("categories.edit")}
+						</MenuItem>
+						<MenuItem onSelect={() => archive.mutate(category.id)}>
+							{t("categories.archive")}
+						</MenuItem>
+						<MenuSeparator />
+						<MenuItem onSelect={() => remove.mutate(category.id)}>{t("actions.delete")}</MenuItem>
+					</Menu>
+				) : null}
 			</li>
 		);
 	}
@@ -213,17 +220,19 @@ export function CategoriesPage() {
 			<SectionTitle
 				level="h1"
 				action={
-					<Button
-						size="small"
-						variant="primary"
-						icon={<Icon name="plus" />}
-						onClick={() => {
-							setEditing(null);
-							setOpen(true);
-						}}
-					>
-						{t("categories.create")}
-					</Button>
+					mayWrite ? (
+						<Button
+							size="small"
+							variant="primary"
+							icon={<Icon name="plus" />}
+							onClick={() => {
+								setEditing(null);
+								setOpen(true);
+							}}
+						>
+							{t("categories.create")}
+						</Button>
+					) : null
 				}
 			>
 				{t("categories.title", { space: currentSpace.name })}
@@ -239,9 +248,15 @@ export function CategoriesPage() {
 					title={t("categories.emptyTitle")}
 					description={t("categories.emptyBody")}
 					action={
-						<Button variant="primary" onClick={() => install.mutate()} disabled={install.isPending}>
-							{t("categories.install")}
-						</Button>
+						mayWrite ? (
+							<Button
+								variant="primary"
+								onClick={() => install.mutate()}
+								disabled={install.isPending}
+							>
+								{t("categories.install")}
+							</Button>
+						) : null
 					}
 				/>
 			) : null}

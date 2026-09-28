@@ -30,6 +30,7 @@ import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { useWhatIMayDo } from "../storage/roles.ts";
 
 const PRIORITIES: SpendingPriority[] = ["essential", "important", "desirable", "superfluous"];
 
@@ -123,6 +124,11 @@ export function BudgetPage() {
 				: t(`rules.${rule}`, { defaultValue: t("rules.unknown") }),
 		);
 	};
+
+	// The plan of the space: limits, goals and the promise to save first. Everybody sees
+	// it, because a limit nobody knows about is not a limit, and the people who may write
+	// records are the ones who set it.
+	const mayWrite = useWhatIMayDo(spaceId).may("plan.write");
 
 	const saveLimit = useMutation({
 		mutationFn: async () =>
@@ -236,9 +242,11 @@ export function BudgetPage() {
 			<Panel
 				title={t("budget.savingsTitle")}
 				action={
-					<Button size="small" variant="secondary" onClick={() => setSavingOpen(true)}>
-						{savings.data?.rule ? t("budget.changeRule") : t("budget.setRule")}
-					</Button>
+					mayWrite ? (
+						<Button size="small" variant="secondary" onClick={() => setSavingOpen(true)}>
+							{savings.data?.rule ? t("budget.changeRule") : t("budget.setRule")}
+						</Button>
+					) : null
 				}
 			>
 				{savings.isPending ? <Skeleton lines={2} /> : null}
@@ -269,9 +277,11 @@ export function BudgetPage() {
 								? t("budget.savingsDone")
 								: t("budget.savingsBehind")}
 						</p>
-						<Button size="small" variant="quiet" onClick={() => clearRule.mutate()}>
-							{t("budget.clearRule")}
-						</Button>
+						{mayWrite ? (
+							<Button size="small" variant="quiet" onClick={() => clearRule.mutate()}>
+								{t("budget.clearRule")}
+							</Button>
+						) : null}
 					</div>
 				) : null}
 			</Panel>
@@ -279,16 +289,18 @@ export function BudgetPage() {
 			<Panel
 				title={t("budget.goalsTitle")}
 				action={
-					<Button
-						size="small"
-						variant="secondary"
-						onClick={() => {
-							setGoalAccount(usable[0]?.id ?? "");
-							setGoalOpen(true);
-						}}
-					>
-						{t("budget.newGoal")}
-					</Button>
+					!mayWrite ? null : (
+						<Button
+							size="small"
+							variant="secondary"
+							onClick={() => {
+								setGoalAccount(usable[0]?.id ?? "");
+								setGoalOpen(true);
+							}}
+						>
+							{t("budget.newGoal")}
+						</Button>
+					)
 				}
 			>
 				{goals.isPending ? <Skeleton lines={2} /> : null}
@@ -308,18 +320,20 @@ export function BudgetPage() {
 										{" / "}
 										<Value amount={goal.targetAmount} currency={currency} tone="neutral" />
 									</span>
-									<Menu
-										align="end"
-										trigger={
-											<Button size="small" variant="quiet" aria-label={t("budget.goalActions")}>
-												<Icon name="settings" />
-											</Button>
-										}
-									>
-										<MenuItem onSelect={() => removeGoal.mutate(goal.id)}>
-											{t("actions.delete")}
-										</MenuItem>
-									</Menu>
+									{mayWrite ? (
+										<Menu
+											align="end"
+											trigger={
+												<Button size="small" variant="quiet" aria-label={t("budget.goalActions")}>
+													<Icon name="settings" />
+												</Button>
+											}
+										>
+											<MenuItem onSelect={() => removeGoal.mutate(goal.id)}>
+												{t("actions.delete")}
+											</MenuItem>
+										</Menu>
+									) : null}
 								</span>
 							</div>
 							<div className="h-1.5 w-full bg-rule">
@@ -353,17 +367,19 @@ export function BudgetPage() {
 			<Panel
 				title={t("budget.limitsTitle")}
 				action={
-					<Button
-						size="small"
-						variant="primary"
-						icon={<Icon name="plus" />}
-						onClick={() => {
-							setCategoryId(sorted[0]?.id ?? "");
-							setOpen(true);
-						}}
-					>
-						{t("budget.newLimit")}
-					</Button>
+					mayWrite ? (
+						<Button
+							size="small"
+							variant="primary"
+							icon={<Icon name="plus" />}
+							onClick={() => {
+								setCategoryId(sorted[0]?.id ?? "");
+								setOpen(true);
+							}}
+						>
+							{t("budget.newLimit")}
+						</Button>
+					) : null
 				}
 			>
 				{limits.isPending ? <Skeleton lines={4} /> : null}
@@ -383,18 +399,20 @@ export function BudgetPage() {
 										{" / "}
 										<Value amount={limit.progress.limit} currency={currency} tone="neutral" />
 									</span>
-									<Menu
-										align="end"
-										trigger={
-											<Button size="small" variant="quiet" aria-label={t("budget.limitActions")}>
-												<Icon name="settings" />
-											</Button>
-										}
-									>
-										<MenuItem onSelect={() => removeLimit.mutate(limit.id)}>
-											{t("actions.delete")}
-										</MenuItem>
-									</Menu>
+									{mayWrite ? (
+										<Menu
+											align="end"
+											trigger={
+												<Button size="small" variant="quiet" aria-label={t("budget.limitActions")}>
+													<Icon name="settings" />
+												</Button>
+											}
+										>
+											<MenuItem onSelect={() => removeLimit.mutate(limit.id)}>
+												{t("actions.delete")}
+											</MenuItem>
+										</Menu>
+									) : null}
 								</span>
 							</div>
 							<div className="h-1.5 w-full bg-rule">
