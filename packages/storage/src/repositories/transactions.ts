@@ -103,6 +103,14 @@ export type TransactionFilter = {
 	categoryIds?: string[];
 	/** Records with no category at all, which is what "not sorted yet" means. */
 	withoutCategory?: boolean;
+	/**
+	 * Exactly these marks, for a caller that wrote a record and wants that record back.
+	 *
+	 * Asking by a range of days and reading the page that comes back is not the same
+	 * question: a busy month fills the page, the record falls off the end, and the caller
+	 * is told it does not exist and writes it again.
+	 */
+	externalIds?: string[];
 	installmentGroup?: string;
 	limit?: number;
 	offset?: number;
@@ -547,6 +555,10 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			}
 			if (filter.withoutCategory) {
 				where.push(`"category_id" IS NULL`);
+			}
+			if (filter.externalIds && filter.externalIds.length > 0) {
+				where.push(`"external_id" IN (${marks(filter.externalIds.length)})`);
+				params.push(...filter.externalIds);
 			}
 
 			const limit = Math.min(Math.max(filter.limit ?? 200, 1), 1000);

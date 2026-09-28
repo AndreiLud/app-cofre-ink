@@ -365,12 +365,16 @@ export function createRemoteSession(
 
 		transactions: {
 			list: (filter: TransactionFilter = {}) => {
-				const { spaceId, limit, categoryIds, ...rest } = filter;
+				const { spaceId, limit, categoryIds, externalIds, ...rest } = filter;
 				const query = new URLSearchParams();
 				for (const [name, value] of Object.entries(rest)) {
 					if (value !== undefined && value !== "") query.set(name, String(value));
 				}
 				if (categoryIds && categoryIds.length > 0) query.set("categoryIds", categoryIds.join(","));
+				// Taken out of the loop above on purpose: a list that fell into it would be
+				// turned into a string by String(), which works by accident and stops working
+				// the day one of these holds a comma.
+				if (externalIds && externalIds.length > 0) query.set("externalIds", externalIds.join(","));
 				if (limit !== undefined) query.set("limit", String(limit));
 				const search = query.toString();
 				// Without a space the server would have to walk every space of the person,

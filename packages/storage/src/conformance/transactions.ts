@@ -444,6 +444,61 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 				await ready.fixture.close();
 			}
 		});
+
+		it("finds a record by its mark, however many records are in the way", async () => {
+			const ready = await readySpace(adapter);
+			try {
+				// The mark goes on one record, and then enough records are written after it
+				// to push it past any page a caller would ask for by day. Somebody who came
+				// back looking for their own record by a range of days would be told it is
+				// not there and would write it again.
+				await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "income",
+					amount: 500_000,
+					happenedOn: "2026-09-30",
+					description: "Entradas de setembro",
+					accountId: ready.checking.id,
+					externalId: "mes:2026-09:income",
+				});
+
+				for (let count = 0; count < 12; count += 1) {
+					await ready.fixture.asAna.transactions.create({
+						spaceId: ready.spaceId,
+						kind: "expense",
+						amount: 1_000 + count,
+						happenedOn: "2026-09-30",
+						description: `Compra ${count}`,
+						accountId: ready.checking.id,
+					});
+				}
+
+				const found = await ready.fixture.asAna.transactions.list({
+					spaceId: ready.spaceId,
+					externalIds: ["mes:2026-09:income", "mes:2026-09:spending"],
+				});
+				expect(found).toHaveLength(1);
+				expect(found[0]?.externalId).toBe("mes:2026-09:income");
+
+				// A page of the same days holds thirteen, so the mark is doing the work
+				// rather than the ordering happening to be kind.
+				const everything = await ready.fixture.asAna.transactions.list({
+					spaceId: ready.spaceId,
+					from: "2026-09-01",
+					to: "2026-09-30",
+				});
+				expect(everything).toHaveLength(13);
+
+				expect(
+					await ready.fixture.asAna.transactions.list({
+						spaceId: ready.spaceId,
+						externalIds: ["mes:2026-09:invoice"],
+					}),
+				).toEqual([]);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
 	});
 
 	describe("changing several records at once", () => {

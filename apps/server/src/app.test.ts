@@ -376,6 +376,24 @@ describe("the api", () => {
 			`/api/spaces/${space.id}/transactions`,
 		);
 		expect(back.map((one) => one.externalId)).toEqual(["mes:2026-09:income"]);
+
+		// And it can be asked for by that mark, which is how the month screen finds the
+		// records it wrote without reading a page of days and hoping they are on it.
+		await ana.json(`/api/spaces/${space.id}/transactions`, {
+			method: "POST",
+			body: JSON.stringify({
+				kind: "expense",
+				amount: 12_000,
+				happenedOn: "2026-09-30",
+				description: "Mercado",
+				accountId: account.id,
+			}),
+		});
+
+		const byMark = await ana.json<Array<{ externalId: string | null }>>(
+			`/api/spaces/${space.id}/transactions?externalIds=${encodeURIComponent("mes:2026-09:income,mes:2026-09:spending")}`,
+		);
+		expect(byMark.map((one) => one.externalId)).toEqual(["mes:2026-09:income"]);
 	});
 
 	describe("several records at once", () => {

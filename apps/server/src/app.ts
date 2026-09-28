@@ -749,6 +749,10 @@ export function createApp({ config, database, auth }: AppDependencies) {
 						? undefined
 						: query.categoryIds.split(","),
 				withoutCategory: query.withoutCategory === "true",
+				externalIds:
+					query.externalIds === undefined || query.externalIds === ""
+						? undefined
+						: query.externalIds.split(","),
 				limit: query.limit === undefined ? undefined : Number(query.limit),
 			}),
 		);
