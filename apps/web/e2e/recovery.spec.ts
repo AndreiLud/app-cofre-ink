@@ -192,6 +192,44 @@ test.describe("state from before", () => {
 	});
 
 	/**
+	 * The fields of a WebDAV folder, left under the database by 1.0.3.
+	 *
+	 * Pressing Continuar on the front door, or changing the name in the list, kept the
+	 * fields and changed only the kind. 1.0.4 split the places apart and read what it
+	 * found at face value, so the database ended up holding a folder address and an
+	 * application password, the folder was blank, and the notes said the opposite.
+	 */
+	test("gives the fields of a folder back to the folder", async ({ page }) => {
+		await page.addInitScript(() => {
+			localStorage.setItem(
+				"cofreDestination",
+				JSON.stringify({
+					kind: "database",
+					address: "https://nuvem.exemplo.com/dav/cofre",
+					user: "ana",
+					secret: "a senha de aplicativo",
+				}),
+			);
+		});
+
+		await openCofre(page);
+		await go(page, "Dados");
+
+		// A database has no user, so a user is what says these belong to a folder.
+		await expect(page.getByLabel("Onde guardar a cópia")).toHaveValue("webdav");
+		await expect(page.getByLabel("Endereço da pasta")).toHaveValue(
+			"https://nuvem.exemplo.com/dav/cofre",
+		);
+		await expect(page.getByLabel("Usuário")).toHaveValue("ana");
+
+		// And the database is left with nothing of the folder in it.
+		await page
+			.getByLabel("Onde guardar a cópia")
+			.selectOption({ label: "Um banco de dados online" });
+		await expect(page.getByLabel("Endereço do banco")).toHaveValue("");
+	});
+
+	/**
 	 * A backup that is on with one field of its place missing copies nothing, and the
 	 * panel said Active and greyed out the only button that could have stopped it, because
 	 * switching it off shared a guard with testing the connection and running it now.

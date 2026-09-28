@@ -111,16 +111,31 @@ function readStored(): StoredDestinations {
 		// place that no longer exists takes its fields with it rather than handing them to
 		// whichever place is picked next.
 		if (kind === null) return { kind: null, places: {} };
-		return {
-			kind,
-			places: {
-				[kind]: {
-					address: kept.address ?? "",
-					user: kept.user ?? "",
-					secret: kept.secret ?? "",
-				},
-			},
+
+		const fields = {
+			address: kept.address ?? "",
+			user: kept.user ?? "",
+			secret: kept.secret ?? "",
 		};
+
+		/**
+		 * One set of fields kept under the name of the wrong place.
+		 *
+		 * In 1.0.3 changing the name in the list, or pressing Continuar on the front door,
+		 * left the fields of a WebDAV folder sitting under the database. Reading them back
+		 * at face value hands the database a folder address and an application password,
+		 * makes that mistake permanent, and leaves the folder blank, which is the opposite
+		 * of what the 1.0.4 notes promised.
+		 *
+		 * A database never has a user: nothing writes that field for one and the store
+		 * ignores it. So a filled user under the database is a folder's set of fields,
+		 * which is the one tell there is, and it is enough.
+		 */
+		if (kind === "database" && fields.user.trim() !== "") {
+			return { kind: "webdav", places: { webdav: fields } };
+		}
+
+		return { kind, places: { [kind]: fields } };
 	} catch {
 		return { kind: null, places: {} };
 	}
