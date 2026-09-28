@@ -91,8 +91,6 @@ type StoredDestinations = {
 	places: Partial<Record<DestinationKind, Fields>>;
 };
 
-const NOTHING_STORED: StoredDestinations = { kind: null, places: {} };
-
 /** The shape before places were kept apart, which a browser can still be holding. */
 type OldShape = Partial<DestinationSettings> & { places?: unknown };
 
@@ -196,13 +194,6 @@ export function chooseDestination(kind: DestinationKind | null): void {
 	const stored = readStored();
 	write(KEY, JSON.stringify({ kind, places: stored.places } satisfies StoredDestinations));
 	if (kind === null) write(WHEN_KEY, JSON.stringify({ ...storedWhen(), on: false }));
-	tellThem();
-}
-
-/** The place, everything every place needed, and the backup pointed at it, all gone. */
-export function forgetDestination(): void {
-	write(KEY, JSON.stringify(NOTHING_STORED));
-	write(WHEN_KEY, JSON.stringify({ ...NOT_BACKING_UP, on: false }));
 	tellThem();
 }
 

@@ -49,9 +49,11 @@ user and application password, and left the backup on against nothing.
 Portuguese screen. So did a backup with the right marker and no list of spaces.
 
 **A role was offered things it would be refused.** Inviting, marking a payment, undoing
-one, editing, deleting, dividing and ticking off against the bank were all drawn for
-everybody and turned down by the model afterwards, in a sentence written for whoever wrote
-the code. Undoing a payment failed in complete silence.
+one, editing, deleting, dividing, sorting everything like this one and ticking off against
+the bank were all drawn for everybody and turned down by the model afterwards, in a
+sentence written for whoever wrote the code. Undoing a payment failed in complete silence.
+The section that says who owes whom stays for everybody, because reading it is not
+settling it: what goes for a Viewer and a Logger are the two buttons inside it.
 
 **The month screen counted a household month twice.** A Logger only ever sees the records
 they wrote, so that screen looked empty to them even when somebody else had already

@@ -97,7 +97,7 @@ export function SettleSection({
 
 	/** Whoever is holding the screen is "you", in the language the screen is speaking. */
 	const nameOf = (userId: string) => {
-		if (userId === user?.id) return t("members.you", { name: user?.name ?? "" });
+		if (userId === user?.id) return t("members.you");
 		return people.find((person) => person.id === userId)?.name ?? t("members.someone");
 	};
 
@@ -108,10 +108,29 @@ export function SettleSection({
 	 * because English conjugates and a template cannot. Portuguese does not care, and
 	 * gets its own key anyway so the two files stay the same shape.
 	 */
-	const saying = (from: string, to: string) =>
-		from === user?.id
-			? t("sharing.paymentFromYou", { to: nameOf(to) })
-			: t("sharing.payment", { from: nameOf(from), to: nameOf(to) });
+	const saying = (from: string, to: string) => {
+		// Both slots, and not only the first. "João pays You" is the same defect read from
+		// the other end, and a capitalised pronoun in the middle of a sentence besides.
+		const mine = to === user?.id;
+		if (from === user?.id) return t("sharing.paymentFromYou", { to: nameOf(to) });
+		if (mine) return t("sharing.paymentToYou", { from: nameOf(from) });
+		return t("sharing.payment", { from: nameOf(from), to: nameOf(to) });
+	};
+
+	/**
+	 * Who is up and who is down, as a sentence rather than as a name beside a verb.
+	 *
+	 * "You owes" and "You is owed" were the same defect as "You pays": English conjugates
+	 * and a name dropped in front of a third person verb does not. The row of whoever is
+	 * reading is the one row they are certain to read, and it is shown exactly when they
+	 * are not square, because a person with nothing outstanding is left out of the list.
+	 */
+	const standing = (userId: string, amount: number) => {
+		if (userId === user?.id) {
+			return amount > 0 ? t("sharing.youAreOwed") : t("sharing.youOwe");
+		}
+		return amount > 0 ? t("sharing.isOwed") : t("sharing.owes");
+	};
 
 	const rows = balances.data ?? [];
 	const payments = suggested.data ?? [];
@@ -137,7 +156,7 @@ export function SettleSection({
 					>
 						<span className="text-ink">{nameOf(balance.userId)}</span>
 						<span className="text-quiet">
-							{balance.amount > 0 ? t("sharing.isOwed") : t("sharing.owes")}{" "}
+							{standing(balance.userId, balance.amount)}{" "}
 							<Value amount={Math.abs(balance.amount)} currency={currency} tone="neutral" />
 						</span>
 					</li>

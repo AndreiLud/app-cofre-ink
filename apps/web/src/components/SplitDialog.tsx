@@ -93,7 +93,7 @@ export function SplitDialog({ open, onOpenChange, record, people }: SplitDialogP
 	 * Portuguese saw "Você" sitting in the middle of the English interface.
 	 */
 	const nameOf = (userId: string) => {
-		if (userId === user?.id) return t("members.you", { name: user?.name ?? "" });
+		if (userId === user?.id) return t("members.you");
 		return people.find((person) => person.id === userId)?.name ?? t("members.someone");
 	};
 

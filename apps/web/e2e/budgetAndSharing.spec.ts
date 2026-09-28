@@ -155,8 +155,14 @@ test.describe("dividing with the house", () => {
 		// back is one hundred. With the shares crossed over it would be three hundred.
 		await openSetting(page, "Gerenciar espaços");
 		await expect(page.getByText("Para zerar")).toBeVisible();
-		await expect(page.getByText("João (exemplo) paga Você")).toBeVisible();
+		// A sentence, and not a name dropped into a slot. It said "João (exemplo) paga
+		// Você", with a capitalised pronoun in the middle, which in English came out as
+		// "João pays You" beside rows reading "You owes" and "You is owed".
+		await expect(page.getByText("João (exemplo) paga para você")).toBeVisible();
 		await expect(page.getByText("R$ 100,00").first()).toBeVisible();
+
+		// And the reader's own row reads as a sentence about them.
+		await expect(page.getByText("tem a receber")).toBeVisible();
 	});
 });
 

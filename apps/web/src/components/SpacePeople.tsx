@@ -152,7 +152,7 @@ export function SpacePeople() {
 	if (!currentSpace) return null;
 
 	const nameOf = (userId: string): string => {
-		if (userId === user?.id) return t("members.you", { name: user?.name ?? "" });
+		if (userId === user?.id) return t("members.you");
 		return people.data?.find((person) => person.id === userId)?.name ?? userId.slice(0, 8);
 	};
 
