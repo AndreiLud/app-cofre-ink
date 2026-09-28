@@ -14,6 +14,7 @@ import { Button, Callout, Dialog, Field, Select } from "@cofre/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 
 export type CardDialogProps = {
@@ -59,17 +60,7 @@ export function CardDialog({ card, accounts, onClose }: CardDialogProps) {
 	}, [card]);
 
 	function complain(error: unknown) {
-		const rule =
-			error !== null && typeof error === "object" && "rule" in error
-				? String((error as { rule: unknown }).rule)
-				: null;
-		setProblem(
-			rule === null
-				? error instanceof Error
-					? error.message
-					: String(error)
-				: t(`rules.${rule}`, { defaultValue: t("rules.unknown") }),
-		);
+		setProblem(sayWhy(error, t));
 	}
 
 	const save = useMutation({

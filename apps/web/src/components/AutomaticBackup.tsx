@@ -18,26 +18,15 @@
 // or already runs.
 
 import type { DestinationKind } from "@cofre/cloud";
-import {
-	BUNDLE_MEDIA_TYPE,
-	bundleFileName,
-	CloudError,
-	DESTINATIONS,
-	packBundle,
-} from "@cofre/cloud";
+import { BUNDLE_MEDIA_TYPE, bundleFileName, DESTINATIONS, packBundle } from "@cofre/cloud";
 import type { BackupOutcome, SyncStore } from "@cofre/storage";
 import { keepMine, keepTheirs, runBackup, syncWithStore } from "@cofre/storage";
 import { Button, Callout, Dialog, Field, Select } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import {
-	downloadBytes,
-	downloadJson,
-	FileTooLargeError,
-	fileNameFor,
-	LARGEST_FILE,
-} from "../lib/download.ts";
+import { downloadBytes, downloadJson, fileNameFor } from "../lib/download.ts";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { backupState, setBackupState, subscribeToBackup } from "../storage/backupState.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import {
@@ -58,28 +47,6 @@ const KINDS: DestinationKind[] = ["database", "webdav"];
 
 /** A space that exists nowhere, for asking a place whether it answers at all. */
 const PROBE = "conexao";
-
-/**
- * What went wrong, in words.
- *
- * A drive answers with a number and a browser answers "Failed to fetch". Neither tells
- * the person what to do, and the three things that actually happen are always the same
- * three: no connection, a token that is no longer any good, or the service refusing for
- * a reason of its own.
- */
-function saidWhy(error: unknown, t: (key: string, values?: Record<string, unknown>) => string) {
-	if (error instanceof FileTooLargeError) {
-		return t("data.tooLarge", { megabytes: Math.round(LARGEST_FILE / 1024 / 1024) });
-	}
-	if (error instanceof CloudError) {
-		if (error.status === 0) return t("destination.unreachable", { where: error.where });
-		if (error.status === 401 || error.status === 403) {
-			return t("destination.refused", { where: error.where });
-		}
-		return t("destination.answered", { where: error.where, status: error.status });
-	}
-	return error instanceof Error ? error.message : String(error);
-}
 
 export function AutomaticBackup() {
 	const { session, driver, spaces, reload } = useCofre();
@@ -146,7 +113,7 @@ export function AutomaticBackup() {
 		},
 		onError: (error: unknown) => {
 			setSaid(null);
-			setProblem(saidWhy(error, t));
+			setProblem(sayWhy(error, t));
 		},
 	});
 
@@ -184,10 +151,10 @@ export function AutomaticBackup() {
 		onError: (error: unknown) => {
 			setSaid(null);
 			// What went wrong is worth saying. The place answering with a number, or not
-			// answering at all, is the usual reason, and saidWhy turns each of those into a
+			// answering at all, is the usual reason, and sayWhy turns each of those into a
 			// sentence rather than into "could not connect", which sends somebody off to
 			// check an address that was fine.
-			setProblem(saidWhy(error, t));
+			setProblem(sayWhy(error, t));
 		},
 	});
 
@@ -237,7 +204,7 @@ export function AutomaticBackup() {
 		},
 		onError: (error: unknown) => {
 			setAsking(null);
-			setProblem(saidWhy(error, t));
+			setProblem(sayWhy(error, t));
 		},
 	});
 

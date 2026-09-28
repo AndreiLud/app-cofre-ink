@@ -32,6 +32,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import type { AssignableRole } from "../storage/cofreSession.ts";
 import { useWhatIMayDo } from "../storage/roles.ts";
@@ -95,11 +96,10 @@ export function SpacePeople() {
 			setProblem(null);
 			invalidate();
 		},
-		onError: (error: unknown) => setProblem(error instanceof Error ? error.message : String(error)),
+		onError: (error: unknown) => setProblem(sayWhy(error, t)),
 	});
 
-	const complain = (error: unknown) =>
-		setProblem(error instanceof Error ? error.message : String(error));
+	const complain = (error: unknown) => setProblem(sayWhy(error, t));
 
 	const changeRole = useMutation({
 		mutationFn: async (input: { userId: string; role: AssignableRole }) =>
@@ -127,8 +127,11 @@ export function SpacePeople() {
 			invalidate();
 		},
 		// Inside the dialog, where the person is looking, and in words. It used to put the
-		// English complaint of the money reader on the section behind the open dialog.
-		onError: () => setIncomeProblem(t("members.incomeUnreadable")),
+		// English complaint of the money reader on the section behind the open dialog, and
+		// then said the number could not be read whatever had gone wrong, so a refusal or
+		// a dropped connection sent somebody back to retype a number that was already
+		// right, as many times as they had patience for.
+		onError: (error: unknown) => setIncomeProblem(sayWhy(error, t)),
 	});
 
 	const remove = useMutation({

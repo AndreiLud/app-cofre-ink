@@ -10,6 +10,7 @@ import { Button, Callout, Panel, Skeleton } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { Value } from "./Value.tsx";
 
@@ -61,17 +62,13 @@ export function SettleSection({
 	/**
 	 * What went wrong, in the language of the screen.
 	 *
-	 * A refusal from the permission model arrives as an English sentence meant for
-	 * whoever wrote the code, and it used to go straight onto the screen.
+	 * This one used to answer "your role does not allow that" to everything that was not
+	 * a rule, so a dropped connection while marking a payment told somebody their role
+	 * was the problem. On a server it was worse than a bad guess: a rule arrives there
+	 * with its name in a different field, so the branch that would have caught it never
+	 * ran and the wrong sentence was the only sentence.
 	 */
-	const complain = (error: unknown) => {
-		if (error !== null && typeof error === "object" && "rule" in error) {
-			const rule = String((error as { rule: unknown }).rule);
-			setProblem(t(`rules.${rule}`, { defaultValue: t("rules.unknown") }));
-			return;
-		}
-		setProblem(t("rules.notAllowedHere"));
-	};
+	const complain = (error: unknown) => setProblem(sayWhy(error, t));
 
 	const settle = useMutation({
 		mutationFn: async (payment: { fromUserId: string; toUserId: string; amount: number }) =>

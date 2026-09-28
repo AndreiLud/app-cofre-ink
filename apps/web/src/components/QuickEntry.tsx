@@ -7,10 +7,11 @@
 
 import { type QuickEntryReading, readQuickEntry } from "@cofre/core";
 import type { Account, Transaction } from "@cofre/storage";
-import { Button, Field } from "@cofre/ui";
+import { Button, Callout, Field } from "@cofre/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { Value } from "./Value.tsx";
 
@@ -33,6 +34,7 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 	const [text, setText] = useState("");
 	/** What was written last, kept so it can be taken back without hunting for it. */
 	const [written, setWritten] = useState<{ description: string; ids: string[] } | null>(null);
+	const [problem, setProblem] = useState<string | null>(null);
 
 	const usable = useMemo(
 		() => accounts.filter((account) => account.archivedAt === null),
@@ -71,6 +73,7 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 			});
 		},
 		onSuccess: (rows: Transaction[]) => {
+			setProblem(null);
 			setWritten(
 				rows.length > 0
 					? { description: reading.description, ids: rows.map((row) => row.id) }
@@ -79,6 +82,9 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 			setText("");
 			invalidate();
 		},
+		// It had none. A line that was refused cleared nothing and said nothing, so a
+		// record that was never written looked exactly like one that was.
+		onError: (error: unknown) => setProblem(sayWhy(error, t)),
 	});
 
 	const undo = useMutation({
@@ -87,9 +93,12 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 			return session.transactions.removeMany(written.ids);
 		},
 		onSuccess: () => {
+			setProblem(null);
 			setWritten(null);
 			invalidate();
 		},
+		// And an undo that failed looked exactly like one that worked.
+		onError: (error: unknown) => setProblem(sayWhy(error, t)),
 	});
 
 	function submit(event: FormEvent) {
@@ -112,6 +121,8 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 					</Button>
 				}
 			/>
+
+			{problem ? <Callout tone="problem">{problem}</Callout> : null}
 
 			{text.trim() !== "" ? (
 				<p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-quiet">

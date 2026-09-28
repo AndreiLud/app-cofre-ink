@@ -36,14 +36,8 @@ import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AutomaticBackup } from "../components/AutomaticBackup.tsx";
 import { DangerZone } from "../components/DangerZone.tsx";
-import {
-	downloadCsv,
-	downloadJson,
-	FileTooLargeError,
-	fileNameFor,
-	LARGEST_FILE,
-	readPickedFile,
-} from "../lib/download.ts";
+import { downloadCsv, downloadJson, fileNameFor, readPickedFile } from "../lib/download.ts";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { storedDestination, storedWhen, whenSettingsChange } from "../storage/destinations.ts";
@@ -220,21 +214,7 @@ export function DataPage() {
 	const chosen = spaces.filter((space) => mayCopy.has(space.id) && !leftOut[space.id]);
 
 	function failed(error: unknown) {
-		if (error instanceof FileTooLargeError) {
-			setProblem(t("data.tooLarge", { megabytes: Math.round(LARGEST_FILE / 1024 / 1024) }));
-			return;
-		}
-		// A rule of the model says why in one word, and that word has a sentence in the
-		// language of whoever is reading it. Anything else is left as it came.
-		const rule =
-			error !== null && typeof error === "object" && "rule" in error
-				? String((error as { rule: unknown }).rule)
-				: null;
-		if (rule !== null) {
-			setProblem(t(`rules.${rule}`, { defaultValue: t("rules.unknown") }));
-			return;
-		}
-		setProblem(error instanceof Error ? error.message : String(error));
+		setProblem(sayWhy(error, t));
 	}
 
 	function rememberSheet(next: { token: string; spreadsheetId: string }) {

@@ -17,6 +17,7 @@ import { Button, Callout, Dialog, Field, Segmented, Select } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 
 export type TransactionFormProps = {
@@ -200,7 +201,7 @@ export function TransactionForm({
 			void queries.invalidateQueries({ queryKey: ["balances"] });
 			void queries.invalidateQueries({ queryKey: ["advice"] });
 		},
-		onError: (error: unknown) => setProblem(error instanceof Error ? error.message : String(error)),
+		onError: (error: unknown) => setProblem(sayWhy(error, t)),
 	});
 
 	function submit(event: FormEvent) {

@@ -30,6 +30,7 @@ import { useTranslation } from "react-i18next";
 import { CardDialog } from "../components/CardDialog.tsx";
 import { CardsSection } from "../components/CardsSection.tsx";
 import { Value } from "../components/Value.tsx";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
@@ -84,6 +85,8 @@ export function AccountsPage() {
 		void queries.invalidateQueries({ queryKey: ["balances"] });
 		void queries.invalidateQueries({ queryKey: ["advice"] });
 	};
+
+	const complain = (error: unknown) => setProblem(sayWhy(error, t));
 
 	const create = useMutation({
 		mutationFn: async () => {
@@ -160,19 +163,7 @@ export function AccountsPage() {
 			setProblem(null);
 			invalidate();
 		},
-		onError: (error: unknown) => {
-			const rule =
-				error !== null && typeof error === "object" && "rule" in error
-					? String((error as { rule: unknown }).rule)
-					: null;
-			setProblem(
-				rule === null
-					? error instanceof Error
-						? error.message
-						: String(error)
-					: t(`rules.${rule}`, { defaultValue: t("rules.unknown") }),
-			);
-		},
+		onError: complain,
 	});
 
 	/**
@@ -186,19 +177,24 @@ export function AccountsPage() {
 	const mayArchive = may("account.archive");
 	const mayDelete = may("account.delete");
 
+	// None of these three said anything when they failed: the menu closed, the row stayed,
+	// and a refusal looked exactly like a click that had not landed.
 	const archive = useMutation({
 		mutationFn: async (id: string) => session?.accounts.archive(id),
 		onSuccess: invalidate,
+		onError: complain,
 	});
 
 	const unarchive = useMutation({
 		mutationFn: async (id: string) => session?.accounts.unarchive(id),
 		onSuccess: invalidate,
+		onError: complain,
 	});
 
 	const remove = useMutation({
 		mutationFn: async (id: string) => session?.accounts.remove(id),
 		onSuccess: invalidate,
+		onError: complain,
 	});
 
 	if (!currentSpace) return null;

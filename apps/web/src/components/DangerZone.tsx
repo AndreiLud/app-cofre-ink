@@ -8,12 +8,12 @@
 // It is here rather than behind a support address because of the promise the project
 // makes. Data that the owner cannot take back is data somebody else is holding.
 
-import { CloudError } from "@cofre/cloud";
 import type { Space } from "@cofre/storage";
 import { Button, Callout, Dialog, Field, Panel } from "@cofre/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { rememberWhen, storedDestination, storedWhen } from "../storage/destinations.ts";
 import { useWhatIMayDo } from "../storage/roles.ts";
@@ -113,26 +113,6 @@ export function DangerZone() {
 		await store.remove(spaceId);
 	}
 
-	/**
-	 * What happens when the place cannot be reached at the moment of erasing.
-	 *
-	 * The copy goes first, so a destination that is off, or a token that expired, stops
-	 * the whole thing with nothing lost. It used to erase here first and reach for the
-	 * place afterwards, and a failure there left the space gone from this device, the
-	 * backup still on, and the place still holding it, so the next run brought the
-	 * emptied space straight back.
-	 */
-	function couldNotReachIt(error: unknown): string {
-		if (error instanceof CloudError) {
-			if (error.status === 0) return t("destination.unreachable", { where: error.where });
-			if (error.status === 401 || error.status === 403) {
-				return t("destination.refused", { where: error.where });
-			}
-			return t("destination.answered", { where: error.where, status: error.status });
-		}
-		return error instanceof Error ? error.message : String(error);
-	}
-
 	/** What has to be typed out, so that no amount of clicking alone is enough. */
 	const word = target?.kind === "space" ? target.space.name : t("danger.confirmWord");
 	const ready = typed.trim().toLowerCase() === word.trim().toLowerCase();
@@ -152,7 +132,12 @@ export function DangerZone() {
 				try {
 					await dealWithTheCopy(target.space.id);
 				} catch (error) {
-					setProblem(couldNotReachIt(error));
+					// The copy goes first, so a destination that is off, or a token that
+					// expired, stops the whole thing with nothing lost. It used to erase here
+					// first and reach for the place afterwards, and a failure there left the
+					// space gone from this device, the backup still on, and the place still
+					// holding it, so the next run brought the emptied space straight back.
+					setProblem(sayWhy(error, t));
 					return;
 				}
 
@@ -184,7 +169,10 @@ export function DangerZone() {
 			queries.clear();
 			await signOut();
 		} catch (error) {
-			setProblem(error instanceof Error ? error.message : String(error));
+			// The most destructive action in the application used to be the one that told
+			// the person the least: the sentence the model writes for whoever wrote the
+			// code, in English, inside a dialog they had just typed a name into.
+			setProblem(sayWhy(error, t));
 		} finally {
 			setBusy(false);
 		}

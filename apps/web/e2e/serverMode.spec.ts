@@ -276,6 +276,35 @@ test.describe("server mode", () => {
 	});
 
 	/**
+	 * A failure that is not a refusal does not read like one.
+	 *
+	 * Every screen used to translate its own failures, and they disagreed. One of them
+	 * answered "your role does not allow that" to everything that was not a rule, so a
+	 * dropped connection told somebody their role was the problem. The rest printed the
+	 * sentence the model writes for whoever wrote the code, in English, or in the case of
+	 * a browser that could not reach anything, "Failed to fetch".
+	 *
+	 * On a server that was not an edge case: a rule arrives there with its name in a
+	 * different field from the one those screens looked in, so the branch that would have
+	 * caught it never ran at all.
+	 */
+	test("says a dropped connection is a dropped connection", async ({ browser }) => {
+		const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
+
+		await go(ana, "Contas");
+		// Nothing answers from here on, which is what being on a train looks like.
+		await ana.route("**/api/**", (route) => route.abort());
+
+		await ana.getByRole("button", { name: "Nova conta" }).first().click();
+		await ana.getByRole("dialog").getByLabel("Nome").fill("Conta nova");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+
+		await expect(ana.getByText("Não consegui falar com o servidor")).toBeVisible();
+		await expect(ana.getByText(/Failed to fetch/)).toHaveCount(0);
+		await expect(ana.getByText(/não permite isso/)).toHaveCount(0);
+	});
+
+	/**
 	 * The other half of the same question, because a role that is offered too little is
 	 * the same defect as one offered too much.
 	 *

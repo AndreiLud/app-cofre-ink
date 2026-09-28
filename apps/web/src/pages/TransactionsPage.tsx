@@ -32,6 +32,7 @@ import { type FilterQuery, SavedFilters } from "../components/SavedFilters.tsx";
 import { SplitDialog } from "../components/SplitDialog.tsx";
 import { TransactionForm } from "../components/TransactionForm.tsx";
 import { Value } from "../components/Value.tsx";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
@@ -187,19 +188,7 @@ export function TransactionsPage() {
 		invalidate();
 	};
 
-	const complain = (error: unknown) => {
-		const rule =
-			error !== null && typeof error === "object" && "rule" in error
-				? String((error as { rule: unknown }).rule)
-				: null;
-		setProblem(
-			rule === null
-				? error instanceof Error
-					? error.message
-					: String(error)
-				: t(`rules.${rule}`, { defaultValue: t("rules.unknown") }),
-		);
-	};
+	const complain = (error: unknown) => setProblem(sayWhy(error, t));
 
 	const changeMany = useMutation({
 		mutationFn: async (patch: {
@@ -217,17 +206,23 @@ export function TransactionsPage() {
 		onError: complain,
 	});
 
+	// Each of these had no onError, so a refusal or a dropped connection did nothing
+	// visible at all: the row stayed where it was and the only way to find out was to
+	// reload the page and look.
 	const settle = useMutation({
 		mutationFn: async (id: string) => session?.transactions.settle(id),
 		onSuccess: invalidate,
+		onError: complain,
 	});
 	const remove = useMutation({
 		mutationFn: async (id: string) => session?.transactions.remove(id),
 		onSuccess: invalidate,
+		onError: complain,
 	});
 	const removeGroup = useMutation({
 		mutationFn: async (groupId: string) => session?.transactions.removeGroup(groupId),
 		onSuccess: invalidate,
+		onError: complain,
 	});
 	/**
 	 * Turns one record into a rule: whatever was written in the description becomes the
@@ -254,6 +249,7 @@ export function TransactionsPage() {
 		mutationFn: async (input: { id: string; reconciled: boolean }) =>
 			session?.transactions.reconcile(input.id, input.reconciled),
 		onSuccess: invalidate,
+		onError: complain,
 	});
 
 	/** How many of the filters behind the button are doing something. */

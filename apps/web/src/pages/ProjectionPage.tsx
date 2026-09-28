@@ -39,6 +39,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
@@ -123,7 +124,7 @@ export function ProjectionPage() {
 			await queries.invalidateQueries({ queryKey: ["scenarios", spaceId] });
 			setApplied(scenario.id);
 		},
-		onError: (error: unknown) => setProblem(error instanceof Error ? error.message : String(error)),
+		onError: (error: unknown) => setProblem(sayWhy(error, t)),
 	});
 
 	const remove = useMutation({
@@ -135,6 +136,9 @@ export function ProjectionPage() {
 			setApplied(null);
 			await queries.invalidateQueries({ queryKey: ["scenarios", spaceId] });
 		},
+		// Its sibling above had one and this did not, so removing a scenario was the one
+		// half of the pair that failed without a word.
+		onError: (error: unknown) => setProblem(sayWhy(error, t)),
 	});
 
 	if (!currentSpace) return null;

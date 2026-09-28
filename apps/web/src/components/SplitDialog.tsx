@@ -9,6 +9,7 @@ import { Button, Callout, Dialog, Field, Segmented, Select } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { Value } from "./Value.tsx";
 
@@ -51,24 +52,7 @@ export function SplitDialog({ open, onOpenChange, record, people }: SplitDialogP
 		void queries.invalidateQueries({ queryKey: ["transactions"] });
 	};
 
-	const complain = (error: unknown) => {
-		const rule =
-			error !== null && typeof error === "object" && "rule" in error
-				? String((error as { rule: unknown }).rule)
-				: null;
-		if (rule !== null) {
-			setProblem(t(`rules.${rule}`, { defaultValue: t("rules.unknown") }));
-			return;
-		}
-		// A refusal from the permission model is not a rule of the money: it arrives as a
-		// sentence written for whoever wrote the code, and it used to reach the screen
-		// exactly as thrown, in English, saying "not allowed to sharing.write in ...".
-		if (error instanceof Error && error.name === "PermissionError") {
-			setProblem(t("rules.notAllowedHere"));
-			return;
-		}
-		setProblem(error instanceof Error ? error.message : String(error));
-	};
+	const complain = (error: unknown) => setProblem(sayWhy(error, t));
 
 	const save = useMutation({
 		mutationFn: async () => {

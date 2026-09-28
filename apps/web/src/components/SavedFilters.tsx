@@ -4,10 +4,11 @@
 // the phone is there on the computer. Each one belongs to whoever wrote it, which the
 // repository layer takes care of.
 
-import { Button, Dialog, Field, Icon } from "@cofre/ui";
+import { Button, Callout, Dialog, Field, Icon } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 
 export type FilterQuery = Record<string, unknown>;
@@ -37,6 +38,7 @@ export function SavedFilters({ spaceId, current, onApply }: SavedFiltersProps) {
 
 	const [naming, setNaming] = useState(false);
 	const [name, setName] = useState("");
+	const [problem, setProblem] = useState<string | null>(null);
 
 	const saved = useQuery({
 		queryKey: ["savedFilters", spaceId],
@@ -48,6 +50,10 @@ export function SavedFilters({ spaceId, current, onApply }: SavedFiltersProps) {
 		void queries.invalidateQueries({ queryKey: ["savedFilters"] });
 	};
 
+	// A saved filter is a person's own shortcut, so every role may keep one and nothing
+	// here is ever refused for a role. It can still fail, and it used to fail in silence.
+	const complain = (error: unknown) => setProblem(sayWhy(error, t));
+
 	const keep = useMutation({
 		mutationFn: async () =>
 			session?.savedFilters.create({
@@ -57,15 +63,21 @@ export function SavedFilters({ spaceId, current, onApply }: SavedFiltersProps) {
 				position: saved.data?.length ?? 0,
 			}),
 		onSuccess: () => {
+			setProblem(null);
 			setNaming(false);
 			setName("");
 			invalidate();
 		},
+		onError: complain,
 	});
 
 	const forget = useMutation({
 		mutationFn: async (id: string) => session?.savedFilters.remove(id),
-		onSuccess: invalidate,
+		onSuccess: () => {
+			setProblem(null);
+			invalidate();
+		},
+		onError: complain,
 	});
 
 	function submit(event: FormEvent) {
@@ -104,6 +116,12 @@ export function SavedFilters({ spaceId, current, onApply }: SavedFiltersProps) {
 			<Button size="small" variant="quiet" onClick={() => setNaming(true)}>
 				{t("savedFilters.keep")}
 			</Button>
+
+			{problem ? (
+				<span className="basis-full">
+					<Callout tone="problem">{problem}</Callout>
+				</span>
+			) : null}
 
 			<Dialog
 				open={naming}

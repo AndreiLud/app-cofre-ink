@@ -50,6 +50,7 @@ import { Link } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
@@ -372,17 +373,7 @@ export function MonthPage() {
 		},
 		onError: (error: unknown) => {
 			setSaved(null);
-			const rule =
-				error !== null && typeof error === "object" && "rule" in error
-					? String((error as { rule: unknown }).rule)
-					: null;
-			setProblem(
-				rule === null
-					? error instanceof Error
-						? error.message
-						: String(error)
-					: t(`rules.${rule}`, { defaultValue: t("rules.unknown") }),
-			);
+			setProblem(sayWhy(error, t));
 		},
 		// On the way out either way, and not only when it worked. A save that failed half
 		// way through still wrote some of the rows, and a screen that did not go and look

@@ -25,6 +25,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RulesSection } from "../components/RulesSection.tsx";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
@@ -84,19 +85,7 @@ export function CategoriesPage() {
 		void queries.invalidateQueries({ queryKey: ["transactions"] });
 	};
 
-	const complain = (error: unknown) => {
-		const rule =
-			error !== null && typeof error === "object" && "rule" in error
-				? String((error as { rule: unknown }).rule)
-				: null;
-		setProblem(
-			rule === null
-				? error instanceof Error
-					? error.message
-					: String(error)
-				: t(`rules.${rule}`, { defaultValue: t("rules.unknown") }),
-		);
-	};
+	const complain = (error: unknown) => setProblem(sayWhy(error, t));
 
 	// One question for the whole screen: the list of categories is a decision about the
 	// space, so creating, editing, archiving and deleting all ask the same thing.

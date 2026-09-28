@@ -22,6 +22,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 import { Value } from "./Value.tsx";
@@ -72,19 +73,7 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 		void queries.invalidateQueries({ queryKey: ["advice"] });
 	};
 
-	const complain = (error: unknown) => {
-		const rule =
-			error !== null && typeof error === "object" && "rule" in error
-				? String((error as { rule: unknown }).rule)
-				: null;
-		setProblem(
-			rule === null
-				? error instanceof Error
-					? error.message
-					: String(error)
-				: t(`rules.${rule}`, { defaultValue: t("rules.unknown") }),
-		);
-	};
+	const complain = (error: unknown) => setProblem(sayWhy(error, t));
 
 	// A series writes records into the space, like a rule does.
 	const mayWrite = useWhatIMayDo(spaceId).may("recurrence.write");

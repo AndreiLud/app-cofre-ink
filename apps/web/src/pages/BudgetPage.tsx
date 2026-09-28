@@ -29,6 +29,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
@@ -111,19 +112,7 @@ export function BudgetPage() {
 		void queries.invalidateQueries({ queryKey: ["savings"] });
 	};
 
-	const complain = (error: unknown) => {
-		const rule =
-			error !== null && typeof error === "object" && "rule" in error
-				? String((error as { rule: unknown }).rule)
-				: null;
-		setProblem(
-			rule === null
-				? error instanceof Error
-					? error.message
-					: String(error)
-				: t(`rules.${rule}`, { defaultValue: t("rules.unknown") }),
-		);
-	};
+	const complain = (error: unknown) => setProblem(sayWhy(error, t));
 
 	// The plan of the space: limits, goals and the promise to save first. Everybody sees
 	// it, because a limit nobody knows about is not a limit, and the people who may write

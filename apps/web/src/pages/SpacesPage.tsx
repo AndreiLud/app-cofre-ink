@@ -18,6 +18,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SpacePeople } from "../components/SpacePeople.tsx";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
@@ -134,7 +135,7 @@ export function SpacesPage() {
 			void queries.invalidateQueries();
 			if (done.made) selectSpace(done.space.id);
 		},
-		onError: (error: unknown) => setProblem(error instanceof Error ? error.message : String(error)),
+		onError: (error: unknown) => setProblem(sayWhy(error, t)),
 	});
 
 	function submit(event: FormEvent) {

@@ -21,6 +21,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
@@ -52,19 +53,7 @@ export function RulesSection({ spaceId, categories }: RulesSectionProps) {
 		void queries.invalidateQueries({ queryKey: ["transactions"] });
 	};
 
-	const complain = (error: unknown) => {
-		const rule =
-			error !== null && typeof error === "object" && "rule" in error
-				? String((error as { rule: unknown }).rule)
-				: null;
-		setProblem(
-			rule === null
-				? error instanceof Error
-					? error.message
-					: String(error)
-				: t(`rules.${rule}`, { defaultValue: t("rules.unknown") }),
-		);
-	};
+	const complain = (error: unknown) => setProblem(sayWhy(error, t));
 
 	// A rule writes records into the space, so it is set by the people who may write them.
 	const mayWrite = useWhatIMayDo(spaceId).may("rule.write");

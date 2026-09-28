@@ -37,6 +37,7 @@ import { type ChangeEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
 import { FileTooLargeError, LARGEST_FILE, readPickedFile } from "../lib/download.ts";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import {
@@ -333,7 +334,7 @@ export function ImportPage() {
 			setSign(null);
 			void queries.invalidateQueries();
 		},
-		onError: (error: unknown) => setProblem(error instanceof Error ? error.message : String(error)),
+		onError: (error: unknown) => setProblem(sayWhy(error, t)),
 	});
 
 	const duplicates = marked.filter((record) => record.duplicateOf !== null).length;

@@ -2,13 +2,14 @@
 // much there is, and what falls due in the next days.
 
 import { addDays, monthOf, noticesFor, todayIn } from "@cofre/core";
-import { Button, EmptyState, InsightTitle, Panel, Segmented, Skeleton } from "@cofre/ui";
+import { Button, Callout, EmptyState, InsightTitle, Panel, Segmented, Skeleton } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Findings } from "../components/Findings.tsx";
 import { Value } from "../components/Value.tsx";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
@@ -27,6 +28,7 @@ export function DashboardPage() {
 	// One life, more than one space. The consolidated view adds them together, and it
 	// only exists when there is more than one to add.
 	const [across, setAcross] = useState<"space" | "everything">("space");
+	const [problem, setProblem] = useState<string | null>(null);
 	const consolidated = across === "everything" && spaces.length > 1;
 
 	const accounts = useQuery({
@@ -114,10 +116,14 @@ export function DashboardPage() {
 	const settle = useMutation({
 		mutationFn: async (id: string) => session?.transactions.settle(id),
 		onSuccess: () => {
+			setProblem(null);
 			void queries.invalidateQueries({ queryKey: ["transactions"] });
 			void queries.invalidateQueries({ queryKey: ["balances"] });
 			void queries.invalidateQueries({ queryKey: ["advice"] });
 		},
+		// The overview is the screen somebody is most likely to be on, and this was the
+		// one button on it that failed without saying anything.
+		onError: (error: unknown) => setProblem(sayWhy(error, t)),
 	});
 
 	if (!currentSpace) return null;
@@ -180,6 +186,8 @@ export function DashboardPage() {
 
 	return (
 		<div className="space-y-5">
+			{problem ? <Callout tone="problem">{problem}</Callout> : null}
+
 			{/* The one number this screen exists for, on its own surface and at a size
 			    nothing else on the page comes near. Everything under it is detail. */}
 			<Panel className="border-accent/30 bg-gradient-to-b from-accentSoft/60 to-panel">
