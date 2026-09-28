@@ -195,9 +195,12 @@ test.describe("server mode", () => {
 			.click();
 		await ana.getByRole("menuitem", { name: "Dividir com a casa" }).click();
 
-		// The people of the house, and Carla is not one of them.
+		// The people of the house, and Carla is not one of them. Ana is holding the
+		// screen, so she is "you" rather than her own name, which is what the list of
+		// members has always called whoever is reading it.
 		const dialog = ana.getByRole("dialog");
-		await expect(dialog.getByRole("option", { name: "Ana" })).toHaveCount(1);
+		await expect(dialog.getByRole("option", { name: "Você" })).toHaveCount(1);
+		await expect(dialog.getByRole("option", { name: "Ana" })).toHaveCount(0);
 		await expect(dialog.getByRole("option", { name: "Joao" })).toHaveCount(1);
 		await expect(dialog.getByRole("option", { name: "Carla" })).toHaveCount(0);
 
