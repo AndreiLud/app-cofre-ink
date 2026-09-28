@@ -12,7 +12,7 @@ import {
 	toDecimalString,
 	zero,
 } from "./money.ts";
-import { parseMoney } from "./parse.ts";
+import { parseMoney, parseScaled } from "./parse.ts";
 
 // Intl puts a narrow no break space between the symbol and the number.
 const plain = (text: string) => text.replace(/ | /g, " ");
@@ -113,5 +113,53 @@ describe("parseMoney", () => {
 
 	it("refuses text with no number", () => {
 		expect(() => parseMoney("sem valor")).toThrow(MoneyError);
+	});
+});
+
+/**
+ * The same reading, to a scale that is not a currency.
+ *
+ * A quantity of units of a fund takes eight decimal places, and the thousands rule that
+ * is right for money is wrong there: three digits after a lone separator is a third
+ * decimal place and not a group, because there is no rule saying a quantity stops at two.
+ * An eighth of a unit was read as a hundred and twenty five of them.
+ */
+describe("parseScaled", () => {
+	const UNITS = 8;
+
+	const asAQuantity: Array<[string, number]> = [
+		["0.125", 12_500_000],
+		["0,125", 12_500_000],
+		["1.234", 123_400_000],
+		["0.005", 500_000],
+		["10.5", 1_050_000_000],
+		["1,5", 150_000_000],
+		["0.12345678", 12_345_678],
+		["1.000,50", 100_050_000_000],
+		["1,000.50", 100_050_000_000],
+		["7", 700_000_000],
+	];
+
+	for (const [input, expected] of asAQuantity) {
+		it(`reads ${input} as a quantity`, () => {
+			expect(parseScaled(input, UNITS, { groupsOfThree: false })).toBe(expected);
+		});
+	}
+
+	it("keeps the thousands rule for money, where it belongs", () => {
+		// The same text, read the two ways, which is the whole reason the option exists.
+		expect(parseScaled("1.234", 2)).toBe(123_400);
+		expect(parseScaled("1.234", UNITS, { groupsOfThree: false })).toBe(123_400_000);
+	});
+
+	it("rounds what does not fit, at either scale", () => {
+		expect(parseScaled("0,123456789", UNITS, { groupsOfThree: false })).toBe(12_345_679);
+		expect(parseScaled("12,3456", 2)).toBe(1235);
+	});
+
+	it("refuses what it cannot read, so nothing wrong is written down", () => {
+		for (const bad of ["", "   ", "cinco", "1,5,0"]) {
+			expect(() => parseScaled(bad, UNITS, { groupsOfThree: false })).toThrow(MoneyError);
+		}
 	});
 });

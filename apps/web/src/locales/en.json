@@ -178,6 +178,7 @@
 		"account": "In which account",
 		"accountHint": "Usually an investment account, but it can be any of them.",
 		"quantity": "Quantity",
+		"quantityHint": "How many units or shares. A comma or a period for the decimals, and there may be more than two.",
 		"unitPrice": "Price today",
 		"cost": "What it cost in total",
 		"costHint": "Left empty, I take it to have cost what it is worth today.",

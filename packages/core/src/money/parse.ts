@@ -40,7 +40,11 @@ function detectSign(text: string): { sign: number; rest: string } {
 	return { sign, rest };
 }
 
-function guessDecimalSeparator(text: string, digits: number): "," | "." | null {
+function guessDecimalSeparator(
+	text: string,
+	digits: number,
+	groupsOfThree: boolean,
+): "," | "." | null {
 	const lastComma = text.lastIndexOf(",");
 	const lastPeriod = text.lastIndexOf(".");
 
@@ -52,8 +56,11 @@ function guessDecimalSeparator(text: string, digits: number): "," | "." | null {
 	const following = text.length - position - 1;
 	const occurrences = text.split(separator).length - 1;
 
-	// Three digits after a single separator is a thousands group, such as 1.234.
-	if (following === 3 && (occurrences > 1 || digits !== 3)) return null;
+	// Three digits after a single separator is a thousands group, such as 1.234. True of
+	// an amount of money, where two decimal places are the rule and a third digit says
+	// the separator was never a decimal mark at all. Not true of a field that takes
+	// eight: there a lone separator is somebody writing a fraction.
+	if (groupsOfThree && following === 3 && (occurrences > 1 || digits !== 3)) return null;
 	return separator;
 }
 
@@ -67,15 +74,28 @@ function guessDecimalSeparator(text: string, digits: number): "," | "." | null {
 export function parseScaled(
 	input: string,
 	digits: number,
-	options: { decimalSeparator?: "," | "." } = {},
+	options: {
+		decimalSeparator?: "," | ".";
+		/**
+		 * Whether a lone separator with three digits after it is a thousands group.
+		 *
+		 * True for money, where it is: nobody writes a third decimal place on an amount,
+		 * so 1.234 is a thousand and not one and a bit. False for a quantity, where the
+		 * field takes eight decimal places and 0.125 of a unit is an ordinary thing to
+		 * own. It was read as a hundred and twenty five units.
+		 */
+		groupsOfThree?: boolean;
+	} = {},
 ): number {
+	const groupsOfThree = options.groupsOfThree !== false;
 	const { sign, rest } = detectSign(String(input));
 	const cleaned = rest.replace(/[^\d.,]/g, "");
 	if (cleaned === "") {
 		throw new MoneyError(`no number found in "${input}"`);
 	}
 
-	const separator = options.decimalSeparator ?? guessDecimalSeparator(cleaned, digits);
+	const separator =
+		options.decimalSeparator ?? guessDecimalSeparator(cleaned, digits, groupsOfThree);
 	const other = separator === "," ? "." : ",";
 	const withoutGroups =
 		separator === null ? cleaned.replace(/[.,]/g, "") : cleaned.split(other).join("");

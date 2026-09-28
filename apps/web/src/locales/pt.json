@@ -178,6 +178,7 @@
 		"account": "Em qual conta",
 		"accountHint": "Costuma ser uma conta do tipo investimento, mas pode ser qualquer uma.",
 		"quantity": "Quantidade",
+		"quantityHint": "Quantas cotas ou unidades. Vírgula ou ponto para as casas decimais, e pode ter mais de duas.",
 		"unitPrice": "Preço de hoje",
 		"cost": "Quanto custou no total",
 		"costHint": "Em branco, considero que custou o que vale hoje.",

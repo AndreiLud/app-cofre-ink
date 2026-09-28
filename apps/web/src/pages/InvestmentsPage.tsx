@@ -579,10 +579,13 @@ export function InvestmentsPage() {
 							.map((account) => ({ value: account.id, label: account.name }))}
 						hint={t("investments.accountHint")}
 					/>
+					{/* The one field on this form whose separator is read differently from the
+					    two below it, and it was the one with nothing said about it. */}
 					<Field
 						label={t("investments.quantity")}
 						value={quantity}
 						onChange={(event) => setQuantity(event.target.value)}
+						hint={t("investments.quantityHint")}
 						numeric={true}
 					/>
 					<Field

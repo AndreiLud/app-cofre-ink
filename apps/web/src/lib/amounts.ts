@@ -26,7 +26,11 @@ export function readAmount(text: string, currency?: CurrencyCode): number {
  * not know which of the two it is and will use whichever separator they always use.
  */
 export function readQuantity(text: string, digits: number): number {
-	return parseScaled(text, digits);
+	// A lone separator marks the decimals here, always. The thousands rule belongs to
+	// money, where a third digit after the separator says it was never a decimal mark; a
+	// field that takes eight decimal places has no such tell, and it turned an eighth of
+	// a unit into a hundred and twenty five of them.
+	return parseScaled(text, digits, { groupsOfThree: false });
 }
 
 /**
