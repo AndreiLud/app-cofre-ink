@@ -841,7 +841,7 @@
 		"amountPlaceholder": "0.00",
 		"description": "Description",
 		"descriptionPlaceholder": "Corner grocery",
-		"amountError": "I could not read that amount. Write something like 42,90."
+		"amountError": "I could not read that amount. Write something like 42.90."
 	},
 	"table": {
 		"date": "Date",
