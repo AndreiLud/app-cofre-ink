@@ -44,21 +44,23 @@ export function DashboardPage() {
 	});
 
 	const balancesEverywhere = useQuery({
-		queryKey: ["balances", "everywhere", spaces.map((space) => space.id).join(",")],
+		queryKey: ["balances", "everywhere", spaces.map((space) => space.id).join(","), today],
 		enabled: Boolean(session) && consolidated,
 		queryFn: async () => {
 			if (!session) return [];
+			// Each space is read on its own day. Two spaces can sit in two timezones, and
+			// the one that is open is not the one that decides for the other.
 			const lists = await Promise.all(
-				spaces.map((space) => session.transactions.balances(space.id)),
+				spaces.map((space) => session.transactions.balances(space.id, todayIn(space.timezone))),
 			);
 			return lists.flat();
 		},
 	});
 
 	const balances = useQuery({
-		queryKey: ["balances", spaceId],
+		queryKey: ["balances", spaceId, today],
 		enabled: Boolean(session && currentSpace),
-		queryFn: () => session?.transactions.balances(spaceId) ?? [],
+		queryFn: () => session?.transactions.balances(spaceId, today) ?? [],
 	});
 
 	const upcoming = useQuery({

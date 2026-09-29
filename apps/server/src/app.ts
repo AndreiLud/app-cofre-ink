@@ -779,9 +779,14 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		return context.json(written, 201);
 	});
 
-	app.get("/api/spaces/:id/balances", async (context) =>
-		context.json(await context.get("session").transactions.balances(context.req.param("id"))),
-	);
+	// The day comes from the caller, because the day a balance is read on is the day in
+	// the timezone of the space and not the day of whatever machine is answering.
+	app.get("/api/spaces/:id/balances", async (context) => {
+		const query = z.object({ today: calendarDate }).parse(context.req.query());
+		return context.json(
+			await context.get("session").transactions.balances(context.req.param("id"), query.today),
+		);
+	});
 
 	// The same change over a selection. It comes before the route with the identifier
 	// so that "several" is never read as a record called "several".

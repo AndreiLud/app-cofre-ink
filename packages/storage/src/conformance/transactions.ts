@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { NotFoundError, RuleError } from "../errors.ts";
 import type { Account } from "../models.ts";
 import type { Session } from "../session.ts";
-import { type AdapterUnderTest, type Fixture, prepare } from "./setup.ts";
+import { type AdapterUnderTest, type Fixture, LATER, prepare } from "./setup.ts";
 
 type Ready = {
 	fixture: Fixture;
@@ -136,7 +136,7 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 				expect(transfer?.amount).toBe(30_000);
 				expect(transfer?.counterAccountId).toBe(ready.savings.id);
 
-				const balances = await ready.fixture.asAna.transactions.balances(ready.spaceId);
+				const balances = await ready.fixture.asAna.transactions.balances(ready.spaceId, LATER);
 				expect(balanceOf(balances, ready.checking.id).settled).toBe(70_000);
 				expect(balanceOf(balances, ready.savings.id).settled).toBe(30_000);
 
@@ -269,7 +269,7 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 					status: "planned",
 				});
 
-				const balances = await ready.fixture.asAna.transactions.balances(ready.spaceId);
+				const balances = await ready.fixture.asAna.transactions.balances(ready.spaceId, LATER);
 				const checking = balanceOf(balances, ready.checking.id);
 				expect(checking.settled).toBe(100_000);
 				expect(checking.projected).toBe(80_000);
@@ -292,8 +292,96 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 				});
 
 				await ready.fixture.asAna.transactions.settle(planned?.id ?? "");
-				const balances = await ready.fixture.asAna.transactions.balances(ready.spaceId);
+				const balances = await ready.fixture.asAna.transactions.balances(ready.spaceId, LATER);
 				expect(balanceOf(balances, ready.checking.id).settled).toBe(80_000);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		it("keeps a record whose day has not arrived out of the settled balance", async () => {
+			const ready = await readySpace(adapter);
+			try {
+				await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 20_000,
+					happenedOn: "2026-10-15",
+					description: "Aluguel de outubro",
+					accountId: ready.checking.id,
+				});
+
+				// Written as a fact, dated in a month that has not come. It is a fact about
+				// October and it is not money that has left today.
+				const now = await ready.fixture.asAna.transactions.balances(ready.spaceId, "2026-09-29");
+				expect(balanceOf(now, ready.checking.id).settled).toBe(100_000);
+				expect(balanceOf(now, ready.checking.id).projected).toBe(80_000);
+
+				const after = await ready.fixture.asAna.transactions.balances(ready.spaceId, "2026-10-15");
+				expect(balanceOf(after, ready.checking.id).settled).toBe(80_000);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		it("counts each part of a purchase in parts in the month of that part", async () => {
+			const ready = await readySpace(adapter);
+			try {
+				// Three parts, written as facts, dated a month apart. All three used to leave
+				// the balance on the afternoon of the purchase, and the same two were counted
+				// again as money still to come by the reading of instalments ahead.
+				await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 30_000,
+					happenedOn: "2026-09-05",
+					description: "Fone de ouvido",
+					accountId: ready.checking.id,
+					installments: 3,
+				});
+
+				const inSeptember = await ready.fixture.asAna.transactions.balances(
+					ready.spaceId,
+					"2026-09-29",
+				);
+				expect(balanceOf(inSeptember, ready.checking.id).settled).toBe(90_000);
+
+				const inOctober = await ready.fixture.asAna.transactions.balances(
+					ready.spaceId,
+					"2026-10-06",
+				);
+				expect(balanceOf(inOctober, ready.checking.id).settled).toBe(80_000);
+
+				const inNovember = await ready.fixture.asAna.transactions.balances(
+					ready.spaceId,
+					"2026-11-06",
+				);
+				expect(balanceOf(inNovember, ready.checking.id).settled).toBe(70_000);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		it("counts money arriving on the other side of a transfer by the day too", async () => {
+			const ready = await readySpace(adapter);
+			try {
+				await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "transfer",
+					amount: 50_000,
+					happenedOn: "2026-10-10",
+					description: "Para a poupanca",
+					accountId: ready.checking.id,
+					counterAccountId: ready.savings.id,
+				});
+
+				const before = await ready.fixture.asAna.transactions.balances(ready.spaceId, "2026-09-29");
+				expect(balanceOf(before, ready.checking.id).settled).toBe(100_000);
+				expect(balanceOf(before, ready.savings.id).settled).toBe(0);
+
+				const after = await ready.fixture.asAna.transactions.balances(ready.spaceId, "2026-10-10");
+				expect(balanceOf(after, ready.checking.id).settled).toBe(50_000);
+				expect(balanceOf(after, ready.savings.id).settled).toBe(50_000);
 			} finally {
 				await ready.fixture.close();
 			}
@@ -725,7 +813,7 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 
 				// Ana wrote a hundred, the logger wrote fifty, and every figure below has to
 				// be made of the fifty alone.
-				const balances = await asLogger.transactions.balances(spaceId);
+				const balances = await asLogger.transactions.balances(ready.spaceId, LATER);
 				const settled = balances.reduce((sum, one) => sum + one.settled, 0);
 				expect(settled).toBe(-5000);
 

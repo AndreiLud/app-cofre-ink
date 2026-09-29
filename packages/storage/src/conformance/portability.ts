@@ -14,7 +14,7 @@ import { backupFromBundle } from "../repositories/backup.ts";
 import { openSession, type Session } from "../session.ts";
 import { applyPeople, changesSince, peopleInSpace, replicableOnly } from "../sync.ts";
 import { BUNDLE_FORMAT, BUNDLE_VERSION, type SyncBundle } from "../syncStore.ts";
-import { type AdapterUnderTest, prepare } from "./setup.ts";
+import { type AdapterUnderTest, LATER, prepare } from "./setup.ts";
 
 export function runPortabilityConformance(adapter: AdapterUnderTest): void {
 	/**
@@ -74,7 +74,7 @@ export function runPortabilityConformance(adapter: AdapterUnderTest): void {
 				expect(written.find((record) => record.amount === -4290)?.externalId).toBe("abc");
 				expect(written.every((record) => record.status === "settled")).toBe(true);
 
-				const balances = await fixture.asAna.transactions.balances(space.id);
+				const balances = await fixture.asAna.transactions.balances(space.id, LATER);
 				expect(balances[0]?.settled).toBe(495_710);
 			} finally {
 				await fixture.close();

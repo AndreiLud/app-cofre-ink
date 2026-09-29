@@ -724,8 +724,22 @@ export function createTransactionsRepository(context: RepositoryContext) {
 		/**
 		 * What each account is worth. Settled counts what has happened, projected also
 		 * counts what is planned, which is the number that answers "will this clear".
+		 *
+		 * Happened means two things and it used to mean one. A record counts in the settled
+		 * balance when somebody has said it is a fact and its day has arrived, and before
+		 * this both halves of that sentence were the first half. A purchase in six parts is
+		 * six rows written as facts, five of them dated in months to come, and all six were
+		 * leaving the balance on the afternoon of the purchase, while the same five were
+		 * also counted as still to come by the instalments reading next door. The day is the
+		 * other half and it always was: the comment on that reading says so in as many
+		 * words, that a part dated in February is money that will leave in February however
+		 * it is marked today.
+		 *
+		 * The day is passed in rather than read from a clock here, the way the budget, the
+		 * goals and the check up already take it, because a repository that reads the wall
+		 * clock is a repository whose tests pass until midnight in some timezone.
 		 */
-		async balances(spaceId: string): Promise<AccountBalance[]> {
+		async balances(spaceId: string, today: CalendarDate): Promise<AccountBalance[]> {
 			assertCan(context.actor(), spaceId, "account.read");
 
 			/**
@@ -749,10 +763,10 @@ export function createTransactionsRepository(context: RepositoryContext) {
 				  COALESCE((SELECT SUM(CASE WHEN t."kind" = 'transfer' THEN -t."amount" ELSE t."amount" END)
 				            FROM "transactions" t
 				            WHERE t."account_id" = a."id" AND t."deleted_at" IS NULL
-				              AND t."status" = 'settled' ${only}), 0) AS out_settled,
+				              AND t."status" = 'settled' ${only} AND t."happened_on" <= ?), 0) AS out_settled,
 				  COALESCE((SELECT SUM(t."amount") FROM "transactions" t
 				            WHERE t."counter_account_id" = a."id" AND t."deleted_at" IS NULL
-				              AND t."status" = 'settled' ${only}), 0) AS in_settled,
+				              AND t."status" = 'settled' ${only} AND t."happened_on" <= ?), 0) AS in_settled,
 				  COALESCE((SELECT SUM(CASE WHEN t."kind" = 'transfer' THEN -t."amount" ELSE t."amount" END)
 				            FROM "transactions" t
 				            WHERE t."account_id" = a."id" AND t."deleted_at" IS NULL ${only}), 0) AS out_all,
@@ -761,7 +775,7 @@ export function createTransactionsRepository(context: RepositoryContext) {
 				 FROM "accounts" a
 				 WHERE a."space_id" = ? AND a."deleted_at" IS NULL
 				 ORDER BY a."name"`,
-				[...who, ...who, ...who, ...who, spaceId],
+				[...who, today, ...who, today, ...who, ...who, spaceId],
 			);
 
 			return rows.map((row) => {

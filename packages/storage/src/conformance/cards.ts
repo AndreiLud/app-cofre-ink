@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { migrate } from "../migrate.ts";
-import { type AdapterUnderTest, prepare } from "./setup.ts";
+import { type AdapterUnderTest, LATER, prepare } from "./setup.ts";
 
 export function runCardConformance(adapter: AdapterUnderTest): void {
 	describe("cards", () => {
@@ -331,7 +331,7 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 				// is made of.
 				const kept = await fixture.asAna.transactions.get(onDebit?.id ?? "");
 				expect(kept.accountId).toBe(checking.id);
-				const balances = await fixture.asAna.transactions.balances(space.id);
+				const balances = await fixture.asAna.transactions.balances(space.id, LATER);
 				expect(balances.find((one) => one.accountId === checking.id)?.settled).toBe(-2_000);
 
 				// And the invoice still has every part of the purchase, on the month it was

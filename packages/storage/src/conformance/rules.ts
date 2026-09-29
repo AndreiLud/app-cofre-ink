@@ -7,7 +7,7 @@
 import { addDays, todayIn } from "@cofre/core";
 import { describe, expect, it } from "vitest";
 import { NotFoundError, RuleError } from "../errors.ts";
-import { type AdapterUnderTest, prepare } from "./setup.ts";
+import { type AdapterUnderTest, LATER, prepare } from "./setup.ts";
 
 export function runRuleConformance(adapter: AdapterUnderTest): void {
 	async function readySpace() {
@@ -264,7 +264,7 @@ export function runRuleConformance(adapter: AdapterUnderTest): void {
 				expect(rows.every((row) => row.categoryId === ready.market.id)).toBe(true);
 
 				// The settled balance is untouched, because none of this has happened.
-				const balances = await ready.fixture.asAna.transactions.balances(ready.spaceId);
+				const balances = await ready.fixture.asAna.transactions.balances(ready.spaceId, LATER);
 				expect(balances.find((one) => one.accountId === ready.account.id)?.settled).toBe(500_000);
 			} finally {
 				await ready.fixture.close();

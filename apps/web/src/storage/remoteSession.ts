@@ -5,7 +5,7 @@
 // What the screens get back has the same shape as the local one, so no screen knows
 // which of the two it is talking to.
 
-import { pickRule, solveWork } from "@cofre/core";
+import { type CalendarDate, pickRule, solveWork } from "@cofre/core";
 import type {
 	Account,
 	AccountBalance,
@@ -406,7 +406,8 @@ export function createRemoteSession(
 					: (await send<{ removed: number }>("/api/transactions/remove", "POST", { ids })).removed,
 			removeGroup: async (groupId: string) =>
 				(await send<{ removed: number }>(`/api/installments/${groupId}`, "DELETE")).removed,
-			balances: (spaceId: string) => get<AccountBalance[]>(`/api/spaces/${spaceId}/balances`),
+			balances: (spaceId: string, today: CalendarDate) =>
+				get<AccountBalance[]>(`/api/spaces/${spaceId}/balances?today=${today}`),
 		},
 
 		rules: {

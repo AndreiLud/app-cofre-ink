@@ -4,6 +4,7 @@
 // than letting the screens depend on the local implementation, is what makes the two
 // modes interchangeable instead of merely similar.
 
+import type { CalendarDate } from "@cofre/core";
 import type {
 	Account,
 	AccountBalance,
@@ -206,7 +207,8 @@ export type CofreSession = {
 		remove: (id: string) => Promise<void>;
 		removeMany: (ids: string[]) => Promise<number>;
 		removeGroup: (groupId: string) => Promise<number>;
-		balances: (spaceId: string) => Promise<AccountBalance[]>;
+		/** The day is the day in the timezone of the space, and the screen is what knows it. */
+		balances: (spaceId: string, today: CalendarDate) => Promise<AccountBalance[]>;
 	};
 	rules: {
 		list: (spaceId: string) => Promise<CategorizationRule[]>;

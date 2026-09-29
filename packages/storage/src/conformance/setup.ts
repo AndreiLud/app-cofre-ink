@@ -1,10 +1,21 @@
 // Shared scaffolding for the conformance suite.
 
+import type { CalendarDate } from "@cofre/core";
 import type { Driver } from "../driver.ts";
 import { migrate } from "../migrate.ts";
 import type { User } from "../models.ts";
 import { createUser } from "../repositories/users.ts";
 import { openSession, type Session } from "../session.ts";
+
+/**
+ * A day after everything the fixtures write.
+ *
+ * A balance takes the day it is read on, because a record counts once it is a fact and
+ * its day has come. Most of these tests are about the first half of that and not the
+ * second, so they read from far enough ahead that the day never decides anything, and
+ * the tests that are about the day pass one of their own.
+ */
+export const LATER = "2026-12-31" as CalendarDate;
 
 export type AdapterUnderTest = {
 	name: string;
