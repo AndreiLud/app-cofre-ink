@@ -226,6 +226,14 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 			amount: number;
 			happenedOn: CalendarDate;
 			month: CalendarMonth;
+			/**
+			 * What the record is called.
+			 *
+			 * Passed in rather than written here, because this package holds no copy and has
+			 * no language: a record the application writes has to read in the language the
+			 * person chose, and the screen is what knows which that is.
+			 */
+			description: string;
 		}): Promise<Transaction> {
 			const { account } = await cardAccount(input.accountId);
 			assertCan(context.actor(), account.spaceId, "transaction.create");
@@ -239,7 +247,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 				kind: "transfer",
 				amount: input.amount,
 				happenedOn: input.happenedOn,
-				description: `Pagamento da fatura ${input.month}`,
+				description: input.description,
 				accountId: input.fromAccountId,
 				counterAccountId: input.accountId,
 				invoiceMonth: input.month,
@@ -262,6 +270,14 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 			month: CalendarMonth;
 			fromAccountId: string;
 			today: CalendarDate;
+			/**
+			 * What each record is called, with `{{month}}` where the month goes.
+			 *
+			 * A pattern and not a function, because in server mode this call is an HTTP
+			 * request and a function does not travel. Same reason as the one above: this
+			 * package holds no copy and the screen is what knows the language.
+			 */
+			description: string;
 		}): Promise<number> {
 			const { account } = await cardAccount(input.accountId);
 			assertCan(context.actor(), account.spaceId, "transaction.create");
@@ -275,7 +291,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 					kind: "transfer",
 					amount: state.left,
 					happenedOn: state.dueOn,
-					description: `Pagamento da fatura ${state.month}`,
+					description: input.description.replace("{{month}}", state.month),
 					accountId: input.fromAccountId,
 					counterAccountId: input.accountId,
 					invoiceMonth: state.month,

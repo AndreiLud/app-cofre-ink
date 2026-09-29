@@ -637,6 +637,87 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		);
 	});
 
+	const calendarMonth = z.string().regex(/^\d{4}-\d{2}$/);
+
+	app.get("/api/accounts/:id/invoices", async (context) => {
+		const query = z.object({ today: calendarDate }).parse(context.req.query());
+		return context.json(
+			await context.get("session").invoices.list(context.req.param("id"), query.today),
+		);
+	});
+
+	app.get("/api/accounts/:id/invoices/:month", async (context) => {
+		const query = z.object({ today: calendarDate }).parse(context.req.query());
+		return context.json(
+			await context
+				.get("session")
+				.invoices.get(
+					context.req.param("id"),
+					calendarMonth.parse(context.req.param("month")),
+					query.today,
+				),
+		);
+	});
+
+	app.get("/api/spaces/:id/invoices", async (context) => {
+		const query = z.object({ today: calendarDate }).parse(context.req.query());
+		return context.json(
+			await context.get("session").invoices.standing(context.req.param("id"), query.today),
+		);
+	});
+
+	app.post("/api/accounts/:id/invoices/pay", async (context) => {
+		const input = z
+			.object({
+				fromAccountId: z.string().min(1),
+				amount: z.number().int().positive(),
+				happenedOn: calendarDate,
+				month: calendarMonth,
+				description: z.string().trim().min(1).max(200),
+			})
+			.parse(await context.req.json());
+		return context.json(
+			await context.get("session").invoices.pay({ accountId: context.req.param("id"), ...input }),
+			201,
+		);
+	});
+
+	app.post("/api/accounts/:id/invoices/paidUntil", async (context) => {
+		const input = z
+			.object({
+				fromAccountId: z.string().min(1),
+				month: calendarMonth,
+				today: calendarDate,
+				description: z.string().trim().min(1).max(200),
+			})
+			.parse(await context.req.json());
+		return context.json({
+			written: await context
+				.get("session")
+				.invoices.markPaidUntil({ accountId: context.req.param("id"), ...input }),
+		});
+	});
+
+	app.post("/api/accounts/:id/invoices/closedOn", async (context) => {
+		const input = z
+			.object({ month: calendarMonth, day: calendarDate })
+			.parse(await context.req.json());
+		return context.json({
+			moved: await context
+				.get("session")
+				.invoices.closedOn({ accountId: context.req.param("id"), ...input }),
+		});
+	});
+
+	app.post("/api/transactions/:id/invoice/move", async (context) => {
+		const input = z
+			.object({ towards: z.enum(["earlier", "later"]) })
+			.parse(await context.req.json());
+		return context.json({
+			moved: await context.get("session").invoices.move(context.req.param("id"), input.towards),
+		});
+	});
+
 	app.post("/api/accounts/:id/archive", async (context) =>
 		context.json(await context.get("session").accounts.archive(context.req.param("id"))),
 	);

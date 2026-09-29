@@ -23,6 +23,7 @@ export * from "./repositories/imports.ts";
 export * from "./repositories/indices.ts";
 export * from "./repositories/investments.ts";
 export * from "./repositories/invitations.ts";
+export * from "./repositories/invoices.ts";
 export * from "./repositories/members.ts";
 export * from "./repositories/projections.ts";
 export * from "./repositories/recurrences.ts";

@@ -4,7 +4,7 @@
 // than letting the screens depend on the local implementation, is what makes the two
 // modes interchangeable instead of merely similar.
 
-import type { BenefitState, CalendarDate } from "@cofre/core";
+import type { BenefitState, CalendarDate, InvoiceState } from "@cofre/core";
 import type {
 	Account,
 	AccountBalance,
@@ -15,6 +15,7 @@ import type {
 	BudgetWithProgress,
 	Card,
 	CardKind,
+	CardStanding,
 	CategorizationRule,
 	Category,
 	CategoryTotal,
@@ -172,6 +173,32 @@ export type CofreSession = {
 		archive: (id: string) => Promise<Account>;
 		unarchive: (id: string) => Promise<Account>;
 		remove: (id: string) => Promise<void>;
+	};
+	invoices: {
+		/** Every invoice of one card, oldest first. */
+		list: (accountId: string, today: CalendarDate) => Promise<InvoiceState[]>;
+		/** One invoice of one card, whether or not anything is on it. */
+		get: (accountId: string, month: string, today: CalendarDate) => Promise<InvoiceState>;
+		/** Where every card of a space stands today. Empty for somebody who sees only their own. */
+		standing: (spaceId: string, today: CalendarDate) => Promise<CardStanding[]>;
+		pay: (input: {
+			accountId: string;
+			fromAccountId: string;
+			amount: number;
+			happenedOn: CalendarDate;
+			month: string;
+			description: string;
+		}) => Promise<Transaction>;
+		markPaidUntil: (input: {
+			accountId: string;
+			month: string;
+			fromAccountId: string;
+			today: CalendarDate;
+			/** With `{{month}}` where the month of each invoice goes. */
+			description: string;
+		}) => Promise<number>;
+		move: (id: string, towards: "earlier" | "later") => Promise<number>;
+		closedOn: (input: { accountId: string; month: string; day: CalendarDate }) => Promise<number>;
 	};
 	/**
 	 * The only door that deletes rather than hides. It is separate from everything else

@@ -5,7 +5,13 @@
 // What the screens get back has the same shape as the local one, so no screen knows
 // which of the two it is talking to.
 
-import { type BenefitState, type CalendarDate, pickRule, solveWork } from "@cofre/core";
+import {
+	type BenefitState,
+	type CalendarDate,
+	type InvoiceState,
+	pickRule,
+	solveWork,
+} from "@cofre/core";
 import type {
 	Account,
 	AccountBalance,
@@ -14,6 +20,7 @@ import type {
 	Budget,
 	BudgetWithProgress,
 	Card,
+	CardStanding,
 	CategorizationRule,
 	Category,
 	CategoryTotal,
@@ -414,6 +421,36 @@ export function createRemoteSession(
 				(await send<{ removed: number }>(`/api/installments/${groupId}`, "DELETE")).removed,
 			balances: (spaceId: string, today: CalendarDate) =>
 				get<AccountBalance[]>(`/api/spaces/${spaceId}/balances?today=${today}`),
+		},
+
+		invoices: {
+			list: (accountId: string, today: CalendarDate) =>
+				get<InvoiceState[]>(`/api/accounts/${accountId}/invoices?today=${today}`),
+			get: (accountId: string, month: string, today: CalendarDate) =>
+				get<InvoiceState>(`/api/accounts/${accountId}/invoices/${month}?today=${today}`),
+			standing: (spaceId: string, today: CalendarDate) =>
+				get<CardStanding[]>(`/api/spaces/${spaceId}/invoices?today=${today}`),
+			pay: ({ accountId, ...rest }) =>
+				send<Transaction>(`/api/accounts/${accountId}/invoices/pay`, "POST", rest),
+			markPaidUntil: async ({ accountId, ...rest }) =>
+				(
+					await send<{ written: number }>(
+						`/api/accounts/${accountId}/invoices/paidUntil`,
+						"POST",
+						rest,
+					)
+				).written,
+			move: async (id: string, towards: "earlier" | "later") =>
+				(await send<{ moved: number }>(`/api/transactions/${id}/invoice/move`, "POST", { towards }))
+					.moved,
+			closedOn: async ({ accountId, ...rest }) =>
+				(
+					await send<{ moved: number }>(
+						`/api/accounts/${accountId}/invoices/closedOn`,
+						"POST",
+						rest,
+					)
+				).moved,
 		},
 
 		rules: {

@@ -238,4 +238,59 @@ test.describe("the card invoice", () => {
 		await expect(page.getByRole("heading", { level: 1 })).toContainText("fatura");
 		await expect(record(page, "Fone de ouvido 1/3")).toBeVisible();
 	});
+
+	test("puts a subscription charged to the card on the invoice", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Faturas");
+
+		// Writing a series never worked out which invoice it belonged to, so a subscription
+		// on a card was on no invoice at all and the card showed less than it would charge.
+		await expect(record(page, "Streaming")).toBeVisible();
+	});
+
+	test("pays the invoice, and says so", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Faturas");
+
+		await expect(page.getByText("Em aberto")).toBeVisible();
+		await page.getByRole("button", { name: "Pagar fatura" }).click();
+
+		// It comes filled in with what is left, so nobody pays an invoice twice by pressing
+		// the button the field handed them.
+		const amount = page.getByRole("dialog").getByLabel("Valor", { exact: true });
+		await expect(amount).not.toHaveValue("");
+		await page.getByRole("dialog").getByRole("button", { name: "Pagar fatura" }).click();
+
+		await expect(page.getByRole("heading", { level: 1 })).toContainText("está paga");
+		await expect(page.getByText("Já pago:")).toBeVisible();
+		// And the payment is not a purchase, so it is not in the table of what was charged.
+		await expect(record(page, "Pagamento da fatura")).toHaveCount(0);
+	});
+
+	test("pays part of an invoice and leaves the rest owing", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Faturas");
+
+		await page.getByRole("button", { name: "Pagar fatura" }).click();
+		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("100,00");
+		await page.getByRole("dialog").getByRole("button", { name: "Pagar fatura" }).click();
+
+		await expect(page.getByText("Paga em parte")).toBeVisible();
+		await expect(page.getByText("Falta:")).toBeVisible();
+	});
+
+	test("moves a purchase the bank closed onto another invoice, and keeps it there", async ({
+		page,
+	}) => {
+		await openCofre(page);
+		await go(page, "Faturas");
+
+		const row = page.getByRole("row").filter({ hasText: "Livraria" });
+		await row.getByRole("button", { name: "Ações do lançamento" }).click();
+		await page.getByRole("menuitem", { name: "Mover para a próxima fatura" }).click();
+
+		await expect(record(page, "Livraria")).toHaveCount(0);
+		await page.getByRole("button", { name: "Próxima" }).click();
+		await expect(record(page, "Livraria")).toBeVisible();
+	});
 });

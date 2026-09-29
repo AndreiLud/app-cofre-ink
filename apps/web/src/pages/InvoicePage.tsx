@@ -1,25 +1,36 @@
-// The card invoice: what it will charge, when it closes and when it falls due.
+// The card invoice: what it charged, whether it was paid, when it closes and when it
+// falls due.
 //
-// A purchase carries the invoice it landed on, written at the time it happened, so
-// this screen reads that stamp rather than working the dates out again. Changing the
-// closing day tomorrow does not move what already closed, which is the whole point of
-// stamping it.
+// A purchase carries the invoice it landed on, written at the time it happened, so this
+// screen reads that stamp rather than working the dates out again. Changing the closing
+// day tomorrow does not move what already closed, which is the whole point of stamping
+// it, and a purchase the bank closed a day either side can be moved from here and stays
+// moved.
+//
+// Whether it was paid is the half that did not exist. A payment is a transfer into the
+// card marked with the invoice it pays, and the standing comes from the model rather than
+// from this screen adding things up, so the overview and this screen cannot disagree.
 
 import {
 	addMonthsToMonth,
+	amountToPay,
+	type CalendarDate,
 	type CardCycle,
-	daysBetween,
-	invoiceClosingDate,
-	invoiceDueDate,
+	type InvoiceState,
 	invoiceMonthOf,
-	invoicePeriod,
 	todayIn,
 } from "@cofre/core";
 import {
 	Button,
 	Callout,
+	Dialog,
+	Disclosure,
 	EmptyState,
+	Field,
+	Icon,
 	InsightTitle,
+	Menu,
+	MenuItem,
 	Panel,
 	Select,
 	Skeleton,
@@ -30,11 +41,13 @@ import {
 	TableHeader,
 	TableRow,
 } from "@cofre/ui";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
+import { fillAmount, readAmount } from "../lib/amounts.ts";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
@@ -45,23 +58,29 @@ function dayAndMonth(date: string): string {
 
 /**
  * The sentence at the top says where this invoice stands, which is the thing a person
- * opens the screen to find out. Four states, and today is one of them.
+ * opens the screen to find out.
+ *
+ * Paid comes before every question about days, because an invoice that is settled is not
+ * one anybody needs to be told is three days late.
  */
 function headline(
 	t: (key: string, values?: Record<string, unknown>) => string,
 	month: string,
-	untilClosing: number,
-	untilDue: number,
+	state: InvoiceState | undefined,
 ): string {
-	if (untilClosing > 0) return t("invoice.openHeadline", { month, count: untilClosing });
-	if (untilDue > 0) return t("invoice.closedHeadline", { month, count: untilDue });
-	if (untilDue === 0) return t("invoice.dueTodayHeadline", { month });
-	return t("invoice.pastHeadline", { month, count: Math.abs(untilDue) });
+	if (!state) return t("invoice.openHeadline", { month, count: 0 });
+	if (state.standing === "paid") return t("invoice.paidHeadline", { month });
+	if (state.standing === "inCredit") return t("invoice.inCreditHeadline", { month });
+	if (state.daysToClose > 0) return t("invoice.openHeadline", { month, count: state.daysToClose });
+	if (state.daysToDue > 0) return t("invoice.closedHeadline", { month, count: state.daysToDue });
+	if (state.daysToDue === 0) return t("invoice.dueTodayHeadline", { month });
+	return t("invoice.pastHeadline", { month, count: Math.abs(state.daysToDue) });
 }
 
 export function InvoicePage() {
 	const { t, i18n } = useTranslation();
 	const { session, currentSpace } = useCofre();
+	const queries = useQueryClient();
 
 	const spaceId = currentSpace?.id ?? "";
 	/** Whether the way out of an empty screen is a way out for this person. */
@@ -72,6 +91,17 @@ export function InvoicePage() {
 
 	const [invoiceAccountId, setInvoiceAccountId] = useState("");
 	const [month, setMonth] = useState("");
+	const [problem, setProblem] = useState<string | null>(null);
+
+	const [paying, setPaying] = useState<InvoiceState | null>(null);
+	const [payFrom, setPayFrom] = useState("");
+	const [payAmount, setPayAmount] = useState("");
+	const [payOn, setPayOn] = useState("");
+	const [clearingOld, setClearingOld] = useState(false);
+	const [closedDay, setClosedDay] = useState("");
+
+	const mayPay = useWhatIMayDo(spaceId).may("transaction.create");
+	const mayMove = useWhatIMayDo(spaceId).may("transaction.update");
 
 	const accounts = useQuery({
 		queryKey: ["accounts", spaceId],
@@ -111,6 +141,112 @@ export function InvoicePage() {
 			}) ?? [],
 	});
 
+	// Where this invoice stands, from the model. The screen adds nothing up itself, so it
+	// cannot disagree with the overview about the same card.
+	const invoice = useQuery({
+		queryKey: ["invoices", invoiceAccount?.id, shown, today],
+		enabled: Boolean(session && invoiceAccount && shown !== "" && cycle),
+		queryFn: () => session?.invoices.get(invoiceAccount?.id ?? "", shown, today) ?? null,
+	});
+
+	const older = useQuery({
+		queryKey: ["invoices", invoiceAccount?.id, "all", today],
+		enabled: Boolean(session && invoiceAccount && cycle),
+		queryFn: () => session?.invoices.list(invoiceAccount?.id ?? "", today) ?? [],
+	});
+
+	/**
+	 * Where a payment can come from: money, and never the card paying itself.
+	 *
+	 * Current accounts first, because an invoice is paid by the bank and not out of a
+	 * pocket, and the list is sorted by name, so the default was whichever account somebody
+	 * happened to have called something early in the alphabet.
+	 */
+	const payableFrom = (accounts.data ?? [])
+		.filter((one) => one.kind !== "credit" && one.kind !== "voucher")
+		.sort((left, right) => Number(right.kind === "checking") - Number(left.kind === "checking"));
+
+	function afterInvoiceChange() {
+		setProblem(null);
+		void queries.invalidateQueries({ queryKey: ["invoices"] });
+		void queries.invalidateQueries({ queryKey: ["transactions"] });
+		void queries.invalidateQueries({ queryKey: ["balances"] });
+	}
+
+	function openPayment(state: InvoiceState) {
+		setProblem(null);
+		setPaying(state);
+		setPayFrom(payableFrom[0]?.id ?? "");
+		// What is left, and not what was charged: paying an invoice twice because the field
+		// came back with the whole amount is a mistake this screen can simply not make.
+		setPayAmount(fillAmount(amountToPay(state), i18n.resolvedLanguage, invoiceAccount?.currency));
+		setPayOn(state.dueOn);
+	}
+
+	const pay = useMutation({
+		mutationFn: async () => {
+			if (!session || !invoiceAccount || !paying) throw new Error("no session");
+			return session.invoices.pay({
+				accountId: invoiceAccount.id,
+				fromAccountId: payFrom,
+				amount: readAmount(payAmount, invoiceAccount.currency),
+				happenedOn: payOn as CalendarDate,
+				month: paying.month,
+				description: t("invoice.paymentOf", { month: paying.month }),
+			});
+		},
+		onSuccess: () => {
+			setPaying(null);
+			afterInvoiceChange();
+		},
+		onError: (error: unknown) => setProblem(sayWhy(error, t)),
+	});
+
+	const clearOld = useMutation({
+		mutationFn: async () => {
+			if (!session || !invoiceAccount) throw new Error("no session");
+			return session.invoices.markPaidUntil({
+				accountId: invoiceAccount.id,
+				month: shown,
+				fromAccountId: payFrom === "" ? (payableFrom[0]?.id ?? "") : payFrom,
+				today,
+				// The month is put in by the model, one record at a time, so what travels is
+				// the sentence with a hole in it.
+				description: t("invoice.paymentOf", { month: "{{month}}" }),
+			});
+		},
+		onSuccess: () => {
+			setClearingOld(false);
+			afterInvoiceChange();
+		},
+		onError: (error: unknown) => setProblem(sayWhy(error, t)),
+	});
+
+	const moveOne = useMutation({
+		mutationFn: async ({ id, towards }: { id: string; towards: "earlier" | "later" }) => {
+			if (!session) throw new Error("no session");
+			return session.invoices.move(id, towards);
+		},
+		onSuccess: afterInvoiceChange,
+		onError: (error: unknown) => setProblem(sayWhy(error, t)),
+	});
+
+	const reclose = useMutation({
+		mutationFn: async () => {
+			if (!session || !invoiceAccount) throw new Error("no session");
+			return session.invoices.closedOn({
+				accountId: invoiceAccount.id,
+				month: shown,
+				day: closedDay as CalendarDate,
+			});
+		},
+		onSuccess: () => {
+			setClosedDay("");
+			afterInvoiceChange();
+		},
+		onError: (error: unknown) => setProblem(sayWhy(error, t)),
+	});
+
 	if (!currentSpace) return null;
 
 	if (!accounts.isPending && invoiceAccounts.length === 0) {
@@ -142,17 +278,20 @@ export function InvoicePage() {
 		);
 	}
 
-	const rows = records.data ?? [];
-	const total = rows.reduce((sum, row) => sum + row.amount, 0);
-	const closesOn = cycle && shown ? invoiceClosingDate(shown, cycle) : null;
-	const dueOn = cycle && shown ? invoiceDueDate(shown, cycle) : null;
-	const period = cycle && shown ? invoicePeriod(shown, cycle) : null;
+	// Purchases only. A payment carries the same invoice stamp, which is what makes it a
+	// payment of that invoice, and it belongs beside the total rather than inside a table
+	// headed with what the card charged.
+	const rows = (records.data ?? []).filter((row) => row.counterAccountId !== invoiceAccount?.id);
+	const state = invoice.data ?? undefined;
+	const period = state ? { from: state.from, to: state.to } : null;
+	const dueOn = state?.dueOn ?? null;
 
 	const onThisInvoice = (cards.data ?? []).filter(
 		(one) => invoiceAccount !== null && one.creditAccountId === invoiceAccount.id,
 	);
-	const untilClosing = closesOn === null ? 0 : daysBetween(today, closesOn);
-	const untilDue = dueOn === null ? 0 : daysBetween(today, dueOn);
+
+	/** Every invoice before this one that still owes something, which is what one action clears. */
+	const owingBefore = (older.data ?? []).filter((one) => one.month < shown && one.left > 0);
 
 	// The year is only worth saying when it is not this one.
 	const monthName =
@@ -178,7 +317,7 @@ export function InvoicePage() {
 							: undefined
 					}
 				>
-					{headline(t, monthName, untilClosing, untilDue)}
+					{headline(t, monthName, state)}
 				</InsightTitle>
 
 				<div className="flex items-end gap-3">
@@ -223,22 +362,49 @@ export function InvoicePage() {
 				</Callout>
 			) : null}
 
+			{problem ? (
+				<Callout tone="problem" title={t("rules.somethingWentWrong")}>
+					{problem}
+				</Callout>
+			) : null}
+
 			<section className="space-y-2">
-				{records.isPending ? (
+				{invoice.isPending ? (
 					<Skeleton lines={1} />
 				) : (
 					<p className="font-mono text-3xl tabular-nums">
 						<Value
-							amount={Math.abs(total)}
+							amount={state?.charged ?? 0}
 							currency={invoiceAccount?.currency ?? currentSpace.baseCurrency}
 							tone="neutral"
 						/>
 					</p>
 				)}
+				{/* The day it falls due matters while something is owed on it. On one that is
+				    settled it is a date nobody has to do anything about. */}
 				<p className="text-sm text-quiet">
-					{total > 0 ? t("invoice.inCredit") : t("invoice.toPay")}
-					{dueOn ? ` ${t("invoice.dueOn", { day: dayAndMonth(dueOn) })}` : ""}
+					{t(`invoice.standing.${state?.standing ?? "open"}`)}
+					{dueOn && (state?.left ?? 0) > 0
+						? ` ${t("invoice.dueOn", { day: dayAndMonth(dueOn) })}`
+						: ""}
 				</p>
+
+				{state && state.paid !== 0 ? (
+					<p className="text-sm text-quiet">
+						{t("invoice.paidSoFar")}{" "}
+						<Value amount={state.paid} currency={invoiceAccount?.currency} />
+						{state.left > 0 ? (
+							<>
+								{". "}
+								{t("invoice.stillToPay")}{" "}
+								<Value amount={state.left} currency={invoiceAccount?.currency} />
+							</>
+						) : null}
+					</p>
+				) : null}
+
+				{state?.late ? <p className="text-sm text-seal">{t("invoice.noInterest")}</p> : null}
+
 				{invoiceAccount?.creditLimit ? (
 					<p className="text-sm text-quiet">
 						{t("invoice.limit")}{" "}
@@ -261,6 +427,17 @@ export function InvoicePage() {
 							.join(", ")}
 					</p>
 				) : null}
+
+				{mayPay && state && state.left > 0 ? (
+					<div className="flex flex-wrap gap-2 pt-2">
+						<Button onClick={() => openPayment(state)}>{t("invoice.pay")}</Button>
+						{owingBefore.length > 0 ? (
+							<Button variant="secondary" onClick={() => setClearingOld(true)}>
+								{t("invoice.payOld", { count: owingBefore.length })}
+							</Button>
+						) : null}
+					</div>
+				) : null}
 			</section>
 
 			{records.isPending ? <Skeleton lines={4} /> : null}
@@ -279,6 +456,9 @@ export function InvoicePage() {
 								<TableHeader>{t("transactions.day")}</TableHeader>
 								<TableHeader>{t("transactions.description")}</TableHeader>
 								<TableHeader numeric={true}>{t("transactions.amount")}</TableHeader>
+								<TableHeader>
+									<span className="sr-only">{t("transactions.actions")}</span>
+								</TableHeader>
 							</TableRow>
 						</TableHead>
 						<TableBody>
@@ -291,12 +471,132 @@ export function InvoicePage() {
 									<TableCell numeric={true}>
 										<Value amount={row.amount} currency={row.currency} tone="auto" />
 									</TableCell>
+									<TableCell>
+										{mayMove ? (
+											<Menu
+												align="end"
+												trigger={
+													<Button
+														size="small"
+														variant="quiet"
+														aria-label={t("transactions.actions")}
+													>
+														<Icon name="settings" size="small" />
+													</Button>
+												}
+											>
+												<MenuItem
+													onSelect={() => moveOne.mutate({ id: row.id, towards: "earlier" })}
+												>
+													{t("invoice.moveEarlier")}
+												</MenuItem>
+												<MenuItem onSelect={() => moveOne.mutate({ id: row.id, towards: "later" })}>
+													{t("invoice.moveLater")}
+												</MenuItem>
+											</Menu>
+										) : null}
+									</TableCell>
 								</TableRow>
 							))}
 						</TableBody>
 					</Table>
 				</Panel>
 			) : null}
+
+			{/* The bank closes a day either side of the day this application expected, because
+			    of a weekend or a holiday, and everything charged in between is on the wrong
+			    invoice. Saying which day it really closed moves all of them at once. */}
+			{mayMove && cycle ? (
+				<Disclosure summary={t("invoice.reallyClosedOn")}>
+					<p className="max-w-[62ch] text-quiet text-sm">{t("invoice.reallyClosedOnHint")}</p>
+					<div className="mt-3 flex flex-wrap items-end gap-3">
+						<Field
+							label={t("invoice.closedOnDay")}
+							type="date"
+							value={closedDay}
+							onChange={(event) => setClosedDay(event.target.value)}
+						/>
+						<Button
+							variant="secondary"
+							disabled={closedDay === "" || reclose.isPending}
+							onClick={() => reclose.mutate()}
+						>
+							{t("invoice.moveThem")}
+						</Button>
+					</div>
+				</Disclosure>
+			) : null}
+
+			<Dialog
+				open={paying !== null}
+				onOpenChange={(next) => !next && setPaying(null)}
+				title={t("invoice.payTitle")}
+				description={t("invoice.payDescription")}
+				closeLabel={t("actions.cancel")}
+				footer={
+					<>
+						<Button variant="quiet" onClick={() => setPaying(null)}>
+							{t("actions.cancel")}
+						</Button>
+						<Button onClick={() => pay.mutate()} disabled={pay.isPending}>
+							{t("invoice.pay")}
+						</Button>
+					</>
+				}
+			>
+				<div className="space-y-4">
+					<Select
+						label={t("invoice.payFrom")}
+						value={payFrom}
+						onChange={(event) => setPayFrom(event.target.value)}
+						options={payableFrom.map((one) => ({ value: one.id, label: one.name }))}
+					/>
+					<Field
+						label={t("transactions.amount")}
+						hint={t("invoice.payPartHint")}
+						value={payAmount}
+						onChange={(event) => setPayAmount(event.target.value)}
+						numeric={true}
+						inputMode="decimal"
+					/>
+					<Field
+						label={t("transactions.day")}
+						type="date"
+						value={payOn}
+						onChange={(event) => setPayOn(event.target.value)}
+					/>
+					{problem ? <Callout tone="problem">{problem}</Callout> : null}
+				</div>
+			</Dialog>
+
+			<Dialog
+				open={clearingOld}
+				onOpenChange={setClearingOld}
+				title={t("invoice.payOldTitle")}
+				description={t("invoice.payOldDescription", { count: owingBefore.length })}
+				closeLabel={t("actions.cancel")}
+				footer={
+					<>
+						<Button variant="quiet" onClick={() => setClearingOld(false)}>
+							{t("actions.cancel")}
+						</Button>
+						<Button onClick={() => clearOld.mutate()} disabled={clearOld.isPending}>
+							{t("invoice.payOldAction")}
+						</Button>
+					</>
+				}
+			>
+				<div className="space-y-4">
+					<Select
+						label={t("invoice.payFrom")}
+						value={payFrom === "" ? (payableFrom[0]?.id ?? "") : payFrom}
+						onChange={(event) => setPayFrom(event.target.value)}
+						options={payableFrom.map((one) => ({ value: one.id, label: one.name }))}
+					/>
+					<p className="text-quiet text-sm">{t("invoice.payOldHint")}</p>
+					{problem ? <Callout tone="problem">{problem}</Callout> : null}
+				</div>
+			</Dialog>
 		</div>
 	);
 }

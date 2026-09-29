@@ -75,6 +75,7 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 					amount: 128_450,
 					happenedOn: "2026-10-10",
 					month: "2026-10",
+					description: "Pagamento",
 				});
 
 				const invoices = await ready.fixture.asAna.invoices.list(ready.card.id, "2026-10-11");
@@ -104,6 +105,7 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 					amount: 50_000,
 					happenedOn: "2026-10-10",
 					month: "2026-10",
+					description: "Pagamento",
 				});
 
 				const invoices = await ready.fixture.asAna.invoices.list(ready.card.id, "2026-10-11");
@@ -171,6 +173,7 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 					month: "2026-09",
 					fromAccountId: ready.checking.id,
 					today: TODAY,
+					description: "Pagamento da fatura {{month}}",
 				});
 				expect(paid).toBe(3);
 
@@ -198,6 +201,7 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 					amount: 100_000,
 					happenedOn: "2026-10-10",
 					month: "2026-10",
+					description: "Pagamento",
 				});
 
 				// A purchase the bank closed onto the invoice before, moved back onto this one.
