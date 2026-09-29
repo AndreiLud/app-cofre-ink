@@ -20,6 +20,68 @@ test.describe("accounts", () => {
 		await expect(total(page)).toContainText("1.234,56");
 	});
 
+	test("shows what is in an account now, and not what was in it at the start", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Contas");
+
+		// The column was headed with the words for the opening balance and read as the
+		// balance, which is the number anybody comes to this table for. The sample data
+		// has spent from the current account since it was written down.
+		await expect(page.getByRole("columnheader", { name: "Saldo" })).toBeVisible();
+		const row = page.getByRole("row").filter({ hasText: "Conta corrente" });
+		await expect(row).not.toContainText("R$ 4.812,30");
+	});
+
+	test("corrects an account, which had no screen at all", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Contas");
+
+		const row = page.getByRole("row").filter({ hasText: "Carteira" });
+		await row.getByRole("button", { name: "Ações da conta" }).click();
+		await page.getByRole("menuitem", { name: "Editar conta" }).click();
+
+		await page.getByRole("dialog").getByLabel("Nome").fill("Dinheiro do bolso");
+		await page.getByRole("button", { name: "Salvar" }).click();
+
+		await expect(page.getByRole("cell", { name: "Dinheiro do bolso" })).toBeVisible();
+	});
+
+	test("writes the allowance of a benefit card, and the overview reads it", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Contas");
+
+		const row = page.getByRole("row").filter({ hasText: "Vale refeição" });
+		await row.getByRole("button", { name: "Ações da conta" }).click();
+		await page.getByRole("menuitem", { name: "Editar conta" }).click();
+
+		await page.getByRole("dialog").getByLabel("Valor por mês").fill("900,00");
+		await page.getByRole("dialog").getByLabel("Dia do crédito").fill("5");
+		await page.getByRole("button", { name: "Salvar" }).click();
+
+		// Nothing is written when an allowance lands, so what is left is worked out from
+		// the allowance and the spending. Before this the card simply said its balance.
+		await go(page, "Painel");
+		await expect(page.getByText("de R$ 900,00")).toBeVisible();
+	});
+
+	test("says what goes nowhere before deleting an account", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Contas");
+
+		const row = page.getByRole("row").filter({ hasText: "Conta corrente" });
+		await row.getByRole("button", { name: "Ações da conta" }).click();
+		await page.getByRole("menuitem", { name: "Apagar" }).click();
+
+		// It used to fire straight from the menu with nothing said about the records that
+		// stay behind pointing at an account that is no longer there.
+		const dialog = page.getByRole("dialog");
+		await expect(dialog).toContainText("lançamentos nesta conta");
+		await expect(dialog).toContainText("arquivar");
+
+		await dialog.getByRole("button", { name: "Cancelar" }).click();
+		await expect(page.getByRole("cell", { name: "Conta corrente" }).first()).toBeVisible();
+	});
+
 	test("makes the card of a credit account without asking twice", async ({ page }) => {
 		await openCofre(page);
 
@@ -55,6 +117,9 @@ test.describe("accounts", () => {
 		await openCofre(page);
 
 		await go(page, "Contas");
+		// Wait for the table before counting it. Accounts is one click away now rather than
+		// two, so a count taken straight after arriving was taken before it had rendered.
+		await expect(page.getByRole("cell", { name: "Conta corrente" }).first()).toBeVisible();
 		const before = await page.getByRole("row").count();
 
 		await page.getByRole("button", { name: "Nova conta" }).first().click();
@@ -89,6 +154,8 @@ test.describe("accounts", () => {
 			.getByRole("button", { name: "Ações da conta" })
 			.click();
 		await page.getByRole("menuitem", { name: "Apagar" }).click();
+		// Deleting an account asks first now, and says how many records go nowhere with it.
+		await page.getByRole("dialog").getByRole("button", { name: "Apagar" }).click();
 
 		await expect(page.getByText("Cartão do banco")).toHaveCount(0);
 		// The meal voucher card is not on that account, so it stays.

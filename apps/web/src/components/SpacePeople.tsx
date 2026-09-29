@@ -416,7 +416,7 @@ export function SpacePeople() {
 					name: handingTo?.name ?? "",
 					space: currentSpace.name,
 				})}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				size="small"
 				footer={
 					<>
@@ -455,7 +455,7 @@ export function SpacePeople() {
 				}}
 				title={t("members.incomeTitle")}
 				description={t("members.incomeDescription")}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				size="small"
 				footer={
 					<>
@@ -506,7 +506,7 @@ export function SpacePeople() {
 				onOpenChange={setOpen}
 				title={t("members.invite")}
 				description={t("members.inviteDescription", { space: currentSpace.name })}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				footer={
 					link ? (
 						<Button variant="primary" onClick={() => setOpen(false)}>

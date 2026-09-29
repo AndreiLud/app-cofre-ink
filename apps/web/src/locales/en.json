@@ -10,7 +10,8 @@
 		"delete": "Delete",
 		"seeTable": "See the table",
 		"markPaid": "Mark as paid",
-		"done": "Done"
+		"done": "Done",
+		"close": "Close"
 	},
 	"mode": {
 		"title": "How do you want to use {{app}}?",
@@ -117,7 +118,8 @@
 		"month": "The month",
 		"planning": "Planning",
 		"settings": "Settings",
-		"insideLabel": "Screens in this section"
+		"insideLabel": "Screens in this section",
+		"money": "Accounts"
 	},
 	"projection": {
 		"headlineLasts": "In {{month}} you would have {{amount}}",
@@ -467,7 +469,24 @@
 		"benefitHint": "VA and VR are one pot here, which is how the card usually comes. VT is another one, and so are culture and mobility.",
 		"cardComesWithIt": "The card of this account is made with it. You can leave it empty.",
 		"cardWorks": "How it works",
-		"debitMakesNoAccount": "A debit card spends the balance of an account that already exists, so it makes no new account. Only the card is added."
+		"debitMakesNoAccount": "A debit card spends the balance of an account that already exists, so it makes no new account. Only the card is added.",
+		"balanceNow": "Balance",
+		"edit": "Edit the account",
+		"editTitle": "Edit the account",
+		"editDescription": "The kind and the currency do not change. Everything else is corrected here.",
+		"balanceEditHint": "What was in this account before the first record. Changing it moves every balance from the start.",
+		"quota": "Monthly allowance",
+		"quotaHint": "What lands on the card each month. Nothing is written when it lands: Cofre works out what is left from this.",
+		"quotaDay": "The day it lands",
+		"quotaLeftover": "What is left at the end",
+		"quotaCarries": "Carries over",
+		"quotaResets": "Is taken back",
+		"deleteTitle": "Delete {{name}}?",
+		"deleteDescription": "The account goes, and the cards that reached it go with it.",
+		"deleteCounting": "Counting what is in it.",
+		"deleteHolds_one": "There is 1 record in this account. It stays where it is, pointing at an account that is no longer there, and its money stops being counted anywhere.",
+		"deleteHolds_other": "There are {{count}} records in this account. They stay where they are, pointing at an account that is no longer there, and their money stops being counted anywhere.",
+		"deleteInstead": "If the account is simply not used any more, archiving takes it out of the way and keeps everything adding up."
 	},
 	"rules": {
 		"notABackup": "That file is not a {{app}} backup. A backup comes from here, from the Download a copy button, and so does the copy this screen saves before it replaces one. A statement from the bank goes in through Import a statement.",

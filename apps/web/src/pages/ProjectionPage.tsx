@@ -387,7 +387,7 @@ export function ProjectionPage() {
 				onOpenChange={setOpen}
 				title={t("projection.addScenario")}
 				description={t("projection.scenarioDescription")}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				footer={
 					<>
 						<Button variant="quiet" onClick={() => setOpen(false)}>

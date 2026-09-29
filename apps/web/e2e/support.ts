@@ -59,7 +59,8 @@ const SECTION_OF: Record<string, string> = {
 	Diagnóstico: "Planejamento",
 	Projeção: "Planejamento",
 	Investimentos: "Planejamento",
-	Contas: "Ajustes",
+	// Accounts is a section of its own now, so it is reached in one click and has no
+	// second level to look in. Money is not a setting, which is registry 0045.
 	Categorias: "Ajustes",
 	Dados: "Ajustes",
 };

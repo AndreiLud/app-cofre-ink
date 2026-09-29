@@ -277,7 +277,7 @@ export function CommandPalette({ state }: { state: PaletteState }) {
 			title={t("palette.title")}
 			description={t("palette.description")}
 			showDescription={false}
-			closeLabel={t("actions.cancel")}
+			closeLabel={t("actions.close")}
 			size="medium"
 			className="top-24 translate-y-0 p-0"
 		>

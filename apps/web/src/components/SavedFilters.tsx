@@ -128,7 +128,7 @@ export function SavedFilters({ spaceId, current, onApply }: SavedFiltersProps) {
 				onOpenChange={setNaming}
 				title={t("savedFilters.keepTitle")}
 				description={t("savedFilters.keepDescription")}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				size="small"
 				footer={
 					<>

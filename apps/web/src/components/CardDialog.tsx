@@ -118,7 +118,7 @@ export function CardDialog({ card, accounts, onClose }: CardDialogProps) {
 			}}
 			title={t("cards.edit")}
 			description={t("cards.editDescription")}
-			closeLabel={t("actions.cancel")}
+			closeLabel={t("actions.close")}
 			footer={
 				<>
 					<Button variant="quiet" onClick={onClose}>

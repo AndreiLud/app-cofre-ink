@@ -434,7 +434,7 @@ export function AutomaticBackup() {
 					here: asking?.comparison.onlyMine ?? 0,
 					there: asking?.comparison.onlyTheirs ?? 0,
 				})}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				footer={
 					<>
 						<Button variant="quiet" onClick={() => setAsking(null)}>

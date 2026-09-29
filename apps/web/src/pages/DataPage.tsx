@@ -679,7 +679,7 @@ export function DataPage() {
 				}}
 				title={t("data.bringBackConfirmTitle")}
 				description={t("data.bringBackConfirmBody", { name: waiting?.name ?? "" })}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				footer={
 					<>
 						<Button variant="quiet" onClick={() => setWaiting(null)}>

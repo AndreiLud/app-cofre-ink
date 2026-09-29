@@ -258,7 +258,7 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 				onOpenChange={setOpen}
 				title={editing ? t("recurrences.edit") : t("recurrences.create")}
 				description={t("recurrences.createDescription")}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				footer={
 					<>
 						<Button variant="quiet" onClick={() => setOpen(false)}>

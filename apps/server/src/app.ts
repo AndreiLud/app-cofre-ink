@@ -637,6 +637,12 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		);
 	});
 
+	app.get("/api/accounts/:id/records", async (context) =>
+		context.json({
+			records: await context.get("session").accounts.recordCount(context.req.param("id")),
+		}),
+	);
+
 	const calendarMonth = z.string().regex(/^\d{4}-\d{2}$/);
 
 	app.get("/api/accounts/:id/invoices", async (context) => {

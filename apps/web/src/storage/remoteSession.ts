@@ -329,6 +329,8 @@ export function createRemoteSession(
 			) => send<Account>(`/api/accounts/${id}`, "PATCH", input),
 			benefitLeft: (id: string, today: CalendarDate) =>
 				get<BenefitState | null>(`/api/accounts/${id}/benefit?today=${today}`),
+			recordCount: async (id: string) =>
+				(await get<{ records: number }>(`/api/accounts/${id}/records`)).records,
 			archive: (id: string) => send<Account>(`/api/accounts/${id}/archive`, "POST", {}),
 			unarchive: (id: string) => send<Account>(`/api/accounts/${id}/unarchive`, "POST", {}),
 			remove: (id: string) => send<void>(`/api/accounts/${id}`, "DELETE"),

@@ -532,7 +532,7 @@ export function InvoicePage() {
 				onOpenChange={(next) => !next && setPaying(null)}
 				title={t("invoice.payTitle")}
 				description={t("invoice.payDescription")}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				footer={
 					<>
 						<Button variant="quiet" onClick={() => setPaying(null)}>
@@ -574,7 +574,7 @@ export function InvoicePage() {
 				onOpenChange={setClearingOld}
 				title={t("invoice.payOldTitle")}
 				description={t("invoice.payOldDescription", { count: owingBefore.length })}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				footer={
 					<>
 						<Button variant="quiet" onClick={() => setClearingOld(false)}>

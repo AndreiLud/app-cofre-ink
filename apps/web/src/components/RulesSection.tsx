@@ -195,7 +195,7 @@ export function RulesSection({ spaceId, categories }: RulesSectionProps) {
 				onOpenChange={setOpen}
 				title={editing ? t("rulesSection.edit") : t("rulesSection.create")}
 				description={t("rulesSection.createDescription")}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				footer={
 					<>
 						<Button variant="quiet" onClick={() => setOpen(false)}>

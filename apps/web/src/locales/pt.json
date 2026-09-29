@@ -10,7 +10,8 @@
 		"delete": "Apagar",
 		"seeTable": "Ver tabela",
 		"markPaid": "Marcar como pago",
-		"done": "Pronto"
+		"done": "Pronto",
+		"close": "Fechar"
 	},
 	"mode": {
 		"title": "Como você quer usar o {{app}}?",
@@ -117,7 +118,8 @@
 		"month": "O mês",
 		"planning": "Planejamento",
 		"settings": "Ajustes",
-		"insideLabel": "Telas desta seção"
+		"insideLabel": "Telas desta seção",
+		"money": "Contas"
 	},
 	"projection": {
 		"headlineLasts": "Em {{month}} você teria {{amount}}",
@@ -467,7 +469,24 @@
 		"benefitHint": "VA e VR são o mesmo bolso aqui, que é como o cartão costuma vir. VT é outro, e vale cultura e mobilidade também.",
 		"cardComesWithIt": "O cartão desta conta é criado junto. Pode deixar em branco.",
 		"cardWorks": "Como ele funciona",
-		"debitMakesNoAccount": "O cartão de débito gasta o saldo de uma conta que já existe, então ele não cria conta nova. Só o cartão é cadastrado."
+		"debitMakesNoAccount": "O cartão de débito gasta o saldo de uma conta que já existe, então ele não cria conta nova. Só o cartão é cadastrado.",
+		"balanceNow": "Saldo",
+		"edit": "Editar conta",
+		"editTitle": "Editar a conta",
+		"editDescription": "O tipo e a moeda não mudam. Para o resto, corrija aqui.",
+		"balanceEditHint": "Quanto havia nesta conta antes do primeiro lançamento. Mudar isto move todos os saldos desde o começo.",
+		"quota": "Valor por mês",
+		"quotaHint": "Quanto cai no cartão todo mês. Nada é lançado quando cai: o Cofre calcula quanto resta a partir daqui.",
+		"quotaDay": "Dia do crédito",
+		"quotaLeftover": "O que sobra no fim",
+		"quotaCarries": "Acumula",
+		"quotaResets": "Zera",
+		"deleteTitle": "Apagar {{name}}?",
+		"deleteDescription": "A conta some e os cartões que chegavam nela somem junto.",
+		"deleteCounting": "Contando os lançamentos desta conta.",
+		"deleteHolds_one": "Tem 1 lançamento nesta conta. Ele fica onde está, apontando para uma conta que não existe mais, e o dinheiro dele deixa de ser contado em qualquer lugar.",
+		"deleteHolds_other": "Tem {{count}} lançamentos nesta conta. Eles ficam onde estão, apontando para uma conta que não existe mais, e o dinheiro deles deixa de ser contado em qualquer lugar.",
+		"deleteInstead": "Se a conta só saiu de uso, arquivar tira ela da frente e mantém tudo somando."
 	},
 	"rules": {
 		"notABackup": "Esse arquivo não é um backup do {{app}}. Um backup sai daqui mesmo, no botão Baixar cópia, e a cópia que esta tela guarda antes de trocar uma também. Extrato do banco entra por Importar extrato.",

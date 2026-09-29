@@ -451,7 +451,7 @@ export function BudgetPage() {
 				onOpenChange={setOpen}
 				title={t("budget.newLimit")}
 				description={t("budget.newLimitDescription")}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				footer={
 					<>
 						<Button variant="quiet" onClick={() => setOpen(false)}>
@@ -532,7 +532,7 @@ export function BudgetPage() {
 				onOpenChange={setSavingOpen}
 				title={t("budget.savingsTitle")}
 				description={t("budget.savingsDescription")}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				footer={
 					<>
 						<Button variant="quiet" onClick={() => setSavingOpen(false)}>
@@ -591,7 +591,7 @@ export function BudgetPage() {
 				onOpenChange={setGoalOpen}
 				title={t("budget.newGoal")}
 				description={t("budget.newGoalDescription")}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				footer={
 					<>
 						<Button variant="quiet" onClick={() => setGoalOpen(false)}>

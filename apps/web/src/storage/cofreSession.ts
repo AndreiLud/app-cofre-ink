@@ -170,6 +170,8 @@ export type CofreSession = {
 		) => Promise<Account>;
 		/** What is left on a benefit card, or nothing when it has no allowance on it. */
 		benefitLeft: (id: string, today: CalendarDate) => Promise<BenefitState | null>;
+		/** How many records are charged to it, which is what goes nowhere when it is deleted. */
+		recordCount: (id: string) => Promise<number>;
 		archive: (id: string) => Promise<Account>;
 		unarchive: (id: string) => Promise<Account>;
 		remove: (id: string) => Promise<void>;

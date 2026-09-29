@@ -112,7 +112,7 @@ export function SplitDialog({ open, onOpenChange, record, people }: SplitDialogP
 			onOpenChange={onOpenChange}
 			title={t("sharing.splitTitle")}
 			description={t("sharing.splitDescription", { description: record?.description ?? "" })}
-			closeLabel={t("actions.cancel")}
+			closeLabel={t("actions.close")}
 			footer={
 				<>
 					{parts.length > 0 ? (

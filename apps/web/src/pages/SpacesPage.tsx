@@ -182,7 +182,7 @@ export function SpacesPage() {
 				description={
 					target?.made === false ? t("spaces.editDescription") : t("spaces.createDescription")
 				}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				footer={
 					<>
 						<Button variant="quiet" onClick={() => setTarget(null)}>

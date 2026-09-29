@@ -162,13 +162,24 @@ export function createAccountsRepository(context: RepositoryContext) {
 			}
 			assertQuota(input, input.kind);
 
+			// The currency of the space, and not the currency of Brazil.
+			//
+			// An account was stamped BRL whatever the space said, so a household keeping
+			// euros had every account labelled in reais and every total adding two
+			// currencies as though they were one.
+			const rows = await context.driver.all(
+				`SELECT "base_currency" FROM "spaces" WHERE "id" = ? AND "deleted_at" IS NULL`,
+				[input.spaceId],
+			);
+			const spaceCurrency = String(rows[0]?.base_currency ?? "BRL");
+
 			const id = await insertRow(context.write(), {
 				table: accounts,
 				spaceId: input.spaceId,
 				values: {
 					kind: input.kind,
 					name: input.name.trim(),
-					currency: input.currency ?? "BRL",
+					currency: input.currency ?? spaceCurrency,
 					initial_balance: input.initialBalance ?? 0,
 					institution: input.institution ?? null,
 					archived_at: null,
@@ -300,6 +311,24 @@ export function createAccountsRepository(context: RepositoryContext) {
 				spentSinceOpening,
 				spentThisPeriod,
 			});
+		},
+
+		/**
+		 * How many records are charged to an account, so a screen can say what goes with it.
+		 *
+		 * Deleting an account leaves its records where they are, pointing at something that
+		 * no longer resolves, so their money stops being counted anywhere while the rows
+		 * stay in every list. Somebody about to do that is owed the number.
+		 */
+		async recordCount(id: string): Promise<number> {
+			const account = await reachable(id);
+			assertCan(context.actor(), account.spaceId, "account.read");
+			const rows = await context.driver.all(
+				`SELECT COUNT(*) AS how_many FROM "transactions"
+				 WHERE "deleted_at" IS NULL AND ("account_id" = ? OR "counter_account_id" = ?)`,
+				[id, id],
+			);
+			return asNumber(rows[0]?.how_many ?? 0);
 		},
 
 		/** Archiving keeps the history and takes the account out of the way. */

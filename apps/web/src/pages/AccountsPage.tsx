@@ -1,7 +1,7 @@
-// Accounts of the current space: what exists, and how to add one.
+// Accounts of the current space: what exists, how to add one, and how to correct one.
 
-import { parseMoney } from "@cofre/core";
-import type { AccountKind, BenefitKind, Card, CardKind } from "@cofre/storage";
+import { carriesByDefault, parseMoney, todayIn } from "@cofre/core";
+import type { Account, AccountKind, BenefitKind, Card, CardKind } from "@cofre/storage";
 import {
 	Button,
 	Callout,
@@ -30,6 +30,7 @@ import { useTranslation } from "react-i18next";
 import { CardDialog } from "../components/CardDialog.tsx";
 import { CardsSection } from "../components/CardsSection.tsx";
 import { Value } from "../components/Value.tsx";
+import { fillAmount, readAmount } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
@@ -38,7 +39,7 @@ const KINDS: AccountKind[] = ["checking", "savings", "cash", "credit", "voucher"
 const BENEFITS: BenefitKind[] = ["meal", "transport", "culture", "mobility"];
 
 export function AccountsPage() {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const { session, currentSpace } = useCofre();
 	const queries = useQueryClient();
 
@@ -50,6 +51,10 @@ export function AccountsPage() {
 	const [closingDay, setClosingDay] = useState("3");
 	const [dueDay, setDueDay] = useState("10");
 	const [benefit, setBenefit] = useState<BenefitKind>("meal");
+	// What lands on a benefit card each month, and the day it lands. Nothing is written
+	// when the money arrives, so this is the only place the figure can come from.
+	const [quota, setQuota] = useState("");
+	const [quotaDay, setQuotaDay] = useState("");
 	// The card that comes with the account, for the two kinds that are a card.
 	const [lastFour, setLastFour] = useState("");
 	const [works, setWorks] = useState<CardKind>("credit");
@@ -58,6 +63,7 @@ export function AccountsPage() {
 	const [problem, setProblem] = useState<string | null>(null);
 
 	const spaceId = currentSpace?.id ?? "";
+	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
 
 	const accounts = useQuery({
 		// The archived ones are part of what this screen asks for, so they are part of
@@ -68,12 +74,106 @@ export function AccountsPage() {
 		queryFn: () => session?.accounts.list(spaceId, { includeArchived: true }) ?? [],
 	});
 
+	/** What is in each account now, for the column that used to show the opening balance. */
+	const standing = useQuery({
+		queryKey: ["balances", spaceId, today],
+		enabled: Boolean(session && currentSpace),
+		queryFn: () => session?.transactions.balances(spaceId, today) ?? [],
+	});
+
+	// What an investment account is worth, which is the prices somebody typed and not the
+	// money that was moved into it. The overview reads the same figure, because a broker
+	// showing nothing on one screen and thousands on the next is two answers to one
+	// question, which is the thing this release exists to stop.
+	const holdings = useQuery({
+		queryKey: ["investments", spaceId],
+		enabled: Boolean(session && currentSpace),
+		queryFn: () => session?.investments.list(spaceId) ?? [],
+	});
+
 	// Read here rather than inside the list below, because the menu of each account row
 	// needs to offer the cards that reach it, and that is where a card is looked after.
 	const cards = useQuery({
 		queryKey: ["cards", spaceId, "includingArchived"],
 		enabled: Boolean(session && currentSpace),
 		queryFn: () => session?.cards.list(spaceId, { includeArchived: true }) ?? [],
+	});
+
+	/** The account being corrected, and the fields of it that can be corrected. */
+	const [editing, setEditing] = useState<Account | null>(null);
+	const [editName, setEditName] = useState("");
+	const [editInstitution, setEditInstitution] = useState("");
+	const [editBalance, setEditBalance] = useState("");
+	const [editQuota, setEditQuota] = useState("");
+	const [editQuotaDay, setEditQuotaDay] = useState("");
+	const [editCarries, setEditCarries] = useState(true);
+
+	/** The account about to be deleted, and how many records go nowhere with it. */
+	const [erasing, setErasing] = useState<Account | null>(null);
+	const inside = useQuery({
+		queryKey: ["accountRecords", erasing?.id],
+		enabled: Boolean(session && erasing),
+		queryFn: () => session?.accounts.recordCount(erasing?.id ?? "") ?? 0,
+	});
+
+	/**
+	 * What one account is worth right now.
+	 *
+	 * For an investment that is the prices somebody typed, because a holding is priced by
+	 * hand and a price is not a movement, so the balance of a broker is what was paid into
+	 * it and not what it is worth. Everything else is what the records add up to.
+	 */
+	function worthOf(account: Account): number {
+		if (account.kind === "investment") {
+			const priced = (holdings.data ?? []).filter((one) => one.accountId === account.id);
+			if (priced.length > 0) return priced.reduce((total, one) => total + one.value, 0);
+		}
+		return (
+			standing.data?.find((one) => one.accountId === account.id)?.settled ?? account.initialBalance
+		);
+	}
+
+	function openEdit(account: Account) {
+		setProblem(null);
+		setEditing(account);
+		setEditName(account.name);
+		setEditInstitution(account.institution ?? "");
+		setEditBalance(fillAmount(account.initialBalance, i18n.resolvedLanguage, account.currency));
+		setEditQuota(
+			account.quotaAmount === null
+				? ""
+				: fillAmount(account.quotaAmount, i18n.resolvedLanguage, account.currency),
+		);
+		setEditQuotaDay(account.quotaDay === null ? "" : String(account.quotaDay));
+		setEditCarries(account.quotaCarries ?? carriesByDefault(account.benefit ?? "meal"));
+	}
+
+	const save = useMutation({
+		mutationFn: async () => {
+			if (!session || !editing) throw new Error("no session");
+			const quota = editQuota.trim() === "" ? null : readAmount(editQuota, editing.currency);
+			return session.accounts.update(editing.id, {
+				name: editName,
+				institution: editInstitution.trim() === "" ? null : editInstitution.trim(),
+				// The opening balance is only asked for where it means anything: on a card it
+				// is the invoice, and on a voucher it is what the allowance replaced.
+				...(editing.kind === "credit" || editing.kind === "voucher"
+					? {}
+					: { initialBalance: readAmount(editBalance, editing.currency) }),
+				...(editing.kind === "voucher"
+					? {
+							quotaAmount: quota,
+							quotaDay: editQuotaDay.trim() === "" ? null : Number(editQuotaDay),
+							quotaCarries: quota === null ? null : editCarries,
+						}
+					: {}),
+			});
+		},
+		onSuccess: () => {
+			setEditing(null);
+			invalidate();
+		},
+		onError: (error: unknown) => setProblem(sayWhy(error, t)),
 	});
 
 	const invalidate = () => {
@@ -84,6 +184,11 @@ export function AccountsPage() {
 		// overview is showing are no longer true.
 		void queries.invalidateQueries({ queryKey: ["balances"] });
 		void queries.invalidateQueries({ queryKey: ["advice"] });
+		// What is left on a benefit card is worked out from the allowance on the account,
+		// so writing the allowance changes an answer that is cached under another name.
+		void queries.invalidateQueries({ queryKey: ["benefit"] });
+		// And a closing day or a limit changes where every invoice of that card stands.
+		void queries.invalidateQueries({ queryKey: ["invoices"] });
 	};
 
 	const complain = (error: unknown) => setProblem(sayWhy(error, t));
@@ -130,6 +235,16 @@ export function AccountsPage() {
 				// VR, VA and VT are three different pots, and a shop that takes one may
 				// refuse the other, so the account says which it is.
 				benefit: kind === "voucher" ? benefit : null,
+				// And what lands on it each month, which is the whole of what a benefit card
+				// is: nothing is written when the money arrives, so this is where it comes
+				// from. Left empty it answers nothing rather than guessing.
+				...(kind === "voucher" && quota.trim() !== ""
+					? {
+							quotaAmount: parseMoney(quota, { currency: currentSpace?.baseCurrency }).amount,
+							quotaDay: quotaDay.trim() === "" ? 1 : Number(quotaDay),
+							quotaCarries: carriesByDefault(benefit),
+						}
+					: {}),
 			});
 
 			// Two kinds of account are a card, and asking somebody to say so twice was
@@ -288,7 +403,7 @@ export function AccountsPage() {
 								<TableHeader>{t("accounts.name")}</TableHeader>
 								<TableHeader>{t("accounts.kind")}</TableHeader>
 								<TableHeader>{t("accounts.institution")}</TableHeader>
-								<TableHeader numeric={true}>{t("accounts.balance")}</TableHeader>
+								<TableHeader numeric={true}>{t("accounts.balanceNow")}</TableHeader>
 								<TableHeader numeric={true}>
 									<span className="sr-only">{t("accounts.actions")}</span>
 								</TableHeader>
@@ -308,12 +423,12 @@ export function AccountsPage() {
 											: t(`accountKind.${account.kind}`)}
 									</TableCell>
 									<TableCell className="text-quiet">{account.institution ?? ""}</TableCell>
+									{/* What is in the account now, and not what was in it the day somebody
+									    wrote it down. The column was headed with the words for the opening
+									    balance and was read as the balance, which is the number anybody
+									    comes to this table for. */}
 									<TableCell numeric={true}>
-										<Value
-											amount={account.initialBalance}
-											currency={account.currency}
-											tone="auto"
-										/>
+										<Value amount={worthOf(account)} currency={account.currency} tone="auto" />
 									</TableCell>
 									<TableCell numeric={true}>
 										{/* Nothing to offer is no button, rather than a button that opens
@@ -350,8 +465,13 @@ export function AccountsPage() {
 														</MenuItem>
 													)
 												) : null}
+												{mayUpdate ? (
+													<MenuItem onSelect={() => openEdit(account)}>
+														{t("accounts.edit")}
+													</MenuItem>
+												) : null}
 												{mayDelete ? (
-													<MenuItem onSelect={() => remove.mutate(account.id)}>
+													<MenuItem onSelect={() => setErasing(account)}>
 														{t("actions.delete")}
 													</MenuItem>
 												) : null}
@@ -367,6 +487,113 @@ export function AccountsPage() {
 
 			<CardsSection accounts={rows} cards={plastic} loading={cards.isPending} />
 
+			{/* Correcting an account, which had no screen at all: the only way to fix a name
+			    or an opening balance was to delete the account and write everything again. */}
+			<Dialog
+				open={editing !== null}
+				onOpenChange={(next) => !next && setEditing(null)}
+				title={t("accounts.editTitle")}
+				description={t("accounts.editDescription")}
+				closeLabel={t("actions.close")}
+				footer={
+					<>
+						<Button variant="quiet" onClick={() => setEditing(null)}>
+							{t("actions.cancel")}
+						</Button>
+						<Button onClick={() => save.mutate()} disabled={save.isPending}>
+							{t("actions.save")}
+						</Button>
+					</>
+				}
+			>
+				<div className="space-y-4">
+					<Field
+						label={t("accounts.name")}
+						value={editName}
+						onChange={(event) => setEditName(event.target.value)}
+					/>
+					<Field
+						label={t("accounts.institution")}
+						value={editInstitution}
+						onChange={(event) => setEditInstitution(event.target.value)}
+					/>
+					{editing && editing.kind !== "credit" && editing.kind !== "voucher" ? (
+						<Field
+							label={t("accounts.balance")}
+							hint={t("accounts.balanceEditHint")}
+							value={editBalance}
+							onChange={(event) => setEditBalance(event.target.value)}
+							numeric={true}
+							inputMode="decimal"
+						/>
+					) : null}
+					{editing?.kind === "voucher" ? (
+						<>
+							<Field
+								label={t("accounts.quota")}
+								hint={t("accounts.quotaHint")}
+								value={editQuota}
+								onChange={(event) => setEditQuota(event.target.value)}
+								numeric={true}
+								inputMode="decimal"
+							/>
+							<Field
+								label={t("accounts.quotaDay")}
+								value={editQuotaDay}
+								onChange={(event) => setEditQuotaDay(event.target.value)}
+								numeric={true}
+								inputMode="numeric"
+							/>
+							<Segmented
+								label={t("accounts.quotaLeftover")}
+								value={editCarries ? "carries" : "resets"}
+								onChange={(next) => setEditCarries(next === "carries")}
+								options={[
+									{ value: "carries", label: t("accounts.quotaCarries") },
+									{ value: "resets", label: t("accounts.quotaResets") },
+								]}
+							/>
+						</>
+					) : null}
+					{problem ? <Callout tone="problem">{problem}</Callout> : null}
+				</div>
+			</Dialog>
+
+			{/* Deleting an account fired straight from the menu, with nothing said about what
+			    goes with it. Its records stay where they are, pointing at something that no
+			    longer resolves, so their money stops being counted anywhere. */}
+			<Dialog
+				open={erasing !== null}
+				onOpenChange={(next) => !next && setErasing(null)}
+				title={t("accounts.deleteTitle", { name: erasing?.name ?? "" })}
+				description={t("accounts.deleteDescription")}
+				closeLabel={t("actions.close")}
+				footer={
+					<>
+						<Button variant="quiet" onClick={() => setErasing(null)}>
+							{t("actions.cancel")}
+						</Button>
+						<Button
+							variant="destructive"
+							disabled={remove.isPending}
+							onClick={() => {
+								if (erasing) remove.mutate(erasing.id);
+								setErasing(null);
+							}}
+						>
+							{t("actions.delete")}
+						</Button>
+					</>
+				}
+			>
+				<p className="text-sm">
+					{inside.isPending
+						? t("accounts.deleteCounting")
+						: t("accounts.deleteHolds", { count: inside.data ?? 0 })}
+				</p>
+				<p className="mt-2 text-quiet text-sm">{t("accounts.deleteInstead")}</p>
+			</Dialog>
+
 			<CardDialog card={cardTarget} accounts={rows} onClose={() => setCardTarget(null)} />
 
 			<Dialog
@@ -374,7 +601,7 @@ export function AccountsPage() {
 				onOpenChange={setOpen}
 				title={t("accounts.create")}
 				description={t("accounts.createDescription", { space: currentSpace.name })}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				footer={
 					<>
 						<Button variant="quiet" onClick={() => setOpen(false)}>
@@ -477,6 +704,31 @@ export function AccountsPage() {
 							onChange={(event) => setBenefit(event.target.value as BenefitKind)}
 							options={BENEFITS.map((value) => ({ value, label: t(`benefitKind.${value}`) }))}
 						/>
+					) : null}
+
+					{/* A benefit card is an allowance with a day on it, and nothing is written
+					    when the money lands, so what is on the card can only be worked out
+					    from these two. Left empty, the card says so rather than guessing. */}
+					{kind === "voucher" ? (
+						<div className="grid gap-4 sm:grid-cols-2">
+							<Field
+								label={t("accounts.quota")}
+								hint={t("accounts.quotaHint")}
+								value={quota}
+								onChange={(event) => setQuota(event.target.value)}
+								numeric={true}
+								inputMode="decimal"
+								placeholder={t("fields.amountPlaceholder")}
+							/>
+							<Field
+								label={t("accounts.quotaDay")}
+								value={quotaDay}
+								onChange={(event) => setQuotaDay(event.target.value)}
+								numeric={true}
+								inputMode="numeric"
+								placeholder="5"
+							/>
+						</div>
 					) : null}
 
 					{/* These two kinds of account are a card, so the card is described here

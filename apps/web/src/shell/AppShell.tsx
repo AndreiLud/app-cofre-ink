@@ -56,12 +56,21 @@ function sectionsOf(t: (key: string) => string) {
 			],
 		},
 		{ to: ROUTES.reports, label: t("nav.reports"), icon: "chart" as const, children: [] },
+		// Accounts and cards are money and not configuration, so they left the settings
+		// section and have one of their own. A card was not in the navigation at all: it
+		// was a panel at the foot of the accounts screen, which is where somebody looks for
+		// a setting and not for the plastic in their pocket.
 		{
 			to: ROUTES.accounts,
+			label: t("nav.money"),
+			icon: "wallet" as const,
+			children: [],
+		},
+		{
+			to: ROUTES.categories,
 			label: t("nav.settings"),
 			icon: "settings" as const,
 			children: [
-				{ to: ROUTES.accounts, label: t("nav.accounts") },
 				{ to: ROUTES.categories, label: t("nav.categories") },
 				{ to: ROUTES.data, label: t("nav.data") },
 			],

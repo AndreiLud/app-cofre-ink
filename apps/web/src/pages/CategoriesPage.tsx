@@ -260,7 +260,7 @@ export function CategoriesPage() {
 				onOpenChange={setOpen}
 				title={editing ? t("categories.edit") : t("categories.create")}
 				description={t("categories.createDescription")}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				footer={
 					<>
 						<Button variant="quiet" onClick={() => setOpen(false)}>

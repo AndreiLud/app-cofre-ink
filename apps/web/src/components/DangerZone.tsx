@@ -273,7 +273,7 @@ export function DangerZone() {
 							? t("danger.confirmEverythingHereBody")
 							: t("danger.confirmEverythingServerBody")
 				}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				footer={
 					<>
 						<Button variant="quiet" onClick={() => setTarget(null)}>

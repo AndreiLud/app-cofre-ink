@@ -241,7 +241,7 @@ export function TransactionForm({
 			onOpenChange={onOpenChange}
 			title={editing ? t("transactions.edit") : t("transactions.create")}
 			description={t("transactions.createDescription")}
-			closeLabel={t("actions.cancel")}
+			closeLabel={t("actions.close")}
 			footer={
 				<>
 					<Button variant="quiet" onClick={() => onOpenChange(false)}>

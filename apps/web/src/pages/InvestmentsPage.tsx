@@ -548,7 +548,7 @@ export function InvestmentsPage() {
 				onOpenChange={setOpen}
 				title={t("investments.add")}
 				description={t("investments.addDescription")}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				footer={
 					<>
 						<Button variant="quiet" onClick={() => setOpen(false)}>
@@ -623,7 +623,7 @@ export function InvestmentsPage() {
 				}}
 				title={t("investments.newPriceFor", { name: pricing?.name ?? "" })}
 				description={t("investments.newPriceDescription")}
-				closeLabel={t("actions.cancel")}
+				closeLabel={t("actions.close")}
 				footer={
 					<>
 						<Button variant="quiet" onClick={() => setPricing(null)}>
