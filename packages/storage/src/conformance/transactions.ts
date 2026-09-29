@@ -439,6 +439,39 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		it("cuts the page from the end that was asked for", async () => {
+			const ready = await readySpace(adapter);
+			try {
+				for (const day of ["2026-09-10", "2026-09-20", "2026-09-30"]) {
+					await ready.fixture.asAna.transactions.create({
+						spaceId: ready.spaceId,
+						kind: "expense",
+						amount: 1_000,
+						happenedOn: day,
+						description: `Compra de ${day}`,
+						accountId: ready.checking.id,
+					});
+				}
+
+				// Two records, and which two depends on which end the caller asked for. Sorting
+				// after the fact cannot do this: the database has already thrown one away.
+				const newest = await ready.fixture.asAna.transactions.list({
+					spaceId: ready.spaceId,
+					limit: 2,
+				});
+				expect(newest.map((one) => one.happenedOn)).toEqual(["2026-09-30", "2026-09-20"]);
+
+				const oldest = await ready.fixture.asAna.transactions.list({
+					spaceId: ready.spaceId,
+					limit: 2,
+					order: "oldestFirst",
+				});
+				expect(oldest.map((one) => one.happenedOn)).toEqual(["2026-09-10", "2026-09-20"]);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		it("freezes a record that was reconciled against the bank", async () => {
 			const ready = await readySpace(adapter);
 			try {

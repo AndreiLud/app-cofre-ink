@@ -122,6 +122,16 @@ export type TransactionFilter = {
 	 */
 	externalIds?: string[];
 	installmentGroup?: string;
+	/**
+	 * Which end of the range the page is taken from.
+	 *
+	 * Newest first is what a list of records wants, and it is the default. Oldest first is
+	 * what anything asking "what falls due next" wants, and asking for it matters rather
+	 * than sorting afterwards: the limit is applied by the database, so a caller that
+	 * fetched the newest twenty and then sorted them the other way round was showing the
+	 * twenty furthest away and dropping the bills due tomorrow.
+	 */
+	order?: "newestFirst" | "oldestFirst";
 	limit?: number;
 	offset?: number;
 };
@@ -584,10 +594,14 @@ export function createTransactionsRepository(context: RepositoryContext) {
 
 			const limit = Math.min(Math.max(filter.limit ?? 200, 1), 1000);
 			const offset = Math.max(filter.offset ?? 0, 0);
+			// The order belongs in the query and not after it, because the limit is applied
+			// here: a caller that took the newest twenty and sorted them the other way round
+			// was showing the twenty furthest away and dropping what falls due tomorrow.
+			const direction = filter.order === "oldestFirst" ? "ASC" : "DESC";
 
 			const rows = await context.driver.all(
 				`${SELECT} WHERE ${where.join(" AND ")}
-				 ORDER BY "happened_on" DESC, "created_at" DESC
+				 ORDER BY "happened_on" ${direction}, "created_at" ${direction}
 				 LIMIT ${limit} OFFSET ${offset}`,
 				params,
 			);
