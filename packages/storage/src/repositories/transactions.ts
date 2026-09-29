@@ -691,6 +691,12 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			if (rows.length === 0) throw new NotFoundError("installments", groupId);
 			assertCan(context.actor(), rows[0]?.spaceId ?? "", "transaction.delete");
 
+			// The one delete path that asked the permission and then skipped both of the
+			// other two questions. So a logger, who holds transaction.delete, could take
+			// away somebody else's whole instalment plan, and anybody could take away one
+			// that had been ticked off against the bank, which every other path refuses.
+			for (const row of rows) assertChangeable(row, "removing");
+
 			await context.driver.transaction(async (tx) => {
 				const write = { ...context.write(), driver: tx };
 				for (const row of rows) {
@@ -711,24 +717,40 @@ export function createTransactionsRepository(context: RepositoryContext) {
 		async balances(spaceId: string): Promise<AccountBalance[]> {
 			assertCan(context.actor(), spaceId, "account.read");
 
+			/**
+			 * A balance is made of records, so it follows the rule records follow.
+			 *
+			 * This asked for the permission to read accounts, which every role has, and
+			 * then summed every row in the space, which is how a logger came to read the
+			 * household's real balances on the overview while the limits on the same screen
+			 * counted only their own. For them the opening balance starts at nothing too:
+			 * it belongs to the space and not to a person, and counting it and then only
+			 * their rows would be the worst of both. What they read is what they themselves
+			 * have put through each account.
+			 */
+			const onlyMine = seesOwnRowsOnly(context.actor(), spaceId);
+			const only = onlyMine ? `AND t."created_by" = ?` : "";
+			const who = onlyMine ? [context.actor().userId] : [];
+
 			const rows = await context.driver.all(
-				`SELECT a."id" AS account_id, a."currency" AS currency, a."initial_balance" AS initial,
+				`SELECT a."id" AS account_id, a."currency" AS currency,
+				  ${onlyMine ? "0" : `a."initial_balance"`} AS initial,
 				  COALESCE((SELECT SUM(CASE WHEN t."kind" = 'transfer' THEN -t."amount" ELSE t."amount" END)
 				            FROM "transactions" t
 				            WHERE t."account_id" = a."id" AND t."deleted_at" IS NULL
-				              AND t."status" = 'settled'), 0) AS out_settled,
+				              AND t."status" = 'settled' ${only}), 0) AS out_settled,
 				  COALESCE((SELECT SUM(t."amount") FROM "transactions" t
 				            WHERE t."counter_account_id" = a."id" AND t."deleted_at" IS NULL
-				              AND t."status" = 'settled'), 0) AS in_settled,
+				              AND t."status" = 'settled' ${only}), 0) AS in_settled,
 				  COALESCE((SELECT SUM(CASE WHEN t."kind" = 'transfer' THEN -t."amount" ELSE t."amount" END)
 				            FROM "transactions" t
-				            WHERE t."account_id" = a."id" AND t."deleted_at" IS NULL), 0) AS out_all,
+				            WHERE t."account_id" = a."id" AND t."deleted_at" IS NULL ${only}), 0) AS out_all,
 				  COALESCE((SELECT SUM(t."amount") FROM "transactions" t
-				            WHERE t."counter_account_id" = a."id" AND t."deleted_at" IS NULL), 0) AS in_all
+				            WHERE t."counter_account_id" = a."id" AND t."deleted_at" IS NULL ${only}), 0) AS in_all
 				 FROM "accounts" a
 				 WHERE a."space_id" = ? AND a."deleted_at" IS NULL
 				 ORDER BY a."name"`,
-				[spaceId],
+				[...who, ...who, ...who, ...who, spaceId],
 			);
 
 			return rows.map((row) => {

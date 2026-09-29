@@ -19,7 +19,8 @@ import {
 	readingOf,
 	type Snapshot,
 } from "@cofre/core";
-import { assertCan } from "../actor.ts";
+import { assertCan, seesOwnRowsOnly } from "../actor.ts";
+import type { SqlValue } from "../driver.ts";
 import { asNumber } from "../driver.ts";
 import { marks } from "../sql.ts";
 import type { AccountsRepository } from "./accounts.ts";
@@ -96,6 +97,20 @@ export type AdviceNeeds = {
 };
 
 export function createAdviceRepository(context: RepositoryContext, needs: AdviceNeeds) {
+	/**
+	 * Whether this reading is narrowed to one person's own records.
+	 *
+	 * A logger only ever sees what they wrote. Every query in this file read the whole
+	 * space, so the four signs and every finding were about the household while the limits
+	 * on the same screen counted only their own rows, and the comment on findings claimed
+	 * the opposite of what the code did.
+	 */
+	function mine(spaceId: string, alias = ""): { clause: string; params: SqlValue[] } {
+		if (!seesOwnRowsOnly(context.actor(), spaceId)) return { clause: "", params: [] };
+		const column = alias === "" ? `"created_by"` : `${alias}."created_by"`;
+		return { clause: `AND ${column} = ?`, params: [context.actor().userId] };
+	}
+
 	async function monthlyTotals(spaceId: string, from: string, to: string) {
 		const rows = await context.driver.all(
 			`SELECT SUBSTR("happened_on", 1, 7) AS month,
@@ -104,9 +119,10 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			 FROM "transactions"
 			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "status" = 'settled'
 			   AND "happened_on" >= ? AND "happened_on" <= ?
+			   ${mine(spaceId).clause}
 			 GROUP BY SUBSTR("happened_on", 1, 7)
 			 ORDER BY month DESC`,
-			[spaceId, from, to],
+			[spaceId, from, to, ...mine(spaceId).params],
 		);
 
 		return rows.map((row) => ({
@@ -132,8 +148,9 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "status" = 'settled'
 			   AND "kind" = 'income' AND "happened_on" >= ? AND "happened_on" <= ?
 			   AND "description" <> ''
+			   ${mine(spaceId).clause}
 			 GROUP BY LOWER(TRIM("description")), SUBSTR("happened_on", 1, 7)`,
-			[spaceId, from, to],
+			[spaceId, from, to, ...mine(spaceId).params],
 		);
 
 		return rows.map((row) => ({
@@ -170,8 +187,9 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			 JOIN "categories" c ON c."id" = t."category_id"
 			 WHERE t."space_id" = ? AND t."deleted_at" IS NULL AND t."status" = 'settled'
 			   AND t."kind" = 'expense' AND t."happened_on" >= ? AND t."happened_on" <= ?
+			   ${mine(spaceId, "t").clause}
 			 GROUP BY t."category_id", c."name", SUBSTR(t."happened_on", 1, 7)`,
-			[spaceId, from, to],
+			[spaceId, from, to, ...mine(spaceId, "t").params],
 		);
 
 		return rows.map((row) => ({
@@ -200,8 +218,9 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "status" = 'settled'
 			   AND "kind" = 'expense' AND "happened_on" >= ? AND "happened_on" <= ?
 			   AND "description" <> ''
+			   ${mine(spaceId).clause}
 			 ORDER BY "happened_on"`,
-			[spaceId, from, to],
+			[spaceId, from, to, ...mine(spaceId).params],
 		);
 
 		const byLabel = new Map<string, { months: Set<string>; amounts: number[]; shown: string }>();
@@ -245,8 +264,9 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			 LEFT JOIN "accounts" a ON a."id" = t."account_id"
 			 WHERE t."space_id" = ? AND t."deleted_at" IS NULL AND t."status" = 'planned'
 			   AND t."kind" = 'expense' AND t."happened_on" >= ? AND t."happened_on" <= ?
+			   ${mine(spaceId, "t").clause}
 			 ORDER BY t."happened_on"`,
-			[spaceId, today, until],
+			[spaceId, today, until, ...mine(spaceId, "t").params],
 		);
 
 		return rows.map((row) => ({
@@ -282,13 +302,15 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			   AND a."happened_on" >= ? AND a."happened_on" <= ?
 			   AND a."installment_number" IS NULL AND b."installment_number" IS NULL
 			   AND SUBSTR(LOWER(a."description"), 1, 8) = SUBSTR(LOWER(b."description"), 1, 8)
+			   ${mine(spaceId, "a").clause}
+			   ${mine(spaceId, "b").clause}
 			 ORDER BY a."happened_on" DESC
 			 -- Somebody who buys the same coffee every day for the same price produces a
 			 -- great many of these pairs. Only the newest few are ever shown, and the
 			 -- days filter below throws most of them away anyway, so the database is
 			 -- asked to stop rather than to hand over a month of coincidences.
 			 LIMIT 100`,
-			[spaceId, from, to],
+			[spaceId, from, to, ...mine(spaceId, "a").params, ...mine(spaceId, "b").params],
 		);
 
 		return rows
@@ -330,6 +352,7 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			   FROM "transactions"
 			   WHERE "space_id" = ? AND "deleted_at" IS NULL AND "status" = 'settled'
 			     AND "happened_on" >= ? AND "happened_on" <= ? AND "account_id" IN (${inside})
+			     ${mine(spaceId).clause}
 			   GROUP BY SUBSTR("happened_on", 1, 7)
 			   UNION ALL
 			   SELECT SUBSTR("happened_on", 1, 7) AS "month", SUM("amount") AS "moved"
@@ -337,11 +360,23 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			   WHERE "space_id" = ? AND "deleted_at" IS NULL AND "status" = 'settled'
 			     AND "happened_on" >= ? AND "happened_on" <= ?
 			     AND "counter_account_id" IN (${inside})
+			     ${mine(spaceId).clause}
 			   GROUP BY SUBSTR("happened_on", 1, 7)
 			 ) AS moved
 			 GROUP BY "month"
 			 ORDER BY "month" DESC`,
-			[spaceId, from, to, ...spendable, spaceId, from, to, ...spendable],
+			[
+				spaceId,
+				from,
+				to,
+				...spendable,
+				...mine(spaceId).params,
+				spaceId,
+				from,
+				to,
+				...spendable,
+				...mine(spaceId).params,
+			],
 		);
 
 		return rows.map((row) => ({ month: String(row.month), net: asNumber(row.net) }));
@@ -358,9 +393,10 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			 FROM "transactions"
 			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "kind" = 'expense'
 			   AND "invoice_month" IS NOT NULL AND "invoice_month" >= ? AND "invoice_month" < ?
+			   ${mine(spaceId).clause}
 			 GROUP BY "invoice_month"
 			 ORDER BY month DESC`,
-			[spaceId, from, thisMonth],
+			[spaceId, from, thisMonth, ...mine(spaceId).params],
 		);
 
 		return rows.map((row) => ({ month: String(row.month), amount: Math.abs(asNumber(row.total)) }));
@@ -384,10 +420,11 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			 FROM "transactions"
 			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "kind" = 'expense'
 			   AND "installment_number" IS NOT NULL AND "happened_on" > ?
+			   ${mine(spaceId).clause}
 			 GROUP BY SUBSTR("happened_on", 1, 7)
 			 ORDER BY month
 			 LIMIT ${AHEAD}`,
-			[spaceId, after],
+			[spaceId, after, ...mine(spaceId).params],
 		);
 
 		return rows.map((row) => ({ month: String(row.month), amount: Math.abs(asNumber(row.total)) }));
@@ -407,8 +444,9 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			`SELECT "counter_account_id" AS account_id, MAX("happened_on") AS day
 			 FROM "transactions"
 			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "counter_account_id" IS NOT NULL
+			   ${mine(spaceId).clause}
 			 GROUP BY "counter_account_id"`,
-			[spaceId],
+			[spaceId, ...mine(spaceId).params],
 		);
 		return new Map(rows.map((row) => [String(row.account_id), String(row.day)]));
 	}
@@ -420,6 +458,11 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 		 * It reads and never writes, so it takes the permission to read records. A member
 		 * who only sees their own rows gets findings about their own rows, which is the
 		 * same rule every other screen follows.
+		 *
+		 * That sentence was written before it was true. Nothing in this file filtered by
+		 * author, so a logger read the whole household's four signs and every finding,
+		 * beside a budget block on the same screen that counted only their own rows. Every
+		 * reading here is narrowed now, so what they are told is about what they wrote.
 		 */
 		async findings(input: AdviceInput): Promise<Finding[]> {
 			return findEverything(await this.snapshot(input));

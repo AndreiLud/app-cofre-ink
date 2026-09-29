@@ -19,7 +19,8 @@ import {
 	project,
 	type RecurrenceSpec,
 } from "@cofre/core";
-import { assertCan } from "../actor.ts";
+import { assertCan, seesOwnRowsOnly } from "../actor.ts";
+import type { SqlValue } from "../driver.ts";
 import { asNumber } from "../driver.ts";
 import { toRecurrence } from "../models.ts";
 import type { RepositoryContext } from "./context.ts";
@@ -47,6 +48,20 @@ function lastDayOf(month: CalendarMonth): string {
 }
 
 export function createProjectionsRepository(context: RepositoryContext) {
+	/**
+	 * Whether this reading is narrowed to one person's own records.
+	 *
+	 * A logger only ever sees what they wrote. Every query that reads the transactions
+	 * table has to hold that, and the ones behind this screen did not, so a logger was
+	 * shown the whole household's months ahead while the limits beside them counted only
+	 * their own rows.
+	 */
+	function mine(spaceId: string, alias = ""): { clause: string; params: SqlValue[] } {
+		if (!seesOwnRowsOnly(context.actor(), spaceId)) return { clause: "", params: [] };
+		const column = alias === "" ? `"created_by"` : `${alias}."created_by"`;
+		return { clause: `AND ${column} = ?`, params: [context.actor().userId] };
+	}
+
 	/** Income and expense per month, from the records themselves. */
 	async function amountsByMonth(
 		spaceId: string,
@@ -54,6 +69,7 @@ export function createProjectionsRepository(context: RepositoryContext) {
 		to: CalendarMonth,
 		options: { onlyPlanned?: boolean } = {},
 	): Promise<MonthlyAmounts[]> {
+		const only = mine(spaceId);
 		const rows = await context.driver.all(
 			`SELECT SUBSTR("happened_on", 1, 7) AS month,
 			        SUM(CASE WHEN "kind" = 'income' THEN "amount_in_base" ELSE 0 END) AS income,
@@ -62,9 +78,10 @@ export function createProjectionsRepository(context: RepositoryContext) {
 			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "kind" <> 'transfer'
 			   AND "happened_on" >= ? AND "happened_on" <= ?
 			   ${options.onlyPlanned ? `AND "status" = 'planned'` : ""}
+			   ${only.clause}
 			 GROUP BY SUBSTR("happened_on", 1, 7)
 			 ORDER BY month`,
-			[spaceId, `${from}-01`, lastDayOf(to)],
+			[spaceId, `${from}-01`, lastDayOf(to), ...only.params],
 		);
 
 		return rows.map((row) => ({
@@ -80,6 +97,12 @@ export function createProjectionsRepository(context: RepositoryContext) {
 		from: CalendarMonth,
 		to: CalendarMonth,
 	): Promise<MonthlyAmounts[]> {
+		// Nothing, for somebody who only sees their own records. A series belongs to the
+		// space and is set by the people who may write one, and the rows it writes are
+		// theirs and not this person's, so counting what it will owe would put the
+		// household's bills into a projection of one person's own spending.
+		if (seesOwnRowsOnly(context.actor(), spaceId)) return [];
+
 		const rules = (
 			await context.driver.all(
 				`SELECT "id", "space_id", "description", "kind", "amount", "currency", "account_id",
@@ -162,20 +185,30 @@ export function createProjectionsRepository(context: RepositoryContext) {
 			const window = Math.max(1, Math.min(input.window ?? 6, 24));
 			const to = addMonthsToMonth(input.from, months - 1);
 
-			const balances = await context.driver.all(
-				`SELECT COALESCE(SUM(a."initial_balance"), 0) AS opening FROM "accounts" a
-				 WHERE a."space_id" = ? AND a."deleted_at" IS NULL AND a."archived_at" IS NULL
-				   AND a."kind" <> 'credit'`,
-				[input.spaceId],
-			);
+			// The opening balances of the accounts belong to the space and not to a person,
+			// so for somebody who only sees their own records this starts at nothing and
+			// what follows is the shape of their own spending rather than the household's
+			// money. Counting the household's opening balance and then only their rows
+			// would be the worst of both.
+			const onlyMine = seesOwnRowsOnly(context.actor(), input.spaceId);
+			const balances = onlyMine
+				? []
+				: await context.driver.all(
+						`SELECT COALESCE(SUM(a."initial_balance"), 0) AS opening FROM "accounts" a
+						 WHERE a."space_id" = ? AND a."deleted_at" IS NULL AND a."archived_at" IS NULL
+						   AND a."kind" <> 'credit'`,
+						[input.spaceId],
+					);
 
+			const only = mine(input.spaceId, "t");
 			const settled = await context.driver.all(
 				`SELECT COALESCE(SUM(CASE WHEN t."kind" = 'transfer' THEN 0 ELSE t."amount_in_base" END), 0) AS moved
 				 FROM "transactions" t
 				 JOIN "accounts" a ON a."id" = t."account_id"
 				 WHERE t."space_id" = ? AND t."deleted_at" IS NULL AND t."status" = 'settled'
-				   AND a."kind" <> 'credit' AND a."deleted_at" IS NULL`,
-				[input.spaceId],
+				   AND a."kind" <> 'credit' AND a."deleted_at" IS NULL
+				   ${only.clause}`,
+				[input.spaceId, ...only.params],
 			);
 
 			const opening = asNumber(balances[0]?.opening ?? 0) + asNumber(settled[0]?.moved ?? 0);

@@ -10,7 +10,7 @@
 
 import { parseCalendarDate } from "@cofre/core";
 import { goals, savingsRules } from "@cofre/db";
-import { assertCan, readableSpaceIds } from "../actor.ts";
+import { assertCan, readableSpaceIds, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber, type SqlValue } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { type Goal, type SavingsMode, type SavingsRule, toGoal, toSavingsRule } from "../models.ts";
@@ -83,19 +83,44 @@ export function createGoalsRepository(context: RepositoryContext) {
 		if (rows.length === 0) throw new NotFoundError("account", accountId);
 	}
 
-	/** What an account is worth right now, counting only what has actually happened. */
-	async function balanceOf(accountId: string): Promise<number> {
+	/**
+	 * Whether this reading is narrowed to one person's own records.
+	 *
+	 * A logger only ever sees what they wrote, and the queries behind the plan did not
+	 * hold that: the limits on one screen counted their own rows while the savings and the
+	 * goals beside them counted the household's.
+	 */
+	function mine(spaceId: string, alias = ""): { clause: string; params: SqlValue[] } {
+		if (!seesOwnRowsOnly(context.actor(), spaceId)) return { clause: "", params: [] };
+		const column = alias === "" ? `"created_by"` : `${alias}."created_by"`;
+		return { clause: `AND ${column} = ?`, params: [context.actor().userId] };
+	}
+
+	/**
+	 * What an account is worth right now, counting only what has actually happened.
+	 *
+	 * For somebody who only sees their own records this is what they themselves have put
+	 * through the account, from nothing: the opening balance belongs to the space and not
+	 * to a person, and counting it and then only their rows would be the worst of both. So
+	 * a logger reads their own part of a goal rather than the household's, which is the
+	 * same rule the spending against a limit has always followed.
+	 */
+	async function balanceOf(accountId: string, spaceId: string): Promise<number> {
+		const onlyMine = seesOwnRowsOnly(context.actor(), spaceId);
+		const only = onlyMine ? `AND t."created_by" = ?` : "";
+		const who = onlyMine ? [context.actor().userId] : [];
+
 		const rows = await context.driver.all(
-			`SELECT a."initial_balance" AS initial,
+			`SELECT ${onlyMine ? "0" : `a."initial_balance"`} AS initial,
 			  COALESCE((SELECT SUM(CASE WHEN t."kind" = 'transfer' THEN -t."amount" ELSE t."amount" END)
 			            FROM "transactions" t
 			            WHERE t."account_id" = a."id" AND t."deleted_at" IS NULL
-			              AND t."status" = 'settled'), 0) AS out_settled,
+			              AND t."status" = 'settled' ${only}), 0) AS out_settled,
 			  COALESCE((SELECT SUM(t."amount") FROM "transactions" t
 			            WHERE t."counter_account_id" = a."id" AND t."deleted_at" IS NULL
-			              AND t."status" = 'settled'), 0) AS in_settled
+			              AND t."status" = 'settled' ${only}), 0) AS in_settled
 			 FROM "accounts" a WHERE a."id" = ?`,
-			[accountId],
+			[...who, ...who, accountId],
 		);
 		const row = rows[0];
 		if (!row) return 0;
@@ -225,7 +250,7 @@ export function createGoalsRepository(context: RepositoryContext) {
 
 			const found: GoalProgress[] = [];
 			for (const row of rows.map(toGoal)) {
-				const saved = Math.max(0, await balanceOf(row.accountId));
+				const saved = Math.max(0, await balanceOf(row.accountId, input.spaceId));
 				const left = Math.max(0, row.targetAmount - saved);
 				found.push({
 					...row,
@@ -324,11 +349,15 @@ export function createGoalsRepository(context: RepositoryContext) {
 			const from = `${input.month}-01`;
 			const to = `${input.month}-${String(days).padStart(2, "0")}`;
 
+			// Narrowed for somebody who only sees their own records, so what they read is
+			// what they themselves earned and put aside rather than the household's.
+			const only = mine(input.spaceId);
 			const earnedRows = await context.driver.all(
 				`SELECT COALESCE(SUM("amount"), 0) AS total FROM "transactions"
 				 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "kind" = 'income'
-				   AND "status" = 'settled' AND "happened_on" >= ? AND "happened_on" <= ?`,
-				[input.spaceId, from, to],
+				   AND "status" = 'settled' AND "happened_on" >= ? AND "happened_on" <= ?
+				   ${only.clause}`,
+				[input.spaceId, from, to, ...only.params],
 			);
 			const earned = asNumber(earnedRows[0]?.total ?? 0);
 
@@ -337,8 +366,9 @@ export function createGoalsRepository(context: RepositoryContext) {
 				const intoRows = await context.driver.all(
 					`SELECT COALESCE(SUM("amount"), 0) AS total FROM "transactions"
 					 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "status" = 'settled'
-					   AND "counter_account_id" = ? AND "happened_on" >= ? AND "happened_on" <= ?`,
-					[input.spaceId, rule.accountId, from, to],
+					   AND "counter_account_id" = ? AND "happened_on" >= ? AND "happened_on" <= ?
+					   ${only.clause}`,
+					[input.spaceId, rule.accountId, from, to, ...only.params],
 				);
 				put = asNumber(intoRows[0]?.total ?? 0);
 			}

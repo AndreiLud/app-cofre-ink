@@ -708,6 +708,91 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		/**
+		 * Every screen that reads records, and not only the list and the limits.
+		 *
+		 * The rule was held by the list, the reports, the budget and the import, and not by
+		 * the balances, the projection, the savings, the goals or the diagnosis, so one
+		 * screen showed a logger their own spending against a limit beside four vital signs
+		 * about the whole household. The comment on the findings said the opposite of what
+		 * the code did.
+		 */
+		it("reads the household to nobody who only sees their own rows", async () => {
+			const { ready, asLogger } = await withLogger();
+			try {
+				const spaceId = ready.spaceId;
+				const today = "2026-09-20";
+
+				// Ana wrote a hundred, the logger wrote fifty, and every figure below has to
+				// be made of the fifty alone.
+				const balances = await asLogger.transactions.balances(spaceId);
+				const settled = balances.reduce((sum, one) => sum + one.settled, 0);
+				expect(settled).toBe(-5000);
+
+				const ahead = await asLogger.projections.monthsAhead({
+					spaceId,
+					from: "2026-09",
+					months: 3,
+				});
+				expect(ahead.months.every((month) => month.expense <= 5000)).toBe(true);
+
+				const savings = await asLogger.goals.savings({ spaceId, month: "2026-09" });
+				expect(savings.earned).toBe(0);
+
+				const seen = await asLogger.advice.snapshot({ spaceId, today });
+				const everything = await ready.fixture.asAna.advice.snapshot({ spaceId, today });
+				expect(seen.thisMonth.expense).toBe(5000);
+				expect(everything.thisMonth.expense).toBe(15_000);
+				// The money on hand is the household's, so for them it is what they put
+				// through the accounts themselves and not the opening balances.
+				expect(seen.onHand).toBe(-5000);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		/**
+		 * The one delete path that asked the permission and then skipped the two questions
+		 * every other one asks: whose row it is, and whether it was ticked off against the
+		 * bank. A logger holds transaction.delete, so it could take away somebody else's
+		 * whole instalment plan.
+		 */
+		it("refuses to take away an instalment plan that is not theirs", async () => {
+			const { ready, asLogger } = await withLogger();
+			try {
+				const account = (await ready.fixture.asAna.accounts.list(ready.spaceId))[0];
+				const card = await ready.fixture.asAna.accounts.create({
+					spaceId: ready.spaceId,
+					kind: "credit",
+					name: "Cartao da casa",
+					closingDay: 10,
+					dueDay: 20,
+				});
+				const parts = await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 30_000,
+					happenedOn: "2026-09-05",
+					description: "Geladeira da Ana",
+					accountId: card.id,
+					installments: 3,
+				});
+				const group = parts[0]?.installmentGroup ?? "";
+				expect(group).not.toBe("");
+				expect(account).toBeDefined();
+
+				await expect(asLogger.transactions.removeGroup(group)).rejects.toBeInstanceOf(
+					NotFoundError,
+				);
+
+				// And it is all still there.
+				const left = await ready.fixture.asAna.transactions.list({ spaceId: ready.spaceId });
+				expect(left.filter((row) => row.installmentGroup === group)).toHaveLength(3);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		it("keeps seeing their own rows across spaces they belong to", async () => {
 			const { ready, asLogger } = await withLogger();
 			try {
