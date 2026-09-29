@@ -116,17 +116,27 @@ export function DangerZone() {
 	 * left holding the space is a place that puts it back within seconds.
 	 */
 	async function dealWithTheCopy(spaceId: string): Promise<void> {
-		if (!copyKeepsIt || destination.kind === null) return;
-
-		if (!alsoTheCopy) {
-			rememberWhen({ ...backingUp, on: false });
-			return;
-		}
+		if (!copyKeepsIt || destination.kind === null || !alsoTheCopy) return;
 
 		const { storeFrom } = await import("../storage/storeFrom.ts");
 		const store = storeFrom(destination, t(`destination.${destination.kind}Short`));
 		if (store === null) return;
 		await store.remove(spaceId);
+	}
+
+	/**
+	 * The other half of the same question, and it happens afterwards.
+	 *
+	 * Taking the copy away has to go first, because a failure there has to leave the data
+	 * here. Switching the backup off does not: nothing reads that switch for at least
+	 * four seconds. It went first anyway, so an erasure that then failed left the space
+	 * intact and the backup off, with nothing saying so, and cancelling out of the dialog
+	 * left the browser quietly not backing anything up. The switch is one for the whole
+	 * browser, not one per space, so that was every space.
+	 */
+	function stopTheBackup(): void {
+		if (!copyKeepsIt || alsoTheCopy) return;
+		rememberWhen({ ...backingUp, on: false });
 	}
 
 	/** What has to be typed out, so that no amount of clicking alone is enough. */
@@ -172,6 +182,8 @@ export function DangerZone() {
 					);
 					return;
 				}
+				// Only now, with the space actually gone.
+				stopTheBackup();
 				queries.clear();
 				await reload();
 				setTarget(null);

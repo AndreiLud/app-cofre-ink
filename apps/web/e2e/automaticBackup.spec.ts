@@ -264,6 +264,43 @@ test.describe("the copy that keeps itself up to date", () => {
 	});
 
 	/**
+	 * Keeping the copy switches the backup off, and that was done before the erasure.
+	 *
+	 * So an erasure that failed left the space intact and the backup off, with nothing
+	 * saying so, and cancelling out of the dialog left the browser quietly not backing
+	 * anything up. The switch is one for the whole browser, so that was every space.
+	 */
+	test("leaves the backup alone when the erasure does not happen", async ({ page }) => {
+		const folder = await aFolderThatAnswers(page);
+		await openCofre(page);
+		await setUpTheFolder(page);
+
+		await page.getByRole("button", { name: "Ligar" }).click();
+		await page.getByRole("button", { name: "Fazer backup agora" }).click();
+		await expect(page.getByText(/Backup salvo às \d{2}:\d{2}/)).toBeVisible({ timeout: 20_000 });
+		expect(folder.files).toHaveLength(2);
+
+		await page
+			.getByRole("listitem")
+			.filter({ hasText: "Casa" })
+			.getByRole("button", { name: "Apagar os dados" })
+			.click();
+
+		const dialog = page.getByRole("dialog");
+		await dialog.getByRole("checkbox", { name: /Apagar também a cópia/ }).uncheck();
+
+		// Out of the dialog without erasing anything, which is what a person does when they
+		// read the warning and think again.
+		await dialog.getByRole("button", { name: "Cancelar" }).first().click();
+		await expect(dialog).toHaveCount(0);
+
+		// The backup is exactly as it was: on, and still going to that folder.
+		await expect(page.locator("#copia").getByText("Ativo", { exact: true })).toBeVisible();
+		await expect(page.getByRole("button", { name: "Desligar" })).toBeVisible();
+		await expect(page.getByRole("listitem").filter({ hasText: "Casa" }).first()).toBeVisible();
+	});
+
+	/**
 	 * An address that cannot be turned into a request used to take the whole run down.
 	 *
 	 * The store was built outside the try, so the throw from a destination refusing an
