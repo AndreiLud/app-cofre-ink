@@ -1,6 +1,6 @@
 {
 	"name": "cofre",
-	"version": "1.0.4",
+	"version": "1.0.5",
 	"private": true,
 	"type": "module",
 	"description": "Personal finance app you host yourself, with private and shared spaces",

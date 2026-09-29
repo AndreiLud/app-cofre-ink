@@ -5,6 +5,102 @@ Every release, what changed in it, and what to do about it if you are running th
 Versions follow semantic versioning. The first number changes when something that worked
 breaks, the second when something is added, the third when something is corrected.
 
+## 1.0.5
+
+Released on 29 September 2026. The site session read the guide against the code at 1.0.4
+and brought what the three origins of that release had not reached. Then, before the tag,
+the same reading was turned on this release's own sentences, with instructions to refute
+them, and it refuted six and found fault with fourteen more. What that found is in here
+too, including a fix of 1.0.5 that had hidden the very thing it set out to show.
+
+> **If you typed a quantity of an investment with three decimal places, check it.**
+>
+> A quantity went through the reader built for money, and money has a rule that three
+> digits after a lone separator are a thousands mark, because nobody writes a third decimal
+> place on an amount. A quantity is not money: an eighth of a unit, written 0.125 or 0,125,
+> was stored as a hundred and twenty five units, and so was every quantity with exactly
+> three digits after a single separator. The repository then multiplied that by the unit
+> price, so one mistyped fraction moved the worth of the whole space. Open Investimentos
+> and look at the quantities.
+
+### Fixed
+
+**A fraction of a unit is a fraction.** The reader takes the thousands rule as an option
+now, money keeps it and a quantity does not, and both are tested at both scales, which
+nothing was.
+
+**The automatic run says when it cannot even build a place.** 1.0.4 taught the destinations
+to refuse an address that is not one, and put that refusal in the constructor, which the run
+called outside its try. So the whole run rejected with nobody holding it: no sentence, no
+time recorded, nothing in the console, and a panel still saying Active. The deeper half is
+that the question was asked too late, so a line of text that is not an address counted as a
+complete place and armed the backup against it. The same rule the destinations use now
+answers whether a place is ready, while the person is still looking at the field.
+
+**The two addresses a service hands you are taken as they are**: `libsql://name.turso.io`,
+which is what Turso shows, and the host on its own, which is what the hint asks for. Both
+were refused with a sentence blaming the connection.
+
+**The fields of a folder go back to the folder.** 1.0.4 split the places apart and read
+what it found at face value, so a browser that had hit the 1.0.3 fault came up with the
+folder's address and application password filed under the database, and the folder blank.
+
+**Every refusal has a sentence.** Eighteen rules the model can refuse with had none in
+either language, so an expired invitation, a personal space that takes no members and an
+owner who has to hand the space over before leaving all arrived as "I could not finish
+that". The check that keeps the two languages in step now walks the rules the model throws
+and refuses a name with no sentence.
+
+**A sentence is about the thing it is about.** A share of a division went through a reader
+that turned a comma into nothing readable and answered with the sentence about an amount,
+inside a dialog that holds no amounts; a percentage and a quantity borrowed the same one.
+Three screens threw a plain error carrying an already translated sentence, which is the one
+shape the translator cannot read, so it showed the generic one. And a coding defect that
+threw a TypeError was reported as a connection that failed, on an application that in
+browser mode has nothing to connect to.
+
+**A failure is shown where the person is looking.** Archiving or deleting from a row wrote
+into a callout only a dialog drew, and the three forms of the budget screen and the price
+form drew theirs behind the open dialog. Both halves are corrected, and so is the fix
+itself: the guard written for it read a name no screen declares, which resolved to the
+browser's own `window.open` and was therefore never true, so the sentence was drawn nowhere
+at all. There is a test now.
+
+**The controls that stayed outside the one question.** The empty state of the records list,
+deleting a card, three empty states with no account, a row of the danger zone, the calendar
+writing the series forward, and the door that brings a file back, which writes whole spaces
+and asked nothing.
+
+**A logger sees what they wrote, on every screen.** The list, the reports, the budget and
+the import held that rule; the balances, the projection, the savings, the goals and the
+whole of the diagnosis did not. Where a figure belongs to the space rather than to a person,
+an opening balance or what a recurring bill will owe, it counts as nothing for them rather
+than being mixed in. The overview and the projection say whose the figures are, and the
+diagnosis closes to them, because every threshold behind its verdict was written for a
+household.
+
+**One currency in one panel.** The settled list was drawn in the currency each settlement
+was written in while the balances above it used the current one, and the division added
+amounts as written rather than in the base currency. A space keeps the currency its first
+record was written in; correcting it while the space is empty still works.
+
+**A space can be handed to somebody else.** The model has always been able to; no route and
+no screen could reach it, while two texts promised it and an owner who tried to leave their
+own space was told to hand it over first.
+
+**Removing an instalment plan asks whose it is**, and whether it was ticked off against the
+bank, which every other delete path asks. A holding of zero units at zero each is refused.
+Writing an amount back into a field uses the minor units of its own currency.
+
+### Changed
+
+**The table of what each role may do is printed from the matrix**, in both guides and both
+languages, and the build refuses one that no longer matches. Written by hand, it held eleven
+of the thirty five permissions with nothing saying it was a summary.
+
+**The English spelling of one word.** The project writes colour and recognise and never the
+other forms, so it is British, and instalment was split down the middle.
+
 ## 1.0.4
 
 Released on 28 September 2026. The site session read the guide against the code again, at
