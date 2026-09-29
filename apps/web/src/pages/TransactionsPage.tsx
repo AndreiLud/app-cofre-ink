@@ -7,6 +7,7 @@ import type { Transaction, TransactionKind, TransactionStatus } from "@cofre/sto
 import {
 	Button,
 	Callout,
+	Dialog,
 	EmptyState,
 	Field,
 	Icon,
@@ -80,6 +81,20 @@ export function TransactionsPage() {
 	const [isOpen, setOpen] = useState(false);
 	const [editing, setEditing] = useState<Transaction | null>(null);
 	const [picked, setPicked] = useState<string[]>([]);
+
+	/**
+	 * What is about to be deleted, and which of the three deletions it is.
+	 *
+	 * All three fired straight from a click, with no undo and no toast, and one of them
+	 * was two clicks from the header tickbox: select every record on the screen, press
+	 * the red button, and a month was gone.
+	 */
+	const [dropping, setDropping] = useState<
+		| { kind: "one"; row: Transaction }
+		| { kind: "group"; row: Transaction; group: string }
+		| { kind: "many" }
+		| null
+	>(null);
 	const [moveTo, setMoveTo] = useState("");
 	const [problem, setProblem] = useState<string | null>(null);
 	const [taught, setTaught] = useState<string | null>(null);
@@ -548,7 +563,7 @@ export function TransactionsPage() {
 						<Button
 							size="small"
 							variant="destructive"
-							onClick={() => removeManyPicked.mutate()}
+							onClick={() => setDropping({ kind: "many" })}
 							disabled={removeManyPicked.isPending}
 						>
 							{t("actions.delete")}
@@ -695,12 +710,20 @@ export function TransactionsPage() {
 												) : null}
 												{mayDelete ? <MenuSeparator /> : null}
 												{mayDelete ? (
-													<MenuItem onSelect={() => remove.mutate(row.id)}>
+													<MenuItem onSelect={() => setDropping({ kind: "one", row })}>
 														{t("actions.delete")}
 													</MenuItem>
 												) : null}
 												{mayDelete && row.installmentGroup ? (
-													<MenuItem onSelect={() => removeGroup.mutate(row.installmentGroup ?? "")}>
+													<MenuItem
+														onSelect={() =>
+															setDropping({
+																kind: "group",
+																row,
+																group: row.installmentGroup ?? "",
+															})
+														}
+													>
 														{t("transactions.deleteGroup")}
 													</MenuItem>
 												) : null}
@@ -738,6 +761,45 @@ export function TransactionsPage() {
 				editing={editing}
 				today={today}
 			/>
+
+			{/* One question for the three ways of deleting, saying what goes in each. */}
+			<Dialog
+				open={dropping !== null}
+				onOpenChange={(next) => !next && setDropping(null)}
+				title={t("transactions.deleteTitle")}
+				description={t("transactions.deleteDescription")}
+				closeLabel={t("actions.close")}
+				footer={
+					<>
+						<Button variant="quiet" onClick={() => setDropping(null)}>
+							{t("actions.cancel")}
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={() => {
+								if (dropping?.kind === "one") remove.mutate(dropping.row.id);
+								if (dropping?.kind === "group") removeGroup.mutate(dropping.group);
+								if (dropping?.kind === "many") removeManyPicked.mutate();
+								setDropping(null);
+							}}
+						>
+							{t("actions.delete")}
+						</Button>
+					</>
+				}
+			>
+				<p className="text-sm">
+					{dropping?.kind === "one"
+						? t("transactions.deleteOne", { description: dropping.row.description })
+						: dropping?.kind === "group"
+							? t("transactions.deleteWholeGroup", {
+									count: dropping.row.installmentCount ?? 0,
+									description: dropping.row.description,
+								})
+							: t("transactions.deleteMany", { count: picked.length })}
+				</p>
+				<p className="mt-2 text-quiet text-sm">{t("transactions.deleteForever")}</p>
+			</Dialog>
 		</div>
 	);
 }

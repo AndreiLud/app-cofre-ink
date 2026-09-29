@@ -9,6 +9,84 @@ import { describe, expect, it } from "vitest";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { type AdapterUnderTest, LATER, prepare } from "./setup.ts";
 
+export function runRecurrenceRepairConformance(adapter: AdapterUnderTest): void {
+	describe("what a series writes", () => {
+		it("does not write back a day somebody deleted", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta corrente",
+				});
+				const series = await fixture.asAna.recurrences.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 5_000,
+					description: "Streaming",
+					accountId: account.id,
+					frequency: "monthly",
+					startsOn: todayIn("America/Sao_Paulo"),
+				});
+
+				await fixture.asAna.recurrences.materialize({ spaceId: space.id });
+				const written = (await fixture.asAna.transactions.list({ spaceId: space.id })).filter(
+					(one) => one.recurrenceId === series.id,
+				);
+				expect(written.length).toBeGreaterThan(0);
+
+				// Somebody says no to one of them. It used to come back on the next visit to
+				// the calendar, and the next, and the next.
+				await fixture.asAna.transactions.remove(written[0]?.id ?? "");
+				await fixture.asAna.recurrences.materialize({ spaceId: space.id });
+
+				const after = (await fixture.asAna.transactions.list({ spaceId: space.id })).filter(
+					(one) => one.recurrenceId === series.id,
+				);
+				expect(after.length).toBe(written.length - 1);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("does not fill the past with promises nobody made", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta corrente",
+				});
+				// A rent that has been paid for years, written down today.
+				await fixture.asAna.recurrences.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 145_000,
+					description: "Aluguel",
+					accountId: account.id,
+					frequency: "monthly",
+					startsOn: "2019-01-05",
+				});
+
+				await fixture.asAna.recurrences.materialize({ spaceId: space.id });
+				const written = await fixture.asAna.transactions.list({ spaceId: space.id, limit: 1000 });
+				const today = todayIn("America/Sao_Paulo");
+
+				// Six years of them used to arrive, every one a bill the overview said was
+				// still to come. What is behind that is history, and a rule does not write
+				// history. This month's own day is kept, because it is the one somebody has
+				// to answer, and the overview puts it under what is late.
+				expect(written.every((one) => one.happenedOn >= `${today.slice(0, 7)}-01`)).toBe(true);
+				expect(written.length).toBeLessThan(6);
+			} finally {
+				await fixture.close();
+			}
+		});
+	});
+}
+
 export function runRuleConformance(adapter: AdapterUnderTest): void {
 	async function readySpace() {
 		const fixture = await prepare(adapter);

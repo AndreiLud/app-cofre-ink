@@ -5,7 +5,13 @@
 // changes with that choice: a transfer needs a destination, a card purchase can be
 // split, and neither makes sense for the other.
 
-import { type CalendarDate, type CurrencyCode, compareCalendarDates } from "@cofre/core";
+import {
+	type CalendarDate,
+	type CurrencyCode,
+	compareCalendarDates,
+	invoiceDueDate,
+	invoiceMonthOf,
+} from "@cofre/core";
 import type {
 	Account,
 	Category,
@@ -14,11 +20,12 @@ import type {
 	TransactionKind,
 } from "@cofre/storage";
 import { RuleError } from "@cofre/storage";
-import { Button, Callout, Dialog, Field, Segmented, Select } from "@cofre/ui";
+import { Button, Callout, Dialog, Disclosure, Field, Segmented, Select } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fillAmount, readAmount } from "../lib/amounts.ts";
+import { lastWayUsed, rememberWayUsed } from "../lib/lastWay.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 
@@ -70,7 +77,10 @@ export function TransactionForm({
 		queryFn: () => session?.cards.list(spaceId) ?? [],
 	});
 
-	const usable = accounts.filter((account) => account.archivedAt === null);
+	const usable = useMemo(
+		() => accounts.filter((account) => account.archivedAt === null),
+		[accounts],
+	);
 	const chosen = usable.find((account) => account.id === accountId);
 	const canSplit = kind === "expense" && chosen?.kind === "credit";
 
@@ -80,41 +90,93 @@ export function TransactionForm({
 	 * and as debit, and picking one of the two is what decides whether the purchase
 	 * lands on the invoice or leaves the balance today.
 	 */
-	const ways = (cards.data ?? []).flatMap((card) => {
-		const both = card.creditAccountId !== null && card.debitAccountId !== null;
-		const entries: { value: string; label: string; cardId: string; accountId: string }[] = [];
-		if (card.creditAccountId) {
-			entries.push({
-				value: `${card.id}:${card.creditAccountId}`,
-				label: both ? `${card.name} (${t("cardKind.credit")})` : card.name,
-				cardId: card.id,
-				accountId: card.creditAccountId,
-			});
-		}
-		if (card.debitAccountId) {
-			entries.push({
-				value: `${card.id}:${card.debitAccountId}`,
-				label: both ? `${card.name} (${t("cardKind.debit")})` : card.name,
-				cardId: card.id,
-				accountId: card.debitAccountId,
-			});
-		}
-		return entries.filter((entry) => usable.some((account) => account.id === entry.accountId));
-	});
+	const byCard = useMemo(
+		() =>
+			(cards.data ?? []).flatMap((card) => {
+				const both = card.creditAccountId !== null && card.debitAccountId !== null;
+				const entries: { value: string; label: string; cardId: string; accountId: string }[] = [];
+				if (card.creditAccountId) {
+					entries.push({
+						value: `${card.id}:${card.creditAccountId}`,
+						label: both ? `${card.name} (${t("cardKind.credit")})` : card.name,
+						cardId: card.id,
+						accountId: card.creditAccountId,
+					});
+				}
+				if (card.debitAccountId) {
+					entries.push({
+						value: `${card.id}:${card.debitAccountId}`,
+						label: both ? `${card.name} (${t("cardKind.debit")})` : card.name,
+						cardId: card.id,
+						accountId: card.debitAccountId,
+					});
+				}
+				return entries.filter((entry) => usable.some((account) => account.id === entry.accountId));
+			}),
+		[cards.data, usable, t],
+	);
+
+	/**
+	 * Every way to pay, as one list.
+	 *
+	 * The card and the account were two fields that already behaved as one: picking the
+	 * card set the account, and picking another account silently dropped the card. Two
+	 * controls for one decision, and the decision at the till is not "which account" but
+	 * "what did I pay with".
+	 *
+	 * A cartao multiplo appears twice, as credit and as debit, because that is two
+	 * different answers: one lands on the invoice and the other leaves the balance today.
+	 * A current account with a debit card on it appears a third time, on its own, because
+	 * a Pix and a bank slip come out of it without any card being involved. A credit
+	 * account and a benefit card appear only through their plastic, because there is no
+	 * other way to spend from either.
+	 */
+	const ways = useMemo(
+		() => [
+			...byCard,
+			...usable
+				.filter((account) => account.kind !== "credit" && account.kind !== "voucher")
+				.map((account) => ({
+					value: `:${account.id}`,
+					label: account.name,
+					cardId: "",
+					accountId: account.id,
+				})),
+		],
+		[byCard, usable],
+	);
 
 	const chosenWay = ways.find((entry) => entry.value === way) ?? null;
 
-	/** Picking the plastic picks the account, which is the whole point of having it. */
+	/**
+	 * Which invoice this purchase lands on, said before it is written.
+	 *
+	 * The closing day is the only thing about a card that surprises people, and the
+	 * surprise used to arrive three weeks later on the invoice screen.
+	 */
+	const landsOn = (() => {
+		if (kind !== "expense" || !chosen || chosen.kind !== "credit") return null;
+		if (chosen.closingDay === null || chosen.dueDay === null) return null;
+		const cycle = { closingDay: chosen.closingDay, dueDay: chosen.dueDay };
+		const month = invoiceMonthOf(happenedOn as CalendarDate, cycle);
+		const due = invoiceDueDate(month, cycle);
+		return t("transactions.landsOnInvoice", {
+			month: new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+				month: "long",
+				timeZone: "UTC",
+			}).format(new Date(`${month}-01T00:00:00Z`)),
+			day: `${due.slice(8)}/${due.slice(5, 7)}`,
+		});
+	})();
+
+	/** Open the details by themselves when either of them already holds something. */
+	const hasDetails = priority !== "" || notes.trim() !== "";
+
+	/** Picking the way picks the account and the card together, which is the whole point. */
 	function pickWay(value: string) {
 		setWay(value);
 		const found = ways.find((entry) => entry.value === value);
 		if (found) setAccountId(found.accountId);
-	}
-
-	/** And choosing another account by hand drops a card that cannot reach it. */
-	function pickAccount(value: string) {
-		setAccountId(value);
-		if (chosenWay && chosenWay.accountId !== value) setWay("");
 	}
 
 	// Opening the form is what resets it, so a half typed record is never inherited.
@@ -138,21 +200,33 @@ export function TransactionForm({
 			setInstallments("1");
 			setCategoryId(editing.categoryId ?? "");
 			setPriority(editing.priority ?? "");
-			setWay(editing.cardId === null ? "" : `${editing.cardId}:${editing.accountId}`);
+			// The way to pay carries the card and the account together, so a record with no
+			// card on it still has one: the account on its own.
+			setWay(
+				editing.cardId === null
+					? `:${editing.accountId}`
+					: `${editing.cardId}:${editing.accountId}`,
+			);
 			return;
 		}
 		setKind("expense");
 		setAmount("");
 		setHappenedOn(today);
 		setDescription("");
-		setAccountId(usable[0]?.id ?? "");
 		setCounterAccountId("");
 		setInstallments("1");
 		setNotes("");
 		setCategoryId("");
 		setPriority("");
-		setWay("");
-	}, [open, editing, today, usable[0]?.id, i18n.resolvedLanguage]);
+		// The last way somebody paid, on this device and in this space. A list sorted by
+		// name put whichever account was called something early in the alphabet first,
+		// which for most households is a pocket rather than the bank.
+		const remembered = lastWayUsed(spaceId);
+		const known = remembered !== null && ways.some((entry) => entry.value === remembered);
+		const first = known ? remembered : (ways[0]?.value ?? "");
+		setWay(first);
+		setAccountId(ways.find((entry) => entry.value === first)?.accountId ?? usable[0]?.id ?? "");
+	}, [open, editing, today, spaceId, ways, usable, i18n.resolvedLanguage]);
 
 	const save = useMutation({
 		mutationFn: async () => {
@@ -205,10 +279,11 @@ export function TransactionForm({
 			});
 		},
 		onSuccess: () => {
+			if (kind === "expense") rememberWayUsed(spaceId, way);
 			onOpenChange(false);
-			void queries.invalidateQueries({ queryKey: ["transactions"] });
-			void queries.invalidateQueries({ queryKey: ["balances"] });
-			void queries.invalidateQueries({ queryKey: ["advice"] });
+			for (const key of ["transactions", "balances", "advice", "invoices"]) {
+				void queries.invalidateQueries({ queryKey: [key] });
+			}
 		},
 		onError: (error: unknown) => setProblem(sayWhy(error, t)),
 	});
@@ -295,64 +370,97 @@ export function TransactionForm({
 					required={true}
 				/>
 
-				{kind === "transfer" || ways.length === 0 ? null : (
+				{/* One field, because it was one decision behind two controls. A spend says
+				    what it was paid with; money coming in says where it landed; a transfer
+				    says both ends and never a card, because moving money between two of your
+				    own accounts is not a purchase whatever plastic was in the hand. */}
+				{kind === "expense" ? (
+					<div className="grid gap-4 md:grid-cols-2">
+						<Select
+							label={t("transactions.paidWith")}
+							value={way}
+							onChange={(event) => pickWay(event.target.value)}
+							options={ways.map((entry) => ({ value: entry.value, label: entry.label }))}
+						/>
+						{canSplit && !editing ? (
+							<Select
+								label={t("transactions.installments")}
+								value={installments}
+								onChange={(event) => setInstallments(event.target.value)}
+								hint={t("transactions.installmentsHint")}
+								options={Array.from({ length: 24 }, (_unused, index) => ({
+									value: String(index + 1),
+									label:
+										index === 0
+											? t("transactions.inFull")
+											: t("transactions.timesOf", { count: index + 1 }),
+								}))}
+							/>
+						) : null}
+					</div>
+				) : (
+					<div className="grid gap-4 md:grid-cols-2">
+						<Select
+							label={kind === "transfer" ? t("transactions.from") : t("transactions.landsIn")}
+							value={accountId}
+							onChange={(event) => setAccountId(event.target.value)}
+							options={accountOptions}
+						/>
+						{kind === "transfer" ? (
+							<Select
+								label={t("transactions.to")}
+								value={counterAccountId}
+								onChange={(event) => setCounterAccountId(event.target.value)}
+								options={[
+									{ value: "", label: t("transactions.pickAccount") },
+									...accountOptions.filter((option) => option.value !== accountId),
+								]}
+							/>
+						) : null}
+					</div>
+				)}
+
+				{/* Which invoice a card purchase lands on, said before it is written rather
+				    than found out on the invoice screen three weeks later. */}
+				{landsOn ? <p className="text-quiet text-sm">{landsOn}</p> : null}
+
+				{/* Which part of a purchase in parts this is. The select that made them is
+				    gone while editing, because it was drawn and then ignored. */}
+				{editing?.installmentNumber && editing.installmentCount ? (
+					<p className="text-quiet text-sm">
+						{t("transactions.partOf", {
+							number: editing.installmentNumber,
+							count: editing.installmentCount,
+						})}
+					</p>
+				) : null}
+
+				{kind === "transfer" ? null : (
 					<Select
-						label={t("transaction.card")}
-						hint={t("transaction.cardHint")}
-						value={way}
-						onChange={(event) => pickWay(event.target.value)}
-						options={[
-							{ value: "", label: t("transaction.cardNone") },
-							...ways.map((entry) => ({ value: entry.value, label: entry.label })),
-						]}
+						label={t("transactions.category")}
+						value={categoryId}
+						onChange={(event) => setCategoryId(event.target.value)}
+						options={[{ value: "", label: t("transactions.noCategory") }, ...categoryOptions]}
+						hint={categoryOptions.length === 0 ? t("transactions.noCategoriesYet") : undefined}
 					/>
 				)}
 
-				<div className="grid gap-4 md:grid-cols-2">
-					<Select
-						label={kind === "transfer" ? t("transactions.from") : t("transactions.account")}
-						value={accountId}
-						onChange={(event) => pickAccount(event.target.value)}
-						options={accountOptions}
-					/>
-					{kind === "transfer" ? (
-						<Select
-							label={t("transactions.to")}
-							value={counterAccountId}
-							onChange={(event) => setCounterAccountId(event.target.value)}
-							options={[
-								{ value: "", label: t("transactions.pickAccount") },
-								...accountOptions.filter((option) => option.value !== accountId),
-							]}
-						/>
-					) : null}
-					{canSplit ? (
-						<Select
-							label={t("transactions.installments")}
-							value={installments}
-							onChange={(event) => setInstallments(event.target.value)}
-							hint={t("transactions.installmentsHint")}
-							options={Array.from({ length: 24 }, (_unused, index) => ({
-								value: String(index + 1),
-								label:
-									index === 0
-										? t("transactions.inFull")
-										: t("transactions.timesOf", { count: index + 1 }),
-							}))}
-						/>
-					) : null}
-				</div>
+				{/* There was a tickbox here asking whether this had happened yet, beside a
+				    field that had already been given the day. Two answers to one question,
+				    and the tickbox won. The day decides now, and this says what the day
+				    chosen above means, which is the only part of it worth reading. */}
+				{editing === null && compareCalendarDates(happenedOn as CalendarDate, today) > 0 ? (
+					<p className="text-quiet text-sm">{t("transactions.aheadOfToday")}</p>
+				) : null}
+				{editing?.status === "planned" ? (
+					<p className="text-quiet text-sm">{t("transactions.stillWaiting")}</p>
+				) : null}
 
-				{kind === "transfer" ? null : (
-					<div className="grid gap-4 md:grid-cols-2">
-						<Select
-							label={t("transactions.category")}
-							value={categoryId}
-							onChange={(event) => setCategoryId(event.target.value)}
-							options={[{ value: "", label: t("transactions.noCategory") }, ...categoryOptions]}
-							hint={categoryOptions.length === 0 ? t("transactions.noCategoriesYet") : undefined}
-						/>
-						{/* Priority is about spending, so money coming in is not asked about. */}
+				{/* The two fields almost nobody fills, out of the way but not hidden: it opens
+				    by itself when either of them already has something in it, so editing a
+				    record never buries what somebody wrote. */}
+				<Disclosure summary={t("transactions.moreDetails")} open={hasDetails}>
+					<div className="space-y-4">
 						{kind === "expense" ? (
 							<Select
 								label={t("transactions.priority")}
@@ -373,26 +481,14 @@ export function TransactionForm({
 								]}
 							/>
 						) : null}
+						<Field
+							label={t("transactions.notes")}
+							value={notes}
+							onChange={(event) => setNotes(event.target.value)}
+							placeholder={t("transactions.notesPlaceholder")}
+						/>
 					</div>
-				)}
-
-				{/* There was a tickbox here asking whether this had happened yet, beside a
-				    field that had already been given the day. Two answers to one question,
-				    and the tickbox won. The day decides now, and this says what the day
-				    chosen above means, which is the only part of it worth reading. */}
-				{editing === null && compareCalendarDates(happenedOn as CalendarDate, today) > 0 ? (
-					<p className="text-quiet text-sm">{t("transactions.aheadOfToday")}</p>
-				) : null}
-				{editing?.status === "planned" ? (
-					<p className="text-quiet text-sm">{t("transactions.stillWaiting")}</p>
-				) : null}
-
-				<Field
-					label={t("transactions.notes")}
-					value={notes}
-					onChange={(event) => setNotes(event.target.value)}
-					placeholder={t("transactions.notesPlaceholder")}
-				/>
+				</Disclosure>
 
 				{problem ? <Callout tone="problem">{problem}</Callout> : null}
 			</form>

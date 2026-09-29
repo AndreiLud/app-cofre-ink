@@ -630,7 +630,19 @@
 		"filtersOn_other": "{{count}} filtros ativos",
 		"clearFilters": "Limpar",
 		"aheadOfToday": "Esse dia ainda não chegou, então ele entra como previsto e passa a contar no saldo no dia.",
-		"stillWaiting": "Este lançamento está previsto. Ele conta no saldo quando você disser que aconteceu."
+		"stillWaiting": "Este lançamento está previsto. Ele conta no saldo quando você disser que aconteceu.",
+		"paidWith": "Pago com",
+		"landsIn": "Entrou em",
+		"landsOnInvoice": "Entra na fatura de {{month}}, que vence {{day}}.",
+		"partOf": "Parcela {{number}} de {{count}}.",
+		"moreDetails": "Mais detalhes",
+		"deleteTitle": "Apagar?",
+		"deleteDescription": "Isto sai da lista, dos saldos e dos relatórios.",
+		"deleteOne": "Vai embora: {{description}}.",
+		"deleteWholeGroup": "Vão embora as {{count}} parcelas de {{description}}, inclusive as dos meses que ainda não chegaram.",
+		"deleteMany_one": "Vai embora 1 lançamento selecionado.",
+		"deleteMany_other": "Vão embora os {{count}} lançamentos selecionados.",
+		"deleteForever": "Não dá para desfazer daqui. Se foi só um erro de categoria ou de valor, editar resolve."
 	},
 	"rulesSection": {
 		"title": "Regras que categorizam sozinhas",

@@ -13,7 +13,9 @@ import {
 	addDays,
 	type CalendarDate,
 	type CardCycle,
+	compareCalendarDates,
 	invoiceMonthOf,
+	monthOf,
 	occurrencesBetween,
 	parseCalendarDate,
 	type SpendingPriority,
@@ -324,6 +326,22 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 			let written = 0;
 
 			for (const one of series) {
+				// Never earlier than the month the series was written down in.
+				//
+				// A household writing down a rent that has been paid since 2019 was handed
+				// six years of promises nobody had made, every one of them a bill the
+				// overview said was still to come. What is behind that is history, and
+				// history is written by saying what happened rather than by a rule inventing
+				// it afterwards.
+				//
+				// The month itself is kept rather than the day, because a day earlier this
+				// month that has already passed is exactly the thing somebody has to answer:
+				// it lands as a promise, the overview puts it under what is late, and the two
+				// buttons there are the answer.
+				const bornOn = todayIn(await timezoneOf(input.spaceId), new Date(one.createdAt));
+				const earliest = `${monthOf(bornOn)}-01` as CalendarDate;
+				const from = compareCalendarDates(one.startsOn, earliest) > 0 ? one.startsOn : earliest;
+
 				const days = occurrencesBetween(
 					{
 						frequency: one.frequency,
@@ -333,13 +351,18 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 						dayOfMonth: one.dayOfMonth,
 						monthOfYear: one.monthOfYear,
 					},
-					one.startsOn,
+					from,
 					until,
 				);
 				if (days.length === 0) continue;
 
+				// Deleted days count as written. A day this series wrote and somebody then
+				// deleted is a day they said no to, and reading only the rows that are still
+				// there made every one of those come back the next time the calendar opened.
+				// Somebody deleting the same occurrence every month is somebody being argued
+				// with by an application.
 				const already = await context.driver.all(
-					`SELECT "happened_on" FROM "transactions" WHERE "recurrence_id" = ? AND "deleted_at" IS NULL`,
+					`SELECT "happened_on" FROM "transactions" WHERE "recurrence_id" = ?`,
 					[one.id],
 				);
 				const seen = new Set(already.map((row) => String(row.happened_on)));

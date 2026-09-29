@@ -29,7 +29,7 @@ import { runInvoiceConformance } from "./invoices.ts";
 import { runPlanConformance } from "./plan.ts";
 import { runPortabilityConformance } from "./portability.ts";
 import { runReportConformance } from "./reports.ts";
-import { runRuleConformance } from "./rules.ts";
+import { runRecurrenceRepairConformance, runRuleConformance } from "./rules.ts";
 import { runSavedFilterConformance } from "./savedFilters.ts";
 import { type AdapterUnderTest, type Fixture, prepare } from "./setup.ts";
 import { runSyncConformance } from "./sync.ts";
@@ -736,6 +736,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 		runInvoiceConformance(adapter);
 		runCategoryConformance(adapter);
 		runRuleConformance(adapter);
+		runRecurrenceRepairConformance(adapter);
 		runPlanConformance(adapter);
 		runReportConformance(adapter);
 		runSavedFilterConformance(adapter);

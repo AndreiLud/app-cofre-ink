@@ -630,7 +630,19 @@
 		"filtersOn_other": "{{count}} filters on",
 		"clearFilters": "Clear",
 		"aheadOfToday": "That day has not arrived, so this goes in as coming and starts counting in the balance on the day.",
-		"stillWaiting": "This record is still coming. It counts in the balance once you say it happened."
+		"stillWaiting": "This record is still coming. It counts in the balance once you say it happened.",
+		"paidWith": "Paid with",
+		"landsIn": "Landed in",
+		"landsOnInvoice": "This goes on the {{month}} invoice, due {{day}}.",
+		"partOf": "Instalment {{number}} of {{count}}.",
+		"moreDetails": "More details",
+		"deleteTitle": "Delete?",
+		"deleteDescription": "This goes from the list, from the balances and from the reports.",
+		"deleteOne": "This one goes: {{description}}.",
+		"deleteWholeGroup": "All {{count}} instalments of {{description}} go, including the ones in months still to come.",
+		"deleteMany_one": "The 1 record you picked goes.",
+		"deleteMany_other": "The {{count}} records you picked go.",
+		"deleteForever": "There is no undo from here. If it was only the wrong category or the wrong amount, editing fixes it."
 	},
 	"rulesSection": {
 		"title": "Rules that sort on their own",

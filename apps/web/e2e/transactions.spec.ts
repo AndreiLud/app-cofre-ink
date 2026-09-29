@@ -31,10 +31,7 @@ test.describe("records", () => {
 
 		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("42,90");
 		await page.getByRole("dialog").getByLabel("Descrição").fill("Mercado do bairro");
-		await page
-			.getByRole("dialog")
-			.getByLabel("Conta", { exact: true })
-			.selectOption({ label: "Conta corrente" });
+		await page.getByRole("dialog").getByLabel("Pago com").selectOption({ label: "Conta corrente" });
 		await page.getByRole("button", { name: "Salvar" }).click();
 
 		await expect(record(page, "Mercado do bairro")).toBeVisible();
@@ -50,10 +47,12 @@ test.describe("records", () => {
 		await go(page, "Lançamentos");
 		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
 
+		// A credit account is reached by its plastic and by nothing else, so the way to pay
+		// is named after the card. The sample card works both ways, so it says which.
 		await page
 			.getByRole("dialog")
-			.getByLabel("Conta", { exact: true })
-			.selectOption({ label: "Cartão de crédito" });
+			.getByLabel("Pago com")
+			.selectOption({ label: "Cartão do banco (Crédito)" });
 		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("1.234,56");
 		await page.getByRole("dialog").getByLabel("Descrição").fill("Geladeira");
 		await page.getByRole("dialog").getByLabel("Dia").fill("2026-09-05");
@@ -79,10 +78,7 @@ test.describe("records", () => {
 
 		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("1.450,00");
 		await page.getByRole("dialog").getByLabel("Descrição").fill("Aluguel");
-		await page
-			.getByRole("dialog")
-			.getByLabel("Conta", { exact: true })
-			.selectOption({ label: "Conta corrente" });
+		await page.getByRole("dialog").getByLabel("Pago com").selectOption({ label: "Conta corrente" });
 		// No tickbox any more: the day is what says this has not happened. Three days out,
 		// which is inside the fifteen the overview looks ahead over.
 		const due = inDays(3);
@@ -121,10 +117,7 @@ test.describe("records", () => {
 
 		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("75,00");
 		await page.getByRole("dialog").getByLabel("Descrição").fill("Seguro do carro");
-		await page
-			.getByRole("dialog")
-			.getByLabel("Conta", { exact: true })
-			.selectOption({ label: "Conta corrente" });
+		await page.getByRole("dialog").getByLabel("Pago com").selectOption({ label: "Conta corrente" });
 		const due = inDays(9);
 		await page.getByRole("dialog").getByLabel("Dia").fill(due);
 
@@ -134,6 +127,45 @@ test.describe("records", () => {
 
 		await page.getByLabel("Mês").fill(monthOfDay(due));
 		await expect(record(page, "Seguro do carro")).toContainText("Previsto");
+	});
+
+	test("asks what it was paid with, once, and says which invoice it lands on", async ({ page }) => {
+		await openCofre(page);
+
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const dialog = page.getByRole("dialog");
+
+		// The card and the account were two controls for one decision. There is one now.
+		await expect(dialog.getByLabel("Cartão")).toHaveCount(0);
+		await expect(dialog.getByLabel("Conta", { exact: true })).toHaveCount(0);
+
+		await dialog.getByLabel("Pago com").selectOption({ label: "Cartão do banco (Crédito)" });
+		// The closing day is the one thing about a card that surprises people, and the
+		// surprise used to arrive three weeks later on the invoice screen.
+		await expect(dialog).toContainText("Entra na fatura de");
+
+		// The two fields almost nobody fills are out of the way rather than gone: they are
+		// on the form, behind a summary, and a keyboard still reaches them by opening it.
+		await expect(dialog.getByText("Mais detalhes")).toBeVisible();
+		await expect(dialog.getByLabel("Observação")).not.toBeVisible();
+		await dialog.getByText("Mais detalhes").click();
+		await expect(dialog.getByLabel("Observação")).toBeVisible();
+	});
+
+	test("asks before deleting, and says what goes", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Lançamentos");
+
+		const row = record(page, "Café da esquina");
+		await row.getByRole("button", { name: "Ações do lançamento" }).click();
+		await page.getByRole("menuitem", { name: "Apagar", exact: true }).click();
+
+		// It used to fire straight from the menu, with no undo and no toast.
+		const dialog = page.getByRole("dialog");
+		await expect(dialog).toContainText("Café da esquina");
+		await dialog.getByRole("button", { name: "Cancelar" }).click();
+		await expect(record(page, "Café da esquina")).toBeVisible();
 	});
 
 	test("finds a record by a word in its description", async ({ page }) => {
