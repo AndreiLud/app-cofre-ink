@@ -267,6 +267,8 @@ export function createRemoteSession(
 			remove: (spaceId: string, userId: string) =>
 				send<void>(`/api/spaces/${spaceId}/members/${userId}`, "DELETE"),
 			leave: (spaceId: string) => send<void>(`/api/spaces/${spaceId}/leave`, "POST", {}),
+			transferOwnership: (spaceId: string, toUserId: string) =>
+				send<void>(`/api/spaces/${spaceId}/transfer`, "POST", { toUserId }),
 		},
 
 		invitations: {

@@ -286,6 +286,65 @@ test.describe("server mode", () => {
 	});
 
 	/**
+	 * Handing a space to somebody else, which the model could always do and no screen
+	 * could reach.
+	 *
+	 * It is the one way out of a space for whoever made it: leaving is refused to an
+	 * owner, and the refusal says to hand it over first, which was a thing nobody could
+	 * do. Owner is not in the list of roles that can be given, on purpose, because two
+	 * owners is not a state the model has an answer for.
+	 */
+	test("hands a space to somebody else, and then the owner can leave", async ({ browser }) => {
+		const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
+
+		await openSetting(ana, "Gerenciar espaços");
+		await ana.getByRole("button", { name: "Novo espaço" }).click();
+		await ana.getByLabel("Nome do espaço").fill("Casa");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(ana.getByRole("banner")).toContainText("Casa");
+
+		await openSetting(ana, "Gerenciar espaços");
+		await ana.getByRole("button", { name: "Convidar" }).first().click();
+		await ana.getByLabel("Papel").selectOption({ label: "Editor" });
+		await ana.getByRole("button", { name: "Gerar link" }).click();
+		const link = await ana.getByRole("dialog").locator("p.font-mono").innerText();
+		await ana.keyboard.press("Escape");
+		await expect(ana.getByRole("dialog")).toHaveCount(0);
+
+		const bia = await arrive(browser, { name: "Bia", email: uniqueEmail("bia") });
+		await bia.goto(link);
+		await bia.getByRole("button", { name: "Entrar no espaço" }).click();
+		await expect(bia.getByRole("banner")).toContainText("Casa");
+
+		// The owner of a space is not offered the way out of it, because leaving is refused
+		// to them until they have handed it on.
+		await ana.reload();
+		await openSetting(ana, "Gerenciar espaços");
+		await expect(ana.getByRole("button", { name: "Sair deste espaço" })).toHaveCount(0);
+
+		// Owner is not one of the roles on offer.
+		const hers = ana.getByRole("row").filter({ hasText: "Bia" });
+		await hers.getByRole("button", { name: "Ações do membro" }).click();
+		await expect(ana.getByRole("menuitem", { name: /Tornar Dono/ })).toHaveCount(0);
+
+		// Handing it over is typed out, because she cannot undo it by herself.
+		await ana.getByRole("menuitem", { name: "Passar o espaço para esta pessoa" }).click();
+		const handing = ana.getByRole("dialog");
+		await expect(handing.getByRole("button", { name: "Passar o espaço" })).toBeDisabled();
+		await handing.getByLabel(/Escreva Bia para confirmar/).fill("Bia");
+		await handing.getByRole("button", { name: "Passar o espaço" }).click();
+		await expect(handing).toHaveCount(0);
+
+		// Bia owns it, Ana is an administrator, and now Ana has a way out.
+		await expect(ana.getByRole("cell", { name: "Administrador" })).toBeVisible();
+		await expect(ana.getByRole("button", { name: "Sair deste espaço" })).toBeVisible();
+
+		await bia.reload();
+		await openSetting(bia, "Gerenciar espaços");
+		await expect(bia.getByRole("cell", { name: "Dono" })).toBeVisible();
+	});
+
+	/**
 	 * A failure that is not a refusal does not read like one.
 	 *
 	 * Every screen used to translate its own failures, and they disagreed. One of them

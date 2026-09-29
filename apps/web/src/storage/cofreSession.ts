@@ -143,6 +143,12 @@ export type CofreSession = {
 		setIncome: (spaceId: string, userId: string, monthlyIncome: number | null) => Promise<void>;
 		remove: (spaceId: string, userId: string) => Promise<void>;
 		leave: (spaceId: string) => Promise<void>;
+		/**
+		 * Hands the space to another member, who becomes its owner, and steps down to
+		 * administrator. Its own thing rather than a role change, because owner is not a
+		 * role the model hands out: two owners is not a state it has an answer for.
+		 */
+		transferOwnership: (spaceId: string, toUserId: string) => Promise<void>;
 	};
 	accounts: {
 		list: (spaceId: string, options?: { includeArchived?: boolean }) => Promise<Account[]>;

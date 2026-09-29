@@ -546,6 +546,19 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		return context.body(null, 204);
 	});
 
+	/**
+	 * Handing a space to somebody else, which is its own route rather than a role change.
+	 *
+	 * Owner is not a role that is handed out: the model refuses it through changeRole on
+	 * purpose, because two owners is not a state it has an answer for. This swaps the two
+	 * in one transaction, and it is the way out of a space for the person who made it.
+	 */
+	app.post("/api/spaces/:id/transfer", async (context) => {
+		const input = z.object({ toUserId: z.string().min(1) }).parse(await context.req.json());
+		await context.get("session").members.transferOwnership(context.req.param("id"), input.toUserId);
+		return context.body(null, 204);
+	});
+
 	app.get("/api/spaces/:id/invitations", async (context) =>
 		context.json(await context.get("session").invitations.list(context.req.param("id"))),
 	);

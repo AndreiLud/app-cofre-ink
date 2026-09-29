@@ -56,6 +56,10 @@ export function SpacePeople() {
 	// behind it: a number that could not be read used to complain where nobody could see
 	// it while the dialog stayed open saying nothing.
 	const [incomeProblem, setIncomeProblem] = useState<string | null>(null);
+	/** Who the space is being handed to, while the name is being typed out. */
+	const [handingTo, setHandingTo] = useState<{ userId: string; name: string } | null>(null);
+	const [typedName, setTypedName] = useState("");
+	const [handOverProblem, setHandOverProblem] = useState<string | null>(null);
 
 	const spaceId = currentSpace?.id ?? "";
 	// A server, a shared space, and somebody who may actually make an invitation. The
@@ -70,7 +74,7 @@ export function SpacePeople() {
 		queryFn: () => session?.members.list(spaceId) ?? [],
 	});
 
-	const { may } = useWhatIMayDo(spaceId);
+	const { may, role: myRole } = useWhatIMayDo(spaceId);
 
 	// The people of this space: this screen names its members and settles up between
 	// them, and somebody from another space of this person's is neither.
@@ -106,6 +110,24 @@ export function SpacePeople() {
 			session?.members.changeRole(spaceId, input.userId, input.role),
 		onSuccess: invalidate,
 		onError: complain,
+	});
+
+	/**
+	 * Handing the space over, which the model has always been able to do and no screen
+	 * could reach.
+	 *
+	 * It is the way out for whoever made a space: leaving is refused to an owner, and the
+	 * refusal says to transfer it first, which was a thing nobody could do. Typed out,
+	 * like the danger zone, because it is not undoable by the person doing it: afterwards
+	 * they are an administrator and only the new owner can hand it back.
+	 */
+	const transfer = useMutation({
+		mutationFn: async (userId: string) => session?.members.transferOwnership(spaceId, userId),
+		onSuccess: () => {
+			setHandingTo(null);
+			invalidate();
+		},
+		onError: (error: unknown) => setHandOverProblem(sayWhy(error, t)),
 	});
 
 	const saveIncome = useMutation({
@@ -180,6 +202,8 @@ export function SpacePeople() {
 	const canInvite = onAServer && may("member.invite");
 	const maySettle = may("sharing.write");
 	const mayLeave = may("space.leave");
+	/** Only the owner hands a space over, and only a shared one has anybody to hand it to. */
+	const mayHandOver = !isPersonal && myRole === "owner";
 
 	async function copyLink() {
 		if (!link) return;
@@ -320,13 +344,13 @@ export function SpacePeople() {
 										{/* Only for somebody who may actually do either of these. An
 										    Editor, a Viewer or a Logger was shown the menu and had
 										    every item in it refused without a word. */}
-										{(!maySetAnybodys && !mayRemove) ||
+										{(!maySetAnybodys && !mayRemove && !mayHandOver) ||
 										member.role === "owner" ||
 										member.userId === user?.id ? null : (
 											<Menu
 												align="end"
 												trigger={
-													<Button size="small" variant="quiet" aria-label={t("accounts.actions")}>
+													<Button size="small" variant="quiet" aria-label={t("members.actions")}>
 														<Icon name="settings" />
 													</Button>
 												}
@@ -343,6 +367,20 @@ export function SpacePeople() {
 															</MenuItem>
 														))
 													: null}
+												{/* Owner is not in the list above, on purpose: the model refuses
+												    to hand that role out, because two owners is not a state it
+												    has an answer for. It is handed over, one for one. */}
+												{mayHandOver ? (
+													<MenuItem
+														onSelect={() => {
+															setHandOverProblem(null);
+															setTypedName("");
+															setHandingTo({ userId: member.userId, name: nameOf(member.userId) });
+														}}
+													>
+														{t("members.handOver")}
+													</MenuItem>
+												) : null}
 												{mayRemove ? (
 													<MenuItem onSelect={() => remove.mutate(member.userId)}>
 														{t("members.remove")}
@@ -363,6 +401,52 @@ export function SpacePeople() {
 					{t("members.leave")}
 				</Button>
 			) : null}
+
+			{/* Typed out, like the danger zone, because the person doing it cannot undo it:
+			    afterwards they are an administrator and only the new owner can hand it
+			    back. It is also the one way out of a space for whoever made it, which is
+			    why the refusal on leaving points here. */}
+			<Dialog
+				open={handingTo !== null}
+				onOpenChange={(open) => {
+					if (!open) setHandingTo(null);
+				}}
+				title={t("members.handOverTitle")}
+				description={t("members.handOverDescription", {
+					name: handingTo?.name ?? "",
+					space: currentSpace.name,
+				})}
+				closeLabel={t("actions.cancel")}
+				size="small"
+				footer={
+					<>
+						<Button variant="quiet" onClick={() => setHandingTo(null)}>
+							{t("actions.cancel")}
+						</Button>
+						<Button
+							variant="destructive"
+							disabled={
+								transfer.isPending ||
+								typedName.trim().toLowerCase() !== (handingTo?.name ?? "").trim().toLowerCase()
+							}
+							onClick={() => handingTo && transfer.mutate(handingTo.userId)}
+						>
+							{t("members.handOverAction")}
+						</Button>
+					</>
+				}
+			>
+				<div className="space-y-3">
+					<Callout tone="attention">{t("members.handOverWarns")}</Callout>
+					<Field
+						label={t("members.handOverConfirm", { name: handingTo?.name ?? "" })}
+						value={typedName}
+						onChange={(event) => setTypedName(event.target.value)}
+						error={handOverProblem}
+						autoComplete="off"
+					/>
+				</div>
+			</Dialog>
 
 			<Dialog
 				open={incomeFor !== null}
