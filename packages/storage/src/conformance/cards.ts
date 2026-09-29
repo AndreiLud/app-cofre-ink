@@ -89,6 +89,76 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		it("refuses income on a benefit card, because the credit is not a record", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				const voucher = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "voucher",
+					name: "Vale refeicao",
+					benefit: "meal",
+				});
+				await expect(
+					fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "income",
+						amount: 90_000,
+						happenedOn: "2026-09-05",
+						description: "Credito do vale",
+						accountId: voucher.id,
+					}),
+				).rejects.toBeInstanceOf(RuleError);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("refuses moving money out of a benefit card, and takes a top up into one", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				const checking = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta corrente",
+					initialBalance: 100_000,
+				});
+				const voucher = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "voucher",
+					name: "Vale refeicao",
+					benefit: "meal",
+				});
+
+				await expect(
+					fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "transfer",
+						amount: 10_000,
+						happenedOn: "2026-09-10",
+						description: "Sacando o vale",
+						accountId: voucher.id,
+						counterAccountId: checking.id,
+					}),
+				).rejects.toBeInstanceOf(RuleError);
+
+				// The other direction is real: cards like Caju and Flash take a top up.
+				const [topUp] = await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "transfer",
+					amount: 10_000,
+					happenedOn: "2026-09-10",
+					description: "Recarga",
+					accountId: checking.id,
+					counterAccountId: voucher.id,
+				});
+				expect(topUp?.kind).toBe("transfer");
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		it("refuses a day that is not a day of the month", async () => {
 			const fixture = await prepare(adapter);
 			try {

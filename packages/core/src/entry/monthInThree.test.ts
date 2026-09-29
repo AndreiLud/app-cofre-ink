@@ -48,6 +48,19 @@ describe("the day one of the three is written on", () => {
 		expect(monthPartDay("2026-01", "income")).toBe("2026-01-31");
 	});
 
+	it("writes the month somebody is living in on the day they are writing it", () => {
+		// A balance counts a record once its day has arrived, so the last day of the month
+		// would mean typing what was spent on the fifth and watching nothing move until the
+		// thirty first.
+		expect(monthPartDay("2026-09", "income", null, "2026-09-05")).toBe("2026-09-05");
+		expect(monthPartDay("2026-09", "spending", null, "2026-09-29")).toBe("2026-09-29");
+	});
+
+	it("keeps the last day for a month already over, and for one still to come", () => {
+		expect(monthPartDay("2026-08", "income", null, "2026-09-05")).toBe("2026-08-31");
+		expect(monthPartDay("2026-10", "income", null, "2026-09-05")).toBe("2026-10-31");
+	});
+
 	it("is the last day of that invoice, for the card", () => {
 		const early: CardCycle = { closingDay: 3, dueDay: 10 };
 		expect(monthPartDay("2026-09", "invoice", early)).toBe("2026-09-02");

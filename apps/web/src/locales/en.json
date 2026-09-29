@@ -544,7 +544,9 @@
 		"quotaIsPositive": "What lands on a benefit card each month is a whole amount, more than nothing.",
 		"quotaDayIsADayOfTheMonth": "The day the allowance lands is a day of the month, from 1 to 31.",
 		"notACardWithACycle": "An invoice belongs to a credit card with a closing day and a due day. Fill both in under Accounts.",
-		"notOnAnInvoice": "Only a record that is on an invoice can be moved to another one."
+		"notOnAnInvoice": "Only a record that is on an invoice can be moved to another one.",
+		"benefitIsNotIncome": "A benefit card is credited by whoever gives it, and that credit is not a record. Cofre works out what is left from the monthly allowance you wrote on the account.",
+		"benefitDoesNotLeave": "Money on a benefit card is spent on the card and does not leave it. A top up by Pix goes in as a transfer into the card, because that one is real."
 	},
 	"transactions": {
 		"title": "Records",

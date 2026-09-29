@@ -16,6 +16,7 @@ import {
 	type CalendarDate,
 	type CalendarMonth,
 	dateInMonth,
+	monthOf,
 	parseCalendarMonth,
 } from "../time/calendar.ts";
 
@@ -89,11 +90,21 @@ export function monthPartDay(
 	month: CalendarMonth,
 	part: MonthPart,
 	cycle?: CardCycle | null,
+	/** The day this is being written on, when it is being written for the month it is in. */
+	today?: CalendarDate,
 ): CalendarDate {
 	if (cycle) {
 		if (part === "invoice") return invoicePeriod(month, cycle).to;
 		if (part === "payment") return invoiceDueDate(month, cycle);
 	}
+	// The month somebody is living in is written on the day they are writing it.
+	//
+	// A balance counts a record once its day has arrived, so the last day of the month
+	// would mean typing what a household spent on the fifth and watching nothing move
+	// until the thirty first. The last day is right for a month already over, and for one
+	// still to come, and wrong for the one being lived in. Saying it happened on the day
+	// it was said is also simply true: that is the day somebody looked at the money.
+	if (today && monthOf(today) === month) return today;
 	// Clamped, so this is the last day of whatever length the month is.
 	return dateInMonth(month, 31);
 }

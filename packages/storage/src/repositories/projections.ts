@@ -191,12 +191,17 @@ export function createProjectionsRepository(context: RepositoryContext) {
 			// money. Counting the household's opening balance and then only their rows
 			// would be the worst of both.
 			const onlyMine = seesOwnRowsOnly(context.actor(), input.spaceId);
+			// A card and a benefit card are both out of the opening, for opposite reasons.
+			// A card is a debt that the months ahead pay off invoice by invoice, and
+			// counting it here would take it off twice. A benefit card is an allowance that
+			// buys lunch and will not pay the rent, so a month that started with it in
+			// would be a month that thinks it has more than it has.
 			const balances = onlyMine
 				? []
 				: await context.driver.all(
 						`SELECT COALESCE(SUM(a."initial_balance"), 0) AS opening FROM "accounts" a
 						 WHERE a."space_id" = ? AND a."deleted_at" IS NULL AND a."archived_at" IS NULL
-						   AND a."kind" <> 'credit'`,
+						   AND a."kind" NOT IN ('credit', 'voucher')`,
 						[input.spaceId],
 					);
 
@@ -206,7 +211,7 @@ export function createProjectionsRepository(context: RepositoryContext) {
 				 FROM "transactions" t
 				 JOIN "accounts" a ON a."id" = t."account_id"
 				 WHERE t."space_id" = ? AND t."deleted_at" IS NULL AND t."status" = 'settled'
-				   AND a."kind" <> 'credit' AND a."deleted_at" IS NULL
+				   AND a."kind" NOT IN ('credit', 'voucher') AND a."deleted_at" IS NULL
 				   ${only.clause}`,
 				[input.spaceId, ...only.params],
 			);

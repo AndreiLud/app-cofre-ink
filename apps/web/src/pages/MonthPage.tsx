@@ -213,7 +213,11 @@ export function MonthPage() {
 	const mayMakeAnAccount = may("account.create");
 
 	const everyAccount = accounts.data ?? [];
-	const moneyAccounts = everyAccount.filter((one) => one.kind !== "credit");
+	// A benefit card is neither. It takes no income, because whoever gives it is what
+	// credits it, and the spending on it is not the household's money going out.
+	const moneyAccounts = everyAccount.filter(
+		(one) => one.kind !== "credit" && one.kind !== "voucher",
+	);
 	const cardAccounts = everyAccount.filter((one) => one.kind === "credit");
 	const account = moneyAccounts.find((one) => one.id === accountId) ?? likeliest(moneyAccounts);
 	const cardAccount =
@@ -300,7 +304,7 @@ export function MonthPage() {
 	const left = (cents.income ?? 0) - (cents.spending ?? 0) - (cents.invoice ?? 0);
 
 	// The day the card is paid, which decides whether that payment already happened.
-	const paidOn = monthPartDay(shown, "payment", cycle);
+	const paidOn = monthPartDay(shown, "payment", cycle, today);
 
 	/**
 	 * What the month should end up holding.
@@ -376,7 +380,7 @@ export function MonthPage() {
 					continue;
 				}
 
-				const happenedOn = monthPartDay(shown, one.part, cycle);
+				const happenedOn = monthPartDay(shown, one.part, cycle, today);
 				const description = t(DESCRIPTION[one.part], { month: withYear });
 
 				if (existing) {

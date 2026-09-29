@@ -544,7 +544,9 @@
 		"quotaIsPositive": "O valor que cai no cartão de benefício todo mês é um número inteiro, maior que nada.",
 		"quotaDayIsADayOfTheMonth": "O dia do crédito é um dia do mês, de 1 a 31.",
 		"notACardWithACycle": "Uma fatura é de um cartão de crédito com dia de fechamento e dia de vencimento. Preencha os dois em Contas.",
-		"notOnAnInvoice": "Só um lançamento que está numa fatura pode ser movido para outra."
+		"notOnAnInvoice": "Só um lançamento que está numa fatura pode ser movido para outra.",
+		"benefitIsNotIncome": "Quem credita um cartão de benefício é quem dá ele, e esse crédito não é um lançamento. O Cofre calcula quanto resta a partir do valor mensal que você cadastrou na conta.",
+		"benefitDoesNotLeave": "O dinheiro de um cartão de benefício é gasto no próprio cartão e não sai dele. Recarregar por Pix você lança como transferência para o cartão, que isso existe."
 	},
 	"transactions": {
 		"title": "Lançamentos",

@@ -420,6 +420,17 @@ export function createTransactionsRepository(context: RepositoryContext) {
 				);
 			}
 
+			// A benefit card is an allowance, not an account. The money on it was put there
+			// by an employer and it does not come back out: it buys lunch or a fare and
+			// that is the whole of what it does. Putting money in is real, because cards
+			// like Caju and Flash take a top up, so only the other direction is refused.
+			if (input.kind === "income" && account.kind === "voucher") {
+				throw new RuleError(
+					"benefitIsNotIncome",
+					"a benefit card is credited by whoever gives it, and that credit is not a record",
+				);
+			}
+
 			if (input.kind === "transfer") {
 				if (!input.counterAccountId) {
 					throw new RuleError("transferNeedsDestination", "a transfer needs an account to land in");
@@ -428,6 +439,12 @@ export function createTransactionsRepository(context: RepositoryContext) {
 					throw new RuleError(
 						"transferNeedsTwoAccounts",
 						"a transfer needs two different accounts",
+					);
+				}
+				if (account.kind === "voucher") {
+					throw new RuleError(
+						"benefitDoesNotLeave",
+						"money on a benefit card is spent on the card and does not move out of it",
 					);
 				}
 				await accountIn(input.spaceId, input.counterAccountId);
