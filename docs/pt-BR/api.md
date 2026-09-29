@@ -84,6 +84,7 @@ vírgula, `withoutCategory`, `limit`.
 | `POST` | `/api/goals/:id/achieved` | alcançada |
 | `GET` `POST` `DELETE` | `/api/spaces/:id/savings` | a regra de guardar primeiro |
 | `GET` | `/api/spaces/:id/savings/progress` | se ela foi cumprida no mês |
+| `POST` | `/api/spaces/:id/transfer` | passa o espaço para outro membro. Só o dono, que passa a administrador |
 | `GET` `POST` | `/api/spaces/:id/filters` | filtros salvos, privados de quem salvou |
 | `PATCH` `DELETE` | `/api/filters/:id` | editar, remover |
 

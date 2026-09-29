@@ -113,6 +113,27 @@ resgatar na mão: entre na sua nuvem, baixe o arquivo `cofre_<identificador>.jso
 pasta, e traga ele em Restaurar de um arquivo. Num banco de dados online não existe
 caminho pela interface hoje.
 
+### O painel do backup diz que nada está sendo copiado
+
+Estar ligado e ter para onde escrever são duas coisas, e o painel diz as duas. Essa frase
+quer dizer que a chave está ligada e o lugar não serve: um campo vazio, ou um endereço que
+não dá para transformar em uma requisição. Preencha os campos, ou desligue. O botão que
+desliga nunca fica cinza, qualquer que seja o campo que falta.
+
+Um endereço precisa nomear um servidor. As duas formas que um serviço te entrega valem como
+estão: `libsql://nome.turso.io`, que é o que o Turso mostra, e `nome.turso.io` sozinho. Um
+caminho sem servidor nenhum é recusado em vez de adivinhado, porque toda chamada dessas leva
+a sua senha e adivinhar errado mandaria ela para outro lugar.
+
+### A moeda de um espaço não muda
+
+Depois que tem lançamento dentro. Aqui nada é convertido, de propósito: um lançamento guarda
+o valor e a moeda em que foi escrito. Isso serve para um lançamento e não serve para um
+total, porque cada saldo, cada divisão e cada acerto já escrito é um número de centavos da
+moeda antiga, e ler eles como a nova soma euros com reais em vez de trocar o rótulo. Então
+dá para corrigir enquanto o espaço está vazio, que é o caso para o qual isso existe, logo
+depois da porta de entrada criar um. Depois, um espaço em outra moeda é outro espaço.
+
 ### Um endereço de dentro do aplicativo responde 404
 
 Uma hospedagem de arquivos que não conhece as rotas. O build leva o `404.html`, que é a

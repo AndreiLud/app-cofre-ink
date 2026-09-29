@@ -85,6 +85,7 @@ The filters on the list are query parameters: `accountId`, `cardId`, `kind`, `st
 | `POST` | `/api/goals/:id/achieved` | reached |
 | `GET` `POST` `DELETE` | `/api/spaces/:id/savings` | the save first rule |
 | `GET` | `/api/spaces/:id/savings/progress` | whether it was kept this month |
+| `POST` | `/api/spaces/:id/transfer` | hands the space to another member. Only the owner, who becomes an administrator |
 | `GET` `POST` | `/api/spaces/:id/filters` | saved filters, which are private to whoever saved them |
 | `PATCH` `DELETE` | `/api/filters/:id` | edit, remove |
 

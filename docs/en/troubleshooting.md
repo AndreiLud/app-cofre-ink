@@ -112,6 +112,28 @@ folder you can rescue it by hand: go to your own cloud, download the
 `cofre_<identifier>.json.gz` file from the folder, and bring it in through Restore from a
 file. From an online database there is no path through the interface today.
 
+### The backup panel says nothing is being copied
+
+Being switched on and having somewhere to write are two things, and the panel says both.
+That sentence means the switch is on and the place is not usable: a field left empty, or
+an address that cannot be turned into a request. Fill the fields in, or switch it off. The
+button that switches it off is never greyed out, whatever the place is missing.
+
+An address has to name a host. Both of the forms a service hands you are taken as they
+are: `libsql://name.turso.io`, which is what Turso shows, and `name.turso.io` on its own.
+A path with no host in it is refused rather than guessed at, because every one of these
+calls carries your password and guessing wrong would send it somewhere else.
+
+### The currency of a space cannot be changed
+
+Once there is a record in it. Nothing is converted here, on purpose: a record keeps the
+amount and the currency it was written in. That is fine for a record and not for a total,
+because every balance, every division and every settlement already written is a number of
+minor units of the old currency, and reading them as the new one adds euros to reais
+rather than relabelling them. So it is correctable while the space is still empty, which
+is the case this exists for, right after the front door made one. Afterwards, a space in
+another currency is another space.
+
 ### An address inside the application answers 404
 
 A static host that does not know the routes. The build carries `404.html`, which is the
