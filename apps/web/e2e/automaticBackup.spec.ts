@@ -264,11 +264,14 @@ test.describe("the copy that keeps itself up to date", () => {
 	});
 
 	/**
-	 * Keeping the copy switches the backup off, and that was done before the erasure.
+	 * Keeping the copy switches the backup off, and that used to be done before the
+	 * erasure rather than after it, so an erasure that then failed left the space intact
+	 * and the backup off, for every space in the browser, with nothing saying so.
 	 *
-	 * So an erasure that failed left the space intact and the backup off, with nothing
-	 * saying so, and cancelling out of the dialog left the browser quietly not backing
-	 * anything up. The switch is one for the whole browser, so that was every space.
+	 * This pins the half that can be driven from outside: unticking the box and thinking
+	 * again touches nothing. It does not prove the ordering, because making the erasure
+	 * itself fail means breaking the database underneath it, which no flow here can do.
+	 * That half was corrected by reading.
 	 */
 	test("leaves the backup alone when the erasure does not happen", async ({ page }) => {
 		const folder = await aFolderThatAnswers(page);
