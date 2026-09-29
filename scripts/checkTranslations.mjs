@@ -37,26 +37,55 @@ const ROLE_TABLE_START =
 	"<!-- roleTable: written by scripts/roleTable.mjs, do not edit by hand -->";
 const ROLE_TABLE_END = "<!-- /roleTable -->";
 
-/** Every TypeScript file that is not a test, under the folders that hold the rules. */
+/**
+ * Every source file that is not a test.
+ *
+ * Both extensions: a rule thrown from a React file was invisible here, because ".tsx"
+ * does not end with ".ts", and two rules lived only in one.
+ */
 function sourcesIn(dir) {
 	if (!existsSync(dir)) return [];
 	return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
 		const path = join(dir, entry.name);
 		if (entry.isDirectory()) return entry.name === "node_modules" ? [] : sourcesIn(path);
-		return path.endsWith(".ts") && !path.endsWith(".test.ts") ? [path] : [];
+		const source = path.endsWith(".ts") || path.endsWith(".tsx");
+		return source && !/\.test\.tsx?$/.test(path) ? [path] : [];
 	});
 }
 
-/** The name of every rule the model can refuse with, and where it is thrown. */
+/**
+ * The name of every rule the model can refuse with, and where it is thrown.
+ *
+ * Two patterns, because a name is not always the first argument written out: one of them
+ * is chosen by a ternary inside the call. Anything else, a name held in a variable or
+ * built from a template, cannot be found by reading and is refused outright, so a rule
+ * that this cannot check stops the build rather than passing it quietly.
+ */
 function rulesThrown() {
 	const found = new Map();
-	for (const file of [...sourcesIn(join(root, "packages")), ...sourcesIn(join(root, "apps"))]) {
+	const problems = [];
+	const folders = ["packages", "apps", "scripts"];
+
+	for (const file of folders.flatMap((one) => sourcesIn(join(root, one)))) {
 		const text = readFileSync(file, "utf8");
-		for (const match of text.matchAll(/new (?:RuleError|SplitError)\(\s*"([A-Za-z]+)"/g)) {
-			if (!found.has(match[1])) found.set(match[1], file.replace(root, "").replace(/^[\\/]/, ""));
+		const where = file.replace(root, "").replace(/^[\\/]/, "");
+
+		for (const call of text.matchAll(/new (?:RuleError|SplitError)\(([\s\S]{0,200}?)[,)]/g)) {
+			const head = call[1];
+			// Every name written out, and not the thing a ternary compares against: the one
+			// call that picks between two rules tests a method by name first.
+			const names = [...head.matchAll(/(?<!==\s)"([A-Za-z][A-Za-z0-9]*)"/g)].map((one) => one[1]);
+			if (names.length === 0) {
+				// A name that cannot be read here is a name nobody can check. The one place
+				// that rethrows a rule it was handed says so.
+				if (!/error\.rule/.test(head)) problems.push(`${where}: a rule name that cannot be read`);
+				continue;
+			}
+			for (const name of names) if (!found.has(name)) found.set(name, where);
 		}
 	}
-	return found;
+
+	return { found, problems };
 }
 
 /** Every key, flattened, with the plural suffix removed. */
@@ -127,7 +156,8 @@ function main() {
 		}
 	}
 
-	const rules = rulesThrown();
+	const { found: rules, problems: unreadable } = rulesThrown();
+	problems.push(...unreadable);
 	for (const [name, file] of rules) {
 		for (const language of LANGUAGES) {
 			const table = tables.get(language);

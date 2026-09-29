@@ -1449,6 +1449,11 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		context.json(await context.get("session").backup.copyable()),
 	);
 
+	/** And the ones a file may be written back into, which is the other permission. */
+	app.get("/api/backup/restorable", async (context) =>
+		context.json(await context.get("session").backup.restorable()),
+	);
+
 	app.get("/api/spaces/:id/records", async (context) => {
 		const query = z
 			.object({ from: calendarDate.optional(), to: calendarDate.optional() })

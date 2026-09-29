@@ -427,6 +427,7 @@
 		"dueDayHint": "Quando a fatura tem que ser paga.",
 		"emptyTitle": "Nenhuma conta por aqui ainda",
 		"emptyBody": "Comece pela conta onde cai o seu salário. Dá para adicionar cartão, dinheiro e investimento depois.",
+		"emptyForYou": "Este espaço ainda não tem conta nenhuma, e criar uma é de quem cuida do espaço.",
 		"benefit": "Qual benefício",
 		"benefitHint": "VA e VR são o mesmo bolso aqui, que é como o cartão costuma vir. VT é outro, e vale cultura e mobilidade também.",
 		"cardComesWithIt": "O cartão desta conta é criado junto. Pode deixar em branco.",
@@ -725,6 +726,7 @@
 	"invoice": {
 		"noCardTitle": "Nenhum cartão de crédito neste espaço",
 		"noCardBody": "Cadastre o cartão com o dia do fechamento e o do vencimento. A partir daí cada compra já entra na fatura certa, inclusive as parceladas.",
+		"noCardForYou": "Nenhum cartão de crédito cadastrado neste espaço, e cadastrar um é de quem cuida do espaço.",
 		"noCycleTitle": "Este cartão está sem ciclo",
 		"noCycleBody": "Sem o dia do fechamento e o do vencimento não dá para dizer em que fatura cada compra entra. Esses dois dias são escolhidos quando a conta do cartão é criada, e hoje não há como trocar esses dias depois: apague esta conta e crie de novo com os dias certos.",
 		"goToAccounts": "Ir para Contas",
@@ -950,6 +952,7 @@
 		"bringBackConfirmTitle": "Trazer os dados de volta",
 		"bringBackConfirmBody": "Do arquivo {{name}}.",
 		"bringBackWhich": "O que tem neste arquivo",
+		"bringBackNotYours": "{{name}} já está aqui e é de outra pessoa, então este arquivo não entra nele.",
 		"bringBackPickOne": "Marque pelo menos um espaço.",
 		"bringBackAdds": "Só acrescenta o que está faltando. Nada do que já está aqui é apagado ou trocado, e abrir o mesmo arquivo duas vezes não duplica nada.",
 		"restoreNotYours": "Este arquivo traz um espaço que já existe aqui, e nele você não é Dono nem Administrador. Trazer um espaço inteiro de volta é decisão de quem cuida dele, então peça a essa pessoa.",

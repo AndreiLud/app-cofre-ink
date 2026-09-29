@@ -28,6 +28,7 @@ test.describe("accounts", () => {
 
 		const dialog = page.getByRole("dialog");
 		await dialog.getByLabel("Nome").fill("Cartão da loja");
+
 		await dialog.getByLabel("Tipo").selectOption("credit");
 		// One plastic that works both ways, said once, while the account is described.
 		// The radio itself is only for the screen reader, so a person clicks the label.

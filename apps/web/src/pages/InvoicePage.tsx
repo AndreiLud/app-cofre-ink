@@ -65,7 +65,9 @@ export function InvoicePage() {
 
 	const spaceId = currentSpace?.id ?? "";
 	/** Whether the way out of an empty screen is a way out for this person. */
-	const mayMakeAnAccount = useWhatIMayDo(spaceId).may("account.create");
+	const iMay = useWhatIMayDo(spaceId);
+	const mayMakeAnAccount = iMay.may("account.create");
+	const ready = iMay.ready;
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
 
 	const [invoiceAccountId, setInvoiceAccountId] = useState("");
@@ -115,21 +117,27 @@ export function InvoicePage() {
 		return (
 			<div className="space-y-6">
 				<InsightTitle level="h1">{t("invoice.noCardTitle")}</InsightTitle>
-				<EmptyState
-					icon="wallet"
-					title={t("invoice.noCardTitle")}
-					description={t("invoice.noCardBody")}
-					// A way out that is not one for this person is worse than none: it led to
-					// Accounts, where that button does not exist for them, with nothing saying
-					// why.
-					action={
-						mayMakeAnAccount ? (
-							<Link to={ROUTES.accounts}>
-								<Button variant="primary">{t("accounts.create")}</Button>
-							</Link>
-						) : null
-					}
-				/>
+				{/* A way out that is not one for this person is worse than none: it led to
+				    Accounts, where that button does not exist for them. And taking the
+				    button away is not enough on its own, because the sentence beside it
+				    still told them to add a card. Whichever of the two is true gets said,
+				    and neither until the member list has answered. */}
+				{!ready ? (
+					<Skeleton lines={3} />
+				) : (
+					<EmptyState
+						icon="wallet"
+						title={t("invoice.noCardTitle")}
+						description={mayMakeAnAccount ? t("invoice.noCardBody") : t("invoice.noCardForYou")}
+						action={
+							mayMakeAnAccount ? (
+								<Link to={ROUTES.accounts}>
+									<Button variant="primary">{t("accounts.create")}</Button>
+								</Link>
+							) : null
+						}
+					/>
+				)}
 			</div>
 		);
 	}

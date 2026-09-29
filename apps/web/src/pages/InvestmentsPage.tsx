@@ -265,7 +265,7 @@ export function InvestmentsPage() {
 			</div>
 
 			{/* Only when no dialog is over it: both forms show it inside themselves. */}
-			{problem && !open && pricing === null ? <Callout tone="problem">{problem}</Callout> : null}
+			{problem && !isOpen && pricing === null ? <Callout tone="problem">{problem}</Callout> : null}
 			{holdings.isPending ? <Skeleton lines={3} /> : null}
 
 			{!holdings.isPending && list.length === 0 ? (

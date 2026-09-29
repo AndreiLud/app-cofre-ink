@@ -650,6 +650,7 @@ export function createRemoteSession(
 		backup: {
 			exportSpace: (spaceId: string) => get<Backup>(`/api/spaces/${spaceId}/backup`),
 			copyable: () => get<string[]>("/api/backup/spaces"),
+			restorable: () => get<string[]>("/api/backup/restorable"),
 			exportSpaces: (spaceIds: string[]) =>
 				get<Backup>(`/api/backup?spaces=${encodeURIComponent(spaceIds.join(","))}`),
 			exportEverything: () => get<Backup>("/api/backup"),

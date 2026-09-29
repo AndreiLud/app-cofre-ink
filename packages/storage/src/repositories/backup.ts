@@ -315,6 +315,21 @@ export function createBackupRepository(context: RepositoryContext) {
 		},
 
 		/**
+		 * Which spaces already here this person may write a file back into.
+		 *
+		 * The same shape as copyable and a different question, asked apart from it on
+		 * purpose: the two permissions hold the same roles today, and a screen that asked
+		 * one and acted on the other would break the day either list changed, silently.
+		 *
+		 * A space the file carries that is not here at all is not in this list and does not
+		 * need to be: one that arrives with nobody in it is nobody's to refuse, and whoever
+		 * brings it in becomes its owner.
+		 */
+		async restorable(): Promise<string[]> {
+			return readableSpaceIds(context.actor()).filter((id) => context.can(id, "backup.restore"));
+		},
+
+		/**
 		 * The spaces somebody ticked, in one file.
 		 *
 		 * One file whether it holds one space or nine, because two file shapes meant two

@@ -114,6 +114,7 @@ export function DashboardPage() {
 	const mine = useWhatIMayDo(spaceId);
 	const mayUpdate = mine.may("transaction.update");
 	const mayMakeAnAccount = mine.may("account.create");
+	const ready = mine.ready;
 
 	const settle = useMutation({
 		mutationFn: async (id: string) => session?.transactions.settle(id),
@@ -338,12 +339,14 @@ export function DashboardPage() {
 			>
 				{accounts.isPending ? <Skeleton lines={3} /> : null}
 
-				{!accounts.isPending && shownAccounts.length === 0 ? (
+				{/* Not a button for a role that will not find it when it gets there, and not
+				    the sentence beside it either, which told them to add one. Whichever of
+				    the two is true gets said, once the member list has answered. */}
+				{!accounts.isPending && shownAccounts.length === 0 && ready ? (
 					<EmptyState
 						icon="wallet"
 						title={t("accounts.emptyTitle")}
-						description={t("accounts.emptyBody")}
-						// Not for a role that will not find that button when it gets there.
+						description={mayMakeAnAccount ? t("accounts.emptyBody") : t("accounts.emptyForYou")}
 						action={
 							mayMakeAnAccount ? (
 								<Link to={ROUTES.accounts}>

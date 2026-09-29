@@ -216,6 +216,16 @@ export function DataPage() {
 		queryFn: () => session?.backup.copyable() ?? [],
 	});
 	const mayCopy = new Set(copyable.data ?? []);
+
+	// The other permission, asked apart from the one above. The two hold the same roles
+	// today, and a screen that asked one and acted on the other would break the day either
+	// list changed, with nothing saying so.
+	const restorable = useQuery({
+		queryKey: ["restorableSpaces"],
+		enabled: Boolean(session),
+		queryFn: () => session?.backup.restorable() ?? [],
+	});
+	const mayRestoreInto = (spaceId: string) => new Set(restorable.data ?? []).has(spaceId);
 	const chosen = spaces.filter((space) => mayCopy.has(space.id) && !leftOut[space.id]);
 
 	function failed(error: unknown) {
@@ -370,7 +380,22 @@ export function DataPage() {
 	}
 
 	const insideTheFile = waiting?.backup.spaces ?? [];
-	const bringing = insideTheFile.filter((space) => !leftBehind[space.id]);
+
+	/**
+	 * Spaces in the file that are already here and are not this person's to write into.
+	 *
+	 * This door asked nothing and refused at the end, which is the cost the one question
+	 * was built to remove: somebody picked a file, read the dialog, ticked the spaces and
+	 * pressed the destructive button to be told no. A space the file carries that is not
+	 * here at all is open to anybody, because one that arrives with nobody in it is
+	 * nobody's to refuse.
+	 */
+	const notMine = insideTheFile
+		.filter((space) => spaces.some((here) => here.id === space.id) && !mayRestoreInto(space.id))
+		.map((space) => space.id);
+	const bringing = insideTheFile.filter(
+		(space) => !leftBehind[space.id] && !notMine.includes(space.id),
+	);
 
 	const restore = useMutation({
 		mutationFn: async () => {
@@ -671,17 +696,29 @@ export function DataPage() {
 				}
 			>
 				<div className="space-y-3">
-					{insideTheFile.length > 1 ? (
+					{/* One row per space in the file, and the ones that are already here and
+					    are somebody else's are said to be, rather than ticked and refused at
+					    the end. Bringing a space that is not here at all is open to anybody,
+					    because a space that arrives with nobody in it is nobody's to refuse
+					    and whoever brings it in becomes its owner. Writing into one that is
+					    here asks for the permission to restore, which two roles have. */}
+					{insideTheFile.length > 1 || notMine.length > 0 ? (
 						<fieldset className="space-y-2">
 							<legend className="pb-1 text-sm text-quiet">{t("data.bringBackWhich")}</legend>
-							{insideTheFile.map((space) => (
-								<SpaceToTick
-									key={space.id}
-									name={space.name}
-									checked={!leftBehind[space.id]}
-									onChange={(checked) => setLeftBehind({ ...leftBehind, [space.id]: !checked })}
-								/>
-							))}
+							{insideTheFile.map((space) =>
+								notMine.includes(space.id) ? (
+									<p key={space.id} className="text-sm text-quiet">
+										{t("data.bringBackNotYours", { name: space.name })}
+									</p>
+								) : (
+									<SpaceToTick
+										key={space.id}
+										name={space.name}
+										checked={!leftBehind[space.id]}
+										onChange={(checked) => setLeftBehind({ ...leftBehind, [space.id]: !checked })}
+									/>
+								),
+							)}
 							{bringing.length === 0 ? (
 								<p className="text-sm text-seal">{t("data.bringBackPickOne")}</p>
 							) : null}

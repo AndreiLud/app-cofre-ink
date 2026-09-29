@@ -224,7 +224,7 @@ export function BudgetPage() {
 			    inside themselves now, because the one at the top of the page sat behind
 			    whichever dialog was open and read, once the dialog was closed, as a
 			    complaint about the screen rather than about the field. */}
-			{problem && !open && !savingOpen && !goalOpen ? (
+			{problem && !isOpen && !savingOpen && !goalOpen ? (
 				<Callout tone="problem">{problem}</Callout>
 			) : null}
 

@@ -427,6 +427,7 @@
 		"dueDayHint": "When the invoice has to be paid.",
 		"emptyTitle": "No accounts here yet",
 		"emptyBody": "Start with the account your salary lands in. Cards, cash and investments can come later.",
+		"emptyForYou": "This space has no account yet, and making one belongs to whoever runs the space.",
 		"benefit": "Which benefit",
 		"benefitHint": "VA and VR are one pot here, which is how the card usually comes. VT is another one, and so are culture and mobility.",
 		"cardComesWithIt": "The card of this account is made with it. You can leave it empty.",
@@ -725,6 +726,7 @@
 	"invoice": {
 		"noCardTitle": "No credit card in this space",
 		"noCardBody": "Add the card with the day it closes and the day it falls due. From then on every purchase lands on the right invoice, including the ones split into parts.",
+		"noCardForYou": "No credit card in this space, and adding one belongs to whoever runs the space.",
 		"noCycleTitle": "This card has no cycle",
 		"noCycleBody": "Without the closing day and the due day there is no way to say which invoice a purchase belongs to. Those two days are chosen when the card account is created, and there is no way to change those two days afterwards yet: delete this account and make it again with the right days.",
 		"goToAccounts": "Go to Accounts",
@@ -950,6 +952,7 @@
 		"bringBackConfirmTitle": "Bring the data back",
 		"bringBackConfirmBody": "From the file {{name}}.",
 		"bringBackWhich": "What is in this file",
+		"bringBackNotYours": "{{name}} is already here and belongs to somebody else, so this file does not go into it.",
 		"bringBackPickOne": "Tick at least one space.",
 		"bringBackAdds": "It only adds what is missing. Nothing already here is removed or replaced, and opening the same file twice duplicates nothing.",
 		"restoreNotYours": "This file carries a space that is already here, and in it you are neither Owner nor Administrator. Bringing a whole space back is a decision of whoever runs it, so ask them.",

@@ -285,7 +285,7 @@ export function ProjectionPage() {
 
 						{/* Deleting a scenario is done from a chip on this panel, and its failure
 						    was written into a callout that only the dialog drew. */}
-						{problem && !open ? <Callout tone="problem">{problem}</Callout> : null}
+						{problem && !isOpen ? <Callout tone="problem">{problem}</Callout> : null}
 
 						<div className="flex flex-wrap gap-2">
 							<Button

@@ -194,7 +194,7 @@ export function MonthPage() {
 
 	// A role that does not write should not be handed a button that writes. It used to
 	// be offered, pressed, and refused afterwards in a raw English sentence.
-	const { may, role, seesOwnRowsOnly } = useWhatIMayDo(spaceId);
+	const { may, ready, role, seesOwnRowsOnly } = useWhatIMayDo(spaceId);
 	/**
 	 * Two reasons, and they are not the same reason. A Viewer writes nothing at all. A
 	 * Logger writes, but only ever sees the records they wrote themselves, and this
@@ -455,8 +455,13 @@ export function MonthPage() {
 				<InsightTitle level="h1">{t("theMonth.title")}</InsightTitle>
 				{/* This return sits before the callout that says which role you are, so a
 				    Viewer here was never told that and only got a button leading to a screen
-				    where it does not exist. Whichever of the two is true gets said. */}
-				{mayMakeAnAccount ? (
+				    where it does not exist. Whichever of the two is true gets said, and
+				    neither is said until the member list has answered: an owner would have
+				    been told the making of an account was not theirs, for as long as that
+				    request takes. */}
+				{!ready ? (
+					<Skeleton lines={3} />
+				) : mayMakeAnAccount ? (
 					<EmptyState
 						icon="wallet"
 						title={t("theMonth.noAccountTitle")}

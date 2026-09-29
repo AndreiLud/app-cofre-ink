@@ -254,7 +254,7 @@ export function AccountsPage() {
 			    done from a row menu on this screen, and their failure was written into a
 			    callout that only the Nova conta dialog drew, so it was invisible where it
 			    happened and then turned up, stale, in a form nobody had submitted. */}
-			{problem && !open ? <Callout tone="problem">{problem}</Callout> : null}
+			{problem && !isOpen ? <Callout tone="problem">{problem}</Callout> : null}
 
 			{accounts.isPending ? <Skeleton lines={4} /> : null}
 

@@ -347,6 +347,8 @@ export type CofreSession = {
 		exportSpace: (spaceId: string) => Promise<Backup>;
 		/** Which spaces this person may copy, which is the list the screen offers. */
 		copyable: () => Promise<string[]>;
+		/** Which spaces already here a file may be written back into. */
+		restorable: () => Promise<string[]>;
 		exportSpaces: (spaceIds: string[]) => Promise<Backup>;
 		exportEverything: () => Promise<Backup>;
 		recordsForExport: (

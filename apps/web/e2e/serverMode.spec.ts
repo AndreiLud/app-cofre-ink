@@ -374,6 +374,33 @@ test.describe("server mode", () => {
 	});
 
 	/**
+	 * And a failure with no dialog over it is drawn on the screen it happened on.
+	 *
+	 * This is the test that was missing when the callout for it was written, and the
+	 * callout was written wrong: the guard read `open`, which no screen declares, so it
+	 * resolved to the browser's own window.open, which is always there. The guard was
+	 * therefore never true and the sentence was never drawn. TypeScript accepts that,
+	 * because window.open is a real global of exactly the kind a negation takes.
+	 */
+	test("says so on the screen when something outside a dialog fails", async ({ browser }) => {
+		const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
+
+		await go(ana, "Contas");
+		await ana.getByRole("button", { name: "Nova conta" }).first().click();
+		await ana.getByRole("dialog").getByLabel("Nome").fill("Conta conjunta");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(ana.getByRole("cell", { name: "Conta conjunta" })).toBeVisible();
+
+		// From the menu on the row, with nothing over it, and nothing answering.
+		await ana.route("**/api/**", (route) => route.abort());
+		const row = ana.getByRole("row").filter({ hasText: "Conta conjunta" });
+		await row.getByRole("button", { name: "Ações da conta" }).click();
+		await ana.getByRole("menuitem", { name: "Arquivar" }).click();
+
+		await expect(ana.getByText("Não consegui falar com o servidor")).toBeVisible();
+	});
+
+	/**
 	 * The other half of the same question, because a role that is offered too little is
 	 * the same defect as one offered too much.
 	 *
