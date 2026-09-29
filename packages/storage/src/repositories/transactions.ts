@@ -8,6 +8,7 @@
 import {
 	type CalendarDate,
 	type CardCycle,
+	compareCalendarDates,
 	invoiceMonthOf,
 	money,
 	parseCalendarDate,
@@ -648,15 +649,28 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			return found.length;
 		},
 
-		/** Marks a planned record as having actually happened. */
-		async settle(id: string): Promise<Transaction> {
+		/**
+		 * Marks a planned record as having actually happened, on the day it happened.
+		 *
+		 * A record dated ahead and called a fact is a contradiction: the balance counts by
+		 * the day now, so saying it happened while its day is still to come would change
+		 * nothing anybody could see. So the day comes back to today, which is when the
+		 * person saying it is saying it.
+		 *
+		 * A day already past is left alone. A bill that fell due on the twenty fifth and is
+		 * confirmed on the twenty ninth happened on the twenty fifth as far as anybody
+		 * knows, and moving it forward would take it out of the month it belongs to and out
+		 * of the limit it was spent against.
+		 */
+		async settle(id: string, today: CalendarDate): Promise<Transaction> {
 			const found = await reachable(id);
 			assertCan(context.actor(), found.spaceId, "transaction.update");
+			const ahead = compareCalendarDates(found.happenedOn, today) > 0;
 			await updateRow(context.write(), {
 				table: transactions,
 				spaceId: found.spaceId,
 				id,
-				values: { status: "settled" },
+				values: ahead ? { status: "settled", happened_on: today } : { status: "settled" },
 			});
 			return reachable(id);
 		},

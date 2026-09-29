@@ -119,7 +119,7 @@ export function DashboardPage() {
 	const ready = mine.ready;
 
 	const settle = useMutation({
-		mutationFn: async (id: string) => session?.transactions.settle(id),
+		mutationFn: async (id: string) => session?.transactions.settle(id, today),
 		onSuccess: () => {
 			setProblem(null);
 			void queries.invalidateQueries({ queryKey: ["transactions"] });

@@ -3,6 +3,23 @@
 import { expect, test } from "@playwright/test";
 import { go, openCofre, record, total } from "./support.ts";
 
+/**
+ * A day ahead of today, as the date field wants it.
+ *
+ * The suite runs in America/Sao_Paulo, which the configuration pins, so the day the
+ * browser is on and the day the space is on are the same one.
+ */
+function inDays(count: number): string {
+	const day = new Date();
+	day.setDate(day.getDate() + count);
+	return day.toISOString().slice(0, 10);
+}
+
+/** The month a day belongs to, because the list opens on this month and a day ahead may not be in it. */
+function monthOfDay(day: string): string {
+	return day.slice(0, 7);
+}
+
 test.describe("records", () => {
 	test("writes an expense and takes it off the balance", async ({ page }) => {
 		await openCofre(page);
@@ -66,17 +83,57 @@ test.describe("records", () => {
 			.getByRole("dialog")
 			.getByLabel("Conta", { exact: true })
 			.selectOption({ label: "Conta corrente" });
-		await page.getByRole("dialog").getByText("Ainda não aconteceu").click();
+		// No tickbox any more: the day is what says this has not happened. Three days out,
+		// which is inside the fifteen the overview looks ahead over.
+		const due = inDays(3);
+		await page.getByRole("dialog").getByLabel("Dia").fill(due);
 		await page.getByRole("button", { name: "Salvar" }).click();
 
-		await expect(record(page, "Aluguel")).toBeVisible();
+		await page.getByLabel("Mês").fill(monthOfDay(due));
+		await expect(record(page, "Aluguel")).toContainText("Previsto");
 
 		await go(page, "Painel");
-		await expect(page.getByText("Depois do que está previsto:")).toBeVisible();
+		// It is three days out, so it is not in the balance yet however it is marked. The
+		// row is found by its amount, because the sample data has rent in it too.
+		const before = await total(page).innerText();
+		const row = page
+			.locator("section")
+			.filter({ hasText: "Vence nos próximos dias" })
+			.locator("li")
+			.filter({ hasText: "R$ 1.450,00" });
+		await expect(row).toBeVisible();
 
-		// It falls due today, so the overview offers to settle it right there.
-		await page.getByRole("button", { name: "Marcar como pago" }).first().click();
-		await expect(page.getByText("Depois do que está previsto:")).toHaveCount(0);
+		// Saying it happened writes the day it happened, which is today, so it lands in the
+		// balance now instead of sitting three days out marked as a fact.
+		await row.getByRole("button", { name: "Marcar como pago" }).click();
+		await expect(total(page)).not.toHaveText(before);
+	});
+
+	test("asks nobody whether a record has happened, because the day says so", async ({ page }) => {
+		await openCofre(page);
+
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+
+		// The question used to be asked twice, once by the date field and once by a tickbox
+		// beside it, and the tickbox won. It is gone.
+		await expect(page.getByRole("dialog").getByText("Ainda não aconteceu")).toHaveCount(0);
+
+		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("75,00");
+		await page.getByRole("dialog").getByLabel("Descrição").fill("Seguro do carro");
+		await page
+			.getByRole("dialog")
+			.getByLabel("Conta", { exact: true })
+			.selectOption({ label: "Conta corrente" });
+		const due = inDays(9);
+		await page.getByRole("dialog").getByLabel("Dia").fill(due);
+
+		// And the form says what the day it was given means, before anything is saved.
+		await expect(page.getByRole("dialog")).toContainText("Esse dia ainda não chegou");
+		await page.getByRole("button", { name: "Salvar" }).click();
+
+		await page.getByLabel("Mês").fill(monthOfDay(due));
+		await expect(record(page, "Seguro do carro")).toContainText("Previsto");
 	});
 
 	test("finds a record by a word in its description", async ({ page }) => {
@@ -137,10 +194,11 @@ test.describe("records", () => {
 				.getByRole("dialog")
 				.getByLabel("Descrição")
 				.fill(description ?? "");
-			await page.getByRole("dialog").getByText("Ainda não aconteceu").click();
+			await page.getByRole("dialog").getByLabel("Dia").fill(inDays(5));
 			await page.getByRole("button", { name: "Salvar" }).click();
 		}
 
+		await page.getByLabel("Mês").fill(monthOfDay(inDays(5)));
 		await page.getByRole("checkbox", { name: "Selecionar Conta de luz" }).check();
 		await page.getByRole("checkbox", { name: "Selecionar Conta de água" }).check();
 		await expect(page.getByText("2 selecionados")).toBeVisible();

@@ -210,7 +210,7 @@ export function TransactionsPage() {
 	// visible at all: the row stayed where it was and the only way to find out was to
 	// reload the page and look.
 	const settle = useMutation({
-		mutationFn: async (id: string) => session?.transactions.settle(id),
+		mutationFn: async (id: string) => session?.transactions.settle(id, today),
 		onSuccess: invalidate,
 		onError: complain,
 	});

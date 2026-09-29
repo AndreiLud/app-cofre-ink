@@ -31,7 +31,7 @@ import {
 	type SyncStore,
 	syncWithStore,
 } from "../syncStore.ts";
-import { type AdapterUnderTest, prepare } from "./setup.ts";
+import { type AdapterUnderTest, LATER, prepare } from "./setup.ts";
 
 type Device = { driver: Driver; session: Session; close: () => Promise<void> };
 
@@ -1147,7 +1147,7 @@ export function runSyncConformance(adapter: AdapterUnderTest): void {
 					categoryId: category.id,
 				});
 				await source.asAna.accounts.update(account.id, { name: "Conta corrente" });
-				await source.asAna.transactions.settle(record?.id ?? "");
+				await source.asAna.transactions.settle(record?.id ?? "", LATER);
 
 				const changes = await changesToPush(source.driver, space.id, null);
 				expect(changes.length).toBeGreaterThan(5);

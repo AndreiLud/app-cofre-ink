@@ -291,9 +291,61 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 					status: "planned",
 				});
 
-				await ready.fixture.asAna.transactions.settle(planned?.id ?? "");
+				await ready.fixture.asAna.transactions.settle(planned?.id ?? "", LATER);
 				const balances = await ready.fixture.asAna.transactions.balances(ready.spaceId, LATER);
 				expect(balanceOf(balances, ready.checking.id).settled).toBe(80_000);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		it("brings a record dated ahead back to today when somebody says it happened", async () => {
+			const ready = await readySpace(adapter);
+			try {
+				const [ahead] = await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 20_000,
+					happenedOn: "2026-10-15",
+					description: "Aluguel de outubro",
+					accountId: ready.checking.id,
+					status: "planned",
+				});
+
+				const settled = await ready.fixture.asAna.transactions.settle(
+					ahead?.id ?? "",
+					"2026-09-29",
+				);
+				expect(settled.status).toBe("settled");
+				// Otherwise saying it happened would change nothing anybody can see, because
+				// the balance counts by the day and that day is still to come.
+				expect(settled.happenedOn).toBe("2026-09-29");
+
+				const now = await ready.fixture.asAna.transactions.balances(ready.spaceId, "2026-09-29");
+				expect(balanceOf(now, ready.checking.id).settled).toBe(80_000);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		it("leaves the day alone on a record that was already due", async () => {
+			const ready = await readySpace(adapter);
+			try {
+				const [late] = await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 20_000,
+					happenedOn: "2026-09-25",
+					description: "Academia",
+					accountId: ready.checking.id,
+					status: "planned",
+				});
+
+				// It fell due on the twenty fifth and is confirmed on the twenty ninth. Moving
+				// it forward would take it out of the month it belongs to and out of the limit
+				// it was spent against.
+				const settled = await ready.fixture.asAna.transactions.settle(late?.id ?? "", "2026-09-29");
+				expect(settled.happenedOn).toBe("2026-09-25");
 			} finally {
 				await ready.fixture.close();
 			}

@@ -5,7 +5,7 @@
 // changes with that choice: a transfer needs a destination, a card purchase can be
 // split, and neither makes sense for the other.
 
-import type { CurrencyCode } from "@cofre/core";
+import { type CalendarDate, type CurrencyCode, compareCalendarDates } from "@cofre/core";
 import type {
 	Account,
 	Category,
@@ -52,7 +52,6 @@ export function TransactionForm({
 	const [accountId, setAccountId] = useState("");
 	const [counterAccountId, setCounterAccountId] = useState("");
 	const [installments, setInstallments] = useState("1");
-	const [planned, setPlanned] = useState(false);
 	const [notes, setNotes] = useState("");
 	const [categoryId, setCategoryId] = useState("");
 	const [priority, setPriority] = useState("");
@@ -135,7 +134,6 @@ export function TransactionForm({
 			setDescription(editing.description);
 			setAccountId(editing.accountId);
 			setCounterAccountId(editing.counterAccountId ?? "");
-			setPlanned(editing.status === "planned");
 			setNotes(editing.notes ?? "");
 			setInstallments("1");
 			setCategoryId(editing.categoryId ?? "");
@@ -150,7 +148,6 @@ export function TransactionForm({
 		setAccountId(usable[0]?.id ?? "");
 		setCounterAccountId("");
 		setInstallments("1");
-		setPlanned(false);
 		setNotes("");
 		setCategoryId("");
 		setPriority("");
@@ -177,13 +174,15 @@ export function TransactionForm({
 			};
 
 			if (editing) {
+				// The status is not sent. A record that is waiting to be confirmed is waiting
+				// because somebody has not said it happened, and correcting the description of
+				// it is not saying so. The two buttons on the overview are what say so.
 				return session.transactions.update(editing.id, {
 					amount: parsed.amount,
 					happenedOn,
 					description,
 					accountId,
 					counterAccountId: kind === "transfer" ? counterAccountId : null,
-					status: planned ? "planned" : "settled",
 					notes: notes.trim() === "" ? null : notes.trim(),
 					...sorting,
 				});
@@ -197,7 +196,9 @@ export function TransactionForm({
 				description,
 				accountId,
 				counterAccountId: kind === "transfer" ? counterAccountId : null,
-				status: planned ? "planned" : "settled",
+				// The day decides. A day that has not arrived has not happened, whatever
+				// anybody ticks, and the one line reader has read it this way all along.
+				status: compareCalendarDates(happenedOn as CalendarDate, today) > 0 ? "planned" : "settled",
 				notes: notes.trim() === "" ? null : notes.trim(),
 				installments: canSplit ? Number(installments) : 1,
 				...sorting,
@@ -375,18 +376,16 @@ export function TransactionForm({
 					</div>
 				)}
 
-				<label className="flex items-start gap-3 text-sm">
-					<input
-						type="checkbox"
-						checked={planned}
-						onChange={(event) => setPlanned(event.target.checked)}
-						className="mt-1 size-4 accent-[var(--ink)]"
-					/>
-					<span>
-						<span className="font-medium text-ink">{t("transactions.planned")}</span>
-						<span className="block text-quiet">{t("transactions.plannedHint")}</span>
-					</span>
-				</label>
+				{/* There was a tickbox here asking whether this had happened yet, beside a
+				    field that had already been given the day. Two answers to one question,
+				    and the tickbox won. The day decides now, and this says what the day
+				    chosen above means, which is the only part of it worth reading. */}
+				{editing === null && compareCalendarDates(happenedOn as CalendarDate, today) > 0 ? (
+					<p className="text-quiet text-sm">{t("transactions.aheadOfToday")}</p>
+				) : null}
+				{editing?.status === "planned" ? (
+					<p className="text-quiet text-sm">{t("transactions.stillWaiting")}</p>
+				) : null}
 
 				<Field
 					label={t("transactions.notes")}

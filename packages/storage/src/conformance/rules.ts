@@ -342,7 +342,7 @@ export function runRuleConformance(adapter: AdapterUnderTest): void {
 
 				const rows = await ready.fixture.asAna.transactions.list({ spaceId: ready.spaceId });
 				const oldest = rows[rows.length - 1];
-				await ready.fixture.asAna.transactions.settle(oldest?.id ?? "");
+				await ready.fixture.asAna.transactions.settle(oldest?.id ?? "", LATER);
 
 				await ready.fixture.asAna.recurrences.remove(series.id);
 
