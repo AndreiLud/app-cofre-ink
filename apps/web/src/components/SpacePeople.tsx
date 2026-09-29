@@ -296,7 +296,7 @@ export function SpacePeople() {
 									<TableHeader numeric={true}>{t("members.income")}</TableHeader>
 								)}
 								<TableHeader numeric={true}>
-									<span className="sr-only">{t("accounts.actions")}</span>
+									<span className="sr-only">{t("members.actions")}</span>
 								</TableHeader>
 							</TableRow>
 						</TableHead>

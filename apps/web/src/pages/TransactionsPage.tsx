@@ -587,7 +587,7 @@ export function TransactionsPage() {
 								</TableHeader>
 								<TableHeader numeric={true}>{t("transactions.amount")}</TableHeader>
 								<TableHeader numeric={true}>
-									<span className="sr-only">{t("accounts.actions")}</span>
+									<span className="sr-only">{t("transactions.actions")}</span>
 								</TableHeader>
 							</TableRow>
 						</TableHead>
@@ -645,7 +645,11 @@ export function TransactionsPage() {
 											<Menu
 												align="end"
 												trigger={
-													<Button size="small" variant="quiet" aria-label={t("accounts.actions")}>
+													<Button
+														size="small"
+														variant="quiet"
+														aria-label={t("transactions.actions")}
+													>
 														<Icon name="settings" />
 													</Button>
 												}
