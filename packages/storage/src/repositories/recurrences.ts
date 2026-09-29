@@ -12,6 +12,8 @@
 import {
 	addDays,
 	type CalendarDate,
+	type CardCycle,
+	invoiceMonthOf,
 	occurrencesBetween,
 	parseCalendarDate,
 	type SpendingPriority,
@@ -19,7 +21,7 @@ import {
 } from "@cofre/core";
 import { recurrences as recurrenceTable, transactions } from "@cofre/db";
 import { assertCan, readableSpaceIds } from "../actor.ts";
-import type { SqlValue } from "../driver.ts";
+import { asNumber, type SqlValue } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
 import {
 	type Recurrence,
@@ -85,6 +87,25 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 		const first = rows[0];
 		if (!first) throw new NotFoundError("account", accountId);
 		return String(first.currency);
+	}
+
+	/**
+	 * The cycle of the account a series is charged to, when it has one.
+	 *
+	 * The same shape the hand written path uses: a credit account with both of its days
+	 * set, and nothing for every other kind, so a series on a current account goes on
+	 * belonging to no invoice.
+	 */
+	async function cycleOfAccount(accountId: string): Promise<CardCycle | undefined> {
+		const rows = await context.driver.all(
+			`SELECT "kind", "closing_day", "due_day" FROM "accounts"
+			 WHERE "id" = ? AND "deleted_at" IS NULL`,
+			[accountId],
+		);
+		const first = rows[0];
+		if (!first || String(first.kind) !== "credit") return undefined;
+		if (first.closing_day === null || first.due_day === null) return undefined;
+		return { closingDay: asNumber(first.closing_day), dueDay: asNumber(first.due_day) };
 	}
 
 	async function categoryIn(spaceId: string, categoryId: string): Promise<string> {
@@ -327,6 +348,11 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 
 				const amount = one.kind === "expense" ? -one.amount : one.amount;
 
+				// A subscription charged to a credit card lands on an invoice, like every
+				// other purchase on that card. This wrote nothing here, so the card showed
+				// less than it would charge and the subscription was on no invoice at all.
+				const cycle = await cycleOfAccount(one.accountId);
+
 				await context.driver.transaction(async (tx) => {
 					const write = { ...context.write(), driver: tx };
 					for (const day of missing) {
@@ -353,7 +379,7 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 								installment_group: null,
 								installment_number: null,
 								installment_count: null,
-								invoice_month: null,
+								invoice_month: cycle ? invoiceMonthOf(day, cycle) : null,
 								category_id: one.categoryId,
 								priority: one.priority,
 								recurrence_id: one.id,
