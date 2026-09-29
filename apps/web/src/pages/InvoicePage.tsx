@@ -37,6 +37,7 @@ import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { useWhatIMayDo } from "../storage/roles.ts";
 
 function dayAndMonth(date: string): string {
 	return `${date.slice(8)}/${date.slice(5, 7)}`;
@@ -63,6 +64,8 @@ export function InvoicePage() {
 	const { session, currentSpace } = useCofre();
 
 	const spaceId = currentSpace?.id ?? "";
+	/** Whether the way out of an empty screen is a way out for this person. */
+	const mayMakeAnAccount = useWhatIMayDo(spaceId).may("account.create");
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
 
 	const [invoiceAccountId, setInvoiceAccountId] = useState("");
@@ -116,10 +119,15 @@ export function InvoicePage() {
 					icon="wallet"
 					title={t("invoice.noCardTitle")}
 					description={t("invoice.noCardBody")}
+					// A way out that is not one for this person is worse than none: it led to
+					// Accounts, where that button does not exist for them, with nothing saying
+					// why.
 					action={
-						<Link to={ROUTES.accounts}>
-							<Button variant="primary">{t("accounts.create")}</Button>
-						</Link>
+						mayMakeAnAccount ? (
+							<Link to={ROUTES.accounts}>
+								<Button variant="primary">{t("accounts.create")}</Button>
+							</Link>
+						) : null
 					}
 				/>
 			</div>

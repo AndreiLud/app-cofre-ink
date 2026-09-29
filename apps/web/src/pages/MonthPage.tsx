@@ -183,6 +183,8 @@ export function MonthPage() {
 	 * twice.
 	 */
 	const mayWrite = may("transaction.create") && !seesOwnRowsOnly;
+	/** Whether the way out of an empty screen is a way out for this person. */
+	const mayMakeAnAccount = may("account.create");
 
 	const everyAccount = accounts.data ?? [];
 	const moneyAccounts = everyAccount.filter((one) => one.kind !== "credit");
@@ -421,16 +423,27 @@ export function MonthPage() {
 		return (
 			<div className="space-y-6">
 				<InsightTitle level="h1">{t("theMonth.title")}</InsightTitle>
-				<EmptyState
-					icon="wallet"
-					title={t("theMonth.noAccountTitle")}
-					description={t("theMonth.noAccountBody")}
-					action={
-						<Link to={ROUTES.accounts}>
-							<Button variant="primary">{t("accounts.create")}</Button>
-						</Link>
-					}
-				/>
+				{/* This return sits before the callout that says which role you are, so a
+				    Viewer here was never told that and only got a button leading to a screen
+				    where it does not exist. Whichever of the two is true gets said. */}
+				{mayMakeAnAccount ? (
+					<EmptyState
+						icon="wallet"
+						title={t("theMonth.noAccountTitle")}
+						description={t("theMonth.noAccountBody")}
+						action={
+							<Link to={ROUTES.accounts}>
+								<Button variant="primary">{t("accounts.create")}</Button>
+							</Link>
+						}
+					/>
+				) : (
+					<EmptyState
+						icon="wallet"
+						title={t("theMonth.noAccountTitle")}
+						description={t("theMonth.noAccountForYou")}
+					/>
+				)}
 			</div>
 		);
 	}

@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next";
 import { RecurrencesSection } from "../components/RecurrencesSection.tsx";
 import { Value } from "../components/Value.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { useWhatIMayDo } from "../storage/roles.ts";
 
 /** Monday first, which is how a month is read in Brazil and in most of Europe. */
 const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -43,16 +44,27 @@ export function CalendarPage() {
 
 	// The series write what they owe before the month is drawn, so a bill that has not
 	// been written yet still shows up on the day it falls due.
+	//
+	// Writing them is for the roles that may set them, so this asks first. It used to ask
+	// nobody and drop the promise, so every opening of this screen by a Viewer or a Logger
+	// left a refusal in the console, on every visit and every space switch, and nothing
+	// said their calendar was missing whatever the series had not written yet.
+	const mayMaterialise = useWhatIMayDo(spaceId).may("recurrence.write");
 	useEffect(() => {
-		if (!session || spaceId === "") return;
-		void session.recurrences.materialize({ spaceId }).then((written) => {
-			if (written > 0) {
-				void queries.invalidateQueries({ queryKey: ["transactions"] });
-				void queries.invalidateQueries({ queryKey: ["balances"] });
-				void queries.invalidateQueries({ queryKey: ["advice"] });
-			}
-		});
-	}, [session, spaceId, queries]);
+		if (!session || spaceId === "" || !mayMaterialise) return;
+		session.recurrences
+			.materialize({ spaceId })
+			.then((written) => {
+				if (written > 0) {
+					void queries.invalidateQueries({ queryKey: ["transactions"] });
+					void queries.invalidateQueries({ queryKey: ["balances"] });
+					void queries.invalidateQueries({ queryKey: ["advice"] });
+				}
+			})
+			// Nothing on screen: the month is drawn either way and a person who did not ask
+			// for this has nothing to do about it. But not thrown away either.
+			.catch((error: unknown) => console.warn("the series could not be written", error));
+	}, [session, spaceId, queries, mayMaterialise]);
 
 	const period = useMemo(() => {
 		const days = daysOfMonth(month);

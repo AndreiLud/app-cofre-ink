@@ -40,10 +40,16 @@ function EraseSpaceRow({ space, onErase }: { space: Space; onErase: () => void }
 		<li className="flex flex-wrap items-baseline justify-between gap-3 py-3">
 			<span className="min-w-0">
 				<span className="text-sm text-ink">{space.name}</span>
+				{/* The line under the name describes an erasure. Said to somebody who cannot
+				    do it, beside nothing at all, it reads as a warning about something that
+				    is about to happen, and the row looks like a rendering fault next to the
+				    one below it that always keeps its button. */}
 				<span className="block text-xs text-quiet">
 					{space.kind === "personal"
 						? t("danger.personalKeeps")
-						: t("danger.sharedGoes", { name: space.name })}
+						: mayErase
+							? t("danger.sharedGoes", { name: space.name })
+							: t("danger.notYoursToErase", { name: space.name })}
 				</span>
 			</span>
 			{mayErase ? (

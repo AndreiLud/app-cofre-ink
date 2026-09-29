@@ -586,7 +586,8 @@
 		"matchTextHint": "Case and accents are ignored. A piece is enough, such as ifood or uber.",
 		"matchTextPlaceholder": "ifood",
 		"category": "It goes to",
-		"empty": "No rules yet. Sort one record and use its menu to write the first one."
+		"empty": "No rules yet. Sort one record and use its menu to write the first one.",
+		"emptyAndNotYours": "No rules yet. Making one belongs to whoever runs the space."
 	},
 	"recurrences": {
 		"title": "What happens again",
@@ -715,6 +716,7 @@
 		"cannotWriteBody": "A Viewer sees everything and writes nothing. Ask whoever runs the space to change your role, if you need to write here.",
 		"noAccountTitle": "No account in this space",
 		"noAccountBody": "The numbers need an account to go into. Create one and come back here.",
+		"noAccountForYou": "This space has no account yet, and making one belongs to whoever runs the space. Ask them, and come back here.",
 		"descriptionIncome": "Income in {{month}}",
 		"descriptionSpending": "Spending in {{month}}",
 		"descriptionInvoice": "Card invoice for {{month}}"
@@ -1263,6 +1265,7 @@
 		"editDescription": "The name, the digits and the accounts can be corrected. The kind does not change: a card of another kind is another card.",
 		"kindIs": "Kind: {{kind}}.",
 		"fromAccounts": "Cards are added in {{where}}, up there: choose the kind Card and say whether it is credit, debit or multiple.",
+		"noneAndNotYours": "No cards yet. Adding one belongs to whoever runs the space.",
 		"editNamed": "Edit card {{name}}",
 		"managedFromAccounts": "To change or remove a card, use the menu of its account up there.",
 		"removeAction": "Remove card",
@@ -1283,6 +1286,7 @@
 		"eraseSpace": "Erase the data",
 		"personalKeeps": "Erases everything inside. The personal space stays, empty.",
 		"sharedGoes": "Erases everything inside, and the space stops existing here.",
+		"notYoursToErase": "Erasing {{name}} belongs to whoever owns it. You can leave the space, under Manage spaces.",
 		"everythingTitle": "Erase everything",
 		"everythingHereBody": "Erases the whole database of this browser: every space and the preferences. {{app}} comes back as if it were the first time.",
 		"everythingServerBody": "Erases every space that is yours. A space of somebody else you only leave, because their records are not yours to erase.",

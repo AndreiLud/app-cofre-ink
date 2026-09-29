@@ -251,6 +251,16 @@ test.describe("server mode", () => {
 			zone.filter({ hasText: "Pessoal" }).getByRole("button", { name: "Apagar os dados" }),
 		).toBeVisible();
 
+		// And the row of a space that is not his says so, instead of describing an erasure
+		// with nothing beside it, which read as a warning about something about to happen.
+		await expect(joao.getByText(/Apagar Casa é de quem é dono dele/)).toBeVisible();
+
+		// An empty month is the state he is most likely to land on, and it was the one door
+		// left unlocked: the button at the top asked first and this one did not.
+		await go(joao, "Lançamentos");
+		await joao.getByLabel("Mês").fill("2020-01");
+		await expect(joao.getByRole("button", { name: "Novo lançamento" })).toHaveCount(0);
+
 		// And correcting the name or the currency of the space is not his either.
 		await openSetting(joao, "Gerenciar espaços");
 		await expect(

@@ -153,7 +153,11 @@ export function RulesSection({ spaceId, categories }: RulesSectionProps) {
 			{rules.isPending ? <Skeleton lines={2} /> : null}
 
 			{!rules.isPending && rows.length === 0 ? (
-				<p className="text-sm text-quiet">{t("rulesSection.empty")}</p>
+				// The sentence tells somebody to use a menu item, so it is only for somebody
+				// who has that menu item.
+				<p className="text-sm text-quiet">
+					{mayWrite ? t("rulesSection.empty") : t("rulesSection.emptyAndNotYours")}
+				</p>
 			) : null}
 
 			<ul className="divide-y divide-line">

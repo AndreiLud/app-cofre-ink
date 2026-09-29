@@ -16,6 +16,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { useWhatIMayDo } from "../storage/roles.ts";
 
 export type CardDialogProps = {
 	/** The card being looked after, or nothing when the dialog is closed. */
@@ -35,7 +36,10 @@ const NEEDS: Record<CardKind, { credit: boolean; debit: boolean }> = {
 
 export function CardDialog({ card, accounts, onClose }: CardDialogProps) {
 	const { t } = useTranslation();
-	const { session } = useCofre();
+	const { session, currentSpace } = useCofre();
+	// Archiving a card asks what correcting an account asks; deleting one asks what
+	// deleting an account asks, which is two roles narrower.
+	const mayDelete = useWhatIMayDo(currentSpace?.id).may("account.delete");
 	const queries = useQueryClient();
 
 	const [name, setName] = useState("");
@@ -178,15 +182,23 @@ export function CardDialog({ card, accounts, onClose }: CardDialogProps) {
 					>
 						{card?.archivedAt === null ? t("cards.archive") : t("cards.unarchive")}
 					</Button>
-					<Button
-						variant="destructive"
-						size="small"
-						disabled={change.isPending}
-						onClick={() => change.mutate("remove")}
-					>
-						{t("cards.removeAction")}
-					</Button>
-					<span className="text-xs text-quiet">{t("cards.removeKeeps")}</span>
+					{/* Archiving a card is open to whoever may correct an account, and deleting
+					    one is not: it asks what deleting an account asks. So this dialog is
+					    reached by an Editor who then finds the red button refuses, with the
+					    archive button beside it working, which reads as a fault. */}
+					{mayDelete ? (
+						<>
+							<Button
+								variant="destructive"
+								size="small"
+								disabled={change.isPending}
+								onClick={() => change.mutate("remove")}
+							>
+								{t("cards.removeAction")}
+							</Button>
+							<span className="text-xs text-quiet">{t("cards.removeKeeps")}</span>
+						</>
+					) : null}
 				</div>
 			</form>
 		</Dialog>

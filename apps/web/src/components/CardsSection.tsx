@@ -12,6 +12,8 @@
 import type { Account, Card } from "@cofre/storage";
 import { Panel, Skeleton } from "@cofre/ui";
 import { useTranslation } from "react-i18next";
+import { useCofre } from "../storage/CofreProvider.tsx";
+import { useWhatIMayDo } from "../storage/roles.ts";
 
 export type CardsSectionProps = {
 	accounts: Account[];
@@ -20,6 +22,8 @@ export type CardsSectionProps = {
 };
 
 export function CardsSection({ accounts, cards, loading }: CardsSectionProps) {
+	const { currentSpace } = useCofre();
+	const mayCreate = useWhatIMayDo(currentSpace?.id).may("account.create");
 	const { t } = useTranslation();
 
 	const nameOf = (id: string | null) =>
@@ -47,8 +51,11 @@ export function CardsSection({ accounts, cards, loading }: CardsSectionProps) {
 				<p className="max-w-[62ch] text-sm text-quiet">
 					{/* The button is quoted by name, taken from the button itself, so the
 					    two can never drift apart and the English text can never end up
-					    quoting a Portuguese label. */}
-					{t("cards.fromAccounts", { where: t("accounts.create") })}
+					    quoting a Portuguese label. And it is only quoted to somebody who has
+					    it: it named a button that is not on their screen. */}
+					{mayCreate
+						? t("cards.fromAccounts", { where: t("accounts.create") })
+						: t("cards.noneAndNotYours")}
 				</p>
 			) : null}
 

@@ -450,15 +450,21 @@ export function TransactionsPage() {
 					title={t("transactions.emptyTitle")}
 					description={t("transactions.emptyBody")}
 					action={
-						<Button
-							variant="primary"
-							onClick={() => {
-								setEditing(null);
-								setOpen(true);
-							}}
-						>
-							{t("transactions.create")}
-						</Button>
+						// The empty state was the one door left unlocked. The button at the top
+						// and the quick entry beside it both asked first, which made this one
+						// read as the sanctioned way in, and it is the state a Viewer is most
+						// likely to land on: any quiet month, or a filter that matches nothing.
+						mayWrite ? (
+							<Button
+								variant="primary"
+								onClick={() => {
+									setEditing(null);
+									setOpen(true);
+								}}
+							>
+								{t("transactions.create")}
+							</Button>
+						) : null
 					}
 				/>
 			) : null}

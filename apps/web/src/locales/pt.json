@@ -586,7 +586,8 @@
 		"matchTextHint": "Ignora maiúsculas e acentos. Pode ser só um pedaço, como ifood ou uber.",
 		"matchTextPlaceholder": "ifood",
 		"category": "Vai para",
-		"empty": "Nenhuma regra ainda. Categorize um lançamento e use o menu dele para criar a primeira."
+		"empty": "Nenhuma regra ainda. Categorize um lançamento e use o menu dele para criar a primeira.",
+		"emptyAndNotYours": "Nenhuma regra ainda. Criar uma é de quem cuida do espaço."
 	},
 	"recurrences": {
 		"title": "O que se repete",
@@ -715,6 +716,7 @@
 		"cannotWriteBody": "Um Leitor vê tudo e não escreve nada. Peça a quem cuida do espaço para mudar o seu papel, se você precisa lançar aqui.",
 		"noAccountTitle": "Nenhuma conta neste espaço",
 		"noAccountBody": "Os números precisam de uma conta para entrar. Crie uma e volte aqui.",
+		"noAccountForYou": "Este espaço ainda não tem conta nenhuma, e criar uma é de quem cuida do espaço. Peça a quem cuida, e depois volte aqui.",
 		"descriptionIncome": "Entradas de {{month}}",
 		"descriptionSpending": "Gastos de {{month}}",
 		"descriptionInvoice": "Fatura de {{month}}"
@@ -1263,6 +1265,7 @@
 		"editDescription": "Dá para corrigir o nome, os dígitos e as contas. O tipo não muda: um cartão de outro tipo é outro cartão.",
 		"kindIs": "Tipo: {{kind}}.",
 		"fromAccounts": "Os cartões são cadastrados em {{where}}, ali em cima: escolha o tipo Cartão e diga se ele é de crédito, de débito ou múltiplo.",
+		"noneAndNotYours": "Nenhum cartão cadastrado ainda. Cadastrar um é de quem cuida do espaço.",
 		"editNamed": "Editar cartão {{name}}",
 		"managedFromAccounts": "Para mudar ou apagar um cartão, use o menu da conta dele ali em cima.",
 		"removeAction": "Apagar cartão",
@@ -1283,6 +1286,7 @@
 		"eraseSpace": "Apagar os dados",
 		"personalKeeps": "Apaga tudo que está dentro. O espaço pessoal continua existindo, vazio.",
 		"sharedGoes": "Apaga tudo que está dentro, e o espaço deixa de existir aqui.",
+		"notYoursToErase": "Apagar {{name}} é de quem é dono dele. Você pode sair do espaço, em Gerenciar espaços.",
 		"everythingTitle": "Apagar tudo",
 		"everythingHereBody": "Apaga o banco de dados inteiro deste navegador: todos os espaços e as preferências. O {{app}} volta como se fosse a primeira vez.",
 		"everythingServerBody": "Apaga todos os espaços que são seus. Espaços de outras pessoas você só deixa, porque os lançamentos deles não são seus para apagar.",

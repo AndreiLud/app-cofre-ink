@@ -111,7 +111,9 @@ export function DashboardPage() {
 	});
 
 	// Marking something as paid changes a record, which a Viewer does not do.
-	const mayUpdate = useWhatIMayDo(spaceId).may("transaction.update");
+	const mine = useWhatIMayDo(spaceId);
+	const mayUpdate = mine.may("transaction.update");
+	const mayMakeAnAccount = mine.may("account.create");
 
 	const settle = useMutation({
 		mutationFn: async (id: string) => session?.transactions.settle(id),
@@ -341,10 +343,13 @@ export function DashboardPage() {
 						icon="wallet"
 						title={t("accounts.emptyTitle")}
 						description={t("accounts.emptyBody")}
+						// Not for a role that will not find that button when it gets there.
 						action={
-							<Link to={ROUTES.accounts}>
-								<Button variant="primary">{t("accounts.create")}</Button>
-							</Link>
+							mayMakeAnAccount ? (
+								<Link to={ROUTES.accounts}>
+									<Button variant="primary">{t("accounts.create")}</Button>
+								</Link>
+							) : null
 						}
 					/>
 				) : null}
