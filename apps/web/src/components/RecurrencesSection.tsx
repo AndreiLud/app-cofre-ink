@@ -4,7 +4,7 @@
 // on the calendar is always planned and never counts as money that moved. Stopping a
 // series takes those promises back and leaves everything that already happened.
 
-import { nextOccurrence, parseMoney } from "@cofre/core";
+import { nextOccurrence } from "@cofre/core";
 import type { Recurrence, TransactionKind } from "@cofre/storage";
 import { RuleError } from "@cofre/storage";
 import {
@@ -23,7 +23,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { fillAmount } from "../lib/amounts.ts";
+import { fillAmount, readAmount } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
@@ -36,7 +36,9 @@ export type RecurrencesSectionProps = {
 
 export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) {
 	const { t, i18n } = useTranslation();
-	const { session } = useCofre();
+	const { session, currentSpace } = useCofre();
+	// The currency of the space, which is the one a series is always written in.
+	const currency = currentSpace?.baseCurrency;
 	const queries = useQueryClient();
 
 	const [isOpen, setOpen] = useState(false);
@@ -83,7 +85,12 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 	const save = useMutation({
 		mutationFn: async () => {
 			if (!session) throw new Error("no session");
-			const parsed = parseMoney(amount, { currency: "BRL" });
+			// In the currency of the space, not a currency written into the source. The
+			// model forces a series into the space currency and refuses an account in any
+			// other, so the space is the right answer here and the chosen account is not.
+			// It reads the same today, because every currency the interface offers keeps two
+			// decimal places; it stops reading the same the day one with none is added.
+			const parsed = { amount: readAmount(amount, currency) };
 			if (parsed.amount <= 0)
 				throw new RuleError("amountIsPositiveInteger", "an amount has to be more than nothing");
 

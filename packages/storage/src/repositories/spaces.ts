@@ -181,8 +181,38 @@ export function createSpacesRepository(context: RepositoryContext) {
 		},
 
 		async update(id: string, input: UpdateSpaceInput): Promise<Space> {
-			await readable(id);
+			const before = await readable(id);
 			assertCan(context.actor(), id, "space.update");
+
+			/**
+			 * The currency of a space is settled by its first record.
+			 *
+			 * Nothing is converted here, on purpose: a record keeps the amount and the
+			 * currency it was written in. That is fine for a record and not fine for a
+			 * total, because every total, every balance and every settlement already written
+			 * is a number of minor units of the old currency, and reading them as the new
+			 * one does not relabel them, it adds euros to reais. The screen that offers this
+			 * says nothing is converted and then shows totals that are wrong.
+			 *
+			 * So correcting it is allowed while a space is still empty, which is the real
+			 * case, right after the front door made one. Once there is money in it, changing
+			 * the unit is not a correction.
+			 */
+			if (input.baseCurrency !== undefined && input.baseCurrency !== before.baseCurrency) {
+				const written = await context.driver.all(
+					`SELECT 1 AS found FROM "transactions" WHERE "space_id" = ? AND "deleted_at" IS NULL
+					 UNION ALL
+					 SELECT 1 AS found FROM "settlements" WHERE "space_id" = ? AND "deleted_at" IS NULL
+					 LIMIT 1`,
+					[id, id],
+				);
+				if (written.length > 0) {
+					throw new RuleError(
+						"currencyIsSettledByTheFirstRecord",
+						"a space with records in it keeps the currency they were written in",
+					);
+				}
+			}
 
 			const values: Record<string, string> = {};
 			if (input.name !== undefined) values.name = input.name;

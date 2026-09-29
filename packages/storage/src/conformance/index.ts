@@ -405,6 +405,53 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 					await fixture.close();
 				}
 			});
+
+			/**
+			 * Nothing is converted when the currency of a space changes, on purpose: a
+			 * record keeps the amount and the currency it was written in. That is fine for
+			 * a record and not for a total, because every balance, every division and every
+			 * settlement already written is a number of minor units of the old currency, and
+			 * reading them as the new one adds euros to reais.
+			 *
+			 * So it is correctable while the space is empty, which is the real case, right
+			 * after the front door made one, and settled by the first record.
+			 */
+			it("lets the currency be corrected while a space is empty, and not after", async () => {
+				const fixture = await prepare(adapter);
+				try {
+					const space = await fixture.asAna.spaces.create({ name: "Casa" });
+					expect(space.baseCurrency).toBe("BRL");
+
+					const corrected = await fixture.asAna.spaces.update(space.id, { baseCurrency: "EUR" });
+					expect(corrected.baseCurrency).toBe("EUR");
+
+					const account = await fixture.asAna.accounts.create({
+						spaceId: space.id,
+						kind: "checking",
+						name: "Conta",
+						currency: "EUR",
+					});
+					await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "expense",
+						amount: 5000,
+						happenedOn: "2026-09-10",
+						description: "Mercado",
+						accountId: account.id,
+					});
+
+					await expect(
+						fixture.asAna.spaces.update(space.id, { baseCurrency: "USD" }),
+					).rejects.toBeInstanceOf(RuleError);
+
+					// The name and the colour are still corrections, and still allowed.
+					const renamed = await fixture.asAna.spaces.update(space.id, { name: "Casa nova" });
+					expect(renamed.name).toBe("Casa nova");
+					expect(renamed.baseCurrency).toBe("EUR");
+				} finally {
+					await fixture.close();
+				}
+			});
 		});
 
 		describe("membership", () => {

@@ -468,6 +468,7 @@
 		"settlementNeedsTwoPeople": "Nobody pays themselves back.",
 		"unknown": "I could not finish that. Try again.",
 		"notAllowedHere": "Your role in this space does not allow that. Ask whoever runs the space, if you need to.",
+		"currencyIsSettledByTheFirstRecord": "The currency of a space with records in it does not change: each record keeps the currency it was written in, and changing the space would leave the totals adding different currencies together. It can be corrected while the space is still empty.",
 		"quantityIsANumber": "I could not read that quantity. Write the number of units or shares on its own, like 0.125.",
 		"shareIsAWholeNumber": "Each share is a whole number, from zero up. Two parts for one person and one for the other is 2 and 1.",
 		"percentIsANumber": "I could not read that percentage. Write the number on its own, like 10 or 12.5.",

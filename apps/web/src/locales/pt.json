@@ -468,6 +468,7 @@
 		"settlementNeedsTwoPeople": "Ninguém paga a si mesmo.",
 		"unknown": "Não consegui concluir. Tente de novo.",
 		"notAllowedHere": "O seu papel neste espaço não permite isso. Peça a quem cuida do espaço, se você precisa fazer.",
+		"currencyIsSettledByTheFirstRecord": "A moeda de um espaço com lançamentos dentro não muda: cada lançamento guarda a moeda em que foi escrito, e trocar a do espaço deixaria os totais somando moedas diferentes. Dá para corrigir enquanto o espaço está vazio.",
 		"quantityIsANumber": "Não consegui ler essa quantidade. Escreva só o número de cotas ou unidades, como 0,125.",
 		"shareIsAWholeNumber": "Cada parte é um número inteiro, de zero para cima. Duas partes para uma pessoa e uma para a outra é 2 e 1.",
 		"percentIsANumber": "Não consegui ler essa porcentagem. Escreva só o número, como 10 ou 12,5.",

@@ -318,9 +318,13 @@ export function createSharingRepository(context: RepositoryContext) {
 		async balances(spaceId: string): Promise<PersonBalance[]> {
 			assertCan(context.actor(), spaceId, "sharing.read");
 
+			// In the currency of the space, which is what the screen labels the total with.
+			// It read the amount as written, so a record in another currency had its minor
+			// units added to the base ones and the balance came out wrong with the right
+			// symbol in front of it.
 			const rows = await context.driver.all(
 				`SELECT s."transaction_id" AS transaction_id, s."user_id" AS user_id,
-				        s."amount" AS amount, t."amount" AS total,
+				        s."amount" AS amount, t."amount_in_base" AS total,
 				        COALESCE(t."paid_by", t."created_by") AS paid_by
 				 FROM "expense_splits" s
 				 JOIN "transactions" t ON t."id" = s."transaction_id"
