@@ -49,6 +49,28 @@ export const ACCOUNT_BENEFIT_COLUMNS = [
 	{ name: "benefit", type: "text" as const, check: inList("benefit", BENEFIT_KINDS) },
 ];
 
+/**
+ * What a benefit account is credited with, and what happens to what is left of it.
+ *
+ * A voucher is not an account somebody pays money into: it is an allowance that arrives
+ * on a day each month and is spent down. Nothing is written when it arrives, because
+ * nothing arrives, so what is left has to be worked out from the allowance and the
+ * spending rather than read off a balance.
+ *
+ * Whether the leftover carries is the one thing that differs between the cards people
+ * actually hold. A meal card keeps what was not eaten; a transport card is usually
+ * topped back up to the same amount and the rest is gone. Both exist, so it is a column
+ * and not an assumption.
+ */
+export const ACCOUNT_QUOTA_COLUMNS = [
+	/** In minor units, as every amount here. Empty on an account that is not a voucher. */
+	{ name: "quota_amount", type: "bigint" as const },
+	/** The day of the month the allowance lands, one to thirty one. */
+	{ name: "quota_day", type: "integer" as const },
+	/** Whether what is left at the end of the period carries into the next one. */
+	{ name: "quota_carries", type: "integer" as const },
+];
+
 function inList(column: string, values: readonly string[]): string {
 	return `${column} in (${values.map((value) => `'${value}'`).join(", ")})`;
 }
@@ -136,6 +158,7 @@ export const accounts = defineTable({
 		{ name: "due_day", type: "integer" },
 		{ name: "credit_limit", type: "bigint" },
 		...ACCOUNT_BENEFIT_COLUMNS,
+		...ACCOUNT_QUOTA_COLUMNS,
 		{
 			name: "created_by",
 			type: "text",

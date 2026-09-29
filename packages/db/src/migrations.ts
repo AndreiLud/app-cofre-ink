@@ -18,7 +18,12 @@ import { CATEGORY_TABLES } from "./schema/categoryTables.ts";
 import { INVESTMENT_TABLES } from "./schema/investmentTables.ts";
 import { MEMBER_INCOME_COLUMNS, PLAN_TABLES } from "./schema/planTables.ts";
 import { RULE_TABLES } from "./schema/ruleTables.ts";
-import { ACCOUNT_BENEFIT_COLUMNS, SCHEMA, SPACE_COMPACTION_COLUMNS } from "./schema/tables.ts";
+import {
+	ACCOUNT_BENEFIT_COLUMNS,
+	ACCOUNT_QUOTA_COLUMNS,
+	SCHEMA,
+	SPACE_COMPACTION_COLUMNS,
+} from "./schema/tables.ts";
 import {
 	CARD_COLUMNS,
 	TRANSACTION_CARD_COLUMNS,
@@ -142,6 +147,21 @@ export const MIGRATIONS: readonly Migration[] = [
 		 */
 		id: "0012_one_food_benefit",
 		statements: () => [`UPDATE "accounts" SET "benefit" = 'meal' WHERE "benefit" = 'food'`],
+	},
+	{
+		/**
+		 * A benefit account becomes an allowance with a day on it.
+		 *
+		 * Nothing is written for the leftover of an account that already exists, because
+		 * the opening balance is where that money already is: somebody who typed what was
+		 * on the card the day they added it has the right number, and it goes on counting
+		 * as the starting point of what has carried.
+		 */
+		id: "0013_benefit_quota",
+		statements: (context) =>
+			ACCOUNT_QUOTA_COLUMNS.filter((column) => !context.hasColumn("accounts", column.name)).map(
+				(column) => addColumnSql("accounts", column, context.dialect),
+			),
 	},
 ];
 

@@ -6,12 +6,109 @@
 // it, and every screen that adds up a card would be adding up a story. So each rule is
 // checked from the outside, through the repository, exactly as a screen would hit it.
 
+import { todayIn } from "@cofre/core";
 import { describe, expect, it } from "vitest";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { migrate } from "../migrate.ts";
 import { type AdapterUnderTest, LATER, prepare } from "./setup.ts";
 
 export function runCardConformance(adapter: AdapterUnderTest): void {
+	describe("benefit accounts", () => {
+		it("works out what is left from the allowance, because nothing is written when it lands", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				const voucher = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "voucher",
+					name: "Vale refeicao",
+					benefit: "meal",
+					initialBalance: 64_500,
+					quotaAmount: 90_000,
+					quotaDay: 5,
+					quotaCarries: true,
+				});
+
+				await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 4_500,
+					happenedOn: todayIn("America/Sao_Paulo"),
+					description: "Almoco",
+					accountId: voucher.id,
+				});
+
+				const state = await fixture.asAna.accounts.benefitLeft(
+					voucher.id,
+					todayIn("America/Sao_Paulo"),
+				);
+				// Written down today, so no allowance has landed since: what was typed, less
+				// the lunch. The card being credited is not a record anybody wrote.
+				expect(state?.landed).toBe(0);
+				expect(state?.left).toBe(60_000);
+				expect(state?.quota).toBe(90_000);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("says nothing for a voucher with no allowance on it, which every old one is", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				const voucher = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "voucher",
+					name: "Vale antigo",
+					benefit: "meal",
+					initialBalance: 30_000,
+				});
+				expect(
+					await fixture.asAna.accounts.benefitLeft(voucher.id, todayIn("America/Sao_Paulo")),
+				).toBeNull();
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("refuses an allowance on an account that is not a benefit card", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				await expect(
+					fixture.asAna.accounts.create({
+						spaceId: space.id,
+						kind: "checking",
+						name: "Conta corrente",
+						quotaAmount: 90_000,
+						quotaDay: 5,
+					}),
+				).rejects.toBeInstanceOf(RuleError);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("refuses a day that is not a day of the month", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				await expect(
+					fixture.asAna.accounts.create({
+						spaceId: space.id,
+						kind: "voucher",
+						name: "Vale",
+						benefit: "meal",
+						quotaAmount: 90_000,
+						quotaDay: 32,
+					}),
+				).rejects.toBeInstanceOf(RuleError);
+			} finally {
+				await fixture.close();
+			}
+		});
+	});
+
 	describe("cards", () => {
 		it("gives a cartao multiplo both of its accounts, and keeps them apart", async () => {
 			const fixture = await prepare(adapter);

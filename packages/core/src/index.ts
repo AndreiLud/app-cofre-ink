@@ -1,3 +1,4 @@
+export * from "./accounts/benefit.ts";
 export * from "./accounts/canSpend.ts";
 export * from "./accounts/whatCounts.ts";
 export * from "./advice/commitments.ts";

@@ -72,6 +72,11 @@ const accountInput = z.object({
 		.transform((value) => (value === "food" ? "meal" : value))
 		.nullable()
 		.optional(),
+	// What lands on a benefit card each month. A server that does not know these three
+	// ignores them, which is why the release notes say the server goes to 1.1.0 too.
+	quotaAmount: z.number().int().positive().nullable().optional(),
+	quotaDay: z.number().int().min(1).max(31).nullable().optional(),
+	quotaCarries: z.boolean().nullable().optional(),
 });
 
 /**
@@ -608,13 +613,28 @@ export function createApp({ config, database, auth }: AppDependencies) {
 	});
 
 	app.patch("/api/accounts/:id", async (context) => {
-		const input = accountInput
-			.partial()
-			.pick({ name: true, institution: true, initialBalance: true, benefit: true });
+		const input = accountInput.partial().pick({
+			name: true,
+			institution: true,
+			initialBalance: true,
+			benefit: true,
+			quotaAmount: true,
+			quotaDay: true,
+			quotaCarries: true,
+		});
 		const account = await context
 			.get("session")
 			.accounts.update(context.req.param("id"), input.parse(await context.req.json()));
 		return context.json(account);
+	});
+
+	// What is left on a benefit card, which is worked out and not stored, so it is read
+	// from here rather than assembled by whichever screen happens to want it.
+	app.get("/api/accounts/:id/benefit", async (context) => {
+		const query = z.object({ today: calendarDate }).parse(context.req.query());
+		return context.json(
+			await context.get("session").accounts.benefitLeft(context.req.param("id"), query.today),
+		);
 	});
 
 	app.post("/api/accounts/:id/archive", async (context) =>
@@ -811,9 +831,14 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		);
 	});
 
-	app.post("/api/transactions/:id/settle", async (context) =>
-		context.json(await context.get("session").transactions.settle(context.req.param("id"))),
-	);
+	// The day comes from the caller: saying a record happened writes when, and when is a
+	// day in the timezone of the space rather than of the machine answering.
+	app.post("/api/transactions/:id/settle", async (context) => {
+		const query = z.object({ today: calendarDate }).parse(context.req.query());
+		return context.json(
+			await context.get("session").transactions.settle(context.req.param("id"), query.today),
+		);
+	});
 
 	app.post("/api/transactions/:id/reconcile", async (context) => {
 		const input = z.object({ reconciled: z.boolean() }).parse(await context.req.json());

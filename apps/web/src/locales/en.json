@@ -506,7 +506,10 @@
 		"cardDoesNotReachAccount": "This card does not spend from that account.",
 		"cardIsArchived": "This card is archived. Bring it back before writing with it.",
 		"benefitIsForVouchers": "Only a voucher account says which benefit it is.",
-		"bundleHasNoSpace": "This file has changes in it but not the space they belong to, so there is nothing to bring back."
+		"bundleHasNoSpace": "This file has changes in it but not the space they belong to, so there is nothing to bring back.",
+		"quotaIsForVouchers": "Only a benefit card is credited with an amount every month. An ordinary account receives records.",
+		"quotaIsPositive": "What lands on a benefit card each month is a whole amount, more than nothing.",
+		"quotaDayIsADayOfTheMonth": "The day the allowance lands is a day of the month, from 1 to 31."
 	},
 	"transactions": {
 		"title": "Records",
@@ -528,8 +531,6 @@
 		"installmentsHint": "Each part lands on the right invoice of the card.",
 		"inFull": "In full",
 		"timesOf": "{{count}} times",
-		"planned": "Has not happened yet",
-		"plannedHint": "Counted in what is coming, and left out of the balance until you mark it as paid.",
 		"notes": "Note",
 		"notesPlaceholder": "Optional",
 		"month": "Month",
@@ -571,7 +572,9 @@
 		"filters": "More filters",
 		"filtersOn_one": "1 filter on",
 		"filtersOn_other": "{{count}} filters on",
-		"clearFilters": "Clear"
+		"clearFilters": "Clear",
+		"aheadOfToday": "That day has not arrived, so this goes in as coming and starts counting in the balance on the day.",
+		"stillWaiting": "This record is still coming. It counts in the balance once you say it happened."
 	},
 	"rulesSection": {
 		"title": "Rules that sort on their own",

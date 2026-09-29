@@ -506,7 +506,10 @@
 		"cardDoesNotReachAccount": "Esse cartão não gasta dessa conta.",
 		"cardIsArchived": "Esse cartão está arquivado. Desarquive antes de lançar com ele.",
 		"benefitIsForVouchers": "Só uma conta de vale diz qual benefício é.",
-		"bundleHasNoSpace": "Este arquivo tem mudanças dentro, mas não traz o espaço a que elas pertencem, então não há o que trazer de volta."
+		"bundleHasNoSpace": "Este arquivo tem mudanças dentro, mas não traz o espaço a que elas pertencem, então não há o que trazer de volta.",
+		"quotaIsForVouchers": "Só um cartão de benefício recebe um valor todo mês. Uma conta comum recebe lançamentos.",
+		"quotaIsPositive": "O valor que cai no cartão de benefício todo mês é um número inteiro, maior que nada.",
+		"quotaDayIsADayOfTheMonth": "O dia do crédito é um dia do mês, de 1 a 31."
 	},
 	"transactions": {
 		"title": "Lançamentos",
@@ -528,8 +531,6 @@
 		"installmentsHint": "Cada parcela cai na fatura certa do cartão.",
 		"inFull": "À vista",
 		"timesOf": "{{count}} vezes",
-		"planned": "Ainda não aconteceu",
-		"plannedHint": "Entra no previsto e não mexe no saldo até você marcar como pago.",
 		"notes": "Observação",
 		"notesPlaceholder": "Opcional",
 		"month": "Mês",
@@ -571,7 +572,9 @@
 		"filters": "Mais filtros",
 		"filtersOn_one": "1 filtro ativo",
 		"filtersOn_other": "{{count}} filtros ativos",
-		"clearFilters": "Limpar"
+		"clearFilters": "Limpar",
+		"aheadOfToday": "Esse dia ainda não chegou, então ele entra como previsto e passa a contar no saldo no dia.",
+		"stillWaiting": "Este lançamento está previsto. Ele conta no saldo quando você disser que aconteceu."
 	},
 	"rulesSection": {
 		"title": "Regras que categorizam sozinhas",

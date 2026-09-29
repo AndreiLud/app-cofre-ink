@@ -4,7 +4,7 @@
 // than letting the screens depend on the local implementation, is what makes the two
 // modes interchangeable instead of merely similar.
 
-import type { CalendarDate } from "@cofre/core";
+import type { BenefitState, CalendarDate } from "@cofre/core";
 import type {
 	Account,
 	AccountBalance,
@@ -162,8 +162,13 @@ export type CofreSession = {
 				institution?: string | null;
 				initialBalance?: number;
 				benefit?: BenefitKind | null;
+				quotaAmount?: number | null;
+				quotaDay?: number | null;
+				quotaCarries?: boolean | null;
 			},
 		) => Promise<Account>;
+		/** What is left on a benefit card, or nothing when it has no allowance on it. */
+		benefitLeft: (id: string, today: CalendarDate) => Promise<BenefitState | null>;
 		archive: (id: string) => Promise<Account>;
 		unarchive: (id: string) => Promise<Account>;
 		remove: (id: string) => Promise<void>;
@@ -202,7 +207,8 @@ export type CofreSession = {
 		update: (id: string, input: UpdateTransactionInput) => Promise<Transaction>;
 		/** The same change over a selection, all of it or none of it. */
 		updateMany: (ids: string[], input: UpdateTransactionInput) => Promise<number>;
-		settle: (id: string) => Promise<Transaction>;
+		/** Saying it happened writes when, so the day comes from the screen that knows it. */
+		settle: (id: string, today: CalendarDate) => Promise<Transaction>;
 		reconcile: (id: string, reconciled: boolean) => Promise<Transaction>;
 		remove: (id: string) => Promise<void>;
 		removeMany: (ids: string[]) => Promise<number>;

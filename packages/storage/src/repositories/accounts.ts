@@ -1,5 +1,7 @@
+import { type BenefitState, benefitState, type CalendarDate, periodOf, todayIn } from "@cofre/core";
 import { accounts, cards } from "@cofre/db";
 import { assertCan, readableSpaceIds } from "../actor.ts";
+import { asNumber } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { type Account, type AccountKind, type BenefitKind, toAccount } from "../models.ts";
 import { marks } from "../sql.ts";
@@ -20,6 +22,10 @@ export type CreateAccountInput = {
 	creditLimit?: number | null;
 	/** Which pot a voucher is: VR, VA, VT and the rest. Only a voucher may say. */
 	benefit?: BenefitKind | null;
+	/** What lands on a voucher each month, the day it lands, and whether the leftover carries. */
+	quotaAmount?: number | null;
+	quotaDay?: number | null;
+	quotaCarries?: boolean | null;
 };
 
 export type UpdateAccountInput = {
@@ -27,14 +33,95 @@ export type UpdateAccountInput = {
 	institution?: string | null;
 	initialBalance?: number;
 	benefit?: BenefitKind | null;
+	quotaAmount?: number | null;
+	quotaDay?: number | null;
+	quotaCarries?: boolean | null;
 };
 
 const SELECT = `SELECT "id", "space_id", "kind", "name", "currency", "initial_balance",
 	"institution", "archived_at", "closing_day", "due_day", "credit_limit", "benefit",
+	"quota_amount", "quota_day", "quota_carries",
 	"created_by", "created_at", "updated_at"
 	FROM "accounts"`;
 
+/**
+ * Stored as a number, because the two dialects disagree about booleans and this project
+ * keeps flags as integers everywhere else for the same reason.
+ */
+function quotaCarriesValue(carries: boolean | null | undefined): number | null {
+	if (carries === null || carries === undefined) return null;
+	return carries ? 1 : 0;
+}
+
+/**
+ * An allowance belongs to a voucher and to nothing else.
+ *
+ * A current account with a monthly allowance on it would show a figure nobody could
+ * explain, and the amount is the one a person types, so it is checked here rather than
+ * trusted. A voucher with no allowance is allowed: every voucher written before this
+ * release is one, and the screen asks for it rather than the model refusing to open.
+ */
+function assertQuota(
+	input: { quotaAmount?: number | null; quotaDay?: number | null; quotaCarries?: boolean | null },
+	kind: AccountKind,
+): void {
+	const says = input.quotaAmount != null || input.quotaDay != null || input.quotaCarries != null;
+	if (says && kind !== "voucher") {
+		throw new RuleError(
+			"quotaIsForVouchers",
+			"only a benefit account is credited with an amount every month",
+		);
+	}
+	if (
+		input.quotaAmount != null &&
+		(!Number.isSafeInteger(input.quotaAmount) || input.quotaAmount <= 0)
+	) {
+		throw new RuleError(
+			"quotaIsPositive",
+			"what lands on a benefit card each month is a whole amount, more than nothing",
+		);
+	}
+	if (
+		input.quotaDay != null &&
+		(!Number.isInteger(input.quotaDay) || input.quotaDay < 1 || input.quotaDay > 31)
+	) {
+		throw new RuleError(
+			"quotaDayIsADayOfTheMonth",
+			"the day an allowance lands is a day of a month",
+		);
+	}
+}
+
 export function createAccountsRepository(context: RepositoryContext) {
+	/** The timezone of a space, for turning the instant a row was written into a day. */
+	async function timezoneOf(spaceId: string): Promise<string> {
+		const rows = await context.driver.all(
+			`SELECT "timezone" FROM "spaces" WHERE "id" = ? AND "deleted_at" IS NULL`,
+			[spaceId],
+		);
+		return String(rows[0]?.timezone ?? "America/Sao_Paulo");
+	}
+
+	/**
+	 * What went out of an account between two days, as a positive number.
+	 *
+	 * Only what has happened: a lunch written for next Tuesday has not been eaten, and a
+	 * card that says otherwise is a card that will surprise somebody at the till.
+	 */
+	async function spentBetween(
+		accountId: string,
+		from: CalendarDate,
+		to: CalendarDate,
+	): Promise<number> {
+		const rows = await context.driver.all(
+			`SELECT COALESCE(SUM(-"amount"), 0) AS spent FROM "transactions"
+			 WHERE "account_id" = ? AND "deleted_at" IS NULL AND "status" = 'settled'
+			   AND "kind" = 'expense' AND "happened_on" >= ? AND "happened_on" <= ?`,
+			[accountId, from, to],
+		);
+		return asNumber(rows[0]?.spent ?? 0);
+	}
+
 	/**
 	 * Finds an account anywhere this person can read. Asking for an account in someone
 	 * else's space gives the same answer as asking for one that does not exist, so the
@@ -73,6 +160,7 @@ export function createAccountsRepository(context: RepositoryContext) {
 					"only a voucher account says which benefit it holds",
 				);
 			}
+			assertQuota(input, input.kind);
 
 			const id = await insertRow(context.write(), {
 				table: accounts,
@@ -88,6 +176,9 @@ export function createAccountsRepository(context: RepositoryContext) {
 					due_day: input.dueDay ?? null,
 					credit_limit: input.creditLimit ?? null,
 					benefit: input.benefit ?? null,
+					quota_amount: input.quotaAmount ?? null,
+					quota_day: input.quotaDay ?? null,
+					quota_carries: quotaCarriesValue(input.quotaCarries),
 					created_by: context.actor().userId,
 				},
 			});
@@ -151,6 +242,12 @@ export function createAccountsRepository(context: RepositoryContext) {
 				}
 				values.benefit = input.benefit;
 			}
+			assertQuota(input, account.kind);
+			if (input.quotaAmount !== undefined) values.quota_amount = input.quotaAmount;
+			if (input.quotaDay !== undefined) values.quota_day = input.quotaDay;
+			if (input.quotaCarries !== undefined) {
+				values.quota_carries = quotaCarriesValue(input.quotaCarries);
+			}
 
 			await updateRow(context.write(), {
 				table: accounts,
@@ -159,6 +256,50 @@ export function createAccountsRepository(context: RepositoryContext) {
 				values,
 			});
 			return reachable(id);
+		},
+
+		/**
+		 * What is left on a benefit card, for the period the day falls in.
+		 *
+		 * Nothing is written when an allowance lands, so this is worked out rather than
+		 * read. What has carried, on a card that carries, is the opening balance plus every
+		 * allowance since the account was written down, less everything spent before this
+		 * period started. The opening balance is what somebody typed when they added the
+		 * card, which is exactly the right starting point for that sum.
+		 *
+		 * Nothing comes back for an account with no allowance on it, which every voucher
+		 * written before this release is. The screen asks for one rather than guessing.
+		 */
+		async benefitLeft(id: string, today: CalendarDate): Promise<BenefitState | null> {
+			const account = await reachable(id);
+			assertCan(context.actor(), account.spaceId, "account.read");
+			if (account.kind !== "voucher") return null;
+			if (account.quotaAmount === null || account.quotaDay === null) return null;
+
+			const quota = {
+				amount: account.quotaAmount,
+				day: account.quotaDay,
+				carries: account.quotaCarries ?? true,
+			};
+
+			// A day rather than an instant, in the timezone of the space, because the
+			// periods are counted in days and the row remembers a millisecond in UTC.
+			const openedOn = todayIn(await timezoneOf(account.spaceId), new Date(account.createdAt));
+			const period = periodOf(today, quota.day);
+
+			const [spentSinceOpening, spentThisPeriod] = await Promise.all([
+				spentBetween(account.id, openedOn, today),
+				spentBetween(account.id, period.from, today),
+			]);
+
+			return benefitState({
+				quota,
+				today,
+				openedOn,
+				openingBalance: account.initialBalance,
+				spentSinceOpening,
+				spentThisPeriod,
+			});
 		},
 
 		/** Archiving keeps the history and takes the account out of the way. */

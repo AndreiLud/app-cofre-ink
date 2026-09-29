@@ -5,7 +5,7 @@
 // What the screens get back has the same shape as the local one, so no screen knows
 // which of the two it is talking to.
 
-import { type CalendarDate, pickRule, solveWork } from "@cofre/core";
+import { type BenefitState, type CalendarDate, pickRule, solveWork } from "@cofre/core";
 import type {
 	Account,
 	AccountBalance,
@@ -315,8 +315,13 @@ export function createRemoteSession(
 					institution?: string | null;
 					initialBalance?: number;
 					benefit?: BenefitKind | null;
+					quotaAmount?: number | null;
+					quotaDay?: number | null;
+					quotaCarries?: boolean | null;
 				},
 			) => send<Account>(`/api/accounts/${id}`, "PATCH", input),
+			benefitLeft: (id: string, today: CalendarDate) =>
+				get<BenefitState | null>(`/api/accounts/${id}/benefit?today=${today}`),
 			archive: (id: string) => send<Account>(`/api/accounts/${id}/archive`, "POST", {}),
 			unarchive: (id: string) => send<Account>(`/api/accounts/${id}/unarchive`, "POST", {}),
 			remove: (id: string) => send<void>(`/api/accounts/${id}`, "DELETE"),
@@ -396,7 +401,8 @@ export function createRemoteSession(
 					? 0
 					: (await send<{ changed: number }>("/api/transactions", "PATCH", { ids, patch: input }))
 							.changed,
-			settle: (id: string) => send<Transaction>(`/api/transactions/${id}/settle`, "POST", {}),
+			settle: (id: string, today: CalendarDate) =>
+				send<Transaction>(`/api/transactions/${id}/settle?today=${today}`, "POST", {}),
 			reconcile: (id: string, reconciled: boolean) =>
 				send<Transaction>(`/api/transactions/${id}/reconcile`, "POST", { reconciled }),
 			remove: (id: string) => send<void>(`/api/transactions/${id}`, "DELETE"),

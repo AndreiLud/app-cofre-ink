@@ -73,6 +73,16 @@ export type Account = {
 	creditLimit: number | null;
 	/** Only a voucher account has this: which pot it is, VR, VA, VT and the rest. */
 	benefit: BenefitKind | null;
+	/**
+	 * What lands on a voucher each month, and what becomes of what is left.
+	 *
+	 * Nothing is written when the money arrives, because from the household's side
+	 * nothing arrives, so what is left on the card is worked out from these three and
+	 * the spending rather than read off a balance.
+	 */
+	quotaAmount: number | null;
+	quotaDay: number | null;
+	quotaCarries: boolean | null;
 	createdBy: string;
 	createdAt: number;
 	updatedAt: number;
@@ -372,6 +382,14 @@ export function toAccount(row: Row): Account {
 		dueDay: asOptionalNumber(row.due_day),
 		creditLimit: asOptionalNumber(row.credit_limit),
 		benefit: asBenefit(row.benefit),
+		quotaAmount: asOptionalNumber(row.quota_amount),
+		quotaDay: asOptionalNumber(row.quota_day),
+		// Stored as a number, because the two dialects disagree about booleans and this
+		// project keeps flags as integers everywhere else for the same reason.
+		quotaCarries:
+			row.quota_carries === null || row.quota_carries === undefined
+				? null
+				: asNumber(row.quota_carries) === 1,
 		createdBy: asText(row.created_by),
 		createdAt: asNumber(row.created_at),
 		updatedAt: asNumber(row.updated_at),
