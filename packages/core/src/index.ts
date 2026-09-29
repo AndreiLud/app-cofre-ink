@@ -1,3 +1,5 @@
+export * from "./accounts/canSpend.ts";
+export * from "./accounts/whatCounts.ts";
 export * from "./advice/commitments.ts";
 export * from "./advice/exposure.ts";
 export * from "./advice/findings.ts";

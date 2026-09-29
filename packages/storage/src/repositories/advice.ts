@@ -12,12 +12,16 @@ import {
 	type ChargePair,
 	type Finding,
 	findEverything,
+	isDebt,
+	isSpendable,
 	monthOf,
+	owedOnCards,
 	type PendingCharge,
 	type Reading,
 	type RepeatingCharge,
 	readingOf,
 	type Snapshot,
+	spendableNow,
 } from "@cofre/core";
 import { assertCan, seesOwnRowsOnly } from "../actor.ts";
 import type { SqlValue } from "../driver.ts";
@@ -515,7 +519,7 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 				repeatingCharges(input.spaceId, from, to),
 				pendingCharges(input.spaceId, input.today, until),
 				possibleRepeats(input.spaceId, `${addMonthsToMonth(thisMonth, -1)}-01`, to),
-				needs.transactions.balances(input.spaceId),
+				needs.transactions.balances(input.spaceId, input.today),
 				needs.accounts.list(input.spaceId),
 				categoryNames(input.spaceId),
 				lastPaidIn(input.spaceId),
@@ -525,14 +529,19 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 				inflationOverAYear(),
 			]);
 
-			// Money on hand is what is in the accounts somebody spends from. What is put
-			// aside is not a reserve of cash and counting it as one hides the problem.
-			const spendable = new Set(
-				accounts.filter((account) => account.kind !== "investment").map((account) => account.id),
+			// Money on hand is what is in the accounts somebody spends from, less what is
+			// owed on the cards. What is put aside is not a reserve of cash and counting it
+			// as one hides the problem, and the same is true of a meal voucher: it buys
+			// lunch and it will not cover the rent, so a reserve measured with it in is a
+			// reserve that looks healthy in exactly the month it is needed.
+			//
+			// Which kinds those are is not decided here any more. It was decided here, and
+			// on the overview, and in the projection, and the three disagreed.
+			const counted = accounts.filter(
+				(account) => isSpendable(account.kind) || isDebt(account.kind),
 			);
-			const onHand = balances
-				.filter((balance) => spendable.has(balance.accountId))
-				.reduce((total, balance) => total + balance.settled, 0);
+			const spendable = new Set(counted.map((account) => account.id));
+			const onHand = spendableNow({ accounts, balances }) - owedOnCards({ accounts, balances });
 
 			// After the others, because it is the one that needs to know which accounts
 			// those are. A balance from before is this walked backwards from today.
