@@ -25,8 +25,11 @@ says, and how an amount is read. Every case it found was real.
 > **If you had a WebDAV folder set up and then pressed Continuar under "Um banco na
 > nuvem", or changed the place in the list, look at the backup panel.** The fields of the
 > folder were carried over into the database, so every run sent your application password
-> to the folder's address and failed. Each place keeps its own fields now, and yours are
-> where you left them.
+> to the folder's address and failed. Each place keeps its own fields now.
+>
+> Not yours, though: 1.0.4 split the places apart and read what it found at face value, so
+> if you had hit that, the folder's address and password ended up filed under the database
+> and the folder came up blank. 1.0.5 puts them back where they belong, on the way in.
 
 ### Fixed
 
@@ -58,9 +61,11 @@ shape, so every check for one was dead code and a genuine rule read as a refusal
 
 **An amount is read one way.** There were four readers. Two deleted every period before
 looking, one read a period and nothing else and turned the Brazilian thousands form into
-NaN, and none of the three said anything when they could not read what was typed, so a
-word became a limit of zero. Writing one back had the same spread: three places put a
-comma in whatever language was speaking.
+NaN, and none of the three said anything when they could not read what was typed. On the
+investments screen that meant a word, or an amount with its currency symbol still on it,
+became zero, and a holding sat there worth nothing with nobody told. The budget refused a
+limit of nothing all along, so it never stored one. Writing an amount back had the same
+spread: three places put a comma in whatever language was speaking.
 
 **A logger reads their own rows on the import screen too.** The query that marks what looks
 familiar in a file filtered on the space alone, so it read back up to five thousand records

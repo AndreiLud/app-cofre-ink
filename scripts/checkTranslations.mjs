@@ -26,11 +26,16 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { tableFor } from "./roleTable.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
 const locales = join(root, "apps", "web", "src", "locales");
 const LANGUAGES = ["pt", "en"];
+
+const ROLE_TABLE_START =
+	"<!-- roleTable: written by scripts/roleTable.mjs, do not edit by hand -->";
+const ROLE_TABLE_END = "<!-- /roleTable -->";
 
 /** Every TypeScript file that is not a test, under the folders that hold the rules. */
 function sourcesIn(dir) {
@@ -129,6 +134,31 @@ function main() {
 			if (table && !table.has(`rules.${name}`)) {
 				problems.push(`${language}.json has no sentence for the rule "${name}" (${file})`);
 			}
+		}
+	}
+
+	// And the table in the guides, which is the same matrix written for a reader. It was
+	// written by hand and it drifted: eleven of the thirty five permissions were in it, an
+	// editor was shown as able to delete an account, and the one read permission that
+	// excludes a role said yes for everybody.
+	for (const [language, folder] of [
+		["en", "en"],
+		["pt", "pt-BR"],
+	]) {
+		const path = join(root, "docs", folder, "dataModel.md");
+		if (!existsSync(path)) continue;
+		const text = readFileSync(path, "utf8");
+		const start = text.indexOf(ROLE_TABLE_START);
+		const end = text.indexOf(ROLE_TABLE_END);
+		if (start === -1 || end === -1) {
+			problems.push(`docs/${folder}/dataModel.md has no role table markers`);
+			continue;
+		}
+		const written = text.slice(start + ROLE_TABLE_START.length, end).trim();
+		if (written !== tableFor(language).trim()) {
+			problems.push(
+				`docs/${folder}/dataModel.md no longer matches the matrix, run: node scripts/roleTable.mjs print ${language}`,
+			);
 		}
 	}
 

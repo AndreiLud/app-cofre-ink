@@ -76,24 +76,60 @@ The whole model is one table of data in `packages/storage/src/actor.ts`, so it c
 read by a person and walked by a test. The conformance suite fails if a repository
 method names a permission that is not in it.
 
-| | owner | admin | editor | viewer | logger |
+<!-- roleTable: written by scripts/roleTable.mjs, do not edit by hand -->
+| what | Owner | Administrator | Editor | Viewer | Logger |
 | --- | --- | --- | --- | --- | --- |
-| read the space | yes | yes | yes | yes | yes |
-| change the space | yes | yes | no | no | no |
-| delete the space | yes | no | no | no | no |
-| invite and remove people | yes | yes | no | no | no |
-| create and edit accounts | yes | yes | yes | no | no |
-| write records | yes | yes | yes | no | yes |
-| reconcile a record | yes | yes | yes | no | no |
-| edit categories, rules, series | yes | yes | yes | no | no |
-| set limits and goals | yes | yes | yes | no | no |
-| settle up | yes | yes | yes | no | no |
-| export a backup | yes | yes | no | no | no |
+| `space.read` | yes | yes | yes | yes | yes |
+| `space.update` | yes | yes | no | no | no |
+| `space.delete` | yes | no | no | no | no |
+| `space.leave` | no | yes | yes | yes | yes |
+| `member.read` | yes | yes | yes | yes | yes |
+| `member.invite` | yes | yes | no | no | no |
+| `member.changeRole` | yes | yes | no | no | no |
+| `member.remove` | yes | yes | no | no | no |
+| `account.read` | yes | yes | yes | yes | yes |
+| `account.create` | yes | yes | yes | no | no |
+| `account.update` | yes | yes | yes | no | no |
+| `account.archive` | yes | yes | yes | no | no |
+| `account.delete` | yes | yes | no | no | no |
+| `transaction.read` | yes | yes | yes | yes | yes |
+| `transaction.create` | yes | yes | yes | no | yes |
+| `transaction.update` | yes | yes | yes | no | yes |
+| `transaction.delete` | yes | yes | yes | no | yes |
+| `transaction.reconcile` | yes | yes | yes | no | no |
+| `category.read` | yes | yes | yes | yes | yes |
+| `category.write` | yes | yes | yes | no | no |
+| `rule.read` | yes | yes | yes | yes | yes |
+| `rule.write` | yes | yes | yes | no | no |
+| `recurrence.read` | yes | yes | yes | yes | yes |
+| `recurrence.write` | yes | yes | yes | no | no |
+| `plan.read` | yes | yes | yes | yes | yes |
+| `plan.write` | yes | yes | yes | no | no |
+| `sharing.read` | yes | yes | yes | yes | yes |
+| `sharing.write` | yes | yes | yes | no | no |
+| `filter.read` | yes | yes | yes | yes | yes |
+| `filter.write` | yes | yes | yes | yes | yes |
+| `activity.read` | yes | yes | yes | yes | no |
+| `backup.export` | yes | yes | no | no | no |
+| `backup.restore` | yes | yes | no | no | no |
+| `investment.read` | yes | yes | yes | yes | yes |
+| `investment.write` | yes | yes | yes | no | no |
+<!-- /roleTable -->
 
 **The logger is the role for a child, or for whoever helps with the house.** They write
 records and they see the records they wrote, and nothing else. That is enforced in the
 repository layer by filtering rather than by refusing, so nothing on screen suggests
-there is more to see.
+there is more to see: every query that reads the records narrows to their own, which
+means their balances, their projection, their savings, their goals and their diagnosis
+are readings of what they themselves put through the space and not of the household's
+money. Where a figure belongs to the space rather than to a person, such as the opening
+balance of an account or what a recurring bill will owe, it counts as nothing for them
+rather than being mixed in.
+
+Two things sit outside that rule on purpose. They read who owes whom, because they are
+part of that count: they record what they spent and the division is between everybody.
+And `activity.read` is the one permission in the matrix that excludes them, because the
+log of what happened in the space is a record of other people's doing.
 
 Two different answers on purpose: somebody who is not a member of a space is told the
 space does not exist, because confirming that it exists already says something about

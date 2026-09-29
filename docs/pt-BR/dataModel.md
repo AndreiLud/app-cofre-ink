@@ -76,24 +76,59 @@ O modelo inteiro é uma tabela de dados em `packages/storage/src/actor.ts`, para
 pessoa possa ler e um teste possa percorrer. A suíte de conformidade falha se um método
 de repositório citar uma permissão que não esteja ali.
 
-| | owner | admin | editor | viewer | logger |
+<!-- roleTable: written by scripts/roleTable.mjs, do not edit by hand -->
+| o que | Dono | Administrador | Editor | Leitor | Registrador |
 | --- | --- | --- | --- | --- | --- |
-| ler o espaço | sim | sim | sim | sim | sim |
-| mudar o espaço | sim | sim | não | não | não |
-| apagar o espaço | sim | não | não | não | não |
-| convidar e remover pessoas | sim | sim | não | não | não |
-| criar e editar contas | sim | sim | sim | não | não |
-| escrever lançamentos | sim | sim | sim | não | sim |
-| conciliar um lançamento | sim | sim | sim | não | não |
-| editar categorias, regras, séries | sim | sim | sim | não | não |
-| definir limites e metas | sim | sim | sim | não | não |
-| acertar contas | sim | sim | sim | não | não |
-| exportar um backup | sim | sim | não | não | não |
+| `space.read` | sim | sim | sim | sim | sim |
+| `space.update` | sim | sim | não | não | não |
+| `space.delete` | sim | não | não | não | não |
+| `space.leave` | não | sim | sim | sim | sim |
+| `member.read` | sim | sim | sim | sim | sim |
+| `member.invite` | sim | sim | não | não | não |
+| `member.changeRole` | sim | sim | não | não | não |
+| `member.remove` | sim | sim | não | não | não |
+| `account.read` | sim | sim | sim | sim | sim |
+| `account.create` | sim | sim | sim | não | não |
+| `account.update` | sim | sim | sim | não | não |
+| `account.archive` | sim | sim | sim | não | não |
+| `account.delete` | sim | sim | não | não | não |
+| `transaction.read` | sim | sim | sim | sim | sim |
+| `transaction.create` | sim | sim | sim | não | sim |
+| `transaction.update` | sim | sim | sim | não | sim |
+| `transaction.delete` | sim | sim | sim | não | sim |
+| `transaction.reconcile` | sim | sim | sim | não | não |
+| `category.read` | sim | sim | sim | sim | sim |
+| `category.write` | sim | sim | sim | não | não |
+| `rule.read` | sim | sim | sim | sim | sim |
+| `rule.write` | sim | sim | sim | não | não |
+| `recurrence.read` | sim | sim | sim | sim | sim |
+| `recurrence.write` | sim | sim | sim | não | não |
+| `plan.read` | sim | sim | sim | sim | sim |
+| `plan.write` | sim | sim | sim | não | não |
+| `sharing.read` | sim | sim | sim | sim | sim |
+| `sharing.write` | sim | sim | sim | não | não |
+| `filter.read` | sim | sim | sim | sim | sim |
+| `filter.write` | sim | sim | sim | sim | sim |
+| `activity.read` | sim | sim | sim | sim | não |
+| `backup.export` | sim | sim | não | não | não |
+| `backup.restore` | sim | sim | não | não | não |
+| `investment.read` | sim | sim | sim | sim | sim |
+| `investment.write` | sim | sim | sim | não | não |
+<!-- /roleTable -->
 
-**O logger é o papel para uma criança, ou para quem ajuda na casa.** Ele escreve
+**O Registrador é o papel para uma criança, ou para quem ajuda na casa.** Ele escreve
 lançamentos e vê os lançamentos que escreveu, e mais nada. Isso é aplicado na camada de
 repositórios filtrando em vez de recusando, para que nada na tela sugira que há mais
-para ver.
+para ver: toda consulta que lê os lançamentos estreita para os dele, o que significa que
+os saldos, a projeção, a poupança, as metas e o diagnóstico dele são leituras do que ele
+mesmo passou pelo espaço, e não do dinheiro da casa. Onde um número é do espaço e não de
+uma pessoa, como o saldo de abertura de uma conta ou o que uma conta que se repete vai
+cobrar, ele conta como nada para ele em vez de entrar na mistura.
+
+Duas coisas ficam fora dessa regra de propósito. Ele lê quem deve a quem, porque ele
+entra nessa conta: ele registra o que gastou e a divisão é entre todos. E o
+`activity.read` é a única permissão da matriz que exclui ele, porque o registro do que
+aconteceu no espaço é um registro do que as outras pessoas fizeram.
 
 Duas respostas diferentes de propósito: quem não é membro de um espaço ouve que o
 espaço não existe, porque confirmar que existe já diz alguma coisa sobre o dinheiro dos
