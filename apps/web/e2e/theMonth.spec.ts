@@ -19,10 +19,19 @@ function row(page: Page, text: RegExp) {
 	return page.getByRole("row").filter({ hasText: text });
 }
 
-/** What the overview says is in one account right now. */
+/**
+ * What the overview says is in one account right now.
+ *
+ * Scoped to the panel that lists the accounts, because the name of a card also turns up
+ * in the line of what falls due, where it names an invoice and not a balance.
+ */
 async function balanceOf(page: Page, account: string): Promise<string> {
 	await go(page, "Painel");
-	const row = page.getByRole("listitem").filter({ hasText: account });
+	const row = page
+		.locator("section")
+		.filter({ hasText: "Onde o dinheiro está" })
+		.getByRole("listitem")
+		.filter({ hasText: account });
 	await expect(row).toBeVisible();
 	return (await row.innerText()).replace(/\s+/g, " ");
 }

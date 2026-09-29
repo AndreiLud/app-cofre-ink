@@ -309,7 +309,40 @@
 		"seeBudget": "See the budget",
 		"headlineEverywhere": "This is what you have, every space added together",
 		"across": "Show",
-		"seeMore": "See more"
+		"seeMore": "See more",
+		"youHave": "You have",
+		"canSpend": "Still to spend",
+		"dueThisMonth": "Due before the month ends",
+		"stillToSave": "Still to put aside",
+		"asOf": "On {{day}}, counting what has happened.",
+		"show": "Show",
+		"onTheInvoiceDue": "on the invoice due {{day}}",
+		"inPartsAfter": "in instalments after that",
+		"ofQuota": "of",
+		"thisPeriod": "this period",
+		"noQuota": "No monthly allowance written down. Fill it in under Accounts to see what is left.",
+		"late": "Late",
+		"happened": "It happened",
+		"received": "Received",
+		"didNotHappen": "It did not happen",
+		"goesOut": "Going out",
+		"comesIn": "Coming in",
+		"oneBill": "one bill",
+		"invoiceOf": "The {{card}} invoice",
+		"monthSoFar": "The month so far",
+		"savingAndGoals": "Putting aside, and goals",
+		"ruleAsks": "The rule asks for",
+		"savedSoFar": "Put aside so far",
+		"ofTarget": "of",
+		"noRule": "No saving rule. A rule says how much of what comes in is set aside before anything else.",
+		"group": {
+			"money": "Money",
+			"investments": "Investments",
+			"cards": "Cards",
+			"benefits": "Benefits"
+		},
+		"noRuleShort": "No saving rule",
+		"leftOver": "Left over"
 	},
 	"notice": {
 		"budgetOver": "{{name}} went over its limit by {{over}}.",
@@ -785,7 +818,8 @@
 		"reallyClosedOnHint": "The bank sometimes closes a day or two either side, because of a weekend or a holiday. Say the day it really closed and the purchases in between move to the right invoice, all at once.",
 		"closedOnDay": "It closed on",
 		"moveThem": "Move those purchases",
-		"paymentOf": "Payment of the {{month}} invoice"
+		"paymentOf": "Payment of the {{month}} invoice",
+		"see": "See the invoice"
 	},
 	"transactionKind": {
 		"expense": "Expense",

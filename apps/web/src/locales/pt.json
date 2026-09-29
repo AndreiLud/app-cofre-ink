@@ -309,7 +309,40 @@
 		"seeBudget": "Ver orçamento",
 		"headlineEverywhere": "Você tem isto somando todos os espaços",
 		"across": "Mostrar",
-		"seeMore": "Ver mais"
+		"seeMore": "Ver mais",
+		"youHave": "Você tem",
+		"canSpend": "Ainda dá para gastar",
+		"dueThisMonth": "Vence até o fim do mês",
+		"stillToSave": "Falta guardar",
+		"asOf": "Em {{day}}, com o que já aconteceu.",
+		"show": "Mostrar",
+		"onTheInvoiceDue": "na fatura que vence {{day}}",
+		"inPartsAfter": "em parcelas depois",
+		"ofQuota": "de",
+		"thisPeriod": "neste período",
+		"noQuota": "Sem valor mensal cadastrado. Preencha em Contas para ver quanto resta.",
+		"late": "Atrasado",
+		"happened": "Aconteceu",
+		"received": "Recebido",
+		"didNotHappen": "Não aconteceu",
+		"goesOut": "Sai",
+		"comesIn": "Entra",
+		"oneBill": "uma conta só",
+		"invoiceOf": "Fatura do {{card}}",
+		"monthSoFar": "O mês até agora",
+		"savingAndGoals": "Guardar e metas",
+		"ruleAsks": "A regra pede",
+		"savedSoFar": "Guardados",
+		"ofTarget": "de",
+		"noRule": "Nenhuma regra de guardar. Uma regra diz quanto do que entra fica de lado antes do resto.",
+		"group": {
+			"money": "Dinheiro",
+			"investments": "Investimentos",
+			"cards": "Cartões",
+			"benefits": "Benefícios"
+		},
+		"noRuleShort": "Sem regra de guardar",
+		"leftOver": "Sobrou"
 	},
 	"notice": {
 		"budgetOver": "{{name}} passou do limite em {{over}}.",
@@ -785,7 +818,8 @@
 		"reallyClosedOnHint": "O banco às vezes fecha um ou dois dias antes ou depois, por causa de fim de semana ou feriado. Diga o dia de verdade e as compras entre um e outro passam para a fatura certa, todas de uma vez.",
 		"closedOnDay": "Fechou no dia",
 		"moveThem": "Mover as compras",
-		"paymentOf": "Pagamento da fatura de {{month}}"
+		"paymentOf": "Pagamento da fatura de {{month}}",
+		"see": "Ver fatura"
 	},
 	"transactionKind": {
 		"expense": "Despesa",

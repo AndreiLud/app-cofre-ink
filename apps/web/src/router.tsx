@@ -130,13 +130,6 @@ const designSystemRoute = createRoute({
 	component: lazyRouteComponent(() => import("./pages/DesignSystemPage.tsx"), "DesignSystemPage"),
 });
 
-// Temporary, for choosing a layout for the overview. It goes once one is chosen.
-const proposalRoute = createRoute({
-	getParentRoute: () => rootRoute,
-	path: "/proposta",
-	component: lazyRouteComponent(() => import("./pages/ProposalPage.tsx"), "ProposalPage"),
-});
-
 const routeTree = rootRoute.addChildren([
 	dashboardRoute,
 	transactionsRoute,
@@ -155,7 +148,6 @@ const routeTree = rootRoute.addChildren([
 	importRoute,
 	invitationRoute,
 	designSystemRoute,
-	proposalRoute,
 ]);
 
 // The base of the build, so that a copy served from a folder of a domain reads and

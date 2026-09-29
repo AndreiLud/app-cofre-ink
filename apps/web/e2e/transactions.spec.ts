@@ -105,7 +105,7 @@ test.describe("records", () => {
 
 		// Saying it happened writes the day it happened, which is today, so it lands in the
 		// balance now instead of sitting three days out marked as a fact.
-		await row.getByRole("button", { name: "Marcar como pago" }).click();
+		await row.getByRole("button", { name: "Aconteceu" }).click();
 		await expect(total(page)).not.toHaveText(before);
 	});
 
