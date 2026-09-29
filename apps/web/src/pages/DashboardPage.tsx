@@ -195,10 +195,18 @@ export function DashboardPage() {
 			    nothing else on the page comes near. Everything under it is detail. */}
 			<Panel className="border-accent/30 bg-gradient-to-b from-accentSoft/60 to-panel">
 				<div className="flex flex-wrap items-start justify-between gap-4">
+					{/* The queries behind this screen were narrowed to a logger's own records
+					    and the words on it were not, so a number that is their own part was
+					    read as the household's money on hand. The number stays narrowed and
+					    the line says whose it is. */}
 					<InsightTitle
 						level="h1"
 						detail={
-							projected === settled ? t("dashboard.nothingPending") : t("dashboard.projectedDetail")
+							mine.seesOwnRowsOnly
+								? t("dashboard.yoursOnly")
+								: projected === settled
+									? t("dashboard.nothingPending")
+									: t("dashboard.projectedDetail")
 						}
 					>
 						{consolidated

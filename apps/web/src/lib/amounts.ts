@@ -12,7 +12,7 @@
 // would do.
 
 import type { CurrencyCode } from "@cofre/core";
-import { parseMoney, parseScaled } from "@cofre/core";
+import { DEFAULT_CURRENCY, minorDigits, parseMoney, parseScaled } from "@cofre/core";
 import { RuleError } from "@cofre/storage";
 
 /** What somebody typed, in cents. Throws a MoneyError, which every screen now translates. */
@@ -106,11 +106,26 @@ export function readPercent(text: string): number {
  *
  * No thousands separator: this goes into a field somebody is about to edit, and a
  * grouping mark there is one more thing to delete before typing.
+ *
+ * In the minor units of its own currency, which it used to assume were always hundredths.
+ * The picker offers four currencies that all keep two, so nothing reachable through it was
+ * wrong; a space in a currency with none or with three arrives through the API, through a
+ * restored backup or through a device that replicated one, and there the round trip did
+ * not close. Opening a record to edit in such a space and saving it untouched divided the
+ * amount by a hundred or multiplied it by ten, and on the month screen a small enough
+ * amount came back as zero, which that screen reads as the month having no such number
+ * and takes the record away.
  */
-export function fillAmount(cents: number, language: string | undefined): string {
+export function fillAmount(
+	cents: number,
+	language: string | undefined,
+	currency?: CurrencyCode,
+): string {
 	const locale = language === "en" ? "en" : "pt-BR";
+	const digits = minorDigits(currency ?? DEFAULT_CURRENCY);
 	return new Intl.NumberFormat(locale, {
-		minimumFractionDigits: 2,
+		minimumFractionDigits: digits,
+		maximumFractionDigits: digits,
 		useGrouping: false,
-	}).format(cents / 100);
+	}).format(cents / 10 ** digits);
 }

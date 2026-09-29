@@ -96,13 +96,23 @@ export function createInvestmentsRepository(context: RepositoryContext) {
 		if (rows.length === 0) throw new NotFoundError("account", accountId);
 	}
 
+	/**
+	 * A holding is made of a quantity and a price, and neither of them is nothing.
+	 *
+	 * The rule was named for a positive number and tested for a number that is not
+	 * negative, so zero went through, and a holding of zero units at zero each sat in the
+	 * list worth nothing with nobody told why. Every other repository that names this rule
+	 * refuses zero. The cost is the one that may be nothing, because it is optional and
+	 * nothing is a real answer to what something cost you.
+	 */
 	function assertAmounts(input: { quantity?: number; unitPrice?: number; cost?: number }): void {
 		for (const [what, value] of Object.entries(input)) {
 			if (value === undefined) continue;
-			if (!Number.isSafeInteger(value) || value < 0) {
+			const mayBeNothing = what === "cost";
+			if (!Number.isSafeInteger(value) || value < 0 || (value === 0 && !mayBeNothing)) {
 				throw new RuleError(
 					"amountIsPositiveInteger",
-					`${what} is a whole number of the smallest unit, and is never negative`,
+					`${what} is a whole number of the smallest unit, and is more than nothing`,
 				);
 			}
 		}

@@ -125,6 +125,7 @@
 		"nothingHeadline": "There is not enough to project yet",
 		"detail": "In {{month}}, {{income}} comes in and {{expense}} goes out, from what is already written, what repeats and your usual month.",
 		"nothingDetail": "Write a few months down and the projection appears by itself.",
+		"yoursOnly": "Your own records only. The months ahead are made of what you yourself wrote.",
 		"horizon": "How far ahead",
 		"monthsCount_one": "1 month",
 		"monthsCount_other": "{{count}} months",
@@ -296,6 +297,7 @@
 		"headline": "You have this much in {{space}}",
 		"nothingPending": "Nothing coming up moves that number for now.",
 		"projectedDetail": "Counting only what has already happened.",
+		"yoursOnly": "Your own records only. You are a Logger in this space, so these figures are what you yourself put through the accounts, and not the money of the household.",
 		"afterPending": "After what is coming:",
 		"oneSpaceOnly": "This is the balance of this space. Switch at the top to see another.",
 		"dueSoon": "Due in the next days",
@@ -1166,6 +1168,7 @@
 			"tooSoon": "Not enough records yet. Three full months is what it takes to read all four signs, and until then only what is due right now has an answer."
 		},
 		"noReading": "No reading",
+		"loggerBody": "This reads the money of the whole household, and a Logger only ever sees the records they wrote. A verdict made of one part is not a smaller verdict: the measures were written for a household, so it would tell you your reserve covers nothing and ask you to put aside a month of the household spending. Your own records are under List, and your limits under Budget.",
 		"percent": "{{value}}%",
 		"monthsCovered_one": "{{value}} month",
 		"monthsCovered_other": "{{value}} months",

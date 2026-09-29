@@ -20,6 +20,7 @@ import { useTranslation } from "react-i18next";
 import { findingLine } from "../components/Findings.tsx";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { useWhatIMayDo } from "../storage/roles.ts";
 
 // How a sign is drawn. The state is always a word as well as a colour, so that the
 // table reads the same to somebody who does not see the difference between these three.
@@ -77,6 +78,9 @@ export function AdvisorPage() {
 	const { session, currentSpace } = useCofre();
 
 	const spaceId = currentSpace?.id ?? "";
+	// A verdict over the household's money is not a thing to compute from one person's
+	// records, so this screen answers the same way the month screen does.
+	const { role, seesOwnRowsOnly } = useWhatIMayDo(spaceId);
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
 	const locale = i18n.resolvedLanguage === "en" ? "en" : "pt-BR";
 	const currency = currentSpace?.baseCurrency ?? "BRL";
@@ -155,6 +159,28 @@ export function AdvisorPage() {
 			everyMonth: money(step.everyMonth),
 		});
 	};
+
+	/**
+	 * This screen reads a verdict over the money of a household.
+	 *
+	 * Every figure behind it is narrowed to a logger's own records, which is the rule that
+	 * role exists for, and a verdict made of a fragment is not a narrower verdict: the
+	 * thresholds were written for a household, so their own spending with no household
+	 * income behind it reads as a reserve that covers nothing, a verdict of tight, and a
+	 * plan telling them to put aside a month of the household's spending. That is worse
+	 * than telling them nothing. The month screen closes to them for the same reason, and
+	 * says so in the same words.
+	 */
+	if (seesOwnRowsOnly && role !== null) {
+		return (
+			<div className="space-y-6">
+				<InsightTitle level="h1">{t("nav.advisor")}</InsightTitle>
+				<Callout tone="attention" title={t("roles.youAre", { role: t(`role.${role}`) })}>
+					{t("advisor.loggerBody")}
+				</Callout>
+			</div>
+		);
+	}
 
 	return (
 		<div className="space-y-8">

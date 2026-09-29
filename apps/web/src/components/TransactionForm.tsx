@@ -5,6 +5,7 @@
 // changes with that choice: a transfer needs a destination, a card purchase can be
 // split, and neither makes sense for the other.
 
+import type { CurrencyCode } from "@cofre/core";
 import type {
 	Account,
 	Category,
@@ -123,7 +124,13 @@ export function TransactionForm({
 		setProblem(null);
 		if (editing) {
 			setKind(editing.kind);
-			setAmount(fillAmount(Math.abs(editing.amount), i18n.resolvedLanguage));
+			setAmount(
+				fillAmount(
+					Math.abs(editing.amount),
+					i18n.resolvedLanguage,
+					editing.currency as CurrencyCode,
+				),
+			);
 			setHappenedOn(editing.happenedOn);
 			setDescription(editing.description);
 			setAccountId(editing.accountId);

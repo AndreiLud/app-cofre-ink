@@ -15,6 +15,7 @@
 import {
 	addMonthsToMonth,
 	type CardCycle,
+	type CurrencyCode,
 	dateInMonth,
 	MONTH_FIELDS,
 	MONTH_PARTS,
@@ -119,9 +120,13 @@ function isUnreadable(text: string, currency: string): boolean {
  * Which stopped being true the moment the income field was taught to follow the language
  * on screen, so it takes the language now and the sentence above is true again.
  */
-function asText(row: Transaction | undefined, language: string | undefined): string {
+function asText(
+	row: Transaction | undefined,
+	language: string | undefined,
+	currency: CurrencyCode,
+): string {
 	if (!row) return "";
-	return fillAmount(Math.abs(row.amount), language);
+	return fillAmount(Math.abs(row.amount), language, currency);
 }
 
 /** The same short day the invoice screen prints, because the month is in the caption. */
@@ -278,9 +283,9 @@ export function MonthPage() {
 
 	const language = i18n.resolvedLanguage;
 	const text: Record<MonthField, string> = {
-		income: income ?? asText(mine.get("income"), language),
-		spending: spending ?? asText(mine.get("spending"), language),
-		invoice: invoice ?? asText(mine.get("invoice"), language),
+		income: income ?? asText(mine.get("income"), language, currency),
+		spending: spending ?? asText(mine.get("spending"), language, currency),
+		invoice: invoice ?? asText(mine.get("invoice"), language, currency),
 	};
 	// Null means the month has no such number, which is what takes a record away, and it
 	// is asked of the text rather than read off a failed parse. A word somebody mistyped

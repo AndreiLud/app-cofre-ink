@@ -125,6 +125,7 @@
 		"nothingHeadline": "Ainda não dá para projetar",
 		"detail": "Em {{month}}, entram {{income}} e saem {{expense}}, pelo que já está escrito, pelo que se repete e pelo seu mês de sempre.",
 		"nothingDetail": "Registre alguns meses e as projeções aparecem sozinhas.",
+		"yoursOnly": "Só os seus lançamentos. Os meses à frente são feitos do que você mesmo escreveu.",
 		"horizon": "Até quando",
 		"monthsCount_one": "1 mês",
 		"monthsCount_other": "{{count}} meses",
@@ -296,6 +297,7 @@
 		"headline": "Você tem isto em {{space}}",
 		"nothingPending": "Nada previsto mexendo nesse número por enquanto.",
 		"projectedDetail": "Contando só o que já aconteceu.",
+		"yoursOnly": "Só os seus lançamentos. Você é Registrador neste espaço, então estes números são do que você mesmo passou pelas contas, e não do dinheiro da casa.",
 		"afterPending": "Depois do que está previsto:",
 		"oneSpaceOnly": "Este é o saldo deste espaço. Troque no topo para ver outro.",
 		"dueSoon": "Vence nos próximos dias",
@@ -1166,6 +1168,7 @@
 			"tooSoon": "Faltam registros. Com três meses fechados dá para ler os quatro sinais, e até lá só o que vence agora tem resposta."
 		},
 		"noReading": "Sem leitura",
+		"loggerBody": "Este diagnóstico lê o dinheiro da casa inteira, e um Registrador só enxerga os próprios lançamentos. Um veredito feito só da sua parte não é um veredito menor: as medidas foram pensadas para a casa, então ele diria que a sua reserva não cobre nada e mandaria você guardar um mês de gasto da casa. Os seus lançamentos estão na Lista, e os seus limites no Orçamento.",
 		"percent": "{{value}}%",
 		"monthsCovered_one": "{{value}} mês",
 		"monthsCovered_other": "{{value}} meses",

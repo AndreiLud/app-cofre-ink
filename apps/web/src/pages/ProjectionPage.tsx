@@ -99,7 +99,9 @@ export function ProjectionPage() {
 	});
 
 	// A scenario is part of the plan of the space, so it asks what a limit or a goal asks.
-	const mayWrite = useWhatIMayDo(spaceId).may("plan.write");
+	const iMay = useWhatIMayDo(spaceId);
+	const mayWrite = iMay.may("plan.write");
+	const seesOwnRowsOnly = iMay.seesOwnRowsOnly;
 
 	const save = useMutation({
 		mutationFn: async () => {
@@ -167,22 +169,26 @@ export function ProjectionPage() {
 	return (
 		<div className="space-y-8">
 			<div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+				{/* The months ahead are made of this person's own records for a logger, which
+				    the line says rather than leaving the figure to read as the household's. */}
 				<InsightTitle
 					level="h1"
 					detail={
-						base.length === 0
-							? t("projection.nothingDetail")
-							: t("projection.detail", {
-									month: monthName(shown[0]?.month ?? thisMonth),
-									income: new Intl.NumberFormat(locale, {
-										style: "currency",
-										currency,
-									}).format((shown[0]?.income ?? 0) / 100),
-									expense: new Intl.NumberFormat(locale, {
-										style: "currency",
-										currency,
-									}).format((shown[0]?.expense ?? 0) / 100),
-								})
+						seesOwnRowsOnly
+							? t("projection.yoursOnly")
+							: base.length === 0
+								? t("projection.nothingDetail")
+								: t("projection.detail", {
+										month: monthName(shown[0]?.month ?? thisMonth),
+										income: new Intl.NumberFormat(locale, {
+											style: "currency",
+											currency,
+										}).format((shown[0]?.income ?? 0) / 100),
+										expense: new Intl.NumberFormat(locale, {
+											style: "currency",
+											currency,
+										}).format((shown[0]?.expense ?? 0) / 100),
+									})
 					}
 				>
 					{base.length === 0

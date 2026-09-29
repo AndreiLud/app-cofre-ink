@@ -151,7 +151,7 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 		setEditing(one);
 		setKind(one?.kind ?? "expense");
 		setDescription(one?.description ?? "");
-		setAmount(one ? fillAmount(one.amount, i18n.resolvedLanguage) : "");
+		setAmount(one ? fillAmount(one.amount, i18n.resolvedLanguage, currency) : "");
 		setAccountId(one?.accountId ?? usable[0]?.id ?? "");
 		setCategoryId(one?.categoryId ?? "");
 		setFrequency(one?.frequency ?? "monthly");

@@ -694,7 +694,18 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			// The one delete path that asked the permission and then skipped both of the
 			// other two questions. So a logger, who holds transaction.delete, could take
 			// away somebody else's whole instalment plan, and anybody could take away one
-			// that had been ticked off against the bank, which every other path refuses.
+			// that had been ticked off against the bank, which the other delete paths
+			// refuse.
+			//
+			// Whose it is first, and only then whether it is frozen. The other way round
+			// tells somebody a plan they may not see exists and was ticked off against a
+			// bank, which is two facts about another person's money.
+			const mineOnly = seesOwnRowsOnly(context.actor(), rows[0]?.spaceId ?? "");
+			for (const row of rows) {
+				if (mineOnly && row.createdBy !== context.actor().userId) {
+					throw new NotFoundError("installments", groupId);
+				}
+			}
 			for (const row of rows) assertChangeable(row, "removing");
 
 			await context.driver.transaction(async (tx) => {
