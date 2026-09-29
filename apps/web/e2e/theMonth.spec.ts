@@ -132,8 +132,23 @@ test.describe("a month in three numbers", () => {
 		await page.getByRole("button", { name: "Guardar o mês" }).click();
 		await expect(page.getByText("Escreva pelo menos um dos números.")).toBeVisible();
 
+		// On the field that is wrong, and in the words every amount field uses. It used to
+		// say one of three amounts could not be read without saying which, beside three
+		// fields that looked identical.
 		await page.getByLabel("Quanto entrou").fill("uns cinco mil");
 		await page.getByRole("button", { name: "Guardar o mês" }).click();
-		await expect(page.getByText("Não consegui ler um dos valores.")).toBeVisible();
+		await expect(page.getByText("Não consegui ler um dos valores.")).toHaveCount(0);
+
+		const income = page.getByLabel("Quanto entrou");
+		await expect(income).toHaveAttribute("aria-invalid", "true");
+		await expect(page.getByText("Não consegui ler esse valor")).toBeVisible();
+
+		// And the other two are not blamed for it.
+		await expect(page.getByLabel("Quanto você gastou")).not.toHaveAttribute("aria-invalid", "true");
+
+		// Corrected, it saves, and the sentence goes with it.
+		await income.fill("5.000,00");
+		await page.getByRole("button", { name: "Guardar o mês" }).click();
+		await expect(page.getByText("Não consegui ler esse valor")).toHaveCount(0);
 	});
 });

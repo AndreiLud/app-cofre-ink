@@ -699,7 +699,6 @@
 		"leftOver": "Left over",
 		"shortBy": "Short by",
 		"couldNot": "I could not save it",
-		"unreadable": "I could not read one of the amounts. Write the number on its own, like 2,500.00.",
 		"nothingTyped": "Write at least one of the numbers.",
 		"saved": "{{month}} is written",
 		"savedBody": "It is all in the usual places: the list, the overview, the reports and the projection. Come back here whenever you want to correct it.",

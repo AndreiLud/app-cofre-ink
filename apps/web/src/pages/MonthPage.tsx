@@ -83,6 +83,25 @@ function typedAmount(text: string, currency: string): number | null {
 	}
 }
 
+/**
+ * Whether the month has no such number, which is what takes a record away.
+ *
+ * Asked of the text and not of the reading. The reader answers nothing for an empty
+ * field, for a zero and for a word it cannot read, and only the first two of those mean
+ * the month has no such number: the third means somebody made a typo. The guard below
+ * catches that before anything is saved, so nothing was ever lost, but the two disagreed
+ * about what nothing meant and only their ordering kept it safe. A fourth field added
+ * without being listed in MONTH_FIELDS would have deleted a record over a typo.
+ */
+function meansNoSuchNumber(text: string, currency: string): boolean {
+	if (text.trim() === "") return true;
+	try {
+		return Math.abs(parseMoney(text, { currency }).amount) === 0;
+	} catch {
+		return false;
+	}
+}
+
 /** Typed, and not a number. Said out loud rather than quietly read as nothing. */
 function isUnreadable(text: string, currency: string): boolean {
 	if (text.trim() === "") return false;
@@ -153,6 +172,8 @@ export function MonthPage() {
 	const [cardAccountId, setCardAccountId] = useState("");
 	const [problem, setProblem] = useState<string | null>(null);
 	const [saved, setSaved] = useState<string | null>(null);
+	/** Which of the three could not be read, so the sentence sits on the field itself. */
+	const [unreadable, setUnreadable] = useState<MonthField[]>([]);
 
 	function goTo(next: string) {
 		setMonth(next);
@@ -261,10 +282,15 @@ export function MonthPage() {
 		spending: spending ?? asText(mine.get("spending"), language),
 		invoice: invoice ?? asText(mine.get("invoice"), language),
 	};
+	// Null means the month has no such number, which is what takes a record away, and it
+	// is asked of the text rather than read off a failed parse. A word somebody mistyped
+	// is not the month saying it has no income.
 	const cents: Record<MonthField, number | null> = {
-		income: typedAmount(text.income, currency),
-		spending: typedAmount(text.spending, currency),
-		invoice: typedAmount(text.invoice, currency),
+		income: meansNoSuchNumber(text.income, currency) ? null : typedAmount(text.income, currency),
+		spending: meansNoSuchNumber(text.spending, currency)
+			? null
+			: typedAmount(text.spending, currency),
+		invoice: meansNoSuchNumber(text.invoice, currency) ? null : typedAmount(text.invoice, currency),
 	};
 	const left = (cents.income ?? 0) - (cents.spending ?? 0) - (cents.invoice ?? 0);
 
@@ -399,13 +425,17 @@ export function MonthPage() {
 		setProblem(null);
 		setSaved(null);
 
-		const unreadable = MONTH_FIELDS.some((part) =>
+		// On the field that is wrong, and in the words every amount field uses. It said
+		// one of three amounts could not be read without saying which, and the field it
+		// was about looked exactly like the other two.
+		const wrong = MONTH_FIELDS.filter((part) =>
 			isUnreadable(text[part as MonthField], currency),
-		);
-		if (unreadable) {
-			setProblem(t("theMonth.unreadable"));
+		) as MonthField[];
+		if (wrong.length > 0) {
+			setUnreadable(wrong);
 			return;
 		}
+		setUnreadable([]);
 		// Nothing in all three, with nothing written for the month either, is somebody who
 		// opened the screen and pressed the button. Taking away what is not there and
 		// saying it worked would read as having lost something.
@@ -496,6 +526,7 @@ export function MonthPage() {
 				<form className="space-y-5" onSubmit={submit}>
 					<Field
 						label={t("theMonth.income")}
+						error={unreadable.includes("income") ? t("fields.amountError") : null}
 						hint={t("theMonth.incomeHint")}
 						numeric={true}
 						inputMode="decimal"
@@ -505,6 +536,7 @@ export function MonthPage() {
 					/>
 					<Field
 						label={t("theMonth.spending")}
+						error={unreadable.includes("spending") ? t("fields.amountError") : null}
 						hint={t(
 							cardAccounts.length === 0 ? "theMonth.spendingOnlyHint" : "theMonth.spendingHint",
 						)}
@@ -517,6 +549,7 @@ export function MonthPage() {
 					{cardAccounts.length > 0 ? (
 						<Field
 							label={t("theMonth.invoice")}
+							error={unreadable.includes("invoice") ? t("fields.amountError") : null}
 							hint={t("theMonth.invoiceHint", { month: monthName })}
 							numeric={true}
 							inputMode="decimal"

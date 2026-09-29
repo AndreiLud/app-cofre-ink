@@ -699,7 +699,6 @@
 		"leftOver": "Sobrou",
 		"shortBy": "Faltou",
 		"couldNot": "Não consegui guardar",
-		"unreadable": "Não consegui ler um dos valores. Escreva só o número, como 2.500,00.",
 		"nothingTyped": "Escreva pelo menos um dos números.",
 		"saved": "{{month}} está escrito",
 		"savedBody": "Está tudo no lugar de sempre: na lista, no painel, nos relatórios e na projeção. Volte aqui quando quiser corrigir.",
