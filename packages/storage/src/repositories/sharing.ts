@@ -69,7 +69,8 @@ const SETTLEMENT_SELECT = `SELECT "id", "space_id", "from_user_id", "to_user_id"
 const TRANSACTION_SELECT = `SELECT "id", "space_id", "kind", "status", "amount", "currency",
 	"fx_rate", "amount_in_base", "happened_on", "description", "account_id",
 	"counter_account_id", "notes", "reconciled_at", "installment_group", "installment_number",
-	"installment_count", "invoice_month", "category_id", "priority", "recurrence_id", "paid_by",
+	"installment_count", "invoice_month", "invoice_month_by_hand", "category_id", "priority",
+	"recurrence_id", "paid_by",
 	"created_by", "created_at", "updated_at"
 	FROM "transactions"`;
 

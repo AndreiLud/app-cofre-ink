@@ -1,0 +1,103 @@
+import { describe, expect, it } from "vitest";
+import type { CardCycle } from "./invoice.ts";
+import { amountToPay, invoiceStateOf } from "./invoiceState.ts";
+
+// A card that closes on the third and falls due on the tenth, as the sample data has.
+const early: CardCycle = { closingDay: 3, dueDay: 10 };
+
+function state(over: Partial<Parameters<typeof invoiceStateOf>[0]> = {}) {
+	return invoiceStateOf({
+		month: "2026-10",
+		cycle: early,
+		charged: 128_450,
+		paid: 0,
+		today: "2026-09-29",
+		...over,
+	});
+}
+
+describe("the days of an invoice", () => {
+	it("says the days it covers, the day it closes and the day it falls due", () => {
+		const one = state();
+		expect(one.from).toBe("2026-09-03");
+		expect(one.to).toBe("2026-10-02");
+		expect(one.closesOn).toBe("2026-10-03");
+		expect(one.dueOn).toBe("2026-10-10");
+	});
+
+	it("counts the days to each, and turns them negative once they pass", () => {
+		expect(state().daysToClose).toBe(4);
+		expect(state().daysToDue).toBe(11);
+		expect(state({ today: "2026-10-15" }).daysToClose).toBe(-12);
+		expect(state({ today: "2026-10-15" }).daysToDue).toBe(-5);
+	});
+
+	it("is open until the closing day, and closed on it", () => {
+		expect(state({ today: "2026-10-02" }).closed).toBe(false);
+		expect(state({ today: "2026-10-03" }).closed).toBe(true);
+	});
+});
+
+describe("where an invoice stands", () => {
+	it("is open while nothing has been paid", () => {
+		const one = state();
+		expect(one.standing).toBe("open");
+		expect(one.left).toBe(128_450);
+	});
+
+	it("is partly paid when something has", () => {
+		const one = state({ paid: 50_000 });
+		expect(one.standing).toBe("partlyPaid");
+		expect(one.left).toBe(78_450);
+	});
+
+	it("is paid when the whole of it has", () => {
+		const one = state({ paid: 128_450 });
+		expect(one.standing).toBe("paid");
+		expect(one.left).toBe(0);
+	});
+
+	it("is in credit when more was paid than charged, which people do on purpose", () => {
+		const one = state({ paid: 150_000 });
+		expect(one.standing).toBe("inCredit");
+		expect(one.left).toBe(-21_550);
+	});
+
+	it("is open, and not paid, when it charged nothing", () => {
+		expect(state({ charged: 0 }).standing).toBe("open");
+	});
+
+	it("reopens when a purchase lands on it after it was paid", () => {
+		// What a purchase moved onto a paid invoice does. The payment is money that left
+		// the account and does not move; the invoice says what is left.
+		const one = state({ charged: 128_450, paid: 128_450 });
+		expect(one.standing).toBe("paid");
+		const after = state({ charged: 148_450, paid: 128_450 });
+		expect(after.standing).toBe("partlyPaid");
+		expect(after.left).toBe(20_000);
+	});
+});
+
+describe("whether it is late", () => {
+	it("is not late before the day it falls due", () => {
+		expect(state({ today: "2026-10-10" }).late).toBe(false);
+	});
+
+	it("is late the day after, while anything is still owed", () => {
+		expect(state({ today: "2026-10-11" }).late).toBe(true);
+	});
+
+	it("is not late once it is paid, however long ago it fell due", () => {
+		expect(state({ today: "2026-12-01", paid: 128_450 }).late).toBe(false);
+	});
+});
+
+describe("what a payment is offered for", () => {
+	it("offers what is left, and not what was charged", () => {
+		expect(amountToPay(state({ paid: 50_000 }))).toBe(78_450);
+	});
+
+	it("offers nothing on an invoice that is already in credit", () => {
+		expect(amountToPay(state({ paid: 150_000 }))).toBe(0);
+	});
+});

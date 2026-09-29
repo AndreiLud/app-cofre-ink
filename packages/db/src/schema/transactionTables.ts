@@ -72,6 +72,21 @@ export const TRANSACTION_IMPORT_COLUMNS = [{ name: "external_id", type: "text" a
  * the card only says how it got there. That is why it empties instead of blocking when
  * a card is removed, and why a record with no card is as complete as one with it.
  */
+/**
+ * When the invoice a record belongs to was chosen by a person rather than worked out.
+ *
+ * Two cases need it and they are the same case. A payment of an invoice is a transfer
+ * into the card account, and the account money leaves from has no cycle, so nothing would
+ * work out which invoice it pays. And a purchase the bank closed a day either side of the
+ * day the app expected has to be moved by hand, and must then stay where it was put, even
+ * when somebody later corrects the closing day of the account.
+ *
+ * So: set, and nothing recalculates it.
+ */
+export const TRANSACTION_INVOICE_COLUMNS = [
+	{ name: "invoice_month_by_hand", type: "integer" as const },
+];
+
 export const TRANSACTION_CARD_COLUMNS = [
 	{
 		name: "card_id",
@@ -122,6 +137,7 @@ export const transactions = defineTable({
 		 * changing the closing day later does not move a purchase that already closed.
 		 */
 		{ name: "invoice_month", type: "text" },
+		...TRANSACTION_INVOICE_COLUMNS,
 		...TRANSACTION_CATEGORY_COLUMNS,
 		...TRANSACTION_RECURRENCE_COLUMNS,
 		...TRANSACTION_PAYER_COLUMNS,

@@ -7,6 +7,7 @@
 
 import {
 	type CalendarDate,
+	type CalendarMonth,
 	type CardCycle,
 	compareCalendarDates,
 	invoiceMonthOf,
@@ -38,8 +39,8 @@ import type { RepositoryContext } from "./context.ts";
 const SELECT = `SELECT "id", "space_id", "kind", "status", "amount", "currency", "fx_rate",
 	"amount_in_base", "happened_on", "description", "account_id", "counter_account_id", "notes",
 	"reconciled_at", "installment_group", "installment_number", "installment_count",
-	"invoice_month", "category_id", "priority", "recurrence_id", "paid_by", "external_id",
-	"card_id", "created_by", "created_at", "updated_at"
+	"invoice_month", "invoice_month_by_hand", "category_id", "priority", "recurrence_id",
+	"paid_by", "external_id", "card_id", "created_by", "created_at", "updated_at"
 	FROM "transactions"`;
 
 export type CreateTransactionInput = {
@@ -74,6 +75,14 @@ export type CreateTransactionInput = {
 	 * account is refused rather than quietly moving the record somewhere else.
 	 */
 	cardId?: string | null;
+	/**
+	 * The invoice this record belongs to, chosen rather than worked out.
+	 *
+	 * Only the payment of an invoice uses it: a payment leaves an account with no cycle,
+	 * so nothing could work out which invoice it pays. Set here, it is also marked as
+	 * chosen, and nothing recalculates it afterwards.
+	 */
+	invoiceMonth?: CalendarMonth | null;
 };
 
 export type UpdateTransactionInput = {
@@ -319,13 +328,20 @@ export function createTransactionsRepository(context: RepositoryContext) {
 				found.fxRate,
 			);
 		}
+		// An invoice somebody chose stays chosen. A purchase the bank closed a day either
+		// side of the day this app expected was moved by hand, and working it out again
+		// from the closing day would put it straight back where it was wrong.
+		const chosen = found.invoiceMonthByHand;
+
 		if (input.happenedOn !== undefined) {
 			parseCalendarDate(input.happenedOn);
 			values.happened_on = input.happenedOn;
 
-			const account = await accountIn(found.spaceId, input.accountId ?? found.accountId);
-			const cycle = cycleOf(account);
-			values.invoice_month = cycle ? invoiceMonthOf(input.happenedOn, cycle) : null;
+			if (!chosen) {
+				const account = await accountIn(found.spaceId, input.accountId ?? found.accountId);
+				const cycle = cycleOf(account);
+				values.invoice_month = cycle ? invoiceMonthOf(input.happenedOn, cycle) : null;
+			}
 		}
 		if (input.description !== undefined) values.description = input.description.trim();
 		if (input.accountId !== undefined) {
@@ -333,7 +349,7 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			values.account_id = input.accountId;
 			// The invoice a purchase lands on follows the card it was made with, so
 			// moving a record to another account has to work it out again.
-			if (input.happenedOn === undefined) {
+			if (input.happenedOn === undefined && !chosen) {
 				const cycle = cycleOf(account);
 				values.invoice_month = cycle ? invoiceMonthOf(found.happenedOn, cycle) : null;
 			}
@@ -473,7 +489,11 @@ export function createTransactionsRepository(context: RepositoryContext) {
 							installment_group: group,
 							installment_number: count > 1 ? part.number : null,
 							installment_count: count > 1 ? part.count : null,
-							invoice_month: part.invoiceMonth ?? null,
+							// Chosen by the caller only where nothing could work it out, which is
+							// the payment of an invoice, and then marked as chosen so that
+							// editing the record later does not move it.
+							invoice_month: input.invoiceMonth ?? part.invoiceMonth ?? null,
+							invoice_month_by_hand: input.invoiceMonth ? 1 : null,
 							category_id: categoryId,
 							priority: input.priority ?? sorted.priority,
 							// One entry from the bank becomes one record, so only a purchase
@@ -671,6 +691,31 @@ export function createTransactionsRepository(context: RepositoryContext) {
 				spaceId: found.spaceId,
 				id,
 				values: ahead ? { status: "settled", happened_on: today } : { status: "settled" },
+			});
+			return reachable(id);
+		},
+
+		/**
+		 * Putting a record on an invoice by hand, and leaving it there.
+		 *
+		 * The bank closes a day either side of the day this application expected, so a
+		 * purchase lands on the wrong invoice and somebody has to say so. Once said, it is
+		 * marked as chosen, and correcting the closing day of the account afterwards does
+		 * not drag the purchase back.
+		 *
+		 * A record already ticked off against the bank is frozen, like every other change
+		 * to one: the line on the statement said which day it was, not which invoice, and
+		 * unfreezing it is the person's decision to make on the record itself.
+		 */
+		async setInvoiceMonth(id: string, month: CalendarMonth): Promise<Transaction> {
+			const found = await reachable(id);
+			assertCan(context.actor(), found.spaceId, "transaction.update");
+			assertChangeable(found, "changing");
+			await updateRow(context.write(), {
+				table: transactions,
+				spaceId: found.spaceId,
+				id,
+				values: { invoice_month: month, invoice_month_by_hand: 1 },
 			});
 			return reachable(id);
 		},

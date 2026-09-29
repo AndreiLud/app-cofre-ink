@@ -509,7 +509,9 @@
 		"bundleHasNoSpace": "This file has changes in it but not the space they belong to, so there is nothing to bring back.",
 		"quotaIsForVouchers": "Only a benefit card is credited with an amount every month. An ordinary account receives records.",
 		"quotaIsPositive": "What lands on a benefit card each month is a whole amount, more than nothing.",
-		"quotaDayIsADayOfTheMonth": "The day the allowance lands is a day of the month, from 1 to 31."
+		"quotaDayIsADayOfTheMonth": "The day the allowance lands is a day of the month, from 1 to 31.",
+		"notACardWithACycle": "An invoice belongs to a credit card with a closing day and a due day. Fill both in under Accounts.",
+		"notOnAnInvoice": "Only a record that is on an invoice can be moved to another one."
 	},
 	"transactions": {
 		"title": "Records",

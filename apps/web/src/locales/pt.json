@@ -509,7 +509,9 @@
 		"bundleHasNoSpace": "Este arquivo tem mudanças dentro, mas não traz o espaço a que elas pertencem, então não há o que trazer de volta.",
 		"quotaIsForVouchers": "Só um cartão de benefício recebe um valor todo mês. Uma conta comum recebe lançamentos.",
 		"quotaIsPositive": "O valor que cai no cartão de benefício todo mês é um número inteiro, maior que nada.",
-		"quotaDayIsADayOfTheMonth": "O dia do crédito é um dia do mês, de 1 a 31."
+		"quotaDayIsADayOfTheMonth": "O dia do crédito é um dia do mês, de 1 a 31.",
+		"notACardWithACycle": "Uma fatura é de um cartão de crédito com dia de fechamento e dia de vencimento. Preencha os dois em Contas.",
+		"notOnAnInvoice": "Só um lançamento que está numa fatura pode ser movido para outra."
 	},
 	"transactions": {
 		"title": "Lançamentos",

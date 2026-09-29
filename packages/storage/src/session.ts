@@ -18,6 +18,7 @@ import { createImportsRepository } from "./repositories/imports.ts";
 import { createIndicesRepository } from "./repositories/indices.ts";
 import { createInvestmentsRepository } from "./repositories/investments.ts";
 import { createInvitationsRepository } from "./repositories/invitations.ts";
+import { createInvoicesRepository } from "./repositories/invoices.ts";
 import { createMembersRepository } from "./repositories/members.ts";
 import { createProjectionsRepository } from "./repositories/projections.ts";
 import { createRecurrencesRepository } from "./repositories/recurrences.ts";
@@ -52,6 +53,7 @@ export type Session = {
 	erasure: ReturnType<typeof createErasureRepository>;
 	categories: ReturnType<typeof createCategoriesRepository>;
 	transactions: ReturnType<typeof createTransactionsRepository>;
+	invoices: ReturnType<typeof createInvoicesRepository>;
 	rules: ReturnType<typeof createRulesRepository>;
 	recurrences: ReturnType<typeof createRecurrencesRepository>;
 	reports: ReturnType<typeof createReportsRepository>;
@@ -141,6 +143,7 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 		erasure: createErasureRepository(context),
 		categories: createCategoriesRepository(context),
 		transactions,
+		invoices: createInvoicesRepository(context, { accounts, transactions }),
 		rules: createRulesRepository(context),
 		recurrences: createRecurrencesRepository(context),
 		reports: createReportsRepository(context),

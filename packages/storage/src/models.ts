@@ -147,6 +147,14 @@ export type Transaction = {
 	installmentNumber: number | null;
 	installmentCount: number | null;
 	invoiceMonth: string | null;
+	/**
+	 * Whether the invoice above was chosen by a person rather than worked out.
+	 *
+	 * True for a payment, which leaves an account with no cycle and so could never be
+	 * worked out, and for a purchase moved because the bank closed a day either side of
+	 * the day this app expected. Nothing recalculates it afterwards.
+	 */
+	invoiceMonthByHand: boolean;
 	categoryId: string | null;
 	/** Empty means the priority of its category, which is the usual case. */
 	priority: SpendingPriority | null;
@@ -450,6 +458,7 @@ export function toTransaction(row: Row): Transaction {
 		installmentNumber: asOptionalNumber(row.installment_number),
 		installmentCount: asOptionalNumber(row.installment_count),
 		invoiceMonth: asOptionalText(row.invoice_month),
+		invoiceMonthByHand: asOptionalNumber(row.invoice_month_by_hand) === 1,
 		categoryId: asOptionalText(row.category_id),
 		priority: asOptionalText(row.priority) as SpendingPriority | null,
 		recurrenceId: asOptionalText(row.recurrence_id),

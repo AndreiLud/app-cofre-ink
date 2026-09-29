@@ -29,6 +29,7 @@ import {
 	TRANSACTION_CARD_COLUMNS,
 	TRANSACTION_CATEGORY_COLUMNS,
 	TRANSACTION_IMPORT_COLUMNS,
+	TRANSACTION_INVOICE_COLUMNS,
 	TRANSACTION_PAYER_COLUMNS,
 	TRANSACTION_RECURRENCE_COLUMNS,
 	TRANSACTION_TABLES,
@@ -163,7 +164,73 @@ export const MIGRATIONS: readonly Migration[] = [
 				(column) => addColumnSql("accounts", column, context.dialect),
 			),
 	},
+	{
+		/**
+		 * An invoice can be chosen rather than worked out, which a payment needs and a
+		 * purchase the bank closed a day early needs too.
+		 */
+		id: "0014_invoice_by_hand",
+		statements: (context) =>
+			TRANSACTION_INVOICE_COLUMNS.filter(
+				(column) => !context.hasColumn("transactions", column.name),
+			).map((column) => addColumnSql("transactions", column, context.dialect)),
+	},
+	{
+		/**
+		 * A series on a card lands on an invoice, where it always should have.
+		 *
+		 * Writing a recurrence never worked out which invoice it belonged to, so a
+		 * subscription charged to a credit card was on no invoice at all and the card
+		 * showed less than it would charge. The rule is the one every other writer uses,
+		 * the closing day of the account the record is charged to, so the repair is that
+		 * rule applied to the rows that were written without it.
+		 *
+		 * Data rather than schema, like 0012, and it does not travel: every device runs its
+		 * own migrations, and an entry in the change log about this would be a write nobody
+		 * made.
+		 */
+		id: "0015_subscriptions_reach_their_invoice",
+		statements: () => [STAMP_SERIES_WITH_THEIR_INVOICE],
+	},
 ];
+
+/**
+ * The repair of 0015, written out so a test can run it against every engine.
+ *
+ * It is the rule every other writer of that column uses, in SQL: a day before the closing
+ * day of the account belongs to the invoice closing that month, and a day on or after it
+ * belongs to the next one. Written without a date function, because the two dialects have
+ * different ones, and without a negative substring index, because only one of them has
+ * that. The month is padded by asking whether it needs padding.
+ *
+ * It touches only rows written by a series, only where the invoice is empty, and only on
+ * an account that is a credit card with both of its days set, so running it twice does
+ * the same as running it once.
+ */
+export const STAMP_SERIES_WITH_THEIR_INVOICE = `UPDATE "transactions"
+	 SET "invoice_month" = CASE
+	   WHEN CAST(SUBSTR("happened_on", 9, 2) AS INTEGER) < (
+	     SELECT a."closing_day" FROM "accounts" a WHERE a."id" = "transactions"."account_id"
+	   )
+	   THEN SUBSTR("happened_on", 1, 7)
+	   WHEN CAST(SUBSTR("happened_on", 6, 2) AS INTEGER) = 12
+	   THEN CAST(CAST(SUBSTR("happened_on", 1, 4) AS INTEGER) + 1 AS TEXT) || '-01'
+	   WHEN CAST(SUBSTR("happened_on", 6, 2) AS INTEGER) + 1 < 10
+	   THEN SUBSTR("happened_on", 1, 4) || '-0' ||
+	        CAST(CAST(SUBSTR("happened_on", 6, 2) AS INTEGER) + 1 AS TEXT)
+	   ELSE SUBSTR("happened_on", 1, 4) || '-' ||
+	        CAST(CAST(SUBSTR("happened_on", 6, 2) AS INTEGER) + 1 AS TEXT)
+	 END
+	 WHERE "invoice_month" IS NULL
+	   AND "recurrence_id" IS NOT NULL
+	   AND "deleted_at" IS NULL
+	   AND EXISTS (
+	     SELECT 1 FROM "accounts" a
+	     WHERE a."id" = "transactions"."account_id"
+	       AND a."kind" = 'credit'
+	       AND a."closing_day" IS NOT NULL
+	       AND a."due_day" IS NOT NULL
+	   )`;
 
 export const MIGRATIONS_TABLE = "schema_migrations";
 
