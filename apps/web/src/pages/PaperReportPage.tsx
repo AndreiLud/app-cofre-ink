@@ -346,7 +346,10 @@ export function PaperReportPage() {
 						<TableBody>
 							{(byCategory.data ?? []).map((one) => (
 								<TableRow key={one.categoryId ?? "none"}>
-									<TableCell>{one.name}</TableCell>
+									{/* Money nobody sorted is a line of its own and not a blank one.
+									    The screen next door has said so all along, and this printed
+									    an empty cell against two thirds of a month. */}
+									<TableCell>{one.name ?? t("reports.noCategory")}</TableCell>
 									<TableCell numeric={true}>
 										<Value amount={one.total} currency={currency} />
 									</TableCell>
@@ -372,8 +375,11 @@ export function PaperReportPage() {
 						<TableBody>
 							{(byPriority.data ?? []).map((one) => (
 								<Line
-									key={one.priority}
-									name={t(`priority.${one.priority}`)}
+									key={one.priority ?? "none"}
+									// A record with no priority on it has none, and asking for the
+									// sentence of a priority called nothing printed the key itself:
+									// a row headed "priority.null" in the file somebody hands over.
+									name={one.priority ? t(`priority.${one.priority}`) : t("reports.noPriority")}
 									amount={one.total}
 									currency={currency}
 								/>

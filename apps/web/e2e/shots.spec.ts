@@ -89,6 +89,16 @@ test.describe("shots", () => {
 				printBackground: true,
 				margin: { top: "14mm", bottom: "14mm", left: "12mm", right: "12mm" },
 			});
+
+			// And a picture of what the file holds, because a PDF cannot be looked at the way
+			// a picture can and the print stylesheet is the whole difference between the two:
+			// the navigation, the buttons and the line telling somebody how to save it are all
+			// meant to be gone by now.
+			await page.emulateMedia({ media: "print" });
+			await page.screenshot({
+				path: `shots/relatorio_impresso_${month.name}.png`,
+				fullPage: true,
+			});
 		});
 	}
 });

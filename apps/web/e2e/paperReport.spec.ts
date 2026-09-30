@@ -91,6 +91,23 @@ test.describe("the month on paper", () => {
 		await expect(page).toHaveTitle("cofre_relatorio_2026-09");
 	});
 
+	/**
+	 * Nothing in the file is a key, and no row is nameless.
+	 *
+	 * Money nobody sorted and spending with no priority on it are both ordinary, and both
+	 * printed badly: an empty first cell against two thirds of a month, and a row headed
+	 * `priority.null`. The screen next door had a sentence for each of them all along.
+	 */
+	test("names the money nobody sorted, in words", async ({ page }) => {
+		await openCofre(page);
+		await page.goto("/relatorio?mes=2026-08");
+
+		await expect(page.getByText(/priority\./)).toHaveCount(0);
+		await expect(page.getByText(/^[a-z]+\.[a-zA-Z]+$/)).toHaveCount(0);
+		await expect(page.getByRole("cell", { name: "Sem categoria" })).toBeVisible();
+		await expect(page.getByRole("cell", { name: "Sem prioridade" })).toBeVisible();
+	});
+
 	test("reads a month already over in English as well", async ({ page }) => {
 		await openCofre(page);
 		await page.goto("/relatorio?mes=2026-08&lang=en");
