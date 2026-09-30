@@ -24,7 +24,20 @@ async function describe(driver: Driver): Promise<MigrationContext> {
 	};
 }
 
-export async function migrate(driver: Driver): Promise<string[]> {
+export type MigrateOptions = {
+	/**
+	 * Stop after this migration, leaving the database as an older release left it.
+	 *
+	 * For the conformance suite, and nothing in the application passes it. The one thing
+	 * migrations have to do and cannot be checked by a schema comparison is carry a
+	 * database that has data in it from one release to the next, and checking that needs a
+	 * way to build the older one first. Running the real function up to a point beats a
+	 * second copy of this loop in the tests, which would be the thing that drifts.
+	 */
+	stopAfter?: string;
+};
+
+export async function migrate(driver: Driver, options: MigrateOptions = {}): Promise<string[]> {
 	await driver.run(createMigrationsTableSql(driver.dialect));
 
 	const applied = new Set(
@@ -45,6 +58,7 @@ export async function migrate(driver: Driver): Promise<string[]> {
 			]);
 		});
 		ran.push(migration.id);
+		if (migration.id === options.stopAfter) break;
 	}
 	return ran;
 }

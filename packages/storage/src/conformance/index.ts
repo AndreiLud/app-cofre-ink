@@ -34,6 +34,7 @@ import { runSavedFilterConformance } from "./savedFilters.ts";
 import { type AdapterUnderTest, type Fixture, prepare } from "./setup.ts";
 import { runSyncConformance } from "./sync.ts";
 import { runTransactionConformance } from "./transactions.ts";
+import { runUpgradeConformance } from "./upgrade.ts";
 
 type ProbeContext = {
 	spaceId: string;
@@ -745,6 +746,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 		runPortabilityConformance(adapter);
 		runErasureConformance(adapter);
 		runSyncConformance(adapter);
+		runUpgradeConformance(adapter);
 
 		describe("the permission matrix", () => {
 			it("covers every permission with at least one probe", () => {
