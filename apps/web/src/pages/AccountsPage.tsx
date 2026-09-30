@@ -55,6 +55,8 @@ export function AccountsPage() {
 	// when the money arrives, so this is the only place the figure can come from.
 	const [quota, setQuota] = useState("");
 	const [quotaDay, setQuotaDay] = useState("");
+	/** What is already charged to the invoice that is open today, on a card that is not new. */
+	const [invoiceSoFar, setInvoiceSoFar] = useState("");
 	// The card that comes with the account, for the two kinds that are a card.
 	const [lastFour, setLastFour] = useState("");
 	const [works, setWorks] = useState<CardKind>("credit");
@@ -189,6 +191,8 @@ export function AccountsPage() {
 		void queries.invalidateQueries({ queryKey: ["benefit"] });
 		// And a closing day or a limit changes where every invoice of that card stands.
 		void queries.invalidateQueries({ queryKey: ["invoices"] });
+		// A card that arrived with its open invoice already on it wrote a record to say so.
+		void queries.invalidateQueries({ queryKey: ["transactions"] });
 	};
 
 	const complain = (error: unknown) => setProblem(sayWhy(error, t));
@@ -266,6 +270,25 @@ export function AccountsPage() {
 								: null,
 				});
 			}
+
+			// What was already on the open invoice, as one purchase dated today.
+			//
+			// A record and not a column, so it reaches the invoice, the projection and the
+			// balance by the paths they already have, and so somebody who typed the wrong
+			// number can open it and correct it like anything else.
+			if (kind === "credit" && makesAnAccount && invoiceSoFar.trim() !== "") {
+				const charged = parseMoney(invoiceSoFar, { currency: currentSpace?.baseCurrency }).amount;
+				if (charged > 0) {
+					await session.transactions.create({
+						spaceId,
+						kind: "expense",
+						amount: charged,
+						happenedOn: today,
+						description: t("accounts.invoiceSoFarRecord"),
+						accountId: account.id,
+					});
+				}
+			}
 			return account;
 		},
 		onSuccess: () => {
@@ -275,6 +298,7 @@ export function AccountsPage() {
 			setInstitution("");
 			setLastFour("");
 			setWorks("credit");
+			setInvoiceSoFar("");
 			setProblem(null);
 			invalidate();
 		},
@@ -696,6 +720,26 @@ export function AccountsPage() {
 							/>
 						</div>
 					) : null}
+
+					{/* What is already on the invoice that is open right now.
+					    Optional, and the answer to the only real question somebody has when
+					    they put an existing card into this: the cycle started before they got
+					    here, and typing three weeks of purchases back in is not something
+					    anybody does. What goes in is one expense on the card, dated today,
+					    which joins the open invoice like any other purchase and shows up on
+					    the invoice screen under a name that says what it is. */}
+					{kind === "credit" && makesAnAccount ? (
+						<Field
+							label={t("accounts.invoiceSoFar")}
+							hint={t("accounts.invoiceSoFarHint")}
+							value={invoiceSoFar}
+							onChange={(event) => setInvoiceSoFar(event.target.value)}
+							numeric={true}
+							inputMode="decimal"
+							placeholder={t("fields.amountPlaceholder")}
+						/>
+					) : null}
+
 					{kind === "voucher" ? (
 						<Select
 							label={t("accounts.benefit")}
