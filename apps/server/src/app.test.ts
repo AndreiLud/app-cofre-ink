@@ -340,6 +340,47 @@ describe("the api", () => {
 		expect(byCard.map((one) => one.description)).toEqual(["Livraria"]);
 	});
 
+	/**
+	 * A record on an account with no card at all.
+	 *
+	 * The route refused an empty card identifier as a string that is too short, and the
+	 * repository has always read an empty one as no card, so the same request was written in
+	 * a browser and refused on a server. The interface was sending one, which is how it was
+	 * found, and the interface is only half of it: the two modes have to answer the same
+	 * thing whatever reaches them.
+	 */
+	it("takes no card as no card, however it is written", async () => {
+		const ana = createClient(app);
+		await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+
+		const space = await ana.json<{ id: string }>("/api/spaces", {
+			method: "POST",
+			body: JSON.stringify({ name: "Casa" }),
+		});
+		const account = await ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+			method: "POST",
+			body: JSON.stringify({ kind: "checking", name: "Conta" }),
+		});
+
+		for (const given of ["", null, undefined]) {
+			const [written] = await ana.json<Array<{ cardId: string | null }>>(
+				`/api/spaces/${space.id}/transactions`,
+				{
+					method: "POST",
+					body: JSON.stringify({
+						kind: "expense",
+						amount: 8_000,
+						happenedOn: "2026-09-30",
+						description: "Conta de luz",
+						accountId: account.id,
+						cardId: given,
+					}),
+				},
+			);
+			expect(written?.cardId).toBeNull();
+		}
+	});
+
 	it("keeps the mark a record arrives with", async () => {
 		// The month screen finds the three records it wrote by this mark. A schema that
 		// dropped it would leave that screen writing three more every time somebody typed

@@ -194,6 +194,22 @@ const recurrenceInput = z.object({
 	notes: z.string().trim().max(2000).nullable().optional(),
 });
 
+/**
+ * Which piece of plastic, or none.
+ *
+ * An empty string means none, because that is what the repository has always read it as,
+ * and the two have to agree: the route refused it as an identifier that is too short while
+ * the repository took it for no card, so writing a record on an account with no card at all
+ * failed on a server and worked in a browser. The interface no longer sends one, and this is
+ * the half that makes the two modes answer the same thing whatever it sends.
+ */
+const cardIdentifier = z
+	.string()
+	.max(64)
+	.nullable()
+	.optional()
+	.transform((given) => (given === "" ? null : given));
+
 const transactionInput = z.object({
 	kind: z.enum(["income", "expense", "transfer"]),
 	// Always positive: the direction comes from the kind, as registry 0010 says.
@@ -209,7 +225,7 @@ const transactionInput = z.object({
 	installments: z.number().int().min(1).max(420).optional(),
 	categoryId: z.string().min(1).nullable().optional(),
 	priority: priority.nullable().optional(),
-	cardId: z.string().min(1).max(64).nullable().optional(),
+	cardId: cardIdentifier,
 	// What the bank called this entry, or the mark the month screen puts on the three
 	// records it writes. Without it here the parser would drop the mark and that screen
 	// would write three more records every time somebody typed the same month, because
@@ -227,7 +243,7 @@ const transactionPatch = z.object({
 	notes: z.string().trim().max(2000).nullable().optional(),
 	categoryId: z.string().min(1).nullable().optional(),
 	priority: priority.nullable().optional(),
-	cardId: z.string().min(1).max(64).nullable().optional(),
+	cardId: cardIdentifier,
 });
 
 /** A selection, kept small enough that one request cannot lock the database. */

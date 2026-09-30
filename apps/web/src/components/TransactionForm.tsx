@@ -102,7 +102,12 @@ export function TransactionForm({
 		() =>
 			(cards.data ?? []).flatMap((card) => {
 				const both = card.creditAccountId !== null && card.debitAccountId !== null;
-				const entries: { value: string; label: string; cardId: string; accountId: string }[] = [];
+				const entries: {
+					value: string;
+					label: string;
+					cardId: string | null;
+					accountId: string;
+				}[] = [];
 				if (card.creditAccountId) {
 					entries.push({
 						value: `${card.id}:${card.creditAccountId}`,
@@ -147,7 +152,13 @@ export function TransactionForm({
 				.map((account) => ({
 					value: `:${account.id}`,
 					label: account.name,
-					cardId: "",
+					// Nothing, and not an empty string. The value of the option carries the two
+					// halves with a colon between them, and reading the first half back gave a
+					// card called "", which the server refused as an identifier that is too
+					// short: writing a record on an account with no card failed on a server and
+					// worked in a browser, because the repository reads an empty string as no
+					// card and the route reads it as a wrong one.
+					cardId: null,
 					accountId: account.id,
 				})),
 		],
