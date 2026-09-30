@@ -1,6 +1,6 @@
 import { type BenefitState, benefitState, type CalendarDate, periodOf, todayIn } from "@cofre/core";
 import { accounts, cards } from "@cofre/db";
-import { assertCan, readableSpaceIds } from "../actor.ts";
+import { assertCan, readableSpaceIds, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { type Account, type AccountKind, type BenefitKind, toAccount } from "../models.ts";
@@ -36,6 +36,21 @@ export type UpdateAccountInput = {
 	quotaAmount?: number | null;
 	quotaDay?: number | null;
 	quotaCarries?: boolean | null;
+	/**
+	 * The cycle of a credit card, and what the bank allows on it.
+	 *
+	 * Correctable, because a bank changes them and because the day somebody typed when they
+	 * added the card is the thing most likely to be a guess. Registry 0045 said all three
+	 * could be corrected and only the name, the institution, the opening balance and the
+	 * allowance could.
+	 *
+	 * Every invoice of the card is worked out from the closing day, so changing it moves
+	 * purchases between invoices, and it does not move the ones somebody has already put
+	 * where they wanted them.
+	 */
+	closingDay?: number | null;
+	dueDay?: number | null;
+	creditLimit?: number | null;
 };
 
 const SELECT = `SELECT "id", "space_id", "kind", "name", "currency", "initial_balance",
@@ -260,6 +275,39 @@ export function createAccountsRepository(context: RepositoryContext) {
 				values.quota_carries = quotaCarriesValue(input.quotaCarries);
 			}
 
+			// Only a card has a cycle, and without both of its days it has no invoices at all.
+			for (const [name, given] of [
+				["closing_day", input.closingDay],
+				["due_day", input.dueDay],
+			] as const) {
+				if (given === undefined) continue;
+				if (given !== null && account.kind !== "credit") {
+					throw new RuleError(
+						"cycleIsForCards",
+						"only a credit card has a day it closes and a day it falls due",
+					);
+				}
+				if (given !== null && (!Number.isInteger(given) || given < 1 || given > 31)) {
+					throw new RuleError(
+						"dayIsADayOfTheMonth",
+						"a closing day and a due day are days of the month, one to thirty one",
+					);
+				}
+				values[name] = given;
+			}
+			if (input.creditLimit !== undefined) {
+				if (input.creditLimit !== null && account.kind !== "credit") {
+					throw new RuleError("limitIsForCards", "only a credit card has a limit");
+				}
+				if (input.creditLimit !== null && !Number.isSafeInteger(input.creditLimit)) {
+					throw new RuleError(
+						"amountIsInteger",
+						"the opening balance is an integer of minor units, never a fractional number",
+					);
+				}
+				values.credit_limit = input.creditLimit;
+			}
+
 			await updateRow(context.write(), {
 				table: accounts,
 				spaceId: account.spaceId,
@@ -284,6 +332,12 @@ export function createAccountsRepository(context: RepositoryContext) {
 		async benefitLeft(id: string, today: CalendarDate): Promise<BenefitState | null> {
 			const account = await reachable(id);
 			assertCan(context.actor(), account.spaceId, "account.read");
+			// Nothing for somebody who only sees their own records. The allowance belongs to
+			// the space and what is left of it is made of every purchase on the card whoever
+			// made it, so this read the household's meal card to somebody who cannot see a
+			// single one of the lunches it is made of, on a screen whose other lines were
+			// already empty for them.
+			if (seesOwnRowsOnly(context.actor(), account.spaceId)) return null;
 			if (account.kind !== "voucher") return null;
 			if (account.quotaAmount === null || account.quotaDay === null) return null;
 
@@ -319,14 +373,22 @@ export function createAccountsRepository(context: RepositoryContext) {
 		 * Deleting an account leaves its records where they are, pointing at something that
 		 * no longer resolves, so their money stops being counted anywhere while the rows
 		 * stay in every list. Somebody about to do that is owed the number.
+		 *
+		 * It counts what the asker can see, like every other count in this project. Only
+		 * whoever runs a space can delete an account, so the dialog that reads this never
+		 * shows it to anybody else, and a count of the household's rows was still one
+		 * question about the household that the contract and the route answered to anybody
+		 * signed in.
 		 */
 		async recordCount(id: string): Promise<number> {
 			const account = await reachable(id);
 			assertCan(context.actor(), account.spaceId, "account.read");
+			const onlyMine = seesOwnRowsOnly(context.actor(), account.spaceId);
 			const rows = await context.driver.all(
 				`SELECT COUNT(*) AS how_many FROM "transactions"
-				 WHERE "deleted_at" IS NULL AND ("account_id" = ? OR "counter_account_id" = ?)`,
-				[id, id],
+				 WHERE "deleted_at" IS NULL AND ("account_id" = ? OR "counter_account_id" = ?)
+				   ${onlyMine ? `AND "created_by" = ?` : ""}`,
+				onlyMine ? [id, id, context.actor().userId] : [id, id],
 			);
 			return asNumber(rows[0]?.how_many ?? 0);
 		},

@@ -166,6 +166,10 @@ export type CofreSession = {
 				quotaAmount?: number | null;
 				quotaDay?: number | null;
 				quotaCarries?: boolean | null;
+				/** The cycle of a credit card, and what the bank allows on it. */
+				closingDay?: number | null;
+				dueDay?: number | null;
+				creditLimit?: number | null;
 			},
 		) => Promise<Account>;
 		/** What is left on a benefit card, or nothing when it has no allowance on it. */

@@ -109,6 +109,8 @@ export function AccountsPage() {
 	const [editQuota, setEditQuota] = useState("");
 	const [editQuotaDay, setEditQuotaDay] = useState("");
 	const [editCarries, setEditCarries] = useState(true);
+	const [editClosingDay, setEditClosingDay] = useState("");
+	const [editDueDay, setEditDueDay] = useState("");
 
 	/** The account about to be deleted, and how many records go nowhere with it. */
 	const [erasing, setErasing] = useState<Account | null>(null);
@@ -148,6 +150,8 @@ export function AccountsPage() {
 		);
 		setEditQuotaDay(account.quotaDay === null ? "" : String(account.quotaDay));
 		setEditCarries(account.quotaCarries ?? carriesByDefault(account.benefit ?? "meal"));
+		setEditClosingDay(account.closingDay === null ? "" : String(account.closingDay));
+		setEditDueDay(account.dueDay === null ? "" : String(account.dueDay));
 	}
 
 	const save = useMutation({
@@ -167,6 +171,16 @@ export function AccountsPage() {
 							quotaAmount: quota,
 							quotaDay: editQuotaDay.trim() === "" ? null : Number(editQuotaDay),
 							quotaCarries: quota === null ? null : editCarries,
+						}
+					: {}),
+				// The cycle of a card, because a bank changes it and because the day somebody
+				// typed when they added the card is the thing most likely to be a guess. Every
+				// invoice of the card is worked out from it, so correcting it moves purchases
+				// between invoices, and never the ones already put where somebody wanted them.
+				...(editing.kind === "credit"
+					? {
+							closingDay: editClosingDay.trim() === "" ? null : Number(editClosingDay),
+							dueDay: editDueDay.trim() === "" ? null : Number(editDueDay),
 						}
 					: {}),
 			});
@@ -556,6 +570,34 @@ export function AccountsPage() {
 							numeric={true}
 							inputMode="decimal"
 						/>
+					) : null}
+					{/* The cycle of a card, correctable here because a bank changes it and
+					    because the day somebody typed when they added the card is the thing
+					    most likely to have been a guess. Every invoice of the card is worked
+					    out from it, so this is what puts them right. */}
+					{editing?.kind === "credit" ? (
+						<div className="grid gap-4 sm:grid-cols-2">
+							<Select
+								label={t("accounts.closingDay")}
+								hint={t("accounts.closingDayHint")}
+								value={editClosingDay}
+								onChange={(event) => setEditClosingDay(event.target.value)}
+								options={Array.from({ length: 31 }, (_unused, index) => ({
+									value: String(index + 1),
+									label: String(index + 1),
+								}))}
+							/>
+							<Select
+								label={t("accounts.dueDay")}
+								hint={t("accounts.dueDayHint")}
+								value={editDueDay}
+								onChange={(event) => setEditDueDay(event.target.value)}
+								options={Array.from({ length: 31 }, (_unused, index) => ({
+									value: String(index + 1),
+									label: String(index + 1),
+								}))}
+							/>
+						</div>
 					) : null}
 					{editing?.kind === "voucher" ? (
 						<>
