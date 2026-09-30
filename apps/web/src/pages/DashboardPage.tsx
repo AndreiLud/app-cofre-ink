@@ -74,7 +74,11 @@ function Figure({
 	return (
 		<div className="min-w-0">
 			<p className="text-quiet text-sm">{label}</p>
-			<p className={size === "big" ? "mt-1 text-2xl sm:text-3xl" : "mt-1 text-xl"}>
+			{/* One step smaller on the narrowest screen, because the band is two columns
+			    there and an amount does not wrap: at 390 pixels a column is about a hundred
+			    and sixty seven wide and "R$ 27.162,90" in tabular figures at the larger size
+			    is more than that, so the answer ran into the figure beside it. */}
+			<p className={size === "big" ? "mt-1 text-xl sm:text-3xl" : "mt-1 text-lg sm:text-xl"}>
 				<Value amount={amount} currency={currency} tone={tone} face="serif" />
 			</p>
 			{detail ? <p className="mt-1 text-quiet text-sm">{detail}</p> : null}
@@ -419,6 +423,7 @@ export function DashboardPage() {
 				on: row.happenedOn,
 				description: row.description,
 				amount: row.amount,
+				currency: row.currency,
 				kind: row.kind,
 				invoice: false,
 			})),
@@ -438,6 +443,9 @@ export function DashboardPage() {
 				on: row.state?.dueOn ?? today,
 				description: t("dashboard.invoiceOf", { card: row.account.name }),
 				amount: -(row.state?.left ?? 0),
+				// An invoice is charged in the currency of its card, which is not always the
+				// currency the space counts in.
+				currency: row.account.currency,
 				kind: "expense" as const,
 				invoice: true,
 			})),
@@ -562,9 +570,12 @@ export function DashboardPage() {
 							/>
 						</div>
 						{/* Nothing to put aside and no rule to put it aside by are different
-						    answers, and a zero here reads as the first one. */}
+						    answers, and a zero here reads as the first one. The question is asked
+						    of the same spaces the figure is made of: reading the open space here
+						    and every space beside it would say "no saving rule" over a figure
+						    made of four of them. */}
 						<div className="border-line lg:border-l lg:pl-6">
-							{(savings.data?.expected ?? 0) > 0 ? (
+							{(putAside?.expected ?? 0) > 0 ? (
 								<Figure
 									label={t("dashboard.stillToSave")}
 									amount={stillToSave}
@@ -734,7 +745,6 @@ export function DashboardPage() {
 								<DueRow
 									key={row.id}
 									row={row}
-									currency={currency}
 									mayUpdate={mayUpdate}
 									onSettle={() => settle.mutate(row.id)}
 									label={t("dashboard.happened")}
@@ -752,7 +762,6 @@ export function DashboardPage() {
 								<DueRow
 									key={row.id}
 									row={row}
-									currency={currency}
 									mayUpdate={mayUpdate}
 									onSettle={() => settle.mutate(row.id)}
 									label={t("dashboard.received")}
@@ -901,19 +910,25 @@ type Due = {
 	on: string;
 	description: string;
 	amount: number;
+	/**
+	 * The currency the amount is in, which is the record's own or the card's.
+	 *
+	 * Every row here used to be labelled with the currency of the space, the way the totals
+	 * above them were until this release, so a hotel booked in dollars read as reais. The
+	 * block of what is late, a few lines up, has read each record's own all along.
+	 */
+	currency: string;
 	kind: string;
 	invoice: boolean;
 };
 
 function DueRow({
 	row,
-	currency,
 	mayUpdate,
 	onSettle,
 	label,
 }: {
 	row: Due;
-	currency: string;
 	mayUpdate: boolean;
 	onSettle: () => void;
 	label: string;
@@ -927,7 +942,7 @@ function DueRow({
 				{row.invoice ? <span className="text-quiet text-xs">{t("dashboard.oneBill")}</span> : null}
 			</span>
 			<span className="flex items-center gap-2">
-				<Value amount={row.amount} currency={currency} tone="auto" />
+				<Value amount={row.amount} currency={row.currency} tone="auto" />
 				{/* An invoice is settled by paying it, on the screen that knows what it costs
 				    and where the money comes from, so this one only points at it. */}
 				{mayUpdate && !row.invoice ? (
