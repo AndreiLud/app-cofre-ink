@@ -49,6 +49,8 @@ export function Field({
 						"h-11 rounded-sm border bg-sunken px-3 text-base text-ink",
 						"transition-colors duration-150 placeholder:text-quiet",
 						"focus:border-accent focus:bg-panel",
+						// Switched off still has to look switched off, and the hint says why.
+						"disabled:cursor-not-allowed disabled:opacity-60",
 						error ? "border-seal" : "border-lineStrong",
 						numeric ? "text-right font-mono tabular-nums" : "",
 						action ? "min-w-0 grow" : "",

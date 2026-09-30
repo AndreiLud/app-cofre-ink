@@ -675,6 +675,81 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			return planned.length;
 		},
 
+		/**
+		 * The same change on this part of a purchase and on every part after it.
+		 *
+		 * A purchase in twelve parts is twelve rows, and until now a correction to one of
+		 * them was a correction to one of them. So a subscription that was filed under the
+		 * wrong category, or whose price went up in March, had to be opened eleven times, and
+		 * somebody who opened it once left ten rows disagreeing with the first.
+		 *
+		 * Forward only, never backwards. What already happened happened at the price and
+		 * under the name it happened under, and rewriting a part that is behind would change
+		 * a month that has already been read, a limit already measured and an invoice already
+		 * paid. The interface offers this part or this part and the ones after it, and those
+		 * are the only two answers the model has.
+		 *
+		 * The day is not one of the things this changes. Each part falls on its own day, a
+		 * month apart, so one day written over all of them would pile the whole purchase onto
+		 * one afternoon.
+		 */
+		async updateFrom(id: string, input: UpdateTransactionInput): Promise<number> {
+			if (input.happenedOn !== undefined) {
+				throw new RuleError(
+					"installmentDaysAreTheirOwn",
+					"each part of a purchase falls on its own day, so the day is changed one part at a time",
+				);
+			}
+
+			const first = await reachable(id);
+			assertCan(context.actor(), first.spaceId, "transaction.update");
+
+			const group = first.installmentGroup;
+			const rows =
+				group === null
+					? [first]
+					: (await listGroup(group)).filter(
+							(row) => (row.installmentNumber ?? 0) >= (first.installmentNumber ?? 0),
+						);
+
+			// A name written over a whole plan keeps each part's number.
+			//
+			// Every row of a purchase in parts is named "the thing" followed by its own three
+			// of twelve, and the form hands back whatever is in the field, number and all. So
+			// the number is taken off what was given once and put back on per row: without
+			// that, renaming a plan left twelve rows with the same name and nothing saying
+			// which part each was, or eleven of them carrying the third part's number.
+			const renamed = input.description?.trim().replace(/\s+\d+\/\d+$/, "");
+
+			// Every row checked before any row is written, the way a selection is, so a plan
+			// with one reconciled part in it changes nothing rather than most of itself.
+			const planned: { found: Transaction; values: Record<string, SqlValue> }[] = [];
+			for (const row of rows) {
+				assertChangeable(row, "changing");
+				const forThisRow =
+					renamed !== undefined && row.installmentNumber !== null && row.installmentCount !== null
+						? {
+								...input,
+								description: `${renamed} ${row.installmentNumber}/${row.installmentCount}`,
+							}
+						: input;
+				planned.push({ found: row, values: await valuesFor(row, forThisRow) });
+			}
+
+			await context.driver.transaction(async (tx) => {
+				const write = { ...context.write(), driver: tx };
+				for (const { found, values } of planned) {
+					await updateRow(write, {
+						table: transactions,
+						spaceId: found.spaceId,
+						id: found.id,
+						values,
+					});
+				}
+			});
+			return planned.length;
+		},
+
 		/** Removes a selection, all of it or none of it, for the same reason. */
 		async removeMany(ids: string[]): Promise<number> {
 			if (ids.length === 0) return 0;

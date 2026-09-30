@@ -236,6 +236,11 @@ export type CofreSession = {
 		update: (id: string, input: UpdateTransactionInput) => Promise<Transaction>;
 		/** The same change over a selection, all of it or none of it. */
 		updateMany: (ids: string[], input: UpdateTransactionInput) => Promise<number>;
+		/**
+		 * The same change on this part of a purchase and on every part after it. What is
+		 * behind is left alone, and the day is not one of the things it changes.
+		 */
+		updateFrom: (id: string, input: UpdateTransactionInput) => Promise<number>;
 		/** Saying it happened writes when, so the day comes from the screen that knows it. */
 		settle: (id: string, today: CalendarDate) => Promise<Transaction>;
 		reconcile: (id: string, reconciled: boolean) => Promise<Transaction>;

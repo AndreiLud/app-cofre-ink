@@ -918,6 +918,17 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		);
 	});
 
+	// This part of a purchase and every part after it. A route of its own rather than a
+	// flag on the one above, because it answers with how many parts it changed and the
+	// other answers with the record.
+	app.patch("/api/transactions/:id/onwards", async (context) => {
+		const input = transactionPatch.parse(await context.req.json());
+		const changed = await context
+			.get("session")
+			.transactions.updateFrom(context.req.param("id"), input);
+		return context.json({ changed });
+	});
+
 	// The day comes from the caller: saying a record happened writes when, and when is a
 	// day in the timezone of the space rather than of the machine answering.
 	app.post("/api/transactions/:id/settle", async (context) => {

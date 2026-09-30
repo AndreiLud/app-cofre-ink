@@ -410,6 +410,9 @@ export function createRemoteSession(
 					? 0
 					: (await send<{ changed: number }>("/api/transactions", "PATCH", { ids, patch: input }))
 							.changed,
+			updateFrom: async (id: string, input: UpdateTransactionInput) =>
+				(await send<{ changed: number }>(`/api/transactions/${id}/onwards`, "PATCH", input))
+					.changed,
 			settle: (id: string, today: CalendarDate) =>
 				send<Transaction>(`/api/transactions/${id}/settle?today=${today}`, "POST", {}),
 			reconcile: (id: string, reconciled: boolean) =>

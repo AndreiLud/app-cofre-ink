@@ -618,6 +618,62 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		/**
+		 * A correction to one part of a purchase can reach the parts ahead of it, and never
+		 * the parts behind.
+		 *
+		 * A subscription in twelve parts filed under the wrong category was twelve rows to
+		 * open, and whoever opened one left eleven disagreeing with it. What is behind stays
+		 * as it was, because a month somebody has already read does not get rewritten.
+		 */
+		it("changes this part of a purchase and the parts after it", async () => {
+			const ready = await readySpace(adapter);
+			try {
+				const parts = await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 60_000,
+					happenedOn: "2026-09-05",
+					description: "Curso",
+					accountId: ready.card.id,
+					installments: 6,
+				});
+				const group = parts[0]?.installmentGroup ?? "";
+				const third = parts.find((part) => part.installmentNumber === 3);
+
+				// From the third on: four rows, a new name and a new amount each.
+				const changed = await ready.fixture.asAna.transactions.updateFrom(third?.id ?? "", {
+					description: "Curso de inglês",
+					amount: 15_000,
+				});
+				expect(changed).toBe(4);
+
+				const after = await ready.fixture.asAna.transactions.list({ installmentGroup: group });
+				const byNumber = (number: number) => after.find((row) => row.installmentNumber === number);
+
+				// The two behind are untouched, name, number and amount.
+				expect(byNumber(1)?.description).toBe("Curso 1/6");
+				expect(byNumber(1)?.amount).toBe(-10_000);
+				expect(byNumber(2)?.description).toBe("Curso 2/6");
+
+				// And each part from the third keeps its own number in its own name.
+				expect(byNumber(3)?.description).toBe("Curso de inglês 3/6");
+				expect(byNumber(6)?.description).toBe("Curso de inglês 6/6");
+				expect(byNumber(3)?.amount).toBe(-15_000);
+				expect(byNumber(6)?.amount).toBe(-15_000);
+
+				// Each part falls on its own day, so the day is not one of the things this
+				// changes, and asking for it is refused rather than silently ignored.
+				await expect(
+					ready.fixture.asAna.transactions.updateFrom(third?.id ?? "", {
+						happenedOn: "2026-12-01",
+					}),
+				).rejects.toBeInstanceOf(RuleError);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		it("finds a record by its mark, however many records are in the way", async () => {
 			const ready = await readySpace(adapter);
 			try {

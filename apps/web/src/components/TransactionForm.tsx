@@ -63,6 +63,14 @@ export function TransactionForm({
 	const [categoryId, setCategoryId] = useState("");
 	const [priority, setPriority] = useState("");
 	const [way, setWay] = useState("");
+	/**
+	 * How far a correction to one part of a purchase reaches.
+	 *
+	 * This part, or this part and the ones after it. Never the ones behind: what already
+	 * happened happened under the name and at the price it happened at, and rewriting it
+	 * would change a month somebody has already read.
+	 */
+	const [reach, setReach] = useState<"this" | "onwards">("this");
 	const [problem, setProblem] = useState<string | null>(null);
 
 	const categories = useQuery({
@@ -183,6 +191,10 @@ export function TransactionForm({
 	useEffect(() => {
 		if (!open) return;
 		setProblem(null);
+		// This part alone, until somebody says otherwise. A correction is a correction to
+		// the thing in front of them, and the wider answer is the one that has to be asked
+		// for.
+		setReach("this");
 		if (editing) {
 			setKind(editing.kind);
 			setAmount(
@@ -251,15 +263,18 @@ export function TransactionForm({
 				// The status is not sent. A record that is waiting to be confirmed is waiting
 				// because somebody has not said it happened, and correcting the description of
 				// it is not saying so. The two buttons on the overview are what say so.
-				return session.transactions.update(editing.id, {
+				const change = {
 					amount: parsed.amount,
-					happenedOn,
 					description,
 					accountId,
 					counterAccountId: kind === "transfer" ? counterAccountId : null,
 					notes: notes.trim() === "" ? null : notes.trim(),
 					...sorting,
-				});
+				};
+				// The whole of the plan from here on, when that is what was asked for. The day
+				// is left out of it on purpose: each part falls on its own.
+				if (reach === "onwards") return session.transactions.updateFrom(editing.id, change);
+				return session.transactions.update(editing.id, { ...change, happenedOn });
 			}
 
 			return session.transactions.create({
@@ -359,6 +374,11 @@ export function TransactionForm({
 						value={happenedOn}
 						onChange={(event) => setHappenedOn(event.target.value)}
 						required={true}
+						// Off while the change reaches the parts ahead, because each of them
+						// falls on its own day a month apart and one day written over all of
+						// them would pile the whole purchase onto one afternoon.
+						disabled={reach === "onwards"}
+						hint={reach === "onwards" ? t("transactions.dayIsPerPart") : undefined}
 					/>
 				</div>
 
@@ -427,12 +447,38 @@ export function TransactionForm({
 				{/* Which part of a purchase in parts this is. The select that made them is
 				    gone while editing, because it was drawn and then ignored. */}
 				{editing?.installmentNumber && editing.installmentCount ? (
-					<p className="text-quiet text-sm">
-						{t("transactions.partOf", {
-							number: editing.installmentNumber,
-							count: editing.installmentCount,
-						})}
-					</p>
+					<div className="space-y-3">
+						<p className="text-quiet text-sm">
+							{t("transactions.partOf", {
+								number: editing.installmentNumber,
+								count: editing.installmentCount,
+							})}
+						</p>
+
+						{/* How far the correction reaches. Only where there is something ahead
+						    of it to reach: the last part of a plan has no wider answer, and
+						    offering one there is offering the same thing twice.
+
+						    A subscription whose price went up, or a plan filed under the wrong
+						    category, used to mean opening eleven more rows by hand, and
+						    whoever opened one left ten disagreeing with it. */}
+						{editing.installmentNumber < editing.installmentCount ? (
+							<Segmented
+								label={t("transactions.reach")}
+								value={reach}
+								onChange={(next) => setReach(next)}
+								options={[
+									{ value: "this", label: t("transactions.reachThis") },
+									{
+										value: "onwards",
+										label: t("transactions.reachOnwards", {
+											count: editing.installmentCount - editing.installmentNumber + 1,
+										}),
+									},
+								]}
+							/>
+						) : null}
+					</div>
 				) : null}
 
 				{kind === "transfer" ? null : (
