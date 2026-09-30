@@ -621,6 +621,12 @@ export function createApp({ config, database, auth }: AppDependencies) {
 			quotaAmount: true,
 			quotaDay: true,
 			quotaCarries: true,
+			// The cycle of a card and what the bank allows on it, which a bank changes and
+			// which the day somebody typed when they added the card is most likely to be a
+			// guess at.
+			closingDay: true,
+			dueDay: true,
+			creditLimit: true,
 		});
 		const account = await context
 			.get("session")
@@ -853,8 +859,15 @@ export function createApp({ config, database, auth }: AppDependencies) {
 
 	app.get("/api/spaces/:id/transactions", async (context) => {
 		const query = context.req.query();
+		// Which end of the range the page is taken from, and where it starts. Both are new on
+		// the filter and both were dropped here, so the interface asked for what falls due
+		// next and a server answered with the fifty furthest away: the limit is applied by
+		// the database, so the order is not something a caller can put right afterwards.
+		const order = query.order === "oldestFirst" ? "oldestFirst" : undefined;
 		return context.json(
 			await context.get("session").transactions.list({
+				order,
+				offset: query.offset === undefined ? undefined : Number(query.offset),
 				spaceId: context.req.param("id"),
 				accountId: query.accountId,
 				cardId: query.cardId,
