@@ -59,6 +59,43 @@ describe("what is left on a card that carries", () => {
 		expect(state.left).toBe(60_000);
 	});
 
+	/**
+	 * A card written down with nothing typed on it, which is every card written down since
+	 * the form stopped asking for an opening balance.
+	 *
+	 * The allowance of the period somebody is standing in counts, because there is no typed
+	 * number standing in for it. Without this a card written down on the twentieth read as
+	 * empty until the fifth of the next month, and what is in somebody's pocket on the
+	 * twentieth is not nothing.
+	 */
+	it("counts the allowance of the period it was written down in, when nothing was typed", () => {
+		const state = benefitState({
+			quota: meal,
+			today: "2026-09-20",
+			openedOn: "2026-09-10",
+			openingBalance: 0,
+			spentSinceOpening: 12_000,
+			spentThisPeriod: 12_000,
+		});
+		// The one that landed on the fifth, which is the period the tenth falls in.
+		expect(state.landed).toBe(1);
+		expect(state.left).toBe(90_000 - 12_000);
+	});
+
+	/** And the next landing adds to it, rather than starting again. */
+	it("goes on adding after that first one", () => {
+		const state = benefitState({
+			quota: meal,
+			today: "2026-10-06",
+			openedOn: "2026-09-10",
+			openingBalance: 0,
+			spentSinceOpening: 12_000,
+			spentThisPeriod: 0,
+		});
+		expect(state.landed).toBe(2);
+		expect(state.left).toBe(180_000 - 12_000);
+	});
+
 	it("adds every landing since, and takes off everything spent since", () => {
 		const state = benefitState({
 			quota: meal,

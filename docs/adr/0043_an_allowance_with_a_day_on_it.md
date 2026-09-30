@@ -36,6 +36,16 @@ the period the card was written down in does not, because whatever it put there 
 inside the number that was typed. That is the whole of the arithmetic, and it is why the
 day the account was created is one of the inputs.
 
+A new card is written down with nothing on it, because the form stopped asking: what is on a
+benefit card is worked out, so a number typed there would be a second answer to a question
+that has one. Then there is no typed number standing in for the landing of the period
+somebody is in, and that landing counts. Without that half of the rule a card added on the
+twentieth read as holding nothing until the fifth of the next month, which is not what is in
+the pocket. It reads high for somebody who had already eaten part of that month outside the
+application, and it is exact from the next landing onwards, which is the smallest wrong
+answer available: the alternative was to be wrong by the whole allowance, every time, for
+anybody who did not add their card on the day it was credited.
+
 A card that does not carry forgets everything before the last landing, and its opening
 balance survives only while the card is still in the period it was written down in.
 

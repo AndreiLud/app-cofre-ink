@@ -11,6 +11,12 @@
 // down. Every landing after that day adds the allowance; the landing of the period the
 // card was written down in does not, because whatever it put there is already inside the
 // number that was typed.
+//
+// Unless nothing was typed, which is every card written down since the form stopped asking
+// for an opening balance. Then there is no number standing in for that period's landing,
+// and the allowance of the period somebody is standing in is what the card holds as far as
+// anybody here knows. Without that a card written down on the twentieth read as empty until
+// the fifth of the next month, which is not what is in somebody's pocket.
 
 import {
 	addDays,
@@ -111,7 +117,27 @@ export type BenefitInput = {
  */
 export function benefitState(input: BenefitInput): BenefitState {
 	const period = periodOf(input.today, input.quota.day);
-	const landed = landingsBetween(input.openedOn, input.today, input.quota.day);
+
+	/**
+	 * Whether the landing of the period the card was written down in counts.
+	 *
+	 * It counts only when nobody said what was on the card that day. Somebody who typed a
+	 * number typed what was actually there, and that number already holds whatever that
+	 * period had put on it, so counting the landing as well would count it twice: that is
+	 * the case of every card carried over from a release that asked for an opening balance.
+	 *
+	 * Somebody who typed nothing, which is every card written down since the form stopped
+	 * asking, is telling us only that the card exists. Then the allowance of the period they
+	 * are standing in is the best thing anybody knows about it, and saying nothing is on the
+	 * card is worse than saying the allowance is, because a meal card in the middle of a
+	 * month is not empty. It reads high for whoever had already eaten some of it outside the
+	 * application, and it is exact from the next landing onwards.
+	 */
+	const nobodySaid = input.openingBalance === 0;
+	const countFrom = nobodySaid
+		? addDays(periodOf(input.openedOn, input.quota.day).from, -1)
+		: input.openedOn;
+	const landed = landingsBetween(countFrom, input.today, input.quota.day);
 
 	if (input.quota.carries) {
 		return {
