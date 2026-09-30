@@ -62,17 +62,21 @@ export function SplitDialog({ open, onOpenChange, record, people }: SplitDialogP
 				transactionId: record.id,
 				method,
 				userIds: people.map((person) => person.id),
-				// Each share by the person it was typed for. A list in the order this
-				// screen reads people in was a list the space read in another order.
+				// Each share by the person it was typed for, and only for the one method that
+				// reads them. A list in the order this screen reads people in was a list the
+				// space read in another order.
 				//
-				// Read, and not passed through Number(). A comma, a word or a minus sign
-				// became NaN, which the division then refused with the sentence about an
-				// amount it could not read, in a dialog with no amount in it. On a server
-				// it was worse: NaN travels as null and comes back as an unexplained
-				// refusal, and a fraction saved here and failed there.
-				shares: Object.fromEntries(
-					people.map((person) => [person.id, readShare(weights[person.id] ?? "1")]),
-				),
+				// The fields that fill these in are only drawn for the shares method, and the
+				// weights are reset to one each on every open, so dividing evenly or by income
+				// shipped a full map of weights that nobody had seen and nobody had meant. It
+				// changed nothing today, because the division ignores them, and it is a map of
+				// numbers somebody did not choose travelling with every split.
+				shares:
+					method === "shares"
+						? Object.fromEntries(
+								people.map((person) => [person.id, readShare(weights[person.id] ?? "1")]),
+							)
+						: undefined,
 				paidBy,
 			});
 		},
