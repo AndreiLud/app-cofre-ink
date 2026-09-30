@@ -46,7 +46,9 @@ test.describe("the month on paper", () => {
 		await openCofre(page);
 		await page.goto("/relatorio?mes=2026-08");
 
-		await expect(page.getByText("como estavam em 2026-08-31")).toBeVisible();
+		// The day is written out, because this file is a document and not a table: it said
+		// "como estavam em 2026-08-31" until the sweep before 1.1.0 read it as one.
+		await expect(page.getByText(/como estavam em 31 de agosto de 2026/)).toBeVisible();
 	});
 
 	test("says nothing about the whole household to somebody who sees their own", async ({
@@ -58,5 +60,41 @@ test.describe("the month on paper", () => {
 		// The owner of the sample space sees everything, so the check up is in the file.
 		await expect(page.getByRole("heading", { name: "Diagnóstico" })).toBeVisible();
 		await expect(page.getByText("Só os seus lançamentos")).toHaveCount(0);
+	});
+
+	/**
+	 * The same file in the other language, because a document is the one thing somebody
+	 * hands to another person and a half translated page is worse than either language.
+	 *
+	 * The address decides, which is the first of the four answers in registry 0034, so this
+	 * needs nothing stored and nothing about the machine running it.
+	 */
+	test("is the whole month in English too", async ({ page }) => {
+		await openCofre(page);
+		await page.goto("/relatorio?mes=2026-09&lang=en");
+
+		for (const part of [
+			"The month",
+			"Cards",
+			"By category",
+			"The last twelve months",
+			"Putting aside, and goals",
+			"The check up",
+			"The months ahead",
+			"Investments",
+		]) {
+			await expect(page.getByRole("heading", { name: part, exact: true })).toBeVisible();
+		}
+
+		// And the name the browser suggests is the same either way, because it is a file name
+		// and not a sentence.
+		await expect(page).toHaveTitle("cofre_relatorio_2026-09");
+	});
+
+	test("reads a month already over in English as well", async ({ page }) => {
+		await openCofre(page);
+		await page.goto("/relatorio?mes=2026-08&lang=en");
+
+		await expect(page.getByText(/as they stood on August 31, 2026/)).toBeVisible();
 	});
 });

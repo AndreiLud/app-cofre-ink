@@ -474,6 +474,15 @@ test.describe("server mode", () => {
 		await go(bia, "Dados");
 		await bia.getByRole("button", { name: "Abrir a importação" }).click();
 		await expect(bia.getByLabel("Arquivo do banco")).toBeVisible();
+
+		// And the file of the whole month, which she may open: it is her own month in it,
+		// said at the top, and the check up is not in it at all, because every threshold
+		// behind its verdict was written for a household.
+		await bia.goto("/relatorio?mes=2026-09");
+		await expect(bia.getByText("Só os seus lançamentos")).toBeVisible();
+		await expect(bia.getByRole("heading", { name: "Diagnóstico" })).toHaveCount(0);
+		// The parts that are made of records are still there, so the file is not empty.
+		await expect(bia.getByRole("heading", { name: "O mês", exact: true })).toBeVisible();
 	});
 
 	/**
