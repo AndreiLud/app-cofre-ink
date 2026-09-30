@@ -335,7 +335,7 @@ export function PaperReportPage() {
 
 			{(byCategory.data ?? []).length > 0 ? (
 				<Part title={t("paper.byCategory")}>
-					<Table caption={t("reports.categoryCaption")}>
+					<Table caption={t("reports.categoryCaption", { month: monthName })}>
 						<TableHead>
 							<TableRow>
 								<TableHeader>{t("reports.category")}</TableHeader>

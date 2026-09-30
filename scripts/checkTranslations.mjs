@@ -7,18 +7,27 @@
 // inside a sentence that exists in one language and not the other is worse, because the
 // sentence comes out with a gap in it.
 //
-// So this walks both files and refuses four things:
+// So this walks both files and refuses five things:
 //
 //   1. a key one language has and the other does not
 //   2. an empty string, which is a key somebody meant to come back to
 //   3. a {{name}} in one language that is not in the other
 //   4. a rule the model can refuse with, that neither language has a sentence for
+//   5. a sentence asked for by a screen without the names it needs, which prints the
+//      {{name}} to a person exactly as it is written here
 //
 // The fourth one is the same class of fault seen from the other end. A refusal carries
 // the name of the rule and the interface looks that name up under "rules"; a name with
 // nothing behind it falls back to "I could not finish that. Try again." So the model
 // grows a rule, nobody writes the sentence, and the refusal that was written to explain
 // something explains nothing. There were eighteen of those.
+//
+// The fifth was found twice in one release, once by a reading and once by opening the
+// built application and looking at it: a headline that said "Em {{day}}." and a table
+// caption that said "em {{month}}". Both languages held the same sentence with the same
+// name in it, so the three checks above were all satisfied, and the screen said the name
+// out loud. It is the cheapest of the five to check and the only one that catches a
+// sentence that is right in the file and wrong on the screen.
 //
 // Plural forms count as one key: i18next chooses between "_one" and "_other" by the
 // count, and a language is allowed to need fewer of them than another.
@@ -106,6 +115,42 @@ function namesIn(text) {
 	return new Set([...text.matchAll(/\{\{\s*([a-zA-Z0-9_]+)/g)].map((match) => match[1]));
 }
 
+/**
+ * Every screen asking for a sentence and not giving it the names it needs.
+ *
+ * Only the plainest call is read, `t("some.key")` with nothing after the key, because that
+ * is the one that can be decided by reading: anything with a second argument is passing
+ * something, and whether it passes the right names is a question for a person. A call that
+ * builds its key from a template is skipped for the same reason, and a key this cannot find
+ * in the file is skipped rather than reported, because the screens legitimately ask for keys
+ * that are chosen at runtime.
+ *
+ * `{{app}}` is the one name a sentence may ask for and never be given: the interface fills
+ * it in for every call, which is what registry 0033 decided so the product name lives in one
+ * place. `{{count}}` is the other, because i18next passes it for a plural on its own.
+ */
+function sentencesMissingTheirNames(table) {
+	const problems = [];
+	for (const file of sourcesIn(join(root, "apps", "web", "src"))) {
+		const where = file.replace(root, "").replace(/^[\\/]/, "");
+		const lines = readFileSync(file, "utf8").split("\n");
+
+		lines.forEach((line, index) => {
+			for (const call of line.matchAll(/\bt\(\s*"([a-zA-Z][\w.]*)"\s*\)/g)) {
+				const key = call[1];
+				const sentence = table.get(key);
+				if (sentence === undefined) continue;
+				const wanted = [...namesIn(sentence)].filter((name) => name !== "app" && name !== "count");
+				if (wanted.length === 0) continue;
+				problems.push(
+					`${where}:${index + 1}: t("${key}") is asked for without {{${wanted.join("}}, {{")}}}`,
+				);
+			}
+		});
+	}
+	return problems;
+}
+
 function main() {
 	const problems = [];
 	const tables = new Map();
@@ -155,6 +200,12 @@ function main() {
 			}
 		}
 	}
+
+	// The sentences the screens ask for without the names those sentences need. Read from
+	// one language, because the check above has already refused any key whose two languages
+	// disagree about which names they hold.
+	const first = tables.get(LANGUAGES[0]);
+	if (first) problems.push(...sentencesMissingTheirNames(first));
 
 	const { found: rules, problems: unreadable } = rulesThrown();
 	problems.push(...unreadable);
