@@ -5,7 +5,7 @@
 // Every record is here, what happened and what is still only planned, and the planned
 // ones are set apart because they are promises and not facts.
 
-import { addMonthsToMonth, monthOf, todayIn } from "@cofre/core";
+import { addMonthsToMonth, addUpInBase, monthOf, todayIn } from "@cofre/core";
 import type { Transaction } from "@cofre/storage";
 import { Button, InsightTitle, Panel, Skeleton } from "@cofre/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -90,15 +90,12 @@ export function CalendarPage() {
 	const first = days[0] ?? `${month}-01`;
 	const blanks = WEEKDAY_ORDER.indexOf(weekdayOf(first));
 
-	const spent = rows
-		.filter((row) => row.kind === "expense")
-		.reduce((sum, row) => sum + row.amount, 0);
-	const earned = rows
-		.filter((row) => row.kind === "income")
-		.reduce((sum, row) => sum + row.amount, 0);
-	const stillPlanned = rows
-		.filter((row) => row.status === "planned")
-		.reduce((sum, row) => (row.kind === "transfer" ? sum : sum + row.amount), 0);
+	// Every one of these is labelled with the currency of the space, so every one of them
+	// is added up in it. They read the amount as written, and a record in another currency
+	// went into the month as though its minor units were the space's own.
+	const spent = addUpInBase(rows.filter((row) => row.kind === "expense"));
+	const earned = addUpInBase(rows.filter((row) => row.kind === "income"));
+	const stillPlanned = addUpInBase(rows.filter((row) => row.status === "planned"));
 
 	const monthName = new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
 		month: "long",
@@ -191,10 +188,7 @@ export function CalendarPage() {
 
 						{days.map((day) => {
 							const entries = byDay.get(day) ?? [];
-							const total = entries.reduce(
-								(sum, row) => (row.kind === "transfer" ? sum : sum + row.amount),
-								0,
-							);
+							const total = addUpInBase(entries);
 							return (
 								<div
 									key={day}

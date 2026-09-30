@@ -2,7 +2,7 @@
 // people actually ask: what did I spend at that place, what is still to come, what
 // went through this card.
 
-import { monthOf, todayIn } from "@cofre/core";
+import { addUpInBase, monthOf, todayIn } from "@cofre/core";
 import type { Transaction, TransactionKind, TransactionStatus } from "@cofre/storage";
 import {
 	Button,
@@ -289,7 +289,9 @@ export function TransactionsPage() {
 	const nameOfCategory = (categoryId: string) =>
 		categories.data?.find((category) => category.id === categoryId)?.name ?? "";
 
-	const total = rows.reduce((sum, row) => (row.kind === "transfer" ? sum : sum + row.amount), 0);
+	// In the currency of the space, which is what the footer labels it with. It added the
+	// amount as written, so a dinner of forty dollars went into a total in reais as forty.
+	const total = addUpInBase(rows);
 
 	const visible = rows.map((row) => row.id);
 	const allPicked = visible.length > 0 && visible.every((id) => picked.includes(id));
