@@ -213,6 +213,67 @@ export function runFutureConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		/**
+		 * A record dated in a month ahead counts in that month, whatever it is marked.
+		 *
+		 * The opening balance is what the accounts hold on the day the projection is made, so
+		 * what the months ahead still have to count is everything that balance has not already
+		 * counted: a day that has not come, and a day that has passed with nobody saying it
+		 * happened. This asked for planned records alone, and a record dated ahead and written
+		 * as a fact is neither: somebody who filled November in from the month screen had
+		 * thirteen thousand that appeared in no figure anywhere.
+		 */
+		it("counts a record dated in a month ahead even when it is written as a fact", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+					initialBalance: 100_000,
+				});
+
+				// November, written down in September as facts, which is what the month screen
+				// does when somebody fills a month in before it arrives.
+				await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "income",
+					amount: 800_000,
+					happenedOn: "2026-11-30",
+					description: "Entradas de novembro",
+					accountId: account.id,
+					status: "settled",
+				});
+				await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 500_000,
+					happenedOn: "2026-11-30",
+					description: "Saídas de novembro",
+					accountId: account.id,
+					status: "settled",
+				});
+
+				const ahead = await fixture.asAna.projections.monthsAhead({
+					spaceId: space.id,
+					from: "2026-09",
+					months: 3,
+					window: 2,
+					today: "2026-09-29",
+				});
+
+				// The opening balance counts what has happened and whose day has come, so
+				// neither of them is in it.
+				expect(ahead.opening).toBe(100_000);
+				expect(ahead.months[2]?.month).toBe("2026-11");
+				expect(ahead.months[2]?.incomeFrom.written).toBe(800_000);
+				expect(ahead.months[2]?.expenseFrom.written).toBe(500_000);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		it("keeps the months of one space out of another", async () => {
 			const fixture = await prepare(adapter);
 			try {

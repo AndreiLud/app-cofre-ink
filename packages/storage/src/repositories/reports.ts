@@ -10,7 +10,14 @@
 // spaces is counted in the same number, and it exists because a person with a personal
 // space and a house still has one life.
 
-import { addDays, type CalendarDate, landingsBetween } from "@cofre/core";
+import {
+	addDays,
+	type CalendarDate,
+	compareCalendarDates,
+	landingsBetween,
+	periodOf,
+	todayIn,
+} from "@cofre/core";
 import { assertCan, readableSpaceIds, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber, type SqlValue } from "../driver.ts";
 import type { SpendingPriority } from "../models.ts";
@@ -97,24 +104,67 @@ export function createReportsRepository(context: RepositoryContext) {
 	 * every voucher written before this release is.
 	 */
 	async function benefitsIn(range: ReportRange): Promise<number> {
-		const spaceIds = range.spaceId
-			? [range.spaceId]
-			: readableSpaceIds(context.actor()).filter((id) => !seesOwnRowsOnly(context.actor(), id));
+		// Nothing for somebody who only sees their own records, whether they named a space
+		// or not. An allowance belongs to the space and not to a person, and the rest of
+		// this reading is narrowed to their own rows, so counting it whole would put the
+		// household's meal card into a month made of one person's records. The filter was
+		// on the branch that reads every space and not on the branch every screen takes.
+		const spaceIds = (range.spaceId ? [range.spaceId] : readableSpaceIds(context.actor())).filter(
+			(id) => !seesOwnRowsOnly(context.actor(), id),
+		);
 		if (spaceIds.length === 0) return 0;
 
+		// Only the cards that exist and are still in use. The allowance is a fact about the
+		// account today, and multiplying it by the landings of any range at all credited a
+		// household eight hundred a month in a March before they had the card, and went on
+		// crediting one they had archived.
 		const rows = await context.driver.all(
-			`SELECT "quota_amount", "quota_day" FROM "accounts"
-			 WHERE "space_id" IN (${marks(spaceIds.length)}) AND "deleted_at" IS NULL
-			   AND "kind" = 'voucher' AND "quota_amount" IS NOT NULL AND "quota_day" IS NOT NULL`,
+			`SELECT a."space_id" AS space_id, a."quota_amount" AS quota_amount,
+			        a."quota_day" AS quota_day, a."created_at" AS created_at,
+			        a."archived_at" AS archived_at, s."timezone" AS timezone
+			 FROM "accounts" a
+			 JOIN "spaces" s ON s."id" = a."space_id"
+			 WHERE a."space_id" IN (${marks(spaceIds.length)}) AND a."deleted_at" IS NULL
+			   AND a."kind" = 'voucher' AND a."quota_amount" IS NOT NULL
+			   AND a."quota_day" IS NOT NULL`,
 			spaceIds,
 		);
 
 		let total = 0;
 		for (const row of rows) {
 			const day = asNumber(row.quota_day);
+			// A day rather than an instant, in the timezone of its own space, because the
+			// periods are counted in days and the row remembers a millisecond in UTC.
+			const zone = String(row.timezone);
+			const openedOn = todayIn(zone, new Date(asNumber(row.created_at)));
+			const closedOn =
+				row.archived_at === null || row.archived_at === undefined
+					? null
+					: todayIn(zone, new Date(asNumber(row.archived_at)));
+
+			/**
+			 * The range, cut to the periods the card was actually there for.
+			 *
+			 * Cut at the start of the period the card was written down in, and not at the day
+			 * it was written down. Somebody who adds a meal card halfway through a month is
+			 * looking at that month, and the lunches they typed are in the same period as the
+			 * landing that paid for them, so the credit belongs beside them. Cut at the day
+			 * instead and their first month closes worse by exactly what they ate, which is
+			 * the thing this figure exists to stop.
+			 *
+			 * Before this there was no cut at all, so a card written down in September paid a
+			 * household an allowance every month back to the beginning of the records, and
+			 * went on paying one after it was archived.
+			 */
+			const since = periodOf(openedOn, day).from;
+			const from = compareCalendarDates(since, range.from) > 0 ? since : range.from;
+			const to =
+				closedOn !== null && compareCalendarDates(closedOn, range.to) < 0 ? closedOn : range.to;
+			if (compareCalendarDates(from, to) > 0) continue;
+
 			// A day before the start, because the count is of landings strictly after the
 			// day it is given, and a landing on the first day of the range is inside it.
-			total += asNumber(row.quota_amount) * landingsBetween(addDays(range.from, -1), range.to, day);
+			total += asNumber(row.quota_amount) * landingsBetween(addDays(from, -1), to, day);
 		}
 		return total;
 	}

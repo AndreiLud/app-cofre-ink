@@ -129,6 +129,7 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 	const budgets = createBudgetsRepository(context);
 	const goals = createGoalsRepository(context);
 	const invoices = createInvoicesRepository(context, { accounts, transactions });
+	const investments = createInvestmentsRepository(context);
 
 	return {
 		get actor() {
@@ -153,8 +154,13 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 		sharing: createSharingRepository(context),
 		savedFilters: createSavedFiltersRepository(context),
 		imports: createImportsRepository(context),
-		investments: createInvestmentsRepository(context),
-		projections: createProjectionsRepository(context, { accounts, transactions, invoices }),
+		investments,
+		projections: createProjectionsRepository(context, {
+			accounts,
+			transactions,
+			invoices,
+			investments,
+		}),
 		scenarios: createScenariosRepository(context),
 		indices: createIndicesRepository(context),
 		advice: createAdviceRepository(context, { budgets, goals, accounts, transactions }),

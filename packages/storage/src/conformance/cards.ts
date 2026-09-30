@@ -194,6 +194,27 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 				expect(month.benefits).toBe(90_000);
 				expect(month.expense).toBe(25_500);
 				expect(month.left).toBe(90_000 - 25_500);
+
+				// And not a real before the card existed. The allowance was counted over any
+				// range at all, so a card written down this month paid a household nine hundred
+				// in every month back to the beginning of its records, and every one of those
+				// months read as though it had ended better than it did.
+				const before = await fixture.asAna.reports.totals({
+					spaceId: space.id,
+					from: "2026-03-01",
+					to: "2026-03-31",
+				});
+				expect(before.benefits).toBe(0);
+				expect(before.left).toBe(0);
+
+				// Nor after it is archived, for the same reason from the other end.
+				await fixture.asAna.accounts.archive(voucher.id);
+				const after = await fixture.asAna.reports.totals({
+					spaceId: space.id,
+					from: "2026-12-01",
+					to: "2026-12-31",
+				});
+				expect(after.benefits).toBe(0);
 			} finally {
 				await fixture.close();
 			}

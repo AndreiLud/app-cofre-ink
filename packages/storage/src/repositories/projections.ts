@@ -28,6 +28,7 @@ import { asNumber } from "../driver.ts";
 import { toRecurrence } from "../models.ts";
 import type { AccountsRepository } from "./accounts.ts";
 import type { RepositoryContext } from "./context.ts";
+import type { InvestmentsRepository } from "./investments.ts";
 import type { InvoicesRepository } from "./invoices.ts";
 import type { TransactionsRepository } from "./transactions.ts";
 
@@ -75,6 +76,7 @@ export type ProjectionNeeds = {
 	accounts: AccountsRepository;
 	transactions: TransactionsRepository;
 	invoices: InvoicesRepository;
+	investments: InvestmentsRepository;
 };
 
 export function createProjectionsRepository(context: RepositoryContext, needs: ProjectionNeeds) {
@@ -97,9 +99,33 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 		spaceId: string,
 		from: CalendarMonth,
 		to: CalendarMonth,
-		options: { onlyPlanned?: boolean; withoutCards?: boolean } = {},
+		options: { notCountedYet?: CalendarDate; withoutCards?: boolean } = {},
 	): Promise<MonthlyAmounts[]> {
 		const only = mine(spaceId, "t");
+
+		/**
+		 * Everything the opening balance has not already counted, and nothing else.
+		 *
+		 * The opening balance is what the accounts hold on the day the projection is made,
+		 * which is every record that is a fact and whose day has come. So what the months
+		 * ahead still have to count is the other two: a day that has not arrived, whatever
+		 * it is marked, and a day that has passed with nobody saying it happened.
+		 *
+		 * This asked for planned records alone, which misses a record dated ahead and
+		 * written as a fact. A purchase in six parts is exactly that, and so is a month
+		 * somebody filled in from the month screen before it arrived: until this release the
+		 * opening balance counted every settled row whatever its date, so the money was at
+		 * least somewhere, and cutting the opening at today without widening this left it
+		 * counted nowhere at all.
+		 */
+		const notCounted =
+			options.notCountedYet === undefined
+				? { clause: "", params: [] as SqlValue[] }
+				: {
+						clause: `AND (t."happened_on" > ? OR t."status" = 'planned')`,
+						params: [options.notCountedYet] as SqlValue[],
+					};
+
 		const rows = await context.driver.all(
 			`SELECT SUBSTR(t."happened_on", 1, 7) AS month,
 			        SUM(CASE WHEN t."kind" = 'income' THEN t."amount_in_base" ELSE 0 END) AS income,
@@ -109,12 +135,12 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 			 WHERE t."space_id" = ? AND t."deleted_at" IS NULL AND t."kind" <> 'transfer'
 			   AND a."deleted_at" IS NULL
 			   AND t."happened_on" >= ? AND t."happened_on" <= ?
-			   ${options.onlyPlanned ? `AND t."status" = 'planned'` : ""}
+			   ${notCounted.clause}
 			   ${options.withoutCards ? `AND a."kind" <> 'credit'` : ""}
 			   ${only.clause}
 			 GROUP BY SUBSTR(t."happened_on", 1, 7)
 			 ORDER BY month`,
-			[spaceId, `${from}-01`, lastDayOf(to), ...only.params],
+			[spaceId, `${from}-01`, lastDayOf(to), ...notCounted.params, ...only.params],
 		);
 
 		return rows.map((row) => ({
@@ -305,11 +331,23 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 			// here would take it off twice. A benefit card is an allowance that buys lunch
 			// and will not pay the rent, so a month that started with it in would be a
 			// month that thinks it has more than it has. Both are what `moneyOnHand` means.
-			const [accounts, balances] = await Promise.all([
+			const [accounts, balances, holdings] = await Promise.all([
 				needs.accounts.list(input.spaceId),
 				needs.transactions.balances(input.spaceId, input.today),
+				needs.investments.list(input.spaceId),
 			]);
-			const opening = moneyOnHand({ accounts, balances });
+
+			// What the investment accounts are worth, by the prices somebody typed, which is
+			// the whole reason `moneyOnHand` takes them: a holding is priced by hand and a
+			// price is not a movement, so the balance of a broker account is what was paid
+			// into it. Without this the projection opened at the money put in while the
+			// overview showed what it is worth, which is two answers to one question.
+			const worth: Record<string, number> = {};
+			for (const holding of holdings) {
+				worth[holding.accountId] = (worth[holding.accountId] ?? 0) + holding.value;
+			}
+
+			const opening = moneyOnHand({ accounts, balances, worth });
 
 			const behindFrom = addMonthsToMonth(input.from, -window);
 			const behindTo = addMonthsToMonth(input.from, -1);
@@ -331,7 +369,7 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 			// because the habit is about what a household spends and not about when the bank
 			// notices.
 			const planned = await amountsByMonth(input.spaceId, input.from, to, {
-				onlyPlanned: true,
+				notCountedYet: input.today,
 				withoutCards: true,
 			});
 			const invoices = await invoicesByMonth(input.spaceId, input.from, to, input.today);
