@@ -54,7 +54,15 @@ A month already over is read as it stood on its last day, so the check up and th
 ahead in the file are about that month rather than about today.
 
 The document title is set to `cofre_relatorio_2026-09`, which is the only say a page has
-over the name a browser suggests.
+over the name a browser suggests. This is the one screen that names itself, so the shell,
+which names every other tab after the screen and the space and the product, leaves this one
+alone. It did not at first, and the reason is worth keeping: React in development mode runs
+an effect, undoes it and runs it again, so the page set the name, put it back and set it
+again, and ended up holding it. In a build the effect runs once and whatever runs after it
+wins, and the shell runs after it whenever the space arrives. So the file came out named
+after the tab for everybody who had actually installed this, and the browser test passed,
+because it ran against the dev server and because a title assertion succeeds the first time
+it matches. The test for it lives with the other tests about the build.
 
 What a person sees on a screen is what goes in their file: somebody who reads only what
 they wrote gets a file of that, with no check up in it and a line saying whose the figures

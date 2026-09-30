@@ -83,6 +83,35 @@ test.describe("the built application", () => {
 		expect(existsSync(join(BUILT_DIRECTORY, "404.html"))).toBe(true);
 	});
 
+	/**
+	 * The file the built application asks to be called.
+	 *
+	 * This is here, against the build, and not beside the other tests of the month on paper,
+	 * because it is the one thing in this project known to answer differently in the two.
+	 * React in development mode runs an effect, undoes it and runs it again, so a screen that
+	 * sets the title of the document and puts it back on the way out ends up holding it; in a
+	 * build the effect runs once and whatever runs after it wins. The shell ran after it, so
+	 * the page named itself, the shell renamed it, and the file came out called "Pessoal |
+	 * Cofre Ink" for everybody who had actually installed this.
+	 *
+	 * The flow is walked here rather than reused, because the door is a different door: this
+	 * one is served from the build and the helper the other tests use speaks to the dev server.
+	 */
+	test("names the file it wants to be, once the whole month is on the page", async ({ page }) => {
+		await page.goto(`${BUILT_ADDRESS}/`);
+		await page.getByText("Começar com dados de exemplo").click();
+		await page.getByRole("button", { name: "Usar só neste navegador" }).click();
+		await expect(page.getByRole("banner")).toContainText("Pessoal", { timeout: 45_000 });
+
+		await page.goto(`${BUILT_ADDRESS}/relatorio?mes=2026-09`);
+		// Everything, because the shell used to write its own name over this one the moment
+		// the space arrived, and the space arrives before the last table does.
+		await expect(page.getByRole("heading", { name: "Investimentos" })).toBeVisible({
+			timeout: 30_000,
+		});
+		await expect(page).toHaveTitle("cofre_relatorio_2026-09");
+	});
+
 	test("takes over the page, and opens again with no connection", async ({ page, context }) => {
 		await page.goto(`${BUILT_ADDRESS}/`);
 

@@ -37,8 +37,15 @@ test.describe("the month on paper", () => {
 		await openCofre(page);
 		await page.goto("/relatorio?mes=2026-09");
 
+		// Once the whole page is there, and not before.
+		//
 		// The document title is the only say this page has over the name the browser
-		// suggests when somebody chooses to save as PDF.
+		// suggests when somebody chooses to save as PDF, and the shell was writing its own
+		// title over it the moment the space arrived. This assertion succeeds the first time
+		// it matches, so asking straight after the address caught the moment before that and
+		// passed while the file came out named after the tab.
+		await expect(page.getByRole("heading", { level: 1 })).toContainText("Pessoal");
+		await expect(page.getByRole("heading", { name: "Investimentos" })).toBeVisible();
 		await expect(page).toHaveTitle("cofre_relatorio_2026-09");
 	});
 
