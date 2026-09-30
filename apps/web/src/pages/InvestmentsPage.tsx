@@ -98,10 +98,10 @@ export function InvestmentsPage() {
 	});
 
 	const ahead = useQuery({
-		queryKey: ["projection", spaceId, monthOf(today), 1],
+		queryKey: ["projection", spaceId, monthOf(today), 1, today],
 		enabled: Boolean(session && spaceId !== ""),
 		queryFn: () =>
-			session?.projections.monthsAhead({ spaceId, from: monthOf(today), months: 1 }) ?? null,
+			session?.projections.monthsAhead({ spaceId, from: monthOf(today), months: 1, today }) ?? null,
 	});
 
 	const indices = useQuery({

@@ -1392,11 +1392,14 @@ export function createApp({ config, database, auth }: AppDependencies) {
 	});
 
 	app.get("/api/spaces/:id/projection", async (context) => {
+		// The day comes from the caller, in the timezone of the space, because it is what
+		// the opening balance counts up to and what decides which invoices are still owed.
 		const query = z
 			.object({
 				from: z.string().regex(/^\d{4}-\d{2}$/),
 				months: z.coerce.number().int().min(1).max(36).optional(),
 				window: z.coerce.number().int().min(1).max(24).optional(),
+				today: calendarDate,
 			})
 			.parse(context.req.query());
 
@@ -1406,6 +1409,7 @@ export function createApp({ config, database, auth }: AppDependencies) {
 				from: query.from,
 				months: query.months ?? 12,
 				window: query.window,
+				today: query.today,
 			}),
 		);
 	});

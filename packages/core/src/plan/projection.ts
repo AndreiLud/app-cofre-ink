@@ -4,7 +4,9 @@
 // can point at, kept apart on purpose so that the number on the screen can always be
 // taken to pieces:
 //
-// 1. What is already written down for that month. A planned bill is not a guess.
+// 1. What is already certain about that month: a bill written down for it, and a card
+//    invoice falling due in it. A planned bill is not a guess, and neither is an invoice
+//    whose purchases have already been made.
 // 2. What a rule says will happen. A subscription that repeats every month on the
 //    tenth will happen on the tenth, and the rule is in the database.
 // 3. The rest, which is the habit: the groceries, the fuel, the small things nobody

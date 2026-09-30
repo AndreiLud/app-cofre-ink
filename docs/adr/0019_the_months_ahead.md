@@ -21,7 +21,15 @@ something the owner can take to pieces.
 
 `project` builds each month out of three things and reports them separately:
 
-1. **Written.** Records that already exist with a date in that month. Not a guess.
+1. **Already certain.** Records that already exist with a date in that month, and what the
+   cards will charge: for each card, what is left on each invoice, counted in the month its
+   due day falls in. Neither is a guess. A card purchase is left out of the first half and
+   counted only in the second, because it is money that leaves the bank on the day the
+   invoice is paid and not on the afternoon of the purchase, and an invoice that fell due
+   before today and is still owed counts in the first month ahead, because there is no
+   earlier month to put it in. Amended in 1.1.0: until then this was records still waiting
+   to be confirmed, which a card purchase never is, so none of what the cards were about to
+   charge was in the months ahead at all.
 2. **Recurring.** Series that fall due in that month and have not written their record
    yet. A series that already wrote it is in the first group, and counting it here as
    well is the single most common way a projection goes wrong. The record carries
@@ -31,6 +39,17 @@ something the owner can take to pieces.
    removed.
 
 The median and not the mean, because one dentist does not make a year.
+
+The month it all starts from is where the money stands on the day the projection is made,
+and that figure comes from the balances and `moneyOnHand`, which is the same figure the
+overview opens with. It used to be worked out here instead, by adding the opening balances
+up and then adding every settled record that was not a transfer, and the second half of
+that is wrong: a transfer nets to nothing only when both of its accounts are inside the
+total. Paying a card invoice is a transfer into an account that is deliberately outside it,
+so the projection opened over by every invoice the household had ever paid. Corrected in
+1.1.0, which is also when the day this is counted up to started being passed in rather than
+meaning "every record ever written", so a report on a month that has gone is a report as
+that month ended.
 
 ### A scenario is an adjustment applied to the projection, not a second projection
 

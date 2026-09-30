@@ -12,8 +12,11 @@
 
 import {
 	addMonthsToMonth,
+	type CalendarDate,
 	type CalendarMonth,
 	type MonthlyAmounts,
+	moneyOnHand,
+	monthOf,
 	occurrencesBetween,
 	type ProjectedMonth,
 	project,
@@ -23,7 +26,10 @@ import { assertCan, seesOwnRowsOnly } from "../actor.ts";
 import type { SqlValue } from "../driver.ts";
 import { asNumber } from "../driver.ts";
 import { toRecurrence } from "../models.ts";
+import type { AccountsRepository } from "./accounts.ts";
 import type { RepositoryContext } from "./context.ts";
+import type { InvoicesRepository } from "./invoices.ts";
+import type { TransactionsRepository } from "./transactions.ts";
 
 export type ProjectionInput = {
 	spaceId: string;
@@ -32,6 +38,15 @@ export type ProjectionInput = {
 	months: number;
 	/** How many months behind to read the habit from. */
 	window?: number;
+	/**
+	 * The day the reading is made on, in the timezone of the space.
+	 *
+	 * Passed in rather than read from a clock here, the way the balances, the budget and
+	 * the check up already take it. It is what the opening balance is counted up to, and
+	 * it is what decides which invoices are still owed, so a report on a month that has
+	 * gone is a report as that month ended rather than as today.
+	 */
+	today: CalendarDate;
 };
 
 export type Projection = {
@@ -47,7 +62,22 @@ function lastDayOf(month: CalendarMonth): string {
 	return `${month}-${String(last).padStart(2, "0")}`;
 }
 
-export function createProjectionsRepository(context: RepositoryContext) {
+/**
+ * The repositories this one reads through, handed in rather than reached for.
+ *
+ * What the accounts hold today and where each card's invoices stand are both worked out
+ * elsewhere, with their own permission checks and their own tests. Asking them is how this
+ * stays a gatherer rather than a second copy of arithmetic that would drift from the first,
+ * which is exactly what happened: this file had its own opening balance, and it disagreed
+ * with the overview by every invoice anybody had ever paid.
+ */
+export type ProjectionNeeds = {
+	accounts: AccountsRepository;
+	transactions: TransactionsRepository;
+	invoices: InvoicesRepository;
+};
+
+export function createProjectionsRepository(context: RepositoryContext, needs: ProjectionNeeds) {
 	/**
 	 * Whether this reading is narrowed to one person's own records.
 	 *
@@ -67,19 +97,22 @@ export function createProjectionsRepository(context: RepositoryContext) {
 		spaceId: string,
 		from: CalendarMonth,
 		to: CalendarMonth,
-		options: { onlyPlanned?: boolean } = {},
+		options: { onlyPlanned?: boolean; withoutCards?: boolean } = {},
 	): Promise<MonthlyAmounts[]> {
-		const only = mine(spaceId);
+		const only = mine(spaceId, "t");
 		const rows = await context.driver.all(
-			`SELECT SUBSTR("happened_on", 1, 7) AS month,
-			        SUM(CASE WHEN "kind" = 'income' THEN "amount_in_base" ELSE 0 END) AS income,
-			        SUM(CASE WHEN "kind" = 'expense' THEN -"amount_in_base" ELSE 0 END) AS expense
-			 FROM "transactions"
-			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "kind" <> 'transfer'
-			   AND "happened_on" >= ? AND "happened_on" <= ?
-			   ${options.onlyPlanned ? `AND "status" = 'planned'` : ""}
+			`SELECT SUBSTR(t."happened_on", 1, 7) AS month,
+			        SUM(CASE WHEN t."kind" = 'income' THEN t."amount_in_base" ELSE 0 END) AS income,
+			        SUM(CASE WHEN t."kind" = 'expense' THEN -t."amount_in_base" ELSE 0 END) AS expense
+			 FROM "transactions" t
+			 JOIN "accounts" a ON a."id" = t."account_id"
+			 WHERE t."space_id" = ? AND t."deleted_at" IS NULL AND t."kind" <> 'transfer'
+			   AND a."deleted_at" IS NULL
+			   AND t."happened_on" >= ? AND t."happened_on" <= ?
+			   ${options.onlyPlanned ? `AND t."status" = 'planned'` : ""}
+			   ${options.withoutCards ? `AND a."kind" <> 'credit'` : ""}
 			   ${only.clause}
-			 GROUP BY SUBSTR("happened_on", 1, 7)
+			 GROUP BY SUBSTR(t."happened_on", 1, 7)
 			 ORDER BY month`,
 			[spaceId, `${from}-01`, lastDayOf(to), ...only.params],
 		);
@@ -170,6 +203,74 @@ export function createProjectionsRepository(context: RepositoryContext) {
 		return [...byMonth.values()].sort((one, other) => one.month.localeCompare(other.month));
 	}
 
+	/**
+	 * What the cards will take out of the bank, month by month, by the day each invoice
+	 * falls due.
+	 *
+	 * A card purchase is not money leaving on the afternoon of the purchase. It joins an
+	 * invoice, and the invoice leaves the account on one day, which is often in a month
+	 * after the one the purchase happened in. So the months ahead never saw any of it: the
+	 * purchases are marked as facts and dated in months to come, and the only records this
+	 * screen counted ahead were the ones still waiting to be confirmed.
+	 *
+	 * What is counted is what is left on each invoice and not what it charged, because a
+	 * part already paid has already left. An invoice that closed and fell due before today
+	 * and is still owed counts in the first month ahead, because it is money that has to go
+	 * and there is no earlier month to put it in.
+	 *
+	 * Nothing for somebody who only sees their own records, the same as the card screen:
+	 * an invoice built from one person's purchases is not the invoice.
+	 */
+	async function invoicesByMonth(
+		spaceId: string,
+		from: CalendarMonth,
+		to: CalendarMonth,
+		today: CalendarDate,
+	): Promise<MonthlyAmounts[]> {
+		if (seesOwnRowsOnly(context.actor(), spaceId)) return [];
+
+		const accounts = await needs.accounts.list(spaceId);
+		const cards = accounts.filter(
+			(account) =>
+				account.kind === "credit" && account.closingDay !== null && account.dueDay !== null,
+		);
+
+		const byMonth = new Map<string, MonthlyAmounts>();
+		for (const card of cards) {
+			for (const state of await needs.invoices.list(card.id, today)) {
+				if (state.left <= 0) continue;
+				const falls = monthOf(state.dueOn);
+				const month = falls < from ? from : falls;
+				if (month > to) continue;
+
+				const entry = byMonth.get(month) ?? {
+					month: month as CalendarMonth,
+					income: 0,
+					expense: 0,
+				};
+				entry.expense += state.left;
+				byMonth.set(month, entry);
+			}
+		}
+
+		return [...byMonth.values()].sort((one, other) => one.month.localeCompare(other.month));
+	}
+
+	/** Two lists of monthly amounts added together, month by month. */
+	function together(
+		one: readonly MonthlyAmounts[],
+		other: readonly MonthlyAmounts[],
+	): MonthlyAmounts[] {
+		const byMonth = new Map<string, MonthlyAmounts>();
+		for (const entry of [...one, ...other]) {
+			const found = byMonth.get(entry.month) ?? { month: entry.month, income: 0, expense: 0 };
+			found.income += entry.income;
+			found.expense += entry.expense;
+			byMonth.set(entry.month, found);
+		}
+		return [...byMonth.values()].sort((first, second) => first.month.localeCompare(second.month));
+	}
+
 	return {
 		/**
 		 * The months ahead.
@@ -185,45 +286,56 @@ export function createProjectionsRepository(context: RepositoryContext) {
 			const window = Math.max(1, Math.min(input.window ?? 6, 24));
 			const to = addMonthsToMonth(input.from, months - 1);
 
+			// Where the money stands today, from the one place that works it out.
+			//
 			// The opening balances of the accounts belong to the space and not to a person,
-			// so for somebody who only sees their own records this starts at nothing and
-			// what follows is the shape of their own spending rather than the household's
-			// money. Counting the household's opening balance and then only their rows
-			// would be the worst of both.
-			const onlyMine = seesOwnRowsOnly(context.actor(), input.spaceId);
-			// A card and a benefit card are both out of the opening, for opposite reasons.
-			// A card is a debt that the months ahead pay off invoice by invoice, and
-			// counting it here would take it off twice. A benefit card is an allowance that
-			// buys lunch and will not pay the rent, so a month that started with it in
-			// would be a month that thinks it has more than it has.
-			const balances = onlyMine
-				? []
-				: await context.driver.all(
-						`SELECT COALESCE(SUM(a."initial_balance"), 0) AS opening FROM "accounts" a
-						 WHERE a."space_id" = ? AND a."deleted_at" IS NULL AND a."archived_at" IS NULL
-						   AND a."kind" NOT IN ('credit', 'voucher')`,
-						[input.spaceId],
-					);
-
-			const only = mine(input.spaceId, "t");
-			const settled = await context.driver.all(
-				`SELECT COALESCE(SUM(CASE WHEN t."kind" = 'transfer' THEN 0 ELSE t."amount_in_base" END), 0) AS moved
-				 FROM "transactions" t
-				 JOIN "accounts" a ON a."id" = t."account_id"
-				 WHERE t."space_id" = ? AND t."deleted_at" IS NULL AND t."status" = 'settled'
-				   AND a."kind" NOT IN ('credit', 'voucher') AND a."deleted_at" IS NULL
-				   ${only.clause}`,
-				[input.spaceId, ...only.params],
-			);
-
-			const opening = asNumber(balances[0]?.opening ?? 0) + asNumber(settled[0]?.moved ?? 0);
+			// so for somebody who only sees their own records this starts at nothing and what
+			// follows is the shape of their own spending rather than the household's money.
+			// That is held by the balances themselves and not here.
+			//
+			// This file used to add the opening balances up and then add every settled
+			// record that was not a transfer, and the second half of that is wrong: a
+			// transfer nets to nothing only when both of its accounts are in the total.
+			// Paying a card invoice is a transfer into an account that is deliberately out
+			// of it, so the money left the bank and the projection never noticed, and it
+			// opened over by every invoice the household had ever paid.
+			//
+			// A card and a benefit card stay out of the total, for opposite reasons. A card
+			// is a debt that the months ahead pay off invoice by invoice, and counting it
+			// here would take it off twice. A benefit card is an allowance that buys lunch
+			// and will not pay the rent, so a month that started with it in would be a
+			// month that thinks it has more than it has. Both are what `moneyOnHand` means.
+			const [accounts, balances] = await Promise.all([
+				needs.accounts.list(input.spaceId),
+				needs.transactions.balances(input.spaceId, input.today),
+			]);
+			const opening = moneyOnHand({ accounts, balances });
 
 			const behindFrom = addMonthsToMonth(input.from, -window);
 			const behindTo = addMonthsToMonth(input.from, -1);
 
 			const history = await amountsByMonth(input.spaceId, behindFrom, behindTo);
-			const written = await amountsByMonth(input.spaceId, input.from, to, { onlyPlanned: true });
 			const recurring = await recurringByMonth(input.spaceId, input.from, to);
+
+			// What is written for each month ahead, and what the cards will charge.
+			//
+			// The two are separate reads of separate things: a record still waiting to be
+			// confirmed, and an invoice that has to be paid. They are added together here
+			// because both are things somebody can point at, which is what the written part
+			// of a projected month means, and the habit shrinks by exactly as much as they
+			// account for.
+			//
+			// A card purchase is left out of the first one and counted only in the second, so
+			// it is money leaving on the day the invoice falls due and not on the day of the
+			// purchase. The months behind still count the purchase in the month it happened,
+			// because the habit is about what a household spends and not about when the bank
+			// notices.
+			const planned = await amountsByMonth(input.spaceId, input.from, to, {
+				onlyPlanned: true,
+				withoutCards: true,
+			});
+			const invoices = await invoicesByMonth(input.spaceId, input.from, to, input.today);
+			const written = together(planned, invoices);
 
 			return {
 				opening,

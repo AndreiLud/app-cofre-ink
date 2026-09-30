@@ -962,6 +962,7 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 					spaceId,
 					from: "2026-09",
 					months: 3,
+					today,
 				});
 				expect(ahead.months.every((month) => month.expense <= 5000)).toBe(true);
 

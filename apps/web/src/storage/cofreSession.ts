@@ -346,6 +346,8 @@ export type CofreSession = {
 			from: string;
 			months: number;
 			window?: number;
+			/** The day it opens on, which is what the opening balance counts up to. */
+			today: CalendarDate;
 		}) => Promise<Projection>;
 	};
 	scenarios: {

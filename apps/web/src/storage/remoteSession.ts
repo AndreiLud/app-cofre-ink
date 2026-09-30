@@ -620,8 +620,18 @@ export function createRemoteSession(
 		},
 
 		projections: {
-			monthsAhead: (input: { spaceId: string; from: string; months: number; window?: number }) => {
-				const query = new URLSearchParams({ from: input.from, months: String(input.months) });
+			monthsAhead: (input: {
+				spaceId: string;
+				from: string;
+				months: number;
+				window?: number;
+				today: CalendarDate;
+			}) => {
+				const query = new URLSearchParams({
+					from: input.from,
+					months: String(input.months),
+					today: input.today,
+				});
 				if (input.window !== undefined) query.set("window", String(input.window));
 				return get<Projection>(`/api/spaces/${input.spaceId}/projection?${query.toString()}`);
 			},

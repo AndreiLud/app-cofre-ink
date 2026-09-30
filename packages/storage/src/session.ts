@@ -128,6 +128,7 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 	const transactions = createTransactionsRepository(context);
 	const budgets = createBudgetsRepository(context);
 	const goals = createGoalsRepository(context);
+	const invoices = createInvoicesRepository(context, { accounts, transactions });
 
 	return {
 		get actor() {
@@ -143,7 +144,7 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 		erasure: createErasureRepository(context),
 		categories: createCategoriesRepository(context),
 		transactions,
-		invoices: createInvoicesRepository(context, { accounts, transactions }),
+		invoices,
 		rules: createRulesRepository(context),
 		recurrences: createRecurrencesRepository(context),
 		reports: createReportsRepository(context),
@@ -153,7 +154,7 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 		savedFilters: createSavedFiltersRepository(context),
 		imports: createImportsRepository(context),
 		investments: createInvestmentsRepository(context),
-		projections: createProjectionsRepository(context),
+		projections: createProjectionsRepository(context, { accounts, transactions, invoices }),
 		scenarios: createScenariosRepository(context),
 		indices: createIndicesRepository(context),
 		advice: createAdviceRepository(context, { budgets, goals, accounts, transactions }),

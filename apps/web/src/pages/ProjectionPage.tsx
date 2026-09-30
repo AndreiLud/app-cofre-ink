@@ -3,7 +3,10 @@
 // The headline is the only thing most people come here for: does the money last. So it
 // is the first line, in words, and the drawing under it is the same sentence as a
 // shape. Everything below that is the arithmetic, laid out so that any month can be
-// taken to pieces: what is already written, what repeats, and what is the habit.
+// taken to pieces: what is already certain, what repeats, and what is the habit. The
+// first of the three is the bills written down for that month and the card invoices
+// falling due in it, because a card purchase is money that leaves on the day the invoice
+// is paid and not on the afternoon of the purchase.
 //
 // Trying something out happens here in the browser, with the same function the months
 // were built with. Nothing is written, so a question costs nothing to ask.
@@ -87,9 +90,10 @@ export function ProjectionPage() {
 		);
 
 	const ahead = useQuery({
-		queryKey: ["projection", spaceId, thisMonth, months],
+		queryKey: ["projection", spaceId, thisMonth, months, today],
 		enabled: Boolean(session && spaceId !== ""),
-		queryFn: () => session?.projections.monthsAhead({ spaceId, from: thisMonth, months }) ?? null,
+		queryFn: () =>
+			session?.projections.monthsAhead({ spaceId, from: thisMonth, months, today }) ?? null,
 	});
 
 	const scenarios = useQuery({

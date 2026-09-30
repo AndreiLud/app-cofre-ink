@@ -67,6 +67,7 @@ export function runFutureConformance(adapter: AdapterUnderTest): void {
 					from: "2026-09",
 					months: 3,
 					window: 2,
+					today: "2026-09-01",
 				});
 
 				expect(ahead.months).toHaveLength(3);
@@ -110,6 +111,7 @@ export function runFutureConformance(adapter: AdapterUnderTest): void {
 					spaceId: space.id,
 					from: "2026-09",
 					months: 2,
+					today: "2026-09-01",
 				});
 				expect(before.months[0]?.expenseFrom.recurring).toBe(150_000);
 
@@ -120,6 +122,7 @@ export function runFutureConformance(adapter: AdapterUnderTest): void {
 					spaceId: space.id,
 					from: "2026-09",
 					months: 2,
+					today: "2026-09-01",
 				});
 
 				expect(after.months[0]?.expenseFrom.recurring).toBe(0);
@@ -131,12 +134,96 @@ export function runFutureConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		/**
+		 * A card purchase leaves the bank on the day the invoice falls due, and the months
+		 * ahead say so.
+		 *
+		 * Both halves of this were wrong, in opposite directions. A card purchase is written
+		 * as a fact and dated in the month it will be charged, and the only records counted
+		 * ahead were the ones still waiting to be confirmed, so none of it was ever in the
+		 * months ahead. And paying an invoice is a transfer into an account that is
+		 * deliberately out of the total, which the opening balance treated as money that had
+		 * not moved, so it opened over by every invoice the household had ever paid.
+		 */
+		it("counts a card invoice in the month it falls due, and a payment as money gone", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				const checking = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+					initialBalance: 1_000_000,
+				});
+				// Closes on the twenty eighth, falls due on the fifth of the month after.
+				const card = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "credit",
+					name: "Cartão",
+					closingDay: 28,
+					dueDay: 5,
+				});
+
+				await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 40_000,
+					happenedOn: "2026-09-10",
+					description: "Mercado",
+					accountId: card.id,
+				});
+
+				const ahead = await fixture.asAna.projections.monthsAhead({
+					spaceId: space.id,
+					from: "2026-09",
+					months: 3,
+					window: 2,
+					today: "2026-09-15",
+				});
+
+				// The purchase is September's invoice, which falls due in October.
+				expect(ahead.months[0]?.expenseFrom.written).toBe(0);
+				expect(ahead.months[1]?.expenseFrom.written).toBe(40_000);
+
+				// And the money is still in the bank while the invoice is open.
+				expect(ahead.opening).toBe(1_000_000);
+
+				// Paid, and now it has gone: the invoice drops out of October and the opening
+				// is a thousand less, which the old reading called money that had not moved.
+				await fixture.asAna.invoices.pay({
+					accountId: card.id,
+					fromAccountId: checking.id,
+					amount: 40_000,
+					happenedOn: "2026-10-05",
+					month: "2026-09",
+					description: "Pagamento da fatura",
+				});
+
+				const paid = await fixture.asAna.projections.monthsAhead({
+					spaceId: space.id,
+					from: "2026-09",
+					months: 3,
+					window: 2,
+					today: "2026-10-06",
+				});
+				expect(paid.months[1]?.expenseFrom.written).toBe(0);
+				expect(paid.opening).toBe(1_000_000 - 40_000);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		it("keeps the months of one space out of another", async () => {
 			const fixture = await prepare(adapter);
 			try {
 				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
 				await expect(
-					fixture.asJoao.projections.monthsAhead({ spaceId: space.id, from: "2026-09", months: 3 }),
+					fixture.asJoao.projections.monthsAhead({
+						spaceId: space.id,
+						from: "2026-09",
+						months: 3,
+						today: "2026-09-01",
+					}),
 				).rejects.toBeInstanceOf(NotFoundError);
 			} finally {
 				await fixture.close();
