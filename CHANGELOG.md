@@ -257,6 +257,21 @@ an empty identifier as no card and the route refused it as one too short, so the
 was written in a browser and refused on a server. Both halves are corrected, and the two modes
 now answer the same thing whatever reaches them.
 
+**The file is called what it says it is called.** The month on paper names the document, which
+is the only say a page has over the name a browser suggests when somebody chooses Save as PDF,
+and the shell was writing its own name over it the moment the space arrived. So the file came
+out called "Pessoal | Cofre Ink". It only did that in a build: React in development runs an
+effect, undoes it and runs it again, which happened to leave the page holding the name, and
+the browser test ran against the dev server and passed. Found by opening the built
+application and looking at the tab. The test for it runs against the build now.
+
+**A caption said `{{month}}` out loud.** One table on the printed file asked for a sentence
+without the month that sentence is written around. Both languages held the same sentence with
+the same name in it, so nothing in the build could see it. The check over the two languages
+now refuses a sentence a screen asks for without the names it needs, which is the fifth thing
+it refuses and the only one that catches a sentence that is right in the file and wrong on the
+screen.
+
 **The file for paper prints no keys and no nameless rows.** Money nobody sorted had an empty
 first cell against two thirds of a month, and spending with no priority on it was a row headed
 with the name of a translation key. The screen next door has had a sentence for each of them
