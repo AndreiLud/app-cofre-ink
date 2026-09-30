@@ -15,6 +15,7 @@
 
 import {
 	addDays,
+	addUpInBase,
 	type CalendarDate,
 	canSpendThisMonth,
 	dateInMonth,
@@ -213,6 +214,72 @@ export function DashboardPage() {
 			}) ?? [],
 	});
 
+	/**
+	 * The same, and the cards, across every space, for the consolidated view.
+	 *
+	 * The band used to take the money from every space and the bills from whichever space
+	 * happened to be open, under a heading that says it is about all of them. A household
+	 * with two thousand and fifteen hundred of bills in the personal space and three
+	 * thousand and four thousand of bills in the shared one read as a thousand to spare
+	 * when the honest answer was five hundred short.
+	 */
+	const restEverywhere = useQuery({
+		queryKey: [
+			"transactions",
+			"everywhere",
+			"restOfMonth",
+			spaces.map((space) => space.id).join(","),
+			endOfMonth,
+		],
+		enabled: Boolean(session) && consolidated,
+		queryFn: async () => {
+			if (!session) return [];
+			// Each space on its own day, because two spaces can sit in two timezones.
+			const lists = await Promise.all(
+				spaces.map((space) =>
+					session.transactions.list({
+						spaceId: space.id,
+						status: "planned",
+						from: todayIn(space.timezone),
+						to: lastDayOf(monthOf(todayIn(space.timezone))),
+						order: "oldestFirst",
+						limit: 500,
+					}),
+				),
+			);
+			return lists.flat();
+		},
+	});
+
+	const cardsEverywhere = useQuery({
+		queryKey: ["invoices", "standing", "everywhere", spaces.map((space) => space.id).join(",")],
+		enabled: Boolean(session) && consolidated,
+		queryFn: async () => {
+			if (!session) return [];
+			const lists = await Promise.all(
+				spaces.map((space) => session.invoices.standing(space.id, todayIn(space.timezone))),
+			);
+			return lists.flat();
+		},
+	});
+
+	const savingsEverywhere = useQuery({
+		queryKey: ["savings", "everywhere", spaces.map((space) => space.id).join(",")],
+		enabled: Boolean(session) && consolidated,
+		queryFn: async () => {
+			if (!session) return { expected: 0, put: 0 };
+			const each = await Promise.all(
+				spaces.map((space) =>
+					session.goals.savings({ spaceId: space.id, month: monthOf(todayIn(space.timezone)) }),
+				),
+			);
+			return {
+				expected: each.reduce((total, one) => total + (one?.expected ?? 0), 0),
+				put: each.reduce((total, one) => total + (one?.put ?? 0), 0),
+			};
+		},
+	});
+
 	const budgets = useQuery({
 		queryKey: ["budgets", spaceId, month],
 		enabled: Boolean(session && currentSpace),
@@ -290,26 +357,57 @@ export function DashboardPage() {
 	const have = moneyOnHand(counted);
 	const spendable = spendableNow(counted);
 
-	const vouchers = shownAccounts.filter((account) => account.kind === "voucher");
+	// A benefit card's leftover is the whole card, made of every lunch on it whoever ate it,
+	// so there is no line to draw for somebody who can see none of them. The model answers
+	// nothing for them, and drawing the line anyway would say the allowance is not written
+	// down when it is.
+	const vouchers = mine.seesOwnRowsOnly
+		? []
+		: shownAccounts.filter((account) => account.kind === "voucher");
 
 	/** Whether any of the spaces being added together is narrowed to this person's rows. */
 	const narrowedSomewhere = narrowed.data ?? false;
 
 	/** Money still to arrive and still to leave before the month ends. */
-	const rest = restOfMonth.data ?? [];
-	const comingIn = rest
-		.filter((row) => row.kind === "income")
-		.reduce((total, row) => total + row.amount, 0);
-	const goingOut = rest
-		.filter((row) => row.kind === "expense")
-		.reduce((total, row) => total + Math.abs(row.amount), 0);
-	// An invoice falling due this month is one bill, wherever its purchases were made.
-	const invoicesDue = (cards.data ?? [])
-		.filter((card) => card.open.dueOn <= endOfMonth && card.open.left > 0)
-		.reduce((total, card) => total + card.open.left, 0);
+	const rest = consolidated ? (restEverywhere.data ?? []) : (restOfMonth.data ?? []);
+	const shownCards = consolidated ? (cardsEverywhere.data ?? []) : (cards.data ?? []);
+
+	// In the currency of the space, from the figure worked out at the rate of the day, and
+	// not from the amount as it was typed. These two sums were written with the amount while
+	// the release was taking it out of every other total on every other screen.
+	const comingIn = addUpInBase(rest.filter((row) => row.kind === "income"));
+
+	/**
+	 * What is still to leave, with the cards counted once.
+	 *
+	 * A purchase on a card is not money leaving the bank: the invoice is. So a planned
+	 * record charged to a card is left out here and the invoice below stands for it,
+	 * exactly as the list of what falls due next already did. Counting both added the
+	 * subscription of the tenth twice, once as itself and once inside its invoice.
+	 */
+	const goingOut = Math.abs(
+		addUpInBase(
+			rest.filter((row) => row.kind === "expense" && accountKind(row.accountId) !== "credit"),
+		),
+	);
+
+	/**
+	 * Every invoice falling due before the month ends, which is one bill each wherever its
+	 * purchases were made.
+	 *
+	 * Both of them: the one still taking purchases, and the one that has closed and is not
+	 * paid. Only the first was counted, so for every day between the closing day and the end
+	 * of the month the bill the household actually owes was in no figure on this screen, and
+	 * what was left to spend read high by the whole of it.
+	 */
+	const invoicesDue = shownCards
+		.flatMap((card) => [card.open, card.unpaid])
+		.filter((state) => state !== null && state.left > 0 && state.dueOn <= endOfMonth)
+		.reduce((total, state) => total + (state?.left ?? 0), 0);
 	const fallingDue = goingOut + invoicesDue;
 
-	const stillToSave = Math.max(0, (savings.data?.expected ?? 0) - (savings.data?.put ?? 0));
+	const putAside = consolidated ? savingsEverywhere.data : savings.data;
+	const stillToSave = Math.max(0, (putAside?.expected ?? 0) - (putAside?.put ?? 0));
 	const left = canSpendThisMonth({ spendable, comingIn, fallingDue, stillToSave });
 
 	/** What falls due next, with a card invoice as one bill on the day it falls due. */
@@ -324,13 +422,22 @@ export function DashboardPage() {
 				kind: row.kind,
 				invoice: false,
 			})),
-		...(cards.data ?? [])
-			.filter((card) => card.open.left > 0 && card.open.dueOn <= addDays(today, AHEAD))
-			.map((card) => ({
-				id: `invoice:${card.account.id}`,
-				on: card.open.dueOn,
-				description: t("dashboard.invoiceOf", { card: card.account.name }),
-				amount: -card.open.left,
+		// Both invoices of each card: the one still taking purchases, and the one that
+		// closed and has not been paid. The second is the one somebody has to act on, and
+		// it was on no list here at all.
+		...shownCards
+			.flatMap((card) =>
+				[card.open, card.unpaid].map((state) => ({ account: card.account, state })),
+			)
+			.filter(
+				(row) =>
+					row.state !== null && row.state.left > 0 && row.state.dueOn <= addDays(today, AHEAD),
+			)
+			.map((row) => ({
+				id: `invoice:${row.account.id}:${row.state?.month}`,
+				on: row.state?.dueOn ?? today,
+				description: t("dashboard.invoiceOf", { card: row.account.name }),
+				amount: -(row.state?.left ?? 0),
 				kind: "expense" as const,
 				invoice: true,
 			})),
@@ -401,7 +508,7 @@ export function DashboardPage() {
 							// said nothing at all when the open one was the person's own.
 							consolidated
 								? narrowedSomewhere
-									? t("dashboard.yoursOnlySomewhere")
+									? t("dashboard.yoursOnlySomewhere", { day: dayAndMonth(today) })
 									: t("dashboard.asOf", { day: dayAndMonth(today) })
 								: mine.seesOwnRowsOnly
 									? t("dashboard.yoursOnly")
@@ -475,9 +582,9 @@ export function DashboardPage() {
 
 				{/* What is owed and what is allowed, each on a line of its own, because
 				    neither of them is the money somebody has. */}
-				{(cards.data ?? []).length > 0 || vouchers.length > 0 ? (
+				{shownCards.length > 0 || vouchers.length > 0 ? (
 					<div className="mt-4 divide-y divide-line border-line border-t">
-						{(cards.data ?? []).map((card) => (
+						{shownCards.map((card) => (
 							<div
 								key={card.account.id}
 								className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2"
@@ -495,6 +602,17 @@ export function DashboardPage() {
 											</>
 										) : null}
 									</p>
+									{/* The invoice that closed and is still owed, said on the card's own
+									    line, because it is the one thing about a card somebody has to
+									    act on and the line above it is about the one still open. */}
+									{card.unpaid && card.unpaid.left > 0 ? (
+										<p className="text-sm text-seal">
+											<Value amount={card.unpaid.left} currency={card.account.currency} />{" "}
+											{t("dashboard.invoiceStillOwed", {
+												day: dayAndMonth(card.unpaid.dueOn),
+											})}
+										</p>
+									) : null}
 								</div>
 								<Link to={ROUTES.invoices}>
 									<Button size="small" variant="secondary">
@@ -508,6 +626,7 @@ export function DashboardPage() {
 								key={voucher.id}
 								accountId={voucher.id}
 								name={voucher.name}
+								currency={voucher.currency}
 								today={today}
 							/>
 						))}
@@ -649,7 +768,10 @@ export function DashboardPage() {
 					{thisMonth.isPending ? (
 						<Skeleton lines={2} />
 					) : (
-						<div className="grid grid-cols-3 gap-3">
+						// One column on a telephone. Three figures across a narrow screen leaves
+						// about ninety pixels each, and an amount does not wrap, so they ran into
+						// one another.
+						<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
 							<Figure
 								label={t("reports.income")}
 								amount={(thisMonth.data?.income ?? 0) + (thisMonth.data?.benefits ?? 0)}
@@ -829,10 +951,13 @@ function DueRow({
 function VoucherLine({
 	accountId,
 	name,
+	currency,
 	today,
 }: {
 	accountId: string;
 	name: string;
+	/** The currency of the card, which is the one every other line in this panel uses. */
+	currency: string;
 	today: CalendarDate;
 }) {
 	const { t } = useTranslation();
@@ -850,8 +975,8 @@ function VoucherLine({
 				<p className="text-quiet text-sm">
 					{state.data ? (
 						<>
-							<Value amount={state.data.left} /> {t("dashboard.ofQuota")}{" "}
-							<Value amount={state.data.quota} /> {t("dashboard.thisPeriod")}
+							<Value amount={state.data.left} currency={currency} /> {t("dashboard.ofQuota")}{" "}
+							<Value amount={state.data.quota} currency={currency} /> {t("dashboard.thisPeriod")}
 						</>
 					) : (
 						t("dashboard.noQuota")

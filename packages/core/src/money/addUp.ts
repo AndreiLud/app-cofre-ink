@@ -6,9 +6,10 @@
 // because a total under a list is labelled with the currency of the space and nothing on
 // the screen says otherwise.
 //
-// Four places used to add the written amount up and label the answer with the space
-// currency: the total under the list of records, and three sums on the calendar. A dinner
-// of 40 dollars in a space that counts in reais came out as R$ 40,00 in every one of them.
+// Seven places used to add the written amount up and label the answer with the space
+// currency: the total under the list of records, four sums on the calendar, and what is
+// still coming in and still going out on the overview. A dinner of 40 dollars in a space
+// that counts in reais came out as R$ 40,00 in every one of them.
 
 /** What any of these sums needs from a record, and nothing more. */
 export type Countable = {
