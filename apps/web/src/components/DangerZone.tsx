@@ -93,7 +93,16 @@ export function DangerZone() {
 	// served from, with the person's application password in the header. A 404 counts as
 	// the file already being gone, so the screen said the copy had been erased while it
 	// sat untouched in the folder, and the backup was still pointed at it.
-	const copyKeepsIt = mode === "browser" && backingUp.on && readyToBackUp(destination);
+	//
+	// Two questions, not one. Whether a copy could put this space back is the backup being
+	// on, and nothing else: a place that is half filled in is a place somebody will finish
+	// filling in, and the next run then sees it ahead and brings everything back. Whether
+	// the copy can be taken away is whether the place is ready, which is a different
+	// question with a different answer, and folding the two into one flag meant that
+	// erasing a space with the backup on and the address half typed asked nothing at all
+	// and left the backup running.
+	const copyCouldPutItBack = mode === "browser" && backingUp.on;
+	const copyKeepsIt = copyCouldPutItBack && readyToBackUp(destination);
 
 	// In browser mode the whole database is one file on this machine, so erasing
 	// everything means the file. On a server it means the spaces of this account, and
@@ -135,7 +144,11 @@ export function DangerZone() {
 	 * browser, not one per space, so that was every space.
 	 */
 	function stopTheBackup(): void {
-		if (!copyKeepsIt || alsoTheCopy) return;
+		if (!copyCouldPutItBack) return;
+		// Off whenever the copy is staying, and that includes a place too incomplete to
+		// take the copy from: the copy is there, and leaving the switch on is leaving the
+		// space to come back the moment somebody finishes filling the address in.
+		if (copyKeepsIt && alsoTheCopy) return;
 		rememberWhen({ ...backingUp, on: false });
 	}
 
@@ -192,7 +205,11 @@ export function DangerZone() {
 						result.spaceRemoved
 							? t("danger.spaceGone", { name: result.name, count: result.rows })
 							: t("danger.spaceEmptied", { name: result.name, count: result.rows }),
-						copyKeepsIt ? t(alsoTheCopy ? "danger.copyGone" : "danger.backupOff") : null,
+						copyKeepsIt && alsoTheCopy
+							? t("danger.copyGone")
+							: copyCouldPutItBack
+								? t("danger.backupOff")
+								: null,
 					]
 						.filter(Boolean)
 						.join(" "),
@@ -310,6 +327,16 @@ export function DangerZone() {
 								{t(alsoTheCopy ? "danger.alsoTheCopyHint" : "danger.keepTheCopyHint")}
 							</p>
 						</div>
+					) : null}
+
+					{/* The backup is on and the place is not filled in far enough to reach the
+					    copy. There is nothing to offer, and there is something to say: the
+					    copy stays where it is, so the switch goes off, or the space comes back
+					    the moment somebody finishes typing the address. */}
+					{target?.kind === "space" && copyCouldPutItBack && !copyKeepsIt ? (
+						<Callout tone="attention" title={t("danger.copyOutOfReachTitle")}>
+							{t("danger.copyOutOfReachBody")}
+						</Callout>
 					) : null}
 
 					<Field

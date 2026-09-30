@@ -1092,7 +1092,8 @@
 		"databaseShort": "banco de dados online",
 		"databaseHint": "O log de mudanças vira linhas numa tabela, e não um arquivo. Dois aparelhos podem gravar ao mesmo tempo sem um passar por cima do outro. Funciona com o Turso ou com um sqld que você mesmo roda.",
 		"databaseAddress": "Endereço do banco",
-		"databaseAddressHint": "O endereço que o serviço te deu, terminando em turso.io, ou o do seu próprio sqld. Pode colar como o Turso mostra, começando com libsql://, ou só o nome do servidor."
+		"databaseAddressHint": "O endereço que o serviço te deu, terminando em turso.io, ou o do seu próprio sqld. Pode colar como o Turso mostra, começando com libsql://, ou só o nome do servidor.",
+		"addressNotAnAddress": "Este endereço não foi entendido. Confira se ele começa com https:// e se não ficou nada faltando."
 	},
 	"importing": {
 		"title": "Importar extrato",
@@ -1429,7 +1430,9 @@
 		"keepTheCopyHint": "A cópia fica onde está, e por isso o backup automático vai ser desligado: com ele ligado, a próxima rodada veria o destino na frente e traria este espaço de volta inteiro.",
 		"copyGone": "A cópia no destino também foi apagada.",
 		"copyWentFirst": "A cópia no destino já tinha sido apagada, e o espaço continua aqui, inteiro. O backup segue ligado, então a próxima rodada escreve a cópia de novo.",
-		"backupOff": "O backup automático foi desligado, para o destino não trazer este espaço de volta."
+		"backupOff": "O backup automático foi desligado, para o destino não trazer este espaço de volta.",
+		"copyOutOfReachTitle": "A cópia no destino vai ficar onde está",
+		"copyOutOfReachBody": "O endereço do destino ainda não está completo, então o {{app}} não consegue apagar a cópia deste espaço lá. Apagar aqui desliga o backup automático: se ele ficasse ligado, este espaço voltaria inteiro no momento em que alguém terminasse de preencher o endereço."
 	},
 	"profiles": {
 		"you": "Você é {{name}}"

@@ -104,7 +104,23 @@ function readStored(): StoredDestinations {
 			kept.kind !== undefined && kept.kind !== null && KINDS.has(kept.kind) ? kept.kind : null;
 
 		if (kept.places !== undefined && typeof kept.places === "object" && kept.places !== null) {
-			return { kind, places: kept.places as Partial<Record<DestinationKind, Fields>> };
+			const places = kept.places as Partial<Record<DestinationKind, Fields>>;
+			// The same repair, on the new shape.
+			//
+			// 1.0.4 split the places apart and read what it found at face value, so a browser
+			// that had already hit the 1.0.3 fault kept the folder's address and application
+			// password filed under the database, and the folder blank, in the new shape. The
+			// repair only looked at the old one, which is exactly the browsers that had not
+			// gone wrong yet. A database never has a user, so a filled user under the
+			// database is a folder's set of fields, and that is the one tell there is.
+			const underDatabase = places.database;
+			if (underDatabase && underDatabase.user.trim() !== "" && !places.webdav) {
+				return {
+					kind: kind === "database" ? "webdav" : kind,
+					places: { ...places, webdav: underDatabase, database: undefined },
+				};
+			}
+			return { kind, places };
 		}
 
 		// The old shape. What it holds belongs to the place it was holding it for, and a

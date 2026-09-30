@@ -1092,7 +1092,8 @@
 		"databaseShort": "online database",
 		"databaseHint": "The change log becomes rows in a table rather than a file. Two devices can write at the same time without one going over the other. Works with Turso or with a sqld you run yourself.",
 		"databaseAddress": "Address of the database",
-		"databaseAddressHint": "The address the service gave you, ending in turso.io, or the one of your own sqld. You can paste it the way Turso shows it, starting with libsql://, or just the host on its own."
+		"databaseAddressHint": "The address the service gave you, ending in turso.io, or the one of your own sqld. You can paste it the way Turso shows it, starting with libsql://, or just the host on its own.",
+		"addressNotAnAddress": "This address was not understood. Check that it starts with https:// and that nothing is missing from it."
 	},
 	"importing": {
 		"title": "Import a statement",
@@ -1429,7 +1430,9 @@
 		"keepTheCopyHint": "The copy stays where it is, and the automatic backup is switched off because of it: with it on, the next run would see the destination as ahead and bring this whole space back.",
 		"copyGone": "The copy at the destination was erased too.",
 		"copyWentFirst": "The copy at the destination had already been erased, and the space is still here, whole. The backup is still on, so the next run writes the copy again.",
-		"backupOff": "The automatic backup was switched off, so the destination does not bring this space back."
+		"backupOff": "The automatic backup was switched off, so the destination does not bring this space back.",
+		"copyOutOfReachTitle": "The copy at the destination is going to stay where it is",
+		"copyOutOfReachBody": "The address of the destination is not complete yet, so {{app}} cannot take the copy of this space away from it. Erasing here switches the automatic backup off: left on, this whole space would come back the moment somebody finished filling the address in."
 	},
 	"profiles": {
 		"you": "You are {{name}}"

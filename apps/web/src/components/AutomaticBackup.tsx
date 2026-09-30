@@ -18,7 +18,13 @@
 // or already runs.
 
 import type { DestinationKind } from "@cofre/cloud";
-import { BUNDLE_MEDIA_TYPE, bundleFileName, DESTINATIONS, packBundle } from "@cofre/cloud";
+import {
+	BUNDLE_MEDIA_TYPE,
+	bundleFileName,
+	DESTINATIONS,
+	looksReachable,
+	packBundle,
+} from "@cofre/cloud";
 import type { BackupOutcome, SyncStore } from "@cofre/storage";
 import { keepMine, keepTheirs, runBackup, syncWithStore } from "@cofre/storage";
 import { Button, Callout, Dialog, Field, Select } from "@cofre/ui";
@@ -81,6 +87,18 @@ export function AutomaticBackup() {
 	const question = asking ?? running.waiting[0] ?? null;
 
 	const kind = settings.kind;
+
+	/**
+	 * The address said no, under the field it was typed into.
+	 *
+	 * The three buttons went grey and nothing said why, so somebody who had pasted an
+	 * address the parser will not take had a panel that looked finished and did nothing.
+	 * Empty is not a refusal: an empty field is a field nobody has filled in yet.
+	 */
+	const addressProblem =
+		settings.address.trim() !== "" && !looksReachable(settings.address)
+			? t("destination.addressNotAnAddress")
+			: undefined;
 
 	/**
 	 * A backup takes the spaces somebody may take a copy of, which is not the same list
@@ -260,6 +278,7 @@ export function AutomaticBackup() {
 						value={settings.address}
 						onChange={(event) => change({ address: event.target.value })}
 						placeholder="https://nuvem.exemplo.com/remote.php/dav/files/ana/cofre"
+						error={addressProblem}
 					/>
 					<Field
 						label={t("destination.user")}
@@ -284,6 +303,7 @@ export function AutomaticBackup() {
 						onChange={(event) => change({ address: event.target.value })}
 						placeholder="https://cofre-voce.turso.io"
 						hint={t("destination.databaseAddressHint")}
+						error={addressProblem}
 					/>
 					<Field
 						label={t("destination.token")}
