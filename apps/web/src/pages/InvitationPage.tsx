@@ -7,9 +7,10 @@ import { Button, Callout, EmptyState, SectionTitle, Skeleton, SpaceMark } from "
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { sayWhy } from "../lib/sayWhy.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
-import { createServerClient, ServerError } from "../storage/remoteSession.ts";
+import { createServerClient } from "../storage/remoteSession.ts";
 
 export function InvitationPage() {
 	const { t } = useTranslation();
@@ -56,12 +57,14 @@ export function InvitationPage() {
 	}
 
 	if (preview.isError) {
-		const reason =
-			preview.error instanceof ServerError ? preview.error.code : "invitationUnreadable";
 		return (
 			<div className="mx-auto max-w-xl px-4 py-16 space-y-4">
+				{/* Through the one translator, like every other failure in the application.
+				    This screen had a second set of sentences for the same refusals, so a
+				    used link said one thing here and another thing everywhere else, and the
+				    two drifted from the moment the second one was written. */}
 				<Callout tone="problem" title={t("invitation.cannotOpenTitle")}>
-					{t(`invitation.reason.${reason}`, { defaultValue: t("invitation.reason.unknown") })}
+					{sayWhy(preview.error, t)}
 				</Callout>
 				<Button variant="secondary" onClick={() => void navigate({ to: ROUTES.dashboard })}>
 					{t("invitation.goHome")}
@@ -92,11 +95,7 @@ export function InvitationPage() {
 
 			{accept.isError ? (
 				<Callout tone="problem" title={t("invitation.cannotOpenTitle")}>
-					{accept.error instanceof ServerError
-						? t(`invitation.reason.${accept.error.code}`, {
-								defaultValue: t("invitation.reason.unknown"),
-							})
-						: t("invitation.reason.unknown")}
+					{sayWhy(accept.error, t)}
 				</Callout>
 			) : null}
 

@@ -37,8 +37,7 @@
 		"serverAddressHint": "O mesmo endereço que aparece quando você sobe o {{app}} com Docker.",
 		"connect": "Conectar",
 		"connecting": "Conectando",
-		"changeLater": "A sua escolha fica guardada neste navegador. Para mudar depois, vá em Dados.",
-		"failedTitle": "Não consegui conectar"
+		"changeLater": "A sua escolha fica guardada neste navegador. Para mudar depois, vá em Dados."
 	},
 	"signIn": {
 		"title": "Entrar",
@@ -70,15 +69,7 @@
 		"goHome": "Ir para o painel",
 		"needsServerTitle": "Este link precisa de um servidor",
 		"needsServerBody": "Convites vivem no servidor de quem convidou. Conecte este navegador a um servidor e abra o link de novo.",
-		"cannotOpenTitle": "Não consegui abrir o convite",
-		"reason": {
-			"invitationUsed": "Este link já foi usado. Peça outro para quem convidou.",
-			"invitationExpired": "Este link expirou. Peça outro para quem convidou.",
-			"invitationRevoked": "Este convite foi cancelado.",
-			"alreadyInside": "Você já está nesse espaço.",
-			"notFound": "Não encontrei esse convite.",
-			"unknown": "O link não é válido."
-		}
+		"cannotOpenTitle": "Não consegui abrir o convite"
 	},
 	"theme": {
 		"label": "Tema",
@@ -554,7 +545,7 @@
 		"transferBeforeLeaving": "Um Dono passa o espaço para outra pessoa antes de sair dele. Em Gerenciar espaços, no menu de quem vai ficar.",
 		"transfersAreNotSplit": "Uma transferência não se divide em parcelas.",
 		"installmentDaysAreTheirOwn": "Cada parcela cai no dia dela, então o dia é mudado uma parcela por vez.",
-		"useLeave": "Para sair de um espaço, use Sair do espaço.",
+		"useLeave": "Para sair de um espaço, use $t(members.leave).",
 		"notThere": "Não achei isso. Pode ter sido apagado, ou pode não estar ao seu alcance.",
 		"noConnection": "Não consegui falar com o servidor. Veja se você está conectado e tente de novo.",
 		"cardNeedsCreditAccount": "Escolha a fatura que esse cartão lança.",
@@ -614,7 +605,6 @@
 		"deleteGroup": "Apagar o parcelamento inteiro",
 		"countedIn_one": "{{count}} lançamento no período",
 		"countedIn_other": "{{count}} lançamentos no período",
-		"amountMissing": "Escreva um valor maior que zero.",
 		"picked_one": "{{count}} selecionado",
 		"picked_other": "{{count}} selecionados",
 		"pick": "Selecionar {{description}}",

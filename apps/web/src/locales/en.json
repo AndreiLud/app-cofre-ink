@@ -37,8 +37,7 @@
 		"serverAddressHint": "The same address that shows up when you bring {{app}} up with Docker.",
 		"connect": "Connect",
 		"connecting": "Connecting",
-		"changeLater": "Your choice is kept in this browser. To change it later, go to Data.",
-		"failedTitle": "I could not connect"
+		"changeLater": "Your choice is kept in this browser. To change it later, go to Data."
 	},
 	"signIn": {
 		"title": "Sign in",
@@ -70,15 +69,7 @@
 		"goHome": "Go to the overview",
 		"needsServerTitle": "This link needs a server",
 		"needsServerBody": "Invitations live on the server of whoever sent them. Connect this browser to a server and open the link again.",
-		"cannotOpenTitle": "I could not open the invitation",
-		"reason": {
-			"invitationUsed": "This link was already used. Ask for another one.",
-			"invitationExpired": "This link has expired. Ask for another one.",
-			"invitationRevoked": "This invitation was cancelled.",
-			"alreadyInside": "You are already in that space.",
-			"notFound": "I could not find that invitation.",
-			"unknown": "The link is not valid."
-		}
+		"cannotOpenTitle": "I could not open the invitation"
 	},
 	"theme": {
 		"label": "Theme",
@@ -554,7 +545,7 @@
 		"transferBeforeLeaving": "An Owner hands the space to somebody else before leaving it. Under Manage spaces, in the menu of whoever is staying.",
 		"transfersAreNotSplit": "A transfer is not split into instalments.",
 		"installmentDaysAreTheirOwn": "Each part of a purchase falls on its own day, so the day is changed one part at a time.",
-		"useLeave": "To leave a space, use Leave the space.",
+		"useLeave": "To leave a space, use $t(members.leave).",
 		"notThere": "I could not find that. It may have been erased, or it may be out of your reach.",
 		"noConnection": "I could not reach the server. Check that you are connected and try again.",
 		"cardNeedsCreditAccount": "Choose the invoice this card charges.",
@@ -614,7 +605,6 @@
 		"deleteGroup": "Delete every instalment",
 		"countedIn_one": "{{count}} record in the period",
 		"countedIn_other": "{{count}} records in the period",
-		"amountMissing": "Write an amount greater than zero.",
 		"picked_one": "{{count}} selected",
 		"picked_other": "{{count}} selected",
 		"pick": "Select {{description}}",

@@ -12,13 +12,12 @@
 // be corrected from inside.
 
 import type { Driver } from "@cofre/storage";
-import { Button, Callout, Field, Icon } from "@cofre/ui";
+import { Button, Field, Icon } from "@cofre/ui";
 import { useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DonateLink, LanguageToggle, ThemeToggle } from "../components/Controls.tsx";
 import { Wordmark } from "../components/Wordmark.tsx";
-import { sayWhy } from "../lib/sayWhy.ts";
 import { useTheme } from "../lib/theme.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -32,7 +31,7 @@ type Way = "server" | "database" | null;
 export function ModeChooserPage() {
 	const { t, i18n } = useTranslation();
 	const navigate = useNavigate();
-	const { chooseMode, startHere, error } = useCofre();
+	const { chooseMode, startHere } = useCofre();
 	const { choice, setChoice } = useTheme();
 	const [way, setWay] = useState<Way>(null);
 	const [address, setAddress] = useState("http://localhost:4321");
@@ -108,15 +107,12 @@ export function ModeChooserPage() {
 			<h1 className="mt-6 text-3xl">{t("mode.title")}</h1>
 			<p className="mt-2 max-w-[60ch] text-quiet">{t("mode.subtitle")}</p>
 
-			{/* In words, through the one translator. It printed what the engine threw, in
-			    English, as the explanation under a Portuguese heading, and that heading
-			    says a connection failed when what usually fails here is opening the
-			    database in this browser, which connects to nothing. */}
-			{error ? (
-				<Callout tone="problem" className="mt-6" title={t("mode.failedTitle")}>
-					{sayWhy(error, t)}
-				</Callout>
-			) : null}
+			{/* There was a callout here for a failure this screen cannot be showing.
+			    Everything that fails on the way in sets the status to failed, which puts the
+			    failure screen in front of this one, and the two paths that reach this screen
+			    clear the failure first. So it was a heading and a sentence that could never
+			    be drawn, kept alive by nothing but the fact that they read plausibly. The
+			    failure screen is where that belongs, and it says it. */}
 
 			<div className="mt-8 space-y-4">
 				<section className="border border-line p-5">
