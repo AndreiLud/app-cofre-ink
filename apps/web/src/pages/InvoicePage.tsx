@@ -42,7 +42,7 @@ import {
 	TableRow,
 } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
@@ -89,8 +89,18 @@ export function InvoicePage() {
 	const ready = iMay.ready;
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
 
-	const [invoiceAccountId, setInvoiceAccountId] = useState("");
-	const [month, setMonth] = useState("");
+	/**
+	 * Which card and which invoice the address asked for.
+	 *
+	 * The overview leads here with a card named, because it draws a block per card and
+	 * every button on one of them means "that one". Read once as the starting point rather
+	 * than held as the truth, so the pickers on this screen still work: somebody who
+	 * arrived by a link and then chose another card is choosing another card.
+	 */
+	const asked = useSearch({ from: ROUTES.invoices });
+
+	const [invoiceAccountId, setInvoiceAccountId] = useState(asked.cartao ?? "");
+	const [month, setMonth] = useState(asked.mes ?? "");
 	const [problem, setProblem] = useState<string | null>(null);
 
 	const [paying, setPaying] = useState<InvoiceState | null>(null);

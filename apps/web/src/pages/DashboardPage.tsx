@@ -27,6 +27,7 @@ import {
 	spendableNow,
 	todayIn,
 } from "@cofre/core";
+import type { CardStanding } from "@cofre/storage";
 import { roleSeesOwnRowsOnly } from "@cofre/storage";
 import { Button, Callout, EmptyState, InsightTitle, Panel, Segmented, Skeleton } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -106,6 +107,8 @@ export function DashboardPage() {
 	const mine = useWhatIMayDo(spaceId);
 	const mayUpdate = mine.may("transaction.update");
 	const mayMakeAnAccount = mine.may("account.create");
+	// Paying an invoice writes a transfer, so it is the permission a record needs.
+	const mayPay = mine.may("transaction.create");
 	const ready = mine.ready;
 
 	const accounts = useQuery({
@@ -772,6 +775,23 @@ export function DashboardPage() {
 				) : null}
 			</Panel>
 
+			{/* Where every card stands, one panel each.
+			    The line under the big number says what a card will charge and offers to pay
+			    it, which is the answer somebody wants in one second. This is the rest of the
+			    same question, which they want the moment the answer is not comfortable: when
+			    the invoice closes, how many days that is, whether the one before it is still
+			    owed, and how much of the limit is left. Every one of these figures was
+			    already worked out by the model and reached no screen. */}
+			{shownCards.length > 0 ? (
+				<Panel title={t("dashboard.cardsTitle")}>
+					<div className="grid gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
+						{shownCards.map((card) => (
+							<CardStandingBlock key={card.account.id} card={card} mayPay={mayPay} today={today} />
+						))}
+					</div>
+				</Panel>
+			) : null}
+
 			<div className="grid gap-4 lg:grid-cols-2">
 				<Panel title={t("dashboard.monthSoFar")}>
 					{thisMonth.isPending ? (
@@ -921,6 +941,103 @@ type Due = {
 	kind: string;
 	invoice: boolean;
 };
+
+/**
+ * Where one card stands, in the four sentences somebody asks for in that order.
+ *
+ * What it will charge, when it closes and when that is, whether the one before it is still
+ * owed, and how much of the limit is left. Every figure comes from the model: `closesOn`,
+ * `daysToClose` and `dueOn` from `invoiceStateOf`, and `available` from the invoices
+ * repository, which is the limit less what is owed and less what the instalments will
+ * charge later. None of them reached a screen before this.
+ */
+function CardStandingBlock({
+	card,
+	mayPay,
+	today,
+}: {
+	card: CardStanding;
+	mayPay: boolean;
+	today: CalendarDate;
+}) {
+	const { t } = useTranslation();
+	const currency = card.account.currency;
+
+	/** When the open invoice closes, said as a day and as a count of days. */
+	const closing =
+		card.open.daysToClose <= 0
+			? t("dashboard.closesToday")
+			: t("dashboard.closesIn", {
+					day: dayAndMonth(card.open.closesOn),
+					count: card.open.daysToClose,
+				});
+
+	return (
+		<div className="min-w-0 border-line border-t pt-3">
+			<p className="truncate font-medium text-ink">{card.account.name}</p>
+
+			<p className="mt-1 text-xl">
+				<Value amount={-card.open.charged} currency={currency} face="serif" tone="auto" />
+			</p>
+			<p className="text-quiet text-sm">{closing}</p>
+			<p className="text-quiet text-sm">
+				{t("dashboard.dueOnDay", { day: dayAndMonth(card.open.dueOn) })}
+			</p>
+
+			{/* The one before it, when it closed and was not paid. It is the only thing about
+			    a card that is already wrong rather than merely coming, so it is the one line
+			    here drawn in the colour of a problem. */}
+			{card.unpaid && card.unpaid.left > 0 ? (
+				<p className="mt-1 text-seal text-sm">
+					{t("dashboard.oneBefore", {
+						state: t(`invoice.standing.${card.unpaid.standing}`),
+						day: dayAndMonth(card.unpaid.dueOn),
+					})}{" "}
+					<Value amount={card.unpaid.left} currency={currency} />
+				</p>
+			) : null}
+
+			{card.later > 0 ? (
+				<p className="text-quiet text-sm">
+					<Value amount={card.later} currency={currency} /> {t("dashboard.inPartsAfter")}
+				</p>
+			) : null}
+
+			{/* The headroom, and only where the bank's limit was written down. Guessing at one
+			    would be inventing the one figure somebody checks before paying at a till. */}
+			<p className="mt-1 text-quiet text-sm">
+				{card.available === null ? (
+					t("dashboard.noLimitYet")
+				) : (
+					<>
+						{t("dashboard.limitLeft")} <Value amount={card.available} currency={currency} />
+					</>
+				)}
+			</p>
+
+			<div className="mt-2 flex flex-wrap gap-2">
+				{mayPay && (card.open.left > 0 || (card.unpaid?.left ?? 0) > 0) ? (
+					<Link to={ROUTES.invoices} search={{ cartao: card.account.id }}>
+						<Button size="small" variant="secondary">
+							{t("invoice.pay")}
+						</Button>
+					</Link>
+				) : null}
+				<Link to={ROUTES.invoices} search={{ cartao: card.account.id }}>
+					<Button size="small" variant="quiet">
+						{t("invoice.see")}
+					</Button>
+				</Link>
+			</div>
+
+			{/* Said out loud once per card, because a day that has gone is the thing somebody
+			    scanning this block would otherwise have to work out from a date. */}
+			{card.open.late ? (
+				<p className="sr-only">{t("dashboard.invoiceLate", { day: dayAndMonth(today) })}</p>
+			) : null}
+		</div>
+	);
+}
 
 function DueRow({
 	row,

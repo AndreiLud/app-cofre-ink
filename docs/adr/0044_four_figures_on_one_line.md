@@ -34,6 +34,20 @@ Under them, on lines of their own, what is owed on each card and what is left on
 benefit card, because neither of those is money somebody has and both were inside the old
 headline.
 
+And further down, a panel of its own with a block per card, which is a different question
+asked by the same person a moment later. The line under the headline answers "what will this
+card charge me", in one second, with a button to pay it. The block answers "and how bad is
+it": the day the invoice closes and how many days that is, the day it falls due, the invoice
+before it when that one closed and is still owed, what the instalments will charge after this
+one, and how much of the limit is left. Side by side on a wide screen, stacked on a telephone.
+
+The two are not a duplication, and the test of that is what happens if either is removed. Take
+the line away and the headline no longer accounts for the difference between what somebody has
+and what they can spend. Take the block away and every figure in it has nowhere to be: the
+closing day, the days left and the headroom were all worked out by the model and reached no
+screen at all until it existed, which is how this release shipped a card that could tell you
+it closes in three days and never said so.
+
 **This is the one place in the product that comes near a panel of indicators**, and
 registry 0023 spent a release removing those. It is allowed here, and only here, because
 what 0023 objected to is not present: there is no box, no bar, no second colour and no

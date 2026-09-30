@@ -94,6 +94,20 @@ const categoriesRoute = createRoute({
 const invoicesRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/faturas",
+	/**
+	 * Which card, and which of its invoices.
+	 *
+	 * The overview has a block per card and every one of its buttons leads here, so the
+	 * address has to be able to say which one: without this the screen always opened on
+	 * whichever card came first and somebody with two of them had to find theirs again.
+	 * Both are optional, and anything that is not a string is dropped rather than refused,
+	 * because an address is typed by people and pasted by them too.
+	 */
+	validateSearch: (search: Record<string, unknown>): { cartao?: string; mes?: string } => ({
+		cartao: typeof search.cartao === "string" && search.cartao !== "" ? search.cartao : undefined,
+		mes:
+			typeof search.mes === "string" && /^\d{4}-\d{2}$/.test(search.mes) ? search.mes : undefined,
+	}),
 	component: lazyRouteComponent(() => import("./pages/InvoicePage.tsx"), "InvoicePage"),
 });
 
