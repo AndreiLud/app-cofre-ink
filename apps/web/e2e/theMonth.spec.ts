@@ -74,6 +74,13 @@ test.describe("a month in three numbers", () => {
 		// Without that record the account the wages arrive in would climb by the whole
 		// invoice every month and the card would sink by the same amount.
 		expect(await balanceOf(page, "Cartão de crédito")).toBe(cardBefore);
+
+		// The payment names the invoice it pays, which is what the Pay invoice button on
+		// the invoice screen does too. It used to name none, and a payment that names none
+		// pays down the oldest invoice still owing, so somebody filling in three months out
+		// of order had each payment land on a month it was not about.
+		await go(page, "Faturas");
+		await expect(page.getByText(/Paga|Paga em parte/).first()).toBeVisible();
 	});
 
 	test("says what the month already holds, so the same money is not counted twice", async ({

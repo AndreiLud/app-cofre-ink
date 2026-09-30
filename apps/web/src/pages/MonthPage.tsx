@@ -17,6 +17,7 @@ import {
 	type CardCycle,
 	type CurrencyCode,
 	dateInMonth,
+	invoiceMonthOf,
 	MONTH_FIELDS,
 	MONTH_PARTS,
 	type MonthPart,
@@ -321,6 +322,8 @@ export function MonthPage() {
 		kind: "income" | "expense" | "transfer";
 		counter: string | null;
 		status: TransactionStatus;
+		/** Which invoice a payment pays, where the row is one. */
+		invoiceMonth?: string | null;
 	}> {
 		if (account === null) return [];
 
@@ -362,6 +365,20 @@ export function MonthPage() {
 				// application already has a word for that. It counts in what is coming
 				// rather than in what is there.
 				status: paidOn <= today ? "settled" : "planned",
+				/**
+				 * Which invoice it pays, said out loud.
+				 *
+				 * The row above is charged to the card and finds its invoice through the
+				 * cycle. This one named none, so it fell through to the rule written for a
+				 * payment nobody explained, which pays down the oldest invoice still owing.
+				 * Somebody filling in three months out of order therefore had each payment
+				 * land on a month it was not about, and the invoice screen showed the wrong
+				 * one as settled.
+				 */
+				invoiceMonth:
+					cycle === null || cycle === undefined
+						? null
+						: invoiceMonthOf(monthPartDay(shown, "invoice", cycle, today), cycle),
 			});
 		}
 
@@ -404,6 +421,10 @@ export function MonthPage() {
 					accountId: one.into.id,
 					counterAccountId: one.counter,
 					status: one.status,
+					// Only the payment carries one, and naming it marks it as chosen, so
+					// correcting the closing day of the card afterwards leaves it where it
+					// was put rather than dragging it to another month.
+					...(one.invoiceMonth ? { invoiceMonth: one.invoiceMonth } : {}),
 					externalId: monthMark(shown, one.part),
 				});
 			}
