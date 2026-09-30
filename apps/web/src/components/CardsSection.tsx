@@ -23,7 +23,8 @@ export type CardsSectionProps = {
 
 export function CardsSection({ accounts, cards, loading }: CardsSectionProps) {
 	const { currentSpace } = useCofre();
-	const mayCreate = useWhatIMayDo(currentSpace?.id).may("account.create");
+	const mine = useWhatIMayDo(currentSpace?.id);
+	const mayCreate = mine.may("account.create");
 	const { t } = useTranslation();
 
 	const nameOf = (id: string | null) =>
@@ -47,7 +48,11 @@ export function CardsSection({ accounts, cards, loading }: CardsSectionProps) {
 
 			{/* Saying where they come from, once, in the only place somebody would look
 			    for a button that is deliberately not here. */}
-			{!loading && cards.length === 0 ? (
+			{/* And once the member list has arrived, because which of the two sentences it is
+			    depends on it and until then every answer is no: somebody who may make a card
+			    was told for a moment that it belongs to whoever runs the space. The loading
+			    flag beside it is about the cards and says nothing about the list. */}
+			{!loading && cards.length === 0 && mine.ready ? (
 				<p className="max-w-[62ch] text-sm text-quiet">
 					{/* The button is quoted by name, taken from the button itself, so the
 					    two can never drift apart and the English text can never end up

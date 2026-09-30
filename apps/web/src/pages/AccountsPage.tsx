@@ -310,7 +310,7 @@ export function AccountsPage() {
 	 * space, and everything else on this screen is open to an Editor too, so a single
 	 * "may write here" would have been wrong in both directions.
 	 */
-	const { may } = useWhatIMayDo(spaceId);
+	const { may, ready } = useWhatIMayDo(spaceId);
 	const mayCreate = may("account.create");
 	const mayUpdate = may("account.update");
 	const mayArchive = may("account.archive");
@@ -397,11 +397,17 @@ export function AccountsPage() {
 
 			{accounts.isPending ? <Skeleton lines={4} /> : null}
 
-			{!accounts.isPending && rows.length === 0 ? (
+			{/* And only once the member list has arrived, because the sentence it picks
+			    depends on it and until then every answer is no: an Owner was told for a
+			    moment that making an account belongs to whoever runs the space. */}
+			{!accounts.isPending && rows.length === 0 && ready ? (
 				<EmptyState
 					icon="wallet"
 					title={t("accounts.emptyTitle")}
-					description={t("accounts.emptyBody")}
+					// The sentence tells somebody to make the first account, so it is only for
+					// somebody who may make one. The overview has said the right thing to both
+					// all along, out of the same two keys.
+					description={mayCreate ? t("accounts.emptyBody") : t("accounts.emptyForYou")}
 					action={
 						mayCreate ? (
 							<Button

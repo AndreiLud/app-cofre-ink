@@ -56,7 +56,8 @@ export function RulesSection({ spaceId, categories }: RulesSectionProps) {
 	const complain = (error: unknown) => setProblem(sayWhy(error, t));
 
 	// A rule writes records into the space, so it is set by the people who may write them.
-	const mayWrite = useWhatIMayDo(spaceId).may("rule.write");
+	const mine = useWhatIMayDo(spaceId);
+	const mayWrite = mine.may("rule.write");
 
 	const save = useMutation({
 		mutationFn: async () => {
@@ -152,9 +153,12 @@ export function RulesSection({ spaceId, categories }: RulesSectionProps) {
 
 			{rules.isPending ? <Skeleton lines={2} /> : null}
 
-			{!rules.isPending && rows.length === 0 ? (
-				// The sentence tells somebody to use a menu item, so it is only for somebody
-				// who has that menu item.
+			{/* Once the rules have arrived and once the member list has, because the sentence
+			    tells somebody to use a menu item, so it is only for somebody who has that
+			    menu item, and until the list arrives every answer is no. The two queries land
+			    in whichever order they land in, so an Owner was told for a moment that making
+			    a rule belongs to whoever runs the space. */}
+			{!rules.isPending && rows.length === 0 && mine.ready ? (
 				<p className="text-sm text-quiet">
 					{mayWrite ? t("rulesSection.empty") : t("rulesSection.emptyAndNotYours")}
 				</p>
