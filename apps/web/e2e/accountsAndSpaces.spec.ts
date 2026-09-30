@@ -198,16 +198,19 @@ test.describe("accounts", () => {
 		await expect(page.getByText("Final 7788")).toBeVisible();
 
 		// The same plastic, used as credit: the purchase has to reach the invoice.
+		//
+		// One field, not two. The card and the account used to be separate pickers that
+		// already behaved as one, so this chose the plastic and then read back what it had
+		// done to the account beside it. The choice at the till is what it was paid with, and
+		// the account comes with the answer.
 		await go(page, "Lista");
 		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
 		const dialog = page.getByRole("dialog");
 		await dialog.getByLabel("Valor", { exact: true }).fill("99,90");
 		await dialog.getByLabel("Descrição").fill("Compra com o cartão novo");
-		await dialog
-			.getByLabel("Cartão", { exact: true })
-			.selectOption({ label: "Cartão novo (Crédito)" });
-		// Picking the plastic picked the account, which is the point of the picker.
-		await expect(dialog.getByLabel("Conta", { exact: true })).toHaveValue(/.+/);
+		await dialog.getByLabel("Pago com").selectOption({ label: "Cartão novo (Crédito)" });
+		// And it says which invoice the purchase will land on, before it is written.
+		await expect(dialog.getByText(/Entra na fatura de/)).toBeVisible();
 		await dialog.getByRole("button", { name: "Salvar" }).click();
 
 		await go(page, "Faturas");

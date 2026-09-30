@@ -580,8 +580,11 @@ test.describe("server mode", () => {
 
 		const carla = await arrive(browser, { name: "Carla", email: uniqueEmail("carla") });
 		await carla.goto(link);
+		// The sentence every other screen would give for the same refusal. This screen used
+		// to keep a second set of its own, so a used link said one thing here and another
+		// thing anywhere else.
 		await expect(
-			carla.getByText("Este link já foi usado. Peça outro para quem convidou."),
+			carla.getByText("Esse convite já foi usado. Cada link serve uma vez só."),
 		).toBeVisible();
 	});
 });

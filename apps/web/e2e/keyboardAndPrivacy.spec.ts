@@ -39,8 +39,10 @@ test.describe("privacy mode", () => {
 	test("hides every digit and brings them back", async ({ page }) => {
 		await openCofre(page);
 
+		// Once the answer is on the screen, because a figure read while the balances are
+		// still arriving is a figure that changes by itself a moment later.
+		await expect(total(page)).toContainText(/\d/);
 		const before = await total(page).innerText();
-		expect(before).toMatch(/\d/);
 
 		await page.getByRole("button", { name: "Esconder valores" }).click();
 		await expect(total(page)).not.toContainText(/\d/);

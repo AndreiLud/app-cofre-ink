@@ -77,9 +77,15 @@ export async function go(page: Page, label: string): Promise<void> {
 
 /** The amount shown as the answer to "how much do I have". */
 export function total(page: Page) {
-	// Every amount on screen is one of these, whichever face it is cut in, and the one
-	// the overview opens with is the first.
-	return page.locator("main span.tabular-nums").first();
+	// Under the label that says what it is, and not whichever amount the layout happens to
+	// put first. The band of four figures waits for the balances while the lines under it,
+	// one per card, do not, so "the first amount on the screen" was sometimes a card's
+	// invoice and sometimes the answer, depending on which query landed first.
+	return page
+		.locator("div")
+		.filter({ has: page.getByText("Você tem", { exact: true }) })
+		.locator("span.tabular-nums")
+		.first();
 }
 
 /**

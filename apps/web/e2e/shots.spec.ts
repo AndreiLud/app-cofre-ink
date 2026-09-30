@@ -63,4 +63,32 @@ test.describe("shots", () => {
 			});
 		}
 	}
+
+	/**
+	 * The file itself, and not a picture of the page that makes it.
+	 *
+	 * The month on paper is a page the browser saves as a PDF, so what somebody ends up with
+	 * is the print stylesheet applied by the browser and not the screen. Two of them, because
+	 * the two cases differ: the month somebody is living in is read today, and a month already
+	 * over is read as it stood on its last day.
+	 */
+	for (const month of [
+		{ name: "atual", at: "/relatorio?mes=2026-09" },
+		{ name: "passado", at: "/relatorio?mes=2026-08" },
+	]) {
+		test(`relatorio pdf ${month.name}`, async ({ page }) => {
+			await openCofre(page);
+			await page.goto(month.at);
+			await expect(page.getByText("O mês").first()).toBeVisible();
+			// Let the charts finish drawing themselves, because a PDF is one frame.
+			await page.waitForTimeout(1500);
+
+			await page.pdf({
+				path: `shots/cofre_relatorio_${month.name}.pdf`,
+				format: "A4",
+				printBackground: true,
+				margin: { top: "14mm", bottom: "14mm", left: "12mm", right: "12mm" },
+			});
+		});
+	}
 });
