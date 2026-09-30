@@ -59,6 +59,13 @@ code this release had not actually written. All of it is below.
 
 ### Added
 
+**Where every card stands, on the overview.** A panel of its own, one block per card, side by
+side on a wide screen: what the open invoice will charge, the day it closes and how many days
+that is, the day it falls due, the invoice before it when that one closed and is still owed,
+what the instalments will charge after this one, and how much of the limit is left. Every one
+of those figures was already worked out and none of them reached a screen. The buttons lead to
+that card's own invoice, which the address can now name.
+
 **The invoice is a thing with a state, and it can be paid.** An invoice of a card has a
 month, a day it closes, a day it falls due, what it charged, what has been paid against it
 and what is left, and it is open, partly paid, paid or in credit. Paying it is a transfer
@@ -105,8 +112,16 @@ investments. Every figure has a table it can be read from, so the file works wit
 reader. A month that has gone is read as it stood on its last day. Nothing leaves the device
 to make it.
 
-**An account can be corrected**: its name, where it is, its opening balance, and the
-allowance of a benefit card. Deleting one says how many records are charged to it first.
+**A card is written down with nothing on it.** The form asked for an opening balance on a
+credit card and on a benefit card, under the sentence "how much is in this account today",
+which is the wrong question for both: what is on a credit card is its invoice, and what is on
+a benefit card is the allowance less what was eaten. The field is gone from both, and the
+model refuses a number there rather than trusting the screen. A card written down by an
+earlier release keeps what it has, and that number can still be corrected, which is how it
+keeps counting.
+
+**An account can be corrected**: its name, where it is, its opening balance, the closing day,
+the due day and the limit of a credit card, and the allowance of a benefit card. Deleting one says how many records are charged to it first.
 What is already on a card invoice can be written down when the card is, as one record dated
 today, because the cycle of a card you already own started before you got here.
 
@@ -273,6 +288,16 @@ the same name in it, so nothing in the build could see it. The check over the tw
 now refuses a sentence a screen asks for without the names it needs, which is the fifth thing
 it refuses and the only one that catches a sentence that is right in the file and wrong on the
 screen.
+
+**The month screen names the invoice it pays.** It wrote its payment with no invoice on it,
+so it fell through to the rule for a payment nobody explained and paid down the oldest invoice
+still owing. Somebody filling in three months out of order had each payment land on a month it
+was not about.
+
+**A benefit card written down today is not empty.** The allowance of the period somebody is
+standing in counts when nothing was typed as the opening balance, which is every card written
+down since the form stopped asking for one. A card added on the twentieth used to read as
+holding nothing until the fifth of the next month.
 
 **The file for paper prints no keys and no nameless rows.** Money nobody sorted had an empty
 first cell against two thirds of a month, and spending with no priority on it was a row headed
