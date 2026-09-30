@@ -249,6 +249,23 @@ three fields of a card. Each one is either corrected or is now true because the 
 up. The ten routes this release added are in both guides, and so are the four columns and the
 three migrations.
 
+**No card is no card, in a browser and on a server alike.** Found by the browser tests and
+not by the reading, which is the right way round for this one: the one field that asks what a
+record was paid with carries the card and the account together, and for an account with no
+card at all it was handing back a card named by the empty half. The repository has always read
+an empty identifier as no card and the route refused it as one too short, so the same record
+was written in a browser and refused on a server. Both halves are corrected, and the two modes
+now answer the same thing whatever reaches them.
+
+**The file for paper prints no keys and no nameless rows.** Money nobody sorted had an empty
+first cell against two thirds of a month, and spending with no priority on it was a row headed
+with the name of a translation key. The screen next door has had a sentence for each of them
+all along. Looking at the pictures of the release is what found these, which is what the
+pictures are for.
+
+**The answer fits its column on a telephone.** The band is two figures across at that width
+and an amount does not wrap, so the headline ran into the one beside it.
+
 **The migrations are checked against a database that has money in it.** Comparing an empty
 database with the described schema says nothing about the one thing a release can break for
 somebody: their own file, written by the release before. The suite builds the database 1.0.5
