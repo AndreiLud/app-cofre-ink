@@ -109,7 +109,8 @@ export function BudgetPage() {
 	// The plan of the space: limits, goals and the promise to save first. Everybody sees
 	// it, because a limit nobody knows about is not a limit, and the people who may write
 	// records are the ones who set it.
-	const mayWrite = useWhatIMayDo(spaceId).may("plan.write");
+	const mine = useWhatIMayDo(spaceId);
+	const mayWrite = mine.may("plan.write");
 
 	const saveLimit = useMutation({
 		mutationFn: async () =>
@@ -219,6 +220,10 @@ export function BudgetPage() {
 						? t("budget.headlineOver", { count: over })
 						: t("budget.headlineFine")}
 			</InsightTitle>
+
+			{/* Whose spending these limits are measured against. Every figure on the screen
+			    narrows to this person's own records, and nothing said so. */}
+			{mine.seesOwnRowsOnly ? <p className="text-quiet text-sm">{t("budget.yoursOnly")}</p> : null}
 
 			{/* Only when no dialog is over it. The three forms on this screen each show it
 			    inside themselves now, because the one at the top of the page sat behind

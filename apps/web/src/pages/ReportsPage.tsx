@@ -31,6 +31,7 @@ import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
 import { ROUTES } from "../routes.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { useWhatIMayDo } from "../storage/roles.ts";
 
 const PRIORITY_TONE: Record<string, "ink" | "cedar" | "seal" | "ochre" | "amber"> = {
 	essential: "ink",
@@ -56,6 +57,8 @@ export function ReportsPage() {
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
 	const [month, setMonth] = useState(monthOf(today));
 	const [across, setAcross] = useState<"space" | "everything">("space");
+
+	const mine = useWhatIMayDo(currentSpace?.id);
 
 	const locale = i18n.resolvedLanguage === "en" ? "en" : "pt-BR";
 	const currency = currentSpace?.baseCurrency ?? "BRL";
@@ -186,6 +189,13 @@ export function ReportsPage() {
 									amount: money(Math.abs(period.left)),
 								})}
 				</InsightTitle>
+
+				{/* Whose figures these are. Every one of them narrows to this person's own
+				    records, and the screen said so nowhere, so a month of one person read as
+				    a month of the household. */}
+				{mine.seesOwnRowsOnly ? (
+					<p className="text-quiet text-sm">{t("reports.yoursOnly")}</p>
+				) : null}
 
 				{/* Said out loud rather than folded in, because it is money that came in and
 				    is not a record: nobody writes down a meal card being credited. Lunch
