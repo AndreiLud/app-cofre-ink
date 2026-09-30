@@ -180,7 +180,11 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 				) : null}
 			</div>
 
-			{problem ? <Callout tone="problem">{problem}</Callout> : null}
+			{/* Only where the dialog is not covering it. The same sentence was drawn twice,
+			    once here and once inside the form, so a refusal of something saved in the
+			    dialog appeared in both places and the one behind it was read later, out of
+			    context, as a failure of the section. */}
+			{problem && !isOpen ? <Callout tone="problem">{problem}</Callout> : null}
 
 			{series.isPending ? <Skeleton lines={2} /> : null}
 

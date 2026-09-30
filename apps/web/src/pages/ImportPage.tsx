@@ -409,6 +409,11 @@ export function ImportPage() {
 					className="block w-full max-w-md text-sm text-ink file:mr-3 file:rounded-sm file:border file:border-lineStrong file:bg-sunken file:px-3 file:py-2 file:text-sm file:text-ink"
 				/>
 				<p className="text-xs text-quiet">{t("importing.pickHint")}</p>
+				{/* Beside the field the file was chosen with. A file too large or one the
+				    browser cannot read clears what was read, and the only callout on this
+				    screen sat inside the block that only exists once a file has been read, so
+				    the refusal was drawn nowhere at all. */}
+				{read === null && problem ? <Callout tone="problem">{problem}</Callout> : null}
 			</div>
 
 			{usable.length === 0 && accounts.isFetched ? (
