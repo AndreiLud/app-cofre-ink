@@ -113,6 +113,25 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 	}
 
 	/**
+	 * An invoice is the card's, so it closes to somebody who only sees their own records.
+	 *
+	 * Every sum in this file is over every purchase on the card whoever wrote it, which is
+	 * what an invoice is: the bank does not send one per person. Narrowing it would produce a
+	 * number that is not the invoice and not anything else, and leaving it whole reads the
+	 * household's spending to somebody who may not see it. `standing` said so from the start
+	 * and refused; the rest of the file asked only for `transaction.read`, which every role
+	 * holds, so a logger read the real bill above a list holding one purchase of their own,
+	 * with a button offering to pay it.
+	 */
+	function refuseIfNarrowed(spaceId: string): void {
+		if (!seesOwnRowsOnly(context.actor(), spaceId)) return;
+		throw new RuleError(
+			"invoiceBelongsToTheCard",
+			"an invoice is the whole of what the card will charge, so it is not read one person at a time",
+		);
+	}
+
+	/**
 	 * Every invoice of one card that has anything on it, oldest first.
 	 *
 	 * A payment with no invoice named on it, which is what a transfer made by hand or
@@ -150,6 +169,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 		async list(accountId: string, today: CalendarDate): Promise<InvoiceState[]> {
 			const account = await needs.accounts.get(accountId);
 			assertCan(context.actor(), account.spaceId, "transaction.read");
+			refuseIfNarrowed(account.spaceId);
 			return statesOf(accountId, today);
 		},
 
@@ -157,6 +177,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 		async get(accountId: string, month: CalendarMonth, today: CalendarDate): Promise<InvoiceState> {
 			const account = await needs.accounts.get(accountId);
 			assertCan(context.actor(), account.spaceId, "transaction.read");
+			refuseIfNarrowed(account.spaceId);
 			const { cycle } = await cardAccount(accountId);
 			const states = await statesOf(accountId, today);
 			return (
@@ -199,7 +220,14 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 					.filter((state) => state.month > openMonth)
 					.reduce((total, state) => total + state.charged, 0);
 
-				const owing = states.reduce((total, state) => total + Math.max(0, state.left), 0);
+				// What is owed up to and including the invoice still taking purchases. The
+				// months after it are `later`, and counting them here as well took the
+				// instalments still to come off the headroom twice: a card with a limit of
+				// five thousand and a purchase of nine hundred in three parts reported three
+				// thousand five hundred left instead of four thousand one hundred.
+				const owing = states
+					.filter((state) => state.month <= openMonth)
+					.reduce((total, state) => total + Math.max(0, state.left), 0);
 
 				standing.push({
 					account,
@@ -237,6 +265,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 		}): Promise<Transaction> {
 			const { account } = await cardAccount(input.accountId);
 			assertCan(context.actor(), account.spaceId, "transaction.create");
+			refuseIfNarrowed(account.spaceId);
 
 			if (!Number.isSafeInteger(input.amount) || input.amount <= 0) {
 				throw new RuleError("amountIsPositiveInteger", "paying an invoice is a positive amount");
@@ -281,6 +310,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 		}): Promise<number> {
 			const { account } = await cardAccount(input.accountId);
 			assertCan(context.actor(), account.spaceId, "transaction.create");
+			refuseIfNarrowed(account.spaceId);
 
 			const states = await statesOf(input.accountId, input.today);
 			const owing = states.filter((state) => state.month <= input.month && state.left > 0);
@@ -314,6 +344,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 		async move(id: string, towards: "earlier" | "later"): Promise<number> {
 			const record = await needs.transactions.get(id);
 			assertCan(context.actor(), record.spaceId, "transaction.update");
+			refuseIfNarrowed(record.spaceId);
 			if (record.invoiceMonth === null) {
 				throw new RuleError(
 					"notOnAnInvoice",
@@ -328,14 +359,14 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 					})
 				: [record];
 
+			// Every part of the plan or none of it, which is what makes this a correction
+			// rather than a thing to be finished by hand afterwards.
 			const step = towards === "earlier" ? -1 : 1;
-			let moved = 0;
-			for (const part of parts) {
-				if (part.invoiceMonth === null) continue;
-				await needs.transactions.setInvoiceMonth(part.id, shiftMonth(part.invoiceMonth, step));
-				moved += 1;
-			}
-			return moved;
+			return needs.transactions.setInvoiceMonths(
+				parts
+					.filter((part) => part.invoiceMonth !== null)
+					.map((part) => ({ id: part.id, month: shiftMonth(part.invoiceMonth ?? "", step) })),
+			);
 		},
 
 		/**
@@ -352,6 +383,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 		}): Promise<number> {
 			const { account, cycle } = await cardAccount(input.accountId);
 			assertCan(context.actor(), account.spaceId, "transaction.update");
+			refuseIfNarrowed(account.spaceId);
 
 			const expected = invoiceStateOf({
 				month: input.month,
@@ -376,14 +408,15 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 				[input.accountId, from, to],
 			);
 
+			// All of them or none of them. One purchase in the window already ticked off
+			// against the bank used to move the ones before it and then refuse, which leaves
+			// a card's own month split between two invoices with nothing saying how far it got.
 			const wanted = earlier ? shiftMonth(input.month, 1) : input.month;
-			let moved = 0;
-			for (const row of rows) {
-				if (String(row.invoice_month) === wanted) continue;
-				await needs.transactions.setInvoiceMonth(String(row.id), wanted);
-				moved += 1;
-			}
-			return moved;
+			return needs.transactions.setInvoiceMonths(
+				rows
+					.filter((row) => String(row.invoice_month) !== wanted)
+					.map((row) => ({ id: String(row.id), month: wanted })),
+			);
 		},
 	};
 }

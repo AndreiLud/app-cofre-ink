@@ -1032,5 +1032,171 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 				await ready.fixture.close();
 			}
 		});
+
+		/**
+		 * The three readings 1.1.0 added that were open to them, and are not.
+		 *
+		 * Each of them is a figure made of every record on an account whoever wrote it, which
+		 * is what makes them useful and what makes them somebody else's. Each asked only for
+		 * a permission every role holds, so the release that closed the diagnosis to a logger
+		 * opened three new doors beside it.
+		 */
+		it("closes the invoice, the allowance and the count of records to them", async () => {
+			const { ready, asLogger } = await withLogger();
+			try {
+				const card = await ready.fixture.asAna.accounts.create({
+					spaceId: ready.spaceId,
+					kind: "credit",
+					name: "Cartão da casa",
+					closingDay: 28,
+					dueDay: 5,
+				});
+				const voucher = await ready.fixture.asAna.accounts.create({
+					spaceId: ready.spaceId,
+					kind: "voucher",
+					name: "Vale da casa",
+					benefit: "meal",
+					quotaAmount: 90_000,
+					quotaDay: 5,
+					quotaCarries: true,
+				});
+				await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 30_000,
+					happenedOn: "2026-09-12",
+					description: "Compra da Ana",
+					accountId: card.id,
+				});
+
+				// An invoice is the whole of what the card will charge, so it is not read one
+				// person at a time. The card screen said so from the start and refused; these
+				// two asked for transaction.read, which a logger holds.
+				await expect(asLogger.invoices.list(card.id, LATER)).rejects.toBeInstanceOf(RuleError);
+				await expect(asLogger.invoices.get(card.id, "2026-09", LATER)).rejects.toBeInstanceOf(
+					RuleError,
+				);
+				// And the whole of it still reads for whoever may see the household.
+				expect((await ready.fixture.asAna.invoices.get(card.id, "2026-09", LATER)).charged).toBe(
+					30_000,
+				);
+
+				// What is left on a benefit card is made of every lunch on it, so it says
+				// nothing to somebody who can see none of them.
+				expect(await asLogger.accounts.benefitLeft(voucher.id, "2026-09-30")).toBeNull();
+				expect(
+					(await ready.fixture.asAna.accounts.benefitLeft(voucher.id, "2026-09-30"))?.quota,
+				).toBe(90_000);
+
+				// And a count of records counts what the asker can see, like every other count.
+				const account = (await ready.fixture.asAna.accounts.list(ready.spaceId)).find(
+					(one) => one.name === "Conta da casa",
+				);
+				expect(await asLogger.accounts.recordCount(account?.id ?? "")).toBe(1);
+				expect(await ready.fixture.asAna.accounts.recordCount(account?.id ?? "")).toBe(2);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		/**
+		 * The allowance of a benefit card is the household's, so it is not folded into a
+		 * month made of one person's records.
+		 *
+		 * The filter was on the branch that reads every space and not on the branch every
+		 * screen takes, so naming a space skipped it: a logger's own month came back with the
+		 * household's whole meal card allowance inside its income and its difference, under a
+		 * line saying these were only their figures.
+		 */
+		it("leaves the household's allowance out of a month made of their own records", async () => {
+			const { ready, asLogger } = await withLogger();
+			try {
+				await ready.fixture.asAna.accounts.create({
+					spaceId: ready.spaceId,
+					kind: "voucher",
+					name: "Vale da casa",
+					benefit: "meal",
+					quotaAmount: 90_000,
+					quotaDay: 5,
+					quotaCarries: true,
+				});
+
+				const range = { spaceId: ready.spaceId, from: "2026-09-01", to: "2026-09-30" } as const;
+				const theirs = await asLogger.reports.totals(range);
+				expect(theirs.benefits).toBe(0);
+				expect(theirs.expense).toBe(5000);
+				expect(theirs.left).toBe(-5000);
+
+				// The household reads it whole, which is the figure the allowance is for.
+				const household = await ready.fixture.asAna.reports.totals(range);
+				expect(household.benefits).toBe(90_000);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		/**
+		 * The mark of an instalment plan is not renamed when a backup is restored into a
+		 * second space, so two spaces can hold two plans under one mark.
+		 *
+		 * A caller that asked the permission once, on the first part it found, was asking
+		 * about one space and writing both. The row is written here by hand because that is
+		 * what a restore leaves behind, and because the repositories would never write it.
+		 */
+		it("corrects and removes a plan in one space, and never a namesake in another", async () => {
+			const ready = await readySpace(adapter);
+			try {
+				const parts = await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 60_000,
+					happenedOn: "2026-09-05",
+					description: "Curso",
+					accountId: ready.card.id,
+					installments: 3,
+				});
+				const group = parts[0]?.installmentGroup ?? "";
+
+				// A second space of the same person, with one row carrying the same mark.
+				const other = await ready.fixture.asAna.spaces.create({ name: "Viagem" });
+				const elsewhere = await ready.fixture.asAna.accounts.create({
+					spaceId: other.id,
+					kind: "checking",
+					name: "Conta da viagem",
+				});
+				const [restored] = await ready.fixture.asAna.transactions.create({
+					spaceId: other.id,
+					kind: "expense",
+					amount: 20_000,
+					happenedOn: "2026-09-06",
+					description: "Restaurado 1/3",
+					accountId: elsewhere.id,
+				});
+				await ready.fixture.driver.run(
+					`UPDATE "transactions" SET "installment_group" = ?, "installment_number" = 1,
+					   "installment_count" = 3 WHERE "id" = ?`,
+					[group, restored?.id ?? ""],
+				);
+
+				// Correcting the plan from its first part touches three rows, not four.
+				const changed = await ready.fixture.asAna.transactions.updateFrom(parts[0]?.id ?? "", {
+					description: "Curso de inglês",
+				});
+				expect(changed).toBe(3);
+				expect((await ready.fixture.asAna.transactions.get(restored?.id ?? "")).description).toBe(
+					"Restaurado 1/3",
+				);
+
+				// And removing it removes three.
+				expect(await ready.fixture.asAna.transactions.removeGroup(group)).toBe(3);
+				expect(
+					(await ready.fixture.asAna.transactions.list({ spaceId: other.id })).map(
+						(row) => row.description,
+					),
+				).toEqual(["Restaurado 1/3"]);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
 	});
 }

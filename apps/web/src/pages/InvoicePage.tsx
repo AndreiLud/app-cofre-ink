@@ -100,8 +100,9 @@ export function InvoicePage() {
 	const [clearingOld, setClearingOld] = useState(false);
 	const [closedDay, setClosedDay] = useState("");
 
-	const mayPay = useWhatIMayDo(spaceId).may("transaction.create");
-	const mayMove = useWhatIMayDo(spaceId).may("transaction.update");
+	const mine = iMay;
+	const mayPay = mine.may("transaction.create");
+	const mayMove = mine.may("transaction.update");
 
 	const accounts = useQuery({
 		queryKey: ["accounts", spaceId],
@@ -248,6 +249,27 @@ export function InvoicePage() {
 	});
 
 	if (!currentSpace) return null;
+
+	/**
+	 * Closed to somebody who only ever sees the records they wrote.
+	 *
+	 * An invoice is the whole of what the card will charge, whoever made the purchases, so
+	 * it is not a thing that can be narrowed to one person: the model refuses to read it one
+	 * person at a time. Without this the screen drew the household's bill above a list
+	 * holding one purchase of their own, with a button offering to pay it.
+	 */
+	if (mine.ready && mine.seesOwnRowsOnly) {
+		return (
+			<div className="space-y-6">
+				<InsightTitle level="h1">{t("invoice.title")}</InsightTitle>
+				<EmptyState
+					icon="wallet"
+					title={t("invoice.yoursOnlyTitle")}
+					description={t("invoice.yoursOnlyBody")}
+				/>
+			</div>
+		);
+	}
 
 	if (!accounts.isPending && invoiceAccounts.length === 0) {
 		return (

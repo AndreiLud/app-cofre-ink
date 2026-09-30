@@ -278,9 +278,18 @@ export function createTransactionsRepository(context: RepositoryContext) {
 		return Math.round((amount * fxRate) / 100_000_000);
 	}
 
-	/** Every part of one purchase, whatever the filters in play. */
-	async function listGroup(groupId: string): Promise<Transaction[]> {
-		const spaceIds = readableSpaceIds(context.actor());
+	/**
+	 * Every part of one purchase, whatever the filters in play, in one space.
+	 *
+	 * The space is named rather than left to the list of spaces this person can read. The
+	 * mark of a group is not renamed when a backup is restored into a second space, because
+	 * it is not an identifier of a row and it points at no table, so two spaces can hold two
+	 * plans under one mark. A caller that then asks the permission once, on the first part
+	 * it found, was asking it about one space and writing both: an editor in one space and a
+	 * viewer in the other could correct the plan in the space where they may only read.
+	 */
+	async function listGroup(groupId: string, spaceId?: string): Promise<Transaction[]> {
+		const spaceIds = spaceId === undefined ? readableSpaceIds(context.actor()) : [spaceId];
 		if (spaceIds.length === 0) return [];
 		const rows = await context.driver.all(
 			`${SELECT} WHERE "installment_group" = ? AND "space_id" IN (${marks(spaceIds.length)})
@@ -704,11 +713,13 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			const first = await reachable(id);
 			assertCan(context.actor(), first.spaceId, "transaction.update");
 
+			// The parts of this plan in this space, and not every plan anywhere that happens
+			// to carry the same mark, because the permission above was asked about this space.
 			const group = first.installmentGroup;
 			const rows =
 				group === null
 					? [first]
-					: (await listGroup(group)).filter(
+					: (await listGroup(group, first.spaceId)).filter(
 							(row) => (row.installmentNumber ?? 0) >= (first.installmentNumber ?? 0),
 						);
 
@@ -826,6 +837,41 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			return reachable(id);
 		},
 
+		/**
+		 * The same, over several records, all of them or none of them.
+		 *
+		 * Moving a purchase between invoices is rarely one purchase: an instalment plan is
+		 * every part of it, and saying which day a card really closed is every purchase in
+		 * the days between. Both of those used to call the one above in a loop, so a plan
+		 * with one reconciled part in it, or a card with one in the window, moved the rows
+		 * before it and then refused, leaving a card split across two invoices with nothing
+		 * saying how far it got.
+		 */
+		async setInvoiceMonths(changes: { id: string; month: CalendarMonth }[]): Promise<number> {
+			if (changes.length === 0) return 0;
+
+			const planned: { found: Transaction; month: CalendarMonth }[] = [];
+			for (const change of changes) {
+				const found = await reachable(change.id);
+				assertCan(context.actor(), found.spaceId, "transaction.update");
+				assertChangeable(found, "changing");
+				planned.push({ found, month: change.month });
+			}
+
+			await context.driver.transaction(async (tx) => {
+				const write = { ...context.write(), driver: tx };
+				for (const { found, month } of planned) {
+					await updateRow(write, {
+						table: transactions,
+						spaceId: found.spaceId,
+						id: found.id,
+						values: { invoice_month: month, invoice_month_by_hand: 1 },
+					});
+				}
+			});
+			return planned.length;
+		},
+
 		/** Ties the record to a line on a bank statement, and freezes it. */
 		async reconcile(id: string, reconciled: boolean): Promise<Transaction> {
 			const found = await reachable(id);
@@ -852,9 +898,15 @@ export function createTransactionsRepository(context: RepositoryContext) {
 
 		/** Removes every installment of one purchase at once. */
 		async removeGroup(groupId: string): Promise<number> {
-			const rows = await listGroup(groupId);
-			if (rows.length === 0) throw new NotFoundError("installments", groupId);
-			assertCan(context.actor(), rows[0]?.spaceId ?? "", "transaction.delete");
+			// The space of the first part it finds, and then only that space. The mark of a
+			// group survives a backup being restored into a second space, so two spaces can
+			// hold two plans under one mark, and asking the permission once on the first part
+			// was asking it about one space and deleting both.
+			const anywhere = await listGroup(groupId);
+			const first = anywhere[0];
+			if (!first) throw new NotFoundError("installments", groupId);
+			assertCan(context.actor(), first.spaceId, "transaction.delete");
+			const rows = anywhere.filter((row) => row.spaceId === first.spaceId);
 
 			// The one delete path that asked the permission and then skipped both of the
 			// other two questions. So a logger, who holds transaction.delete, could take

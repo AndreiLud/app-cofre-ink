@@ -350,6 +350,76 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 				await ready.fixture.close();
 			}
 		});
+
+		/**
+		 * The headroom on a card is the limit less what it will charge, counted once.
+		 *
+		 * What is owed was summed over every invoice, including the ones after the one still
+		 * taking purchases, and those were then added again as what is charged later. So a
+		 * purchase in parts came off the headroom twice and a card looked fuller than it was,
+		 * which is the figure somebody checks before paying for something at a till.
+		 */
+		it("takes the instalments still to come off the headroom once", async () => {
+			const ready = await readyCard(adapter);
+			try {
+				// Nine hundred in three parts, so three invoices of three hundred each.
+				await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 90_000,
+					happenedOn: "2026-09-10",
+					description: "Bicicleta",
+					accountId: ready.card.id,
+					installments: 3,
+				});
+
+				const standing = await ready.fixture.asAna.invoices.standing(ready.spaceId, TODAY);
+				expect(standing[0]?.open.charged).toBe(30_000);
+				expect(standing[0]?.later).toBe(60_000);
+				expect(standing[0]?.available).toBe(500_000 - 90_000);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		/**
+		 * Moving a plan between invoices is all of it or none of it.
+		 *
+		 * It moved the parts one at a time through the door that refuses a record ticked off
+		 * against a bank, so a plan with one reconciled part in it moved the parts before it
+		 * and then refused, leaving the purchase split between two invoices with nothing
+		 * saying how far it got.
+		 */
+		it("refuses to move half a plan between invoices", async () => {
+			const ready = await readyCard(adapter);
+			try {
+				const parts = await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 90_000,
+					happenedOn: "2026-09-10",
+					description: "Bicicleta",
+					accountId: ready.card.id,
+					installments: 3,
+				});
+				const months = parts.map((part) => part.invoiceMonth);
+
+				// The second part is ticked off against the bank, which freezes it.
+				await ready.fixture.asAna.transactions.reconcile(parts[1]?.id ?? "", true);
+
+				await expect(
+					ready.fixture.asAna.invoices.move(parts[0]?.id ?? "", "later"),
+				).rejects.toBeInstanceOf(RuleError);
+
+				// And every part is on the invoice it was on.
+				const after = await ready.fixture.asAna.transactions.list({
+					installmentGroup: parts[0]?.installmentGroup ?? "",
+				});
+				expect(after.map((one) => one.invoiceMonth).sort()).toEqual([...months].sort());
+			} finally {
+				await ready.fixture.close();
+			}
+		});
 	});
 
 	describe("the repair that puts a series on its invoice", () => {
