@@ -466,6 +466,46 @@ export function runPlanConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		/**
+		 * A bill in another currency is divided out of what it was worth in the currency of
+		 * the space, and not out of the figure somebody typed.
+		 *
+		 * The two are stored side by side, and the balances between people read the second
+		 * one. Dividing the first one left the shares and the payer's credit in two
+		 * different units, so a dinner of forty dollars in a space counted in reais said
+		 * each of the two owed twenty, and settling it never brought the balance to zero.
+		 */
+		it("divides a record in another currency by what it was worth in the space one", async () => {
+			const ready = await sharedSpace();
+			try {
+				const [expense] = await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 4_000,
+					currency: "USD",
+					// Five reais and twenty on the day, scaled by ten to the eighth.
+					fxRate: 520_000_000,
+					happenedOn: "2026-09-10",
+					description: "Jantar em Nova York",
+					accountId: ready.accountId,
+				});
+				expect(expense?.amountInBase).toBe(-20_800);
+
+				const parts = await ready.fixture.asAna.sharing.split({
+					transactionId: expense?.id ?? "",
+					method: "evenly",
+				});
+				expect(parts.reduce((sum, part) => sum + part.amount, 0)).toBe(20_800);
+
+				// And the balance between the two is the half one of them is owed, in reais.
+				const balances = await ready.fixture.asAna.sharing.balances(ready.spaceId);
+				expect(balances.find((one) => one.userId === ready.fixture.ana.id)?.amount).toBe(10_400);
+				expect(balances.find((one) => one.userId === ready.fixture.joao.id)?.amount).toBe(-10_400);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		it("splits in proportion to what each one earns", async () => {
 			const ready = await sharedSpace();
 			try {

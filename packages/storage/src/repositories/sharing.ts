@@ -158,7 +158,12 @@ export function createSharingRepository(context: RepositoryContext) {
 
 			let parts: { userId: string; amount: number }[];
 			try {
-				parts = divide(Math.abs(found.amount), input.method, participants);
+				// In the currency of the space, because that is the currency the shares are
+				// stored in and the currency the balances between people are read in. It
+				// divided the amount as written, so a bill of forty dollars in a space that
+				// counts in reais left two people owing twenty of nothing, and the balance
+				// never came back to zero when it was settled.
+				parts = divide(Math.abs(found.amountInBase), input.method, participants);
 			} catch (error) {
 				// The core says why in a word, and the word is what the interface reads.
 				if (error instanceof SplitError) throw new RuleError(error.rule, error.message);

@@ -25,7 +25,7 @@ type Method = "evenly" | "shares" | "income";
 
 export function SplitDialog({ open, onOpenChange, record, people }: SplitDialogProps) {
 	const { t } = useTranslation();
-	const { session, user } = useCofre();
+	const { session, user, currentSpace } = useCofre();
 	const queries = useQueryClient();
 
 	const [method, setMethod] = useState<Method>("evenly");
@@ -176,7 +176,15 @@ export function SplitDialog({ open, onOpenChange, record, people }: SplitDialogP
 							{parts.map((part) => (
 								<li key={part.id} className="flex justify-between text-sm text-quiet">
 									<span>{nameOf(part.userId)}</span>
-									<Value amount={part.amount} currency={record?.currency ?? "BRL"} tone="neutral" />
+									{/* In the currency of the space. A share is divided out of what the
+									    record was worth in it, and the balances between people are
+									    read in it too, so labelling a share with the currency
+									    somebody typed said the wrong word over the right number. */}
+									<Value
+										amount={part.amount}
+										currency={currentSpace?.baseCurrency ?? "BRL"}
+										tone="neutral"
+									/>
 								</li>
 							))}
 						</ul>
