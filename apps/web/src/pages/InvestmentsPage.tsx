@@ -123,7 +123,8 @@ export function InvestmentsPage() {
 	 * indices is neither: CDI, Selic and IPCA are public figures in a table with no space
 	 * of its own, so that button stays for everybody.
 	 */
-	const mayWrite = useWhatIMayDo(spaceId).may("investment.write");
+	const mine = useWhatIMayDo(spaceId);
+	const mayWrite = mine.may("investment.write");
 
 	const refresh = useMutation({
 		mutationFn: async () => {
@@ -516,7 +517,12 @@ export function InvestmentsPage() {
 					})}
 				</p>
 
-				{value > 0 && monthlyExpense > 0 ? (
+				{/* Not for somebody who reads only what they wrote. This divides what the
+				    whole household owns, which everybody in a space sees, by the spending of
+				    one person, which is all they see, and hands back a number made of two
+				    different questions: five hundred months of cover and financial
+				    independence reached. */}
+				{value > 0 && monthlyExpense > 0 && !mine.seesOwnRowsOnly ? (
 					<div className="space-y-1 border-t border-line pt-4">
 						<p className="text-sm text-ink">
 							{t("investments.covers", { count: independent.monthsCovered })}

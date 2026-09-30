@@ -80,7 +80,7 @@ export function AdvisorPage() {
 	const spaceId = currentSpace?.id ?? "";
 	// A verdict over the household's money is not a thing to compute from one person's
 	// records, so this screen answers the same way the month screen does.
-	const { role, seesOwnRowsOnly } = useWhatIMayDo(spaceId);
+	const { role, seesOwnRowsOnly, ready } = useWhatIMayDo(spaceId);
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
 	const locale = i18n.resolvedLanguage === "en" ? "en" : "pt-BR";
 	const currency = currentSpace?.baseCurrency ?? "BRL";
@@ -95,7 +95,10 @@ export function AdvisorPage() {
 
 	const reading = useQuery({
 		queryKey: ["reading", spaceId, today],
-		enabled: Boolean(session && spaceId !== ""),
+		// Not until the member list has said who this is, and never for somebody who reads
+		// only their own records: it used to be asked for straight away and drawn in full
+		// until the answer arrived, which is the reading this screen exists to prevent.
+		enabled: Boolean(session && spaceId !== "") && ready && !seesOwnRowsOnly,
 		queryFn: () => session?.advice.reading({ spaceId, today }) ?? null,
 	});
 
@@ -171,6 +174,11 @@ export function AdvisorPage() {
 	 * than telling them nothing. The month screen closes to them for the same reason, and
 	 * says so in the same words.
 	 */
+	// Nothing is drawn on a question nobody has answered yet: until the member list says
+	// which role this is, neither branch below is true, and the one that used to win by
+	// default was the whole reading.
+	if (!ready) return <Skeleton lines={6} />;
+
 	if (seesOwnRowsOnly && role !== null) {
 		return (
 			<div className="space-y-6">

@@ -302,6 +302,7 @@
 		"nothingPending": "Nada previsto mexendo nesse número por enquanto.",
 		"projectedDetail": "Contando só o que já aconteceu.",
 		"yoursOnly": "Só os seus lançamentos. Você é Registrador neste espaço, então estes números são do que você mesmo passou pelas contas, e não do dinheiro da casa.",
+		"yoursOnlySomewhere": "Em {{day}}. Um dos espaços somados aqui mostra só os seus lançamentos, então parte destes números é do que você mesmo escreveu, e não do dinheiro da casa.",
 		"afterPending": "Depois do que está previsto:",
 		"oneSpaceOnly": "Este é o saldo deste espaço. Troque no topo para ver outro.",
 		"dueSoon": "Vence nos próximos dias",

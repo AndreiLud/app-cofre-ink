@@ -302,6 +302,7 @@
 		"nothingPending": "Nothing coming up moves that number for now.",
 		"projectedDetail": "Counting only what has already happened.",
 		"yoursOnly": "Your own records only. You are a Logger in this space, so these figures are what you yourself put through the accounts, and not the money of the household.",
+		"yoursOnlySomewhere": "On {{day}}. One of the spaces added together here shows your own records only, so part of these figures is what you yourself wrote, and not the money of the household.",
 		"afterPending": "After what is coming:",
 		"oneSpaceOnly": "This is the balance of this space. Switch at the top to see another.",
 		"dueSoon": "Due in the next days",

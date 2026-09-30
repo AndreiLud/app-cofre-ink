@@ -26,6 +26,7 @@ import {
 	spendableNow,
 	todayIn,
 } from "@cofre/core";
+import { roleSeesOwnRowsOnly } from "@cofre/storage";
 import { Button, Callout, EmptyState, InsightTitle, Panel, Segmented, Skeleton } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -82,7 +83,7 @@ function Figure({
 
 export function DashboardPage() {
 	const { t, i18n } = useTranslation();
-	const { session, currentSpace, spaces } = useCofre();
+	const { session, currentSpace, spaces, user } = useCofre();
 	const queries = useQueryClient();
 
 	const spaceId = currentSpace?.id ?? "";
@@ -132,6 +133,21 @@ export function DashboardPage() {
 		queryKey: ["balances", spaceId, today],
 		enabled: Boolean(session && currentSpace),
 		queryFn: () => session?.transactions.balances(spaceId, today) ?? [],
+	});
+
+	// Whether any of the spaces being added together shows this person only their own
+	// records. The role is held per space and the space row does not carry it, so the
+	// member lists are what answers, and only while the consolidated view is open.
+	const narrowed = useQuery({
+		queryKey: ["narrowedEverywhere", spaces.map((space) => space.id).join(","), user?.id],
+		enabled: Boolean(session && user) && consolidated,
+		queryFn: async () => {
+			if (!session) return false;
+			const lists = await Promise.all(spaces.map((space) => session.members.list(space.id)));
+			return lists.some((list) =>
+				roleSeesOwnRowsOnly(list.find((one) => one.userId === user?.id)?.role ?? null),
+			);
+		},
 	});
 
 	// What the investment accounts are actually worth, which is the price somebody typed
@@ -276,6 +292,9 @@ export function DashboardPage() {
 
 	const vouchers = shownAccounts.filter((account) => account.kind === "voucher");
 
+	/** Whether any of the spaces being added together is narrowed to this person's rows. */
+	const narrowedSomewhere = narrowed.data ?? false;
+
 	/** Money still to arrive and still to leave before the month ends. */
 	const rest = restOfMonth.data ?? [];
 	const comingIn = rest
@@ -376,9 +395,17 @@ export function DashboardPage() {
 					<InsightTitle
 						level="h1"
 						detail={
-							mine.seesOwnRowsOnly
-								? t("dashboard.yoursOnly")
-								: t("dashboard.asOf", { day: dayAndMonth(today) })
+							// Consolidated, the sentence is about the spaces being added rather
+							// than about the one that happens to be open: it said "you are a
+							// Logger in this space" over a total that was several spaces, and
+							// said nothing at all when the open one was the person's own.
+							consolidated
+								? narrowedSomewhere
+									? t("dashboard.yoursOnlySomewhere")
+									: t("dashboard.asOf", { day: dayAndMonth(today) })
+								: mine.seesOwnRowsOnly
+									? t("dashboard.yoursOnly")
+									: t("dashboard.asOf", { day: dayAndMonth(today) })
 						}
 					>
 						{consolidated
