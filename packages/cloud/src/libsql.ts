@@ -18,7 +18,7 @@
 
 import type { Change, Person, StoredBundle, SyncBundle, SyncStore } from "@cofre/storage";
 import { BUNDLE_FORMAT, BUNDLE_VERSION } from "@cofre/storage";
-import { addressOfAPlace, callJson, type Fetcher } from "./http.ts";
+import { addressOfAPlace, CloudError, callJson, type Fetcher } from "./http.ts";
 
 export type LibsqlOptions = {
 	/**
@@ -166,10 +166,17 @@ export function createLibsqlStore(options: LibsqlOptions): SyncStore {
 
 		// The protocol answers 200 with the failure inside, so a statement that was
 		// refused has to be found and raised rather than quietly returning nothing.
+		//
+		// As a CloudError, like every other failure of every other destination in this
+		// package, and not as a plain one. The interface reads that class and says which
+		// place answered and what it answered; a plain error fell past all of it to "I could
+		// not finish that", and carried the raw text of somebody else's server as its
+		// message, which is the thing the one translator exists to stop. The status is the
+		// 200 the pipeline answered with, because that is what it answered.
 		const results = answer.results ?? [];
 		for (const result of results) {
 			if (result.type === "error" || result.error) {
-				throw new Error(result.error?.message ?? `${where} refused a statement`);
+				throw new CloudError(where, 200, result.error?.message ?? "a statement was refused");
 			}
 		}
 

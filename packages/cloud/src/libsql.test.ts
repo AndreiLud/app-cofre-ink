@@ -9,6 +9,7 @@
 import type { Change, Person, SyncBundle } from "@cofre/storage";
 import { BUNDLE_FORMAT } from "@cofre/storage";
 import { describe, expect, it } from "vitest";
+import { CloudError } from "./http.ts";
 import { createLibsqlStore } from "./libsql.ts";
 
 type Value = { type: string; value?: string | number };
@@ -267,7 +268,16 @@ describe("a space kept in a database", () => {
 		});
 	});
 
-	it("raises what the database refused instead of answering nothing", async () => {
+	/**
+	 * The refusal is raised, and it is raised as a failure of this package.
+	 *
+	 * It used to be a plain error carrying the raw sentence of the other side as its
+	 * message. The interface reads CloudError and says which place answered and what it
+	 * answered; anything else falls past all of that to "I could not finish that". So the
+	 * raw text is kept on the body, where a developer can read it, and the place and the
+	 * status are on the error, where a person can.
+	 */
+	it("raises what the database refused, as a failure with a place on it", async () => {
 		const angry = (async () =>
 			new Response(
 				JSON.stringify({ results: [{ type: "error", error: { message: "no such table" } }] }),
@@ -282,6 +292,9 @@ describe("a space kept in a database", () => {
 			fetcher: angry,
 		});
 
-		await expect(store.read("espaco1")).rejects.toThrow("no such table");
+		const failed = await store.read("espaco1").catch((error: unknown) => error);
+		expect(failed).toBeInstanceOf(CloudError);
+		expect((failed as CloudError).body).toContain("no such table");
+		expect((failed as CloudError).where).toBe("the database");
 	});
 });

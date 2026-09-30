@@ -83,6 +83,12 @@ export function sayWhy(error: unknown, t: Translate): string {
 		if (error.status === 409) return saidRule(error.code, t);
 		if (error.status === 403) return t("rules.notAllowedHere");
 		if (error.status === 404) return t("rules.notThere");
+		// A code nothing recognises, with a status that is none of the three above, which is
+		// what a server that crashed looks like from here: a 500 with no JSON body arrives
+		// as the code "unexpected". It is the one failure that reaches a person with nothing
+		// useful in it, so it is the one that most needs to be somewhere a developer can
+		// find it, and this branch returned before the console below ever saw it.
+		console.error(error);
 		return t("rules.unknown");
 	}
 

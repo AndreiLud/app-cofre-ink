@@ -228,6 +228,39 @@ describe("a service that does not answer at all", () => {
 	});
 });
 
+describe("a database that refuses a statement", () => {
+	/**
+	 * The pipeline protocol answers 200 with the failure inside it, and a failure of this
+	 * package is a CloudError, with the name of the place and what it answered.
+	 *
+	 * This one threw a plain error carrying the raw text of somebody else's server. The
+	 * interface reads CloudError and says which place answered; anything else falls past all
+	 * of it to "I could not finish that", so the one destination that can fail with a
+	 * reason was the one that gave none.
+	 */
+	it("is a failure with a name and a place, like every other destination", async () => {
+		const service = fakeService(() => ({
+			body: JSON.stringify({
+				results: [{ type: "error", error: { message: "no such table: cofre_bundles" } }],
+			}),
+		}));
+
+		const store = createLibsqlStore({
+			url: "cofre.turso.io",
+			token: "t",
+			fetcher: service.fetcher,
+			name: "Turso",
+		});
+		const failed = await store.read("espaco1").catch((error: unknown) => error);
+
+		expect(failed).toBeInstanceOf(CloudError);
+		expect((failed as CloudError).where).toBe("Turso");
+		// What the other side said is kept, and kept out of the sentence a person reads.
+		expect((failed as CloudError).body).toContain("no such table");
+		expect((failed as CloudError).message).toBe("Turso answered 200");
+	});
+});
+
 describe("a spreadsheet that keeps up", () => {
 	it("makes one the first time and says where it is", async () => {
 		const service = fakeService((call) =>
