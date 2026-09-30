@@ -73,13 +73,17 @@ test.describe("shots", () => {
 	 * over is read as it stood on its last day.
 	 */
 	for (const month of [
-		{ name: "atual", at: "/relatorio?mes=2026-09" },
-		{ name: "passado", at: "/relatorio?mes=2026-08" },
+		{ name: "atual", at: "/relatorio?mes=2026-09", waitFor: "O mês" },
+		{ name: "passado", at: "/relatorio?mes=2026-08", waitFor: "O mês" },
+		// The same file in the other language, because a document is the one thing here
+		// somebody hands to another person, and the address is what decides which language
+		// opens, which is the first of the four answers in registry 0034.
+		{ name: "english", at: "/relatorio?mes=2026-09&lang=en", waitFor: "The month" },
 	]) {
 		test(`relatorio pdf ${month.name}`, async ({ page }) => {
 			await openCofre(page);
 			await page.goto(month.at);
-			await expect(page.getByText("O mês").first()).toBeVisible();
+			await expect(page.getByText(month.waitFor).first()).toBeVisible();
 			// Let the charts finish drawing themselves, because a PDF is one frame.
 			await page.waitForTimeout(1500);
 
@@ -101,4 +105,89 @@ test.describe("shots", () => {
 			});
 		});
 	}
+
+	/**
+	 * The four screens that only exist once somebody has done something.
+	 *
+	 * A picture of an invoice says little until part of it has been paid, and a picture of a
+	 * form says nothing until it is open. These walk the flow and then take the picture, so
+	 * what is reviewed is the screen somebody actually reaches rather than the screen as it
+	 * sits before anybody touches it.
+	 */
+	test("a fatura com um pagamento parcial", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Faturas");
+		await expect(page.getByRole("button", { name: "Pagar fatura" })).toBeVisible();
+
+		await page.getByRole("button", { name: "Pagar fatura" }).click();
+		const dialog = page.getByRole("dialog");
+		await expect(dialog).toBeVisible();
+		await page.screenshot({ path: "shots/fatura_pagar_dialogo.png", fullPage: true });
+
+		// Part of it, which is the whole reason the amount is a field and not a sentence.
+		await dialog.getByLabel("Valor", { exact: true }).fill("100,00");
+		await dialog.getByRole("button", { name: "Pagar" }).click();
+		await expect(page.getByRole("dialog")).toHaveCount(0);
+
+		await expect(page.getByText("Paga em parte")).toBeVisible();
+		await page.screenshot({ path: "shots/fatura_paga_em_parte.png", fullPage: true });
+	});
+
+	test("a fatura com uma compra movida", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Faturas");
+
+		// The menu of one purchase, which is where a purchase the bank filed a day either
+		// side of the closing day is put right.
+		// A purchase that is not part of an instalment plan, so the picture shows one
+		// purchase moving and not four.
+		const row = page.getByRole("row").filter({ hasText: "Cinema" }).first();
+		await expect(row).toBeVisible();
+		await row.getByRole("button", { name: "Ações do lançamento" }).click();
+		await page.screenshot({ path: "shots/fatura_mover_menu.png", fullPage: true });
+
+		await page.getByRole("menuitem", { name: "Mover para a próxima fatura" }).click();
+		await expect(page.getByRole("menu")).toHaveCount(0);
+		await page.screenshot({ path: "shots/fatura_compra_movida.png", fullPage: true });
+	});
+
+	test("o formulário de lançamento", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+
+		const dialog = page.getByRole("dialog");
+		await expect(dialog.getByLabel("Pago com")).toBeVisible();
+		// On a card, because that is when the form says which invoice the purchase lands on.
+		await dialog.getByLabel("Pago com").selectOption({ index: 0 });
+		await dialog.getByLabel("Valor", { exact: true }).fill("99,90");
+		await dialog.getByLabel("Descrição").fill("Compra no cartão");
+		await page.screenshot({ path: "shots/lancamento_formulario.png", fullPage: true });
+
+		await dialog.getByText("Mais detalhes").click();
+		await page.screenshot({ path: "shots/lancamento_mais_detalhes.png", fullPage: true });
+	});
+
+	test("editar uma conta", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Contas");
+
+		// The row of the account and not of the card that reaches it: both carry the name,
+		// and the menu that edits the account is the one on the account's own row.
+		const row = page.getByRole("row").filter({ hasText: "Cartão de crédito" }).first();
+		await row.getByRole("button", { name: "Ações da conta" }).click();
+		await page.getByRole("menuitem", { name: "Editar" }).first().click();
+		await expect(page.getByRole("dialog")).toBeVisible();
+		await page.screenshot({ path: "shots/conta_editar_cartao.png", fullPage: true });
+
+		await page.keyboard.press("Escape");
+		await expect(page.getByRole("dialog")).toHaveCount(0);
+
+		// And a voucher, because the quota is the field this release added.
+		const voucher = page.getByRole("row").filter({ hasText: "Vale refeição" }).first();
+		await voucher.getByRole("button", { name: "Ações da conta" }).click();
+		await page.getByRole("menuitem", { name: "Editar" }).first().click();
+		await expect(page.getByRole("dialog")).toBeVisible();
+		await page.screenshot({ path: "shots/conta_editar_vale.png", fullPage: true });
+	});
 });

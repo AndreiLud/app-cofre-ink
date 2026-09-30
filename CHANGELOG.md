@@ -83,9 +83,11 @@ and the goals, and where the money is with every account linking to its own reco
 
 **A benefit card is an allowance with a day on it.** An amount, the day of the month it
 lands, and whether what is left carries into the next period or is taken back. VR and VA are
-one pot and carry by default; VT is topped back up and does not. A benefit card only spends:
-it refuses money coming in and refuses a transfer out, because that is what the plastic in
-somebody's pocket does.
+one pot and carry by default; VT is topped back up and does not. The money on a benefit card
+goes one way: it refuses a transfer out, because a fare card does not hand money back, and it
+refuses a record of income, because the monthly allowance is the credit and writing it down
+again would count it twice. A transfer into one is taken, because cards like Caju and Flash
+accept a top up by Pix and that is money that really moved.
 
 **One field for what a record was paid with.** Card and account were two fields asking one
 question, and answering the first without the second wrote a purchase onto no card. It opens
