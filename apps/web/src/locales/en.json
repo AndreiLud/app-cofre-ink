@@ -261,7 +261,8 @@
 		"monthsCaption": "Money in, money out and the difference, month by month",
 		"income": "In",
 		"expense": "Out",
-		"left": "Difference"
+		"left": "Difference",
+		"ofWhichBenefits": "Includes {{amount}} of benefits, which land on the card and are not records."
 	},
 	"shell": {
 		"opening": "Opening your database on this device.",

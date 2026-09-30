@@ -8,9 +8,10 @@
 import { type QuickEntryReading, readQuickEntry } from "@cofre/core";
 import type { Account, Transaction } from "@cofre/storage";
 import { Button, Callout, Field } from "@cofre/ui";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { lastWayUsed } from "../lib/lastWay.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { Value } from "./Value.tsx";
@@ -41,15 +42,41 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 		[accounts],
 	);
 
+	const cards = useQuery({
+		queryKey: ["cards", spaceId],
+		enabled: Boolean(session && spaceId !== ""),
+		queryFn: () => session?.cards.list(spaceId) ?? [],
+	});
+
+	/**
+	 * Every name a line can say, the accounts and the cards.
+	 *
+	 * The reader knew only account names, so "mercado 80 no nubank" read nothing: it went
+	 * to whichever account came first alphabetically, and a purchase on a card landed on a
+	 * current account. A card names the account it reaches, which is what makes the name
+	 * on the line enough.
+	 */
+	const named = useMemo(() => {
+		const byCard = (cards.data ?? []).flatMap((card) => {
+			const reaches = card.creditAccountId ?? card.debitAccountId;
+			if (!reaches || !usable.some((account) => account.id === reaches)) return [];
+			return [{ id: reaches, name: card.name, cardId: card.id }];
+		});
+		return [...usable.map((account) => ({ id: account.id, name: account.name })), ...byCard];
+	}, [usable, cards.data]);
+
 	const reading: QuickEntryReading = useMemo(
-		() => readQuickEntry(text, { today, accounts: usable }),
-		[text, today, usable],
+		() => readQuickEntry(text, { today, accounts: named }),
+		[text, today, named],
 	);
 
-	// A line that names no account goes to the first one, which is the one the person
-	// uses most in a list sorted by name. The sentence below says which, so it is a
-	// statement and not a surprise.
-	const account = usable.find((option) => option.id === reading.accountId) ?? usable[0] ?? null;
+	// A line that names neither goes to the last way somebody paid on this device, which
+	// beats the first account by name: that one is a pocket in most households. The
+	// sentence below says which, so it is a statement and not a surprise.
+	const remembered = lastWayUsed(spaceId);
+	const fallback =
+		usable.find((option) => option.id === (remembered ?? "").split(":")[1]) ?? usable[0] ?? null;
+	const account = usable.find((option) => option.id === reading.accountId) ?? fallback;
 	const ready = reading.problems.length === 0 && account !== null;
 
 	const invalidate = () => {
@@ -68,6 +95,9 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 				happenedOn: reading.happenedOn,
 				description: reading.description,
 				accountId: account.id,
+				// The plastic, when the line named one. The account is still the truth, and
+				// the model refuses a card that does not reach it.
+				cardId: reading.cardId,
 				status: reading.status,
 				installments: reading.installments,
 			});

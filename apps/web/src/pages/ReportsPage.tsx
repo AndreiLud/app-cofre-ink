@@ -73,7 +73,8 @@ export function ReportsPage() {
 	const totals = useQuery({
 		queryKey: ["reports", "totals", ...key],
 		enabled,
-		queryFn: () => session?.reports.totals(range) ?? { income: 0, expense: 0, left: 0 },
+		queryFn: () =>
+			session?.reports.totals(range) ?? { income: 0, expense: 0, benefits: 0, left: 0 },
 	});
 	const byCategory = useQuery({
 		queryKey: ["reports", "byCategory", ...key],
@@ -147,7 +148,7 @@ export function ReportsPage() {
 					: item.label,
 	});
 
-	const period = totals.data ?? { income: 0, expense: 0, left: 0 };
+	const period = totals.data ?? { income: 0, expense: 0, benefits: 0, left: 0 };
 	const biggest = spending[0];
 
 	return (
@@ -169,7 +170,7 @@ export function ReportsPage() {
 						nothing
 							? t("reports.nothingDetail")
 							: t("reports.detail", {
-									income: money(period.income),
+									income: money(period.income + period.benefits),
 									expense: money(period.expense),
 								})
 					}
@@ -183,6 +184,16 @@ export function ReportsPage() {
 									amount: money(Math.abs(period.left)),
 								})}
 				</InsightTitle>
+
+				{/* Said out loud rather than folded in, because it is money that came in and
+				    is not a record: nobody writes down a meal card being credited. Lunch
+				    bought on it is spending like any other, so a month with the spending and
+				    without the credit closes worse by exactly what was eaten. */}
+				{period.benefits > 0 ? (
+					<p className="text-quiet text-sm">
+						{t("reports.ofWhichBenefits", { amount: money(period.benefits) })}
+					</p>
+				) : null}
 
 				<div className="flex flex-wrap items-end gap-3 print:hidden">
 					<label className="flex flex-col gap-1.5 text-sm">
@@ -233,7 +244,7 @@ export function ReportsPage() {
 								sources={flow.sources.map(named)}
 								destinations={flow.destinations.map(named)}
 								description={t("reports.flowDescription", {
-									income: money(period.income),
+									income: money(period.income + period.benefits),
 									expense: money(period.expense),
 								})}
 								format={money}

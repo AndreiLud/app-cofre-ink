@@ -24,7 +24,20 @@ export type QuickEntryKind = "expense" | "income";
 export type QuickEntryStatus = "settled" | "planned";
 
 /** Only what matching a name needs, so this stays free of the storage types. */
-export type QuickEntryAccount = { id: string; name: string };
+/**
+ * A way to pay, by the name somebody would write on a line.
+ *
+ * An account is one. A card is another, and it names the account it reaches, because
+ * "mercado 80 no nubank" says where the money is charged as surely as naming the account
+ * does, and until now the reader knew only the account names and so read nothing.
+ */
+export type QuickEntryAccount = {
+	/** The account the money is charged to. */
+	id: string;
+	name: string;
+	/** Set when this name is a card rather than the account itself. */
+	cardId?: string | null;
+};
 
 export type QuickEntryOptions = {
 	today: CalendarDate;
@@ -44,6 +57,8 @@ export type QuickEntryReading = {
 	happenedOn: CalendarDate;
 	description: string;
 	accountId: string | null;
+	/** The card named on the line, when what was named was a card rather than an account. */
+	cardId: string | null;
 	installments: number;
 	problems: QuickEntryProblem[];
 };
@@ -174,7 +189,7 @@ type Role = "amount" | "date" | "account" | "kind" | "status" | "installments" |
 function findAccount(
 	folded: string[],
 	accounts: readonly QuickEntryAccount[],
-): { id: string; from: number; to: number } | null {
+): { id: string; cardId: string | null; from: number; to: number } | null {
 	const named = accounts.map((account) => ({ account, words: wordsOf(account.name) }));
 
 	for (let size = Math.min(3, folded.length); size >= 1; size -= 1) {
@@ -193,7 +208,12 @@ function findAccount(
 			});
 
 			if (hits.length === 1 && hits[0]) {
-				return { id: hits[0].account.id, from: start, to: start + size - 1 };
+				return {
+					id: hits[0].account.id,
+					cardId: hits[0].account.cardId ?? null,
+					from: start,
+					to: start + size - 1,
+				};
 			}
 			// More than one account answers to this name. Leave it and keep looking, in
 			// case the line also names one that is not in doubt.
@@ -351,6 +371,7 @@ export function readQuickEntry(text: string, options: QuickEntryOptions): QuickE
 		happenedOn: day,
 		description,
 		accountId: account?.id ?? null,
+		cardId: account?.cardId ?? null,
 		installments,
 		problems,
 	};

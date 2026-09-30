@@ -124,6 +124,39 @@ describe("the account", () => {
 	});
 });
 
+describe("the name of a card", () => {
+	const ways = [
+		{ id: "corrente", name: "Conta corrente" },
+		{ id: "cartao", name: "Nubank", cardId: "plastico" },
+	];
+
+	it("reads a card by name and says which one", () => {
+		// It knew only account names, so this line went to whichever account came first
+		// alphabetically and a purchase on a card landed on a current account.
+		const reading = readQuickEntry("mercado 80 no nubank", {
+			today: "2026-09-29",
+			accounts: ways,
+		});
+		expect(reading.accountId).toBe("cartao");
+		expect(reading.cardId).toBe("plastico");
+	});
+
+	it("says no card when the line named an account", () => {
+		const reading = readQuickEntry("mercado 80 na conta corrente", {
+			today: "2026-09-29",
+			accounts: ways,
+		});
+		expect(reading.accountId).toBe("corrente");
+		expect(reading.cardId).toBeNull();
+	});
+
+	it("says no card when the line named neither", () => {
+		const reading = readQuickEntry("mercado 80", { today: "2026-09-29", accounts: ways });
+		expect(reading.accountId).toBeNull();
+		expect(reading.cardId).toBeNull();
+	});
+});
+
 describe("installments", () => {
 	it("reads them written either way", () => {
 		expect(read("geladeira 1234,56 3x nubank").installments).toBe(3);

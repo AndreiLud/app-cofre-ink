@@ -10,7 +10,7 @@
 // spaces is counted in the same number, and it exists because a person with a personal
 // space and a house still has one life.
 
-import type { CalendarDate } from "@cofre/core";
+import { addDays, type CalendarDate, landingsBetween } from "@cofre/core";
 import { assertCan, readableSpaceIds, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber, type SqlValue } from "../driver.ts";
 import type { SpendingPriority } from "../models.ts";
@@ -45,7 +45,14 @@ export type DayTotal = { day: CalendarDate; total: number };
 export type PeriodTotals = {
 	income: number;
 	expense: number;
-	/** What came in minus what went out. Negative means the period ate into savings. */
+	/**
+	 * What the benefit cards were credited with, which is money that came in and is not a
+	 * record: nobody writes down a meal card being credited, because nothing of theirs
+	 * moved. It is its own number rather than part of the income, because a household
+	 * does not put a meal card aside and nothing asking what can be saved should read it.
+	 */
+	benefits: number;
+	/** What came in, benefits included, minus what went out. */
 	left: number;
 };
 
@@ -81,11 +88,42 @@ export function createReportsRepository(context: RepositoryContext) {
 		return { where, params };
 	}
 
+	/**
+	 * What the benefit cards were credited with over a range of days.
+	 *
+	 * Worked out rather than read, because an allowance landing is not a record: it is an
+	 * amount and a day on the account, and this counts the landings that fall inside the
+	 * range. A voucher with no allowance written on it counts as nothing, which is what
+	 * every voucher written before this release is.
+	 */
+	async function benefitsIn(range: ReportRange): Promise<number> {
+		const spaceIds = range.spaceId
+			? [range.spaceId]
+			: readableSpaceIds(context.actor()).filter((id) => !seesOwnRowsOnly(context.actor(), id));
+		if (spaceIds.length === 0) return 0;
+
+		const rows = await context.driver.all(
+			`SELECT "quota_amount", "quota_day" FROM "accounts"
+			 WHERE "space_id" IN (${marks(spaceIds.length)}) AND "deleted_at" IS NULL
+			   AND "kind" = 'voucher' AND "quota_amount" IS NOT NULL AND "quota_day" IS NOT NULL`,
+			spaceIds,
+		);
+
+		let total = 0;
+		for (const row of rows) {
+			const day = asNumber(row.quota_day);
+			// A day before the start, because the count is of landings strictly after the
+			// day it is given, and a landing on the first day of the range is inside it.
+			total += asNumber(row.quota_amount) * landingsBetween(addDays(range.from, -1), range.to, day);
+		}
+		return total;
+	}
+
 	return {
 		/** What came in, what went out, and what was left over. */
 		async totals(range: ReportRange): Promise<PeriodTotals> {
 			const { where, params } = scope(range);
-			if (where.length === 0) return { income: 0, expense: 0, left: 0 };
+			if (where.length === 0) return { income: 0, expense: 0, benefits: 0, left: 0 };
 
 			const rows = await context.driver.all(
 				`SELECT
@@ -98,7 +136,18 @@ export function createReportsRepository(context: RepositoryContext) {
 			const income = asNumber(rows[0]?.income ?? 0);
 			// Expenses are stored negative, and a report reads better in positive numbers.
 			const expense = Math.abs(asNumber(rows[0]?.expense ?? 0));
-			return { income, expense, left: income - expense };
+
+			// What landed on the benefit cards, which is money that came in and is not a
+			// record: nobody writes down a meal card being credited, because nothing of
+			// theirs moved. Lunch bought on it is spending like any other, so a month with
+			// the spending and without the credit closes worse by exactly what was eaten.
+			//
+			// It is its own number rather than part of the income, because a household does
+			// not put a meal card aside and nothing that asks "what can be saved" should
+			// read it. The screens name it; this package holds no copy.
+			const benefits = await benefitsIn(range);
+
+			return { income, expense, benefits, left: income + benefits - expense };
 		},
 
 		/**

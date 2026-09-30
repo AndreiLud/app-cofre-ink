@@ -224,7 +224,7 @@ export function runReportConformance(adapter: AdapterUnderTest): void {
 					from: "2026-09-01",
 					to: "2026-09-30",
 				});
-				expect(everything).toEqual({ income: 0, expense: 0, left: 0 });
+				expect(everything).toEqual({ income: 0, expense: 0, benefits: 0, left: 0 });
 
 				await expect(
 					ready.fixture.asJoao.reports.byCategory({

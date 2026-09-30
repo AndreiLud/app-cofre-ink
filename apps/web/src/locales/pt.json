@@ -261,7 +261,8 @@
 		"monthsCaption": "Entrada, saída e diferença mês a mês",
 		"income": "Entrou",
 		"expense": "Saiu",
-		"left": "Diferença"
+		"left": "Diferença",
+		"ofWhichBenefits": "Inclui {{amount}} de benefícios, que caem no cartão e não são lançamento."
 	},
 	"shell": {
 		"opening": "Abrindo o seu banco de dados neste dispositivo.",

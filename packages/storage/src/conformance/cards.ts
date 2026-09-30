@@ -159,6 +159,46 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		it("counts the allowance as money that came in, on its own line", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				const voucher = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "voucher",
+					name: "Vale refeicao",
+					benefit: "meal",
+					quotaAmount: 90_000,
+					quotaDay: 5,
+					quotaCarries: true,
+				});
+
+				await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 25_500,
+					happenedOn: "2026-09-10",
+					description: "Almoco",
+					accountId: voucher.id,
+				});
+
+				const month = await fixture.asAna.reports.totals({
+					spaceId: space.id,
+					from: "2026-09-01",
+					to: "2026-09-30",
+				});
+
+				// The lunch is spending like any other. Without the credit beside it the month
+				// would close worse by exactly what was eaten, and nobody writes the credit
+				// down because nothing of theirs moved.
+				expect(month.benefits).toBe(90_000);
+				expect(month.expense).toBe(25_500);
+				expect(month.left).toBe(90_000 - 25_500);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		it("refuses a day that is not a day of the month", async () => {
 			const fixture = await prepare(adapter);
 			try {

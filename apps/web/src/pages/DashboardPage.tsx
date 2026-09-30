@@ -625,8 +625,15 @@ export function DashboardPage() {
 						<div className="grid grid-cols-3 gap-3">
 							<Figure
 								label={t("reports.income")}
-								amount={thisMonth.data?.income ?? 0}
+								amount={(thisMonth.data?.income ?? 0) + (thisMonth.data?.benefits ?? 0)}
 								currency={currency}
+								detail={
+									(thisMonth.data?.benefits ?? 0) > 0
+										? t("reports.ofWhichBenefits", {
+												amount: money(thisMonth.data?.benefits ?? 0),
+											})
+										: undefined
+								}
 							/>
 							<Figure
 								label={t("reports.expense")}
@@ -636,7 +643,7 @@ export function DashboardPage() {
 							/>
 							<Figure
 								label={t("dashboard.leftOver")}
-								amount={(thisMonth.data?.income ?? 0) - (thisMonth.data?.expense ?? 0)}
+								amount={thisMonth.data?.left ?? 0}
 								currency={currency}
 								tone="auto"
 							/>
