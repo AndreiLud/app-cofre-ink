@@ -151,6 +151,15 @@ export function createInvestmentsRepository(context: RepositoryContext) {
 			const value = Math.round((input.quantity * input.unitPrice) / QUANTITY_SCALE);
 			const today = new Date(context.now()).toISOString().slice(0, 10);
 
+			// The currency of the space, and not the currency of Brazil. The screen asks for
+			// the price in the currency of the space and said BRL back over it, so a
+			// household keeping euros read every holding as reais.
+			const rows = await context.driver.all(
+				`SELECT "base_currency" FROM "spaces" WHERE "id" = ? AND "deleted_at" IS NULL`,
+				[input.spaceId],
+			);
+			const spaceCurrency = String(rows[0]?.base_currency ?? "BRL");
+
 			const id = await insertRow(context.write(), {
 				table: holdings,
 				spaceId: input.spaceId,
@@ -161,7 +170,7 @@ export function createInvestmentsRepository(context: RepositoryContext) {
 					ticker: input.ticker ?? null,
 					quantity: input.quantity,
 					unit_price: input.unitPrice,
-					currency: input.currency ?? "BRL",
+					currency: input.currency ?? spaceCurrency,
 					// What it cost is what it is worth now, until somebody says otherwise.
 					cost: input.cost ?? value,
 					bought_on: input.boughtOn ?? null,

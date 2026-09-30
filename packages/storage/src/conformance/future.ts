@@ -177,6 +177,39 @@ export function runFutureConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		/**
+		 * The price is typed in the currency of the space, so the holding is stored in it.
+		 *
+		 * A holding was stamped BRL whatever the space said, and the screen shows each one
+		 * with the currency the row carries, so a household keeping euros typed euros and
+		 * read reais back on the same line.
+		 */
+		it("stores a holding in the currency of the space", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				await fixture.asAna.spaces.update(space.id, { baseCurrency: "EUR" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "investment",
+					name: "Corretora",
+				});
+
+				const holding = await fixture.asAna.investments.create({
+					spaceId: space.id,
+					accountId: account.id,
+					name: "Fundo europeu",
+					kind: "fund",
+					quantity: QUANTITY_SCALE,
+					unitPrice: 10_000,
+				});
+
+				expect(holding.currency).toBe("EUR");
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		it("keeps every price it was given, not only the last one", async () => {
 			const fixture = await prepare(adapter);
 			try {
