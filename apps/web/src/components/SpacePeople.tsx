@@ -202,8 +202,15 @@ export function SpacePeople() {
 	const canInvite = onAServer && may("member.invite");
 	const maySettle = may("sharing.write");
 	const mayLeave = may("space.leave");
-	/** Only the owner hands a space over, and only a shared one has anybody to hand it to. */
-	const mayHandOver = !isPersonal && myRole === "owner";
+	/**
+	 * Only the owner hands a space over, and only where there is somebody to hand it to.
+	 *
+	 * Gated on the mode like the invitation above it, and for the same reason. In browser
+	 * mode the other people in a space are rows nobody will ever sign in as, so handing a
+	 * space to one of them loses it: the new owner is an account no browser will hold, and
+	 * nothing in the interface can give it back.
+	 */
+	const mayHandOver = onAServer && !isPersonal && myRole === "owner";
 
 	async function copyLink() {
 		if (!link) return;
@@ -370,7 +377,11 @@ export function SpacePeople() {
 												{/* Owner is not in the list above, on purpose: the model refuses
 												    to hand that role out, because two owners is not a state it
 												    has an answer for. It is handed over, one for one. */}
-												{mayHandOver ? (
+												{/* And only to somebody who is actually in the space: the model
+												    refuses a space handed to an invitation nobody has accepted,
+												    and it refuses it with the sentence for something that does
+												    not exist. */}
+												{mayHandOver && member.state === "active" ? (
 													<MenuItem
 														onSelect={() => {
 															setHandOverProblem(null);
