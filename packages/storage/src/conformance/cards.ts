@@ -23,11 +23,15 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 					kind: "voucher",
 					name: "Vale refeicao",
 					benefit: "meal",
-					initialBalance: 64_500,
 					quotaAmount: 90_000,
 					quotaDay: 5,
 					quotaCarries: true,
 				});
+				// What a release before this one left on the card. A new one is written down
+				// empty, because what is on a benefit card is worked out from the allowance,
+				// and correcting the number is still allowed for exactly this: it is the
+				// starting point of everything that has carried.
+				await fixture.asAna.accounts.update(voucher.id, { initialBalance: 64_500 });
 
 				await fixture.asAna.transactions.create({
 					spaceId: space.id,
@@ -61,11 +65,62 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 					kind: "voucher",
 					name: "Vale antigo",
 					benefit: "meal",
-					initialBalance: 30_000,
 				});
+				await fixture.asAna.accounts.update(voucher.id, { initialBalance: 30_000 });
 				expect(
 					await fixture.asAna.accounts.benefitLeft(voucher.id, todayIn("America/Sao_Paulo")),
 				).toBeNull();
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		/**
+		 * A card is written down with nothing on it.
+		 *
+		 * Neither kind holds a balance somebody can type: what is on a credit card is its
+		 * invoice, made of purchases, and what is on a benefit card is the allowance less what
+		 * was eaten. The form offered the field under the sentence "how much is in this
+		 * account today", which is the wrong question for both, and whatever was typed then
+		 * sat in every total for ever with nothing to explain it.
+		 *
+		 * Only on a new one. Correcting the number on an account that already carries one is
+		 * how a card written down by an older release keeps counting, and how somebody says
+		 * what was on a benefit card the day they wrote it down.
+		 */
+		it("refuses an opening balance on a new card, and takes a correction to an old one", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+
+				for (const kind of ["credit", "voucher"] as const) {
+					await expect(
+						fixture.asAna.accounts.create({
+							spaceId: space.id,
+							kind,
+							name: `Novo ${kind}`,
+							initialBalance: 50_000,
+							...(kind === "credit" ? { closingDay: 28, dueDay: 5 } : { benefit: "meal" as const }),
+						}),
+					).rejects.toBeInstanceOf(RuleError);
+				}
+
+				// Zero is not a number somebody typed, so it is taken and changes nothing.
+				const card = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "credit",
+					name: "Cartão",
+					initialBalance: 0,
+					closingDay: 28,
+					dueDay: 5,
+				});
+				expect(card.initialBalance).toBe(0);
+
+				// And the correction, which is what carries an older card across.
+				const corrected = await fixture.asAna.accounts.update(card.id, {
+					initialBalance: -40_000,
+				});
+				expect(corrected.initialBalance).toBe(-40_000);
 			} finally {
 				await fixture.close();
 			}

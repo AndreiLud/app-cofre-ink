@@ -167,6 +167,32 @@ export function createAccountsRepository(context: RepositoryContext) {
 					"the opening balance is an integer of minor units, never a fractional number",
 				);
 			}
+			/**
+			 * A card and a benefit card are written down with nothing on them.
+			 *
+			 * Neither holds a balance somebody can type. What is on a card is its invoice,
+			 * which is made of purchases, and what is on a benefit card is the allowance less
+			 * what was eaten, which is worked out from the quota. A number typed into either
+			 * is a number that then sits in every total for ever with nothing to explain it,
+			 * and the screen used to offer the field under the sentence "how much is in this
+			 * account today", which is the wrong question for both.
+			 *
+			 * Only on a new one. The ones written down before this release keep their opening
+			 * balance and keep counting: on a card it is the debt that was already there, and
+			 * on a benefit card it is the starting point of what has carried, which is exactly
+			 * what `benefitLeft` reads. Correcting one is still allowed for the same reason.
+			 */
+			if (
+				input.initialBalance !== undefined &&
+				input.initialBalance !== 0 &&
+				(input.kind === "credit" || input.kind === "voucher")
+			) {
+				throw new RuleError(
+					"noOpeningBalanceOnACard",
+					"a card is written down empty: what is on it is the invoice, or the allowance",
+				);
+			}
+
 			// A current account that claims to be a meal voucher would be filtered as one
 			// everywhere, so the two have to agree from the start.
 			if (input.benefit != null && input.kind !== "voucher") {

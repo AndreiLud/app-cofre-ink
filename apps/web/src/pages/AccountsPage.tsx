@@ -246,8 +246,11 @@ export function AccountsPage() {
 				return null;
 			}
 
+			// Nothing for a card or a benefit card, whatever is in the field, because the
+			// field is not on their form: what is on a card is its invoice, and what is on a
+			// benefit card is worked out from the allowance.
 			const amount =
-				balance.trim() === ""
+				balance.trim() === "" || kind === "credit" || kind === "voucher"
 					? 0
 					: parseMoney(balance, { currency: currentSpace?.baseCurrency }).amount;
 			const account = await session.accounts.create({
@@ -861,7 +864,13 @@ export function AccountsPage() {
 							placeholder="1234"
 						/>
 					) : null}
-					{makesAnAccount ? (
+					{/* How much is in this account today, which a card and a benefit card do
+					    not have. A card holds a debt and what is on it is the invoice, asked
+					    for above in its own words; a benefit card holds an allowance and what
+					    is on it is worked out from the quota. The field was on both forms with
+					    the sentence "how much is in this account today" over it, which is the
+					    wrong question for either, and the model took whatever it was given. */}
+					{makesAnAccount && kind !== "credit" && kind !== "voucher" ? (
 						<Field
 							label={t("accounts.balance")}
 							hint={t("accounts.balanceHint")}

@@ -41,12 +41,23 @@ export async function seedDemo(
 		name: "Carteira",
 		initialBalance: 12_000,
 	});
+	/**
+	 * The meal card, written down the way somebody writes one down now.
+	 *
+	 * With the allowance and the day it lands, and with nothing on it: a benefit card is not
+	 * an account somebody pays into, so what is left on it is worked out from the quota less
+	 * what was eaten. It used to be seeded with an opening balance, which is how a card
+	 * written down before this release carries what it had, and the model refuses that on a
+	 * new one now.
+	 */
 	const voucher = await session.accounts.create({
 		spaceId,
 		kind: "voucher",
 		name: "Vale refeição",
 		benefit: "meal",
-		initialBalance: 64_500,
+		quotaAmount: 90_000,
+		quotaDay: 5,
+		quotaCarries: true,
 	});
 
 	// Two pieces of plastic, which is what this person actually carries: one that works
