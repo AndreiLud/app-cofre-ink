@@ -111,6 +111,7 @@ export function AccountsPage() {
 	const [editCarries, setEditCarries] = useState(true);
 	const [editClosingDay, setEditClosingDay] = useState("");
 	const [editDueDay, setEditDueDay] = useState("");
+	const [editLimit, setEditLimit] = useState("");
 
 	/** The account about to be deleted, and how many records go nowhere with it. */
 	const [erasing, setErasing] = useState<Account | null>(null);
@@ -152,6 +153,11 @@ export function AccountsPage() {
 		setEditCarries(account.quotaCarries ?? carriesByDefault(account.benefit ?? "meal"));
 		setEditClosingDay(account.closingDay === null ? "" : String(account.closingDay));
 		setEditDueDay(account.dueDay === null ? "" : String(account.dueDay));
+		setEditLimit(
+			account.creditLimit === null
+				? ""
+				: fillAmount(account.creditLimit, i18n.resolvedLanguage, account.currency),
+		);
 	}
 
 	const save = useMutation({
@@ -181,6 +187,9 @@ export function AccountsPage() {
 					? {
 							closingDay: editClosingDay.trim() === "" ? null : Number(editClosingDay),
 							dueDay: editDueDay.trim() === "" ? null : Number(editDueDay),
+							// Empty means the bank never said, and the invoice screen then says
+							// nothing about a limit rather than guessing at one.
+							creditLimit: editLimit.trim() === "" ? null : readAmount(editLimit, editing.currency),
 						}
 					: {}),
 			});
@@ -598,6 +607,20 @@ export function AccountsPage() {
 								}))}
 							/>
 						</div>
+					) : null}
+					{/* What the bank allows on the card, which the invoice screen takes the
+					    headroom from. Empty means the bank never said, and then that screen
+					    says nothing about a limit rather than guessing at one. */}
+					{editing?.kind === "credit" ? (
+						<Field
+							label={t("accounts.creditLimit")}
+							hint={t("accounts.creditLimitHint")}
+							value={editLimit}
+							onChange={(event) => setEditLimit(event.target.value)}
+							numeric={true}
+							inputMode="decimal"
+							placeholder={t("fields.amountPlaceholder")}
+						/>
 					) : null}
 					{editing?.kind === "voucher" ? (
 						<>

@@ -455,6 +455,8 @@
 		"closingDayHint": "Compras a partir desse dia entram na fatura seguinte.",
 		"dueDay": "Dia do vencimento",
 		"dueDayHint": "Quando a fatura tem que ser paga.",
+		"creditLimit": "Limite do cartão",
+		"creditLimitHint": "O quanto o banco libera neste cartão. Com ele preenchido, a tela Faturas diz quanto ainda dá para gastar, contando as parcelas que ainda vão cair. Pode deixar em branco.",
 		"invoiceSoFar": "Fatura em aberto hoje",
 		"invoiceSoFarHint": "Opcional. Quanto já está na fatura aberta deste cartão. Entra como um lançamento de hoje no cartão, que você pode corrigir ou apagar depois. Deixe em branco se o cartão é novo.",
 		"invoiceSoFarRecord": "Fatura em aberto quando o cartão foi cadastrado",

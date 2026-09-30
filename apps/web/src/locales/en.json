@@ -455,6 +455,8 @@
 		"closingDayHint": "A purchase on that day or after goes on the next invoice.",
 		"dueDay": "Due day",
 		"dueDayHint": "When the invoice has to be paid.",
+		"creditLimit": "Card limit",
+		"creditLimitHint": "What the bank allows on this card. With it filled in, the Invoices screen says how much there is left to spend, counting the instalments still to come. It can be left empty.",
 		"invoiceSoFar": "Invoice open today",
 		"invoiceSoFarHint": "Optional. How much is already on this card's open invoice. It goes in as one record dated today on the card, which you can correct or remove later. Leave it empty if the card is new.",
 		"invoiceSoFarRecord": "Invoice open when the card was written down",

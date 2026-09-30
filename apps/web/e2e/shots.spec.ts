@@ -172,11 +172,12 @@ test.describe("shots", () => {
 		await openCofre(page);
 		await go(page, "Contas");
 
-		// The row of the account and not of the card that reaches it: both carry the name,
-		// and the menu that edits the account is the one on the account's own row.
+		// "Editar conta" by its whole name. The same menu also carries "Editar cartão" for
+		// each piece of plastic that reaches the account, and asking for "Editar" took
+		// whichever came first, which was the card.
 		const row = page.getByRole("row").filter({ hasText: "Cartão de crédito" }).first();
 		await row.getByRole("button", { name: "Ações da conta" }).click();
-		await page.getByRole("menuitem", { name: "Editar" }).first().click();
+		await page.getByRole("menuitem", { name: "Editar conta", exact: true }).click();
 		await expect(page.getByRole("dialog")).toBeVisible();
 		await page.screenshot({ path: "shots/conta_editar_cartao.png", fullPage: true });
 
@@ -186,7 +187,7 @@ test.describe("shots", () => {
 		// And a voucher, because the quota is the field this release added.
 		const voucher = page.getByRole("row").filter({ hasText: "Vale refeição" }).first();
 		await voucher.getByRole("button", { name: "Ações da conta" }).click();
-		await page.getByRole("menuitem", { name: "Editar" }).first().click();
+		await page.getByRole("menuitem", { name: "Editar conta", exact: true }).click();
 		await expect(page.getByRole("dialog")).toBeVisible();
 		await page.screenshot({ path: "shots/conta_editar_vale.png", fullPage: true });
 	});
