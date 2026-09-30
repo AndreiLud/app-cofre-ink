@@ -44,23 +44,44 @@ one.
 | method | path | what it does |
 | --- | --- | --- |
 | `GET` `POST` | `/api/spaces/:id/accounts` | list, create. `?archived=true` includes archived |
-| `PATCH` `DELETE` | `/api/accounts/:id` | edit, remove |
+| `PATCH` `DELETE` | `/api/accounts/:id` | edit, remove. The name, where it is, the opening balance, the allowance of a benefit card, and the closing day, the due day and the limit of a credit card |
 | `POST` | `/api/accounts/:id/archive` and `/unarchive` | put away, bring back |
+| `GET` | `/api/accounts/:id/benefit` | what is left on a benefit card, worked out and not stored. Needs `today`. Nothing for an account with no allowance on it, and nothing for somebody who only sees their own records |
+| `GET` | `/api/accounts/:id/records` | how many records are charged to it, which is what goes nowhere if it is deleted. Counts what the asker can see |
 | `GET` `POST` | `/api/spaces/:id/cards` | list, create |
 | `PATCH` `DELETE` | `/api/cards/:id` | edit, remove. The kind cannot be changed |
 | `POST` | `/api/cards/:id/archive` and `/unarchive` | put away, bring back |
 | `GET` `POST` | `/api/spaces/:id/transactions` | list with filters, create |
-| `GET` | `/api/spaces/:id/balances` | the balance of every account |
+| `GET` | `/api/spaces/:id/balances` | the balance of every account. Needs `today`, because a record counts once it is a fact and its day has come |
 | `PATCH` | `/api/transactions` | the same change over a selection, up to 500 |
 | `POST` | `/api/transactions/remove` | remove a selection |
 | `PATCH` `DELETE` | `/api/transactions/:id` | edit, remove |
+| `PATCH` | `/api/transactions/:id/onwards` | the same change on this part of an instalment plan and every part after it. Never the parts behind, and never the day. Answers how many parts it changed |
 | `POST` | `/api/transactions/:id/settle` | planned becomes settled |
 | `POST` | `/api/transactions/:id/reconcile` | mark as matching a statement |
+| `POST` | `/api/transactions/:id/invoice/move` | one invoice earlier or later, with every part of an instalment plan. All of them or none |
 | `DELETE` | `/api/installments/:groupId` | the whole instalment set |
 
 The filters on the list are query parameters: `accountId`, `cardId`, `kind`, `status`,
 `from`, `to`, `invoiceMonth`, `search`, `categoryIds` as a comma separated list,
-`withoutCategory`, `limit`.
+`withoutCategory`, `externalIds`, `order` as `oldestFirst`, `limit` and `offset`. The order
+belongs in the query and not after it, because the limit is applied by the database: a
+caller that takes the newest twenty and sorts them the other way round is showing the twenty
+furthest away.
+
+## The cards
+
+An invoice is the whole of what a card will charge, whoever made the purchases, so every
+route here closes to somebody who only ever sees the records they wrote.
+
+| method | path | what it does |
+| --- | --- | --- |
+| `GET` | `/api/accounts/:id/invoices` | every invoice of one card, oldest first, each with what it charged, what was paid and what is left. Needs `today` |
+| `GET` | `/api/accounts/:id/invoices/:month` | one invoice, whether or not anything is on it. Needs `today` |
+| `GET` | `/api/spaces/:id/invoices` | where every card of a space stands: the open invoice, the one that closed and is not paid, what the instalments will charge later, and the headroom. Needs `today` |
+| `POST` | `/api/accounts/:id/invoices/pay` | pays one, as a transfer into the card marked with the invoice it pays. The amount is what somebody typed, so part of an invoice can be paid |
+| `POST` | `/api/accounts/:id/invoices/paidUntil` | writes one payment for every invoice up to a month, each dated on the day it fell due, for a card that was already in use before any of this |
+| `POST` | `/api/accounts/:id/invoices/closedOn` | says which day an invoice really closed, and moves every purchase in the days between onto the invoice it belongs to. All of them or none |
 
 ## Sorting, repeating, planning
 
@@ -106,7 +127,7 @@ The filters on the list are query parameters: `accountId`, `cardId`, `kind`, `st
 | `GET` | `/api/reports` | one route for every report. `kind` is one of totals, byCategory, incomeByCategory, byPriority, byMonth, byDay. Needs `from` and `to` |
 | `GET` | `/api/spaces/:id/advice` | the findings, heaviest first. Needs `today` |
 | `GET` | `/api/spaces/:id/reading` | the verdict and the four vital signs. Needs `today` |
-| `GET` | `/api/spaces/:id/projection` | the months ahead. Needs `from` as a month |
+| `GET` | `/api/spaces/:id/projection` | the months ahead. Needs `from` as a month and `today` as a day, which is what the opening balance is counted up to and what decides which invoices are still owed |
 | `GET` `POST` | `/api/spaces/:id/scenarios` | saved adjustments to a projection |
 | `PATCH` `DELETE` | `/api/scenarios/:id` | edit, remove |
 

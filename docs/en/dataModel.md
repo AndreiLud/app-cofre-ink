@@ -31,9 +31,9 @@ Every table and column is snake_case English: `spaces`, `transactions`, `space_i
 
 | table | what it holds |
 | --- | --- |
-| `accounts` | checking, savings, cash, credit, voucher or investment. A credit account carries its closing day, its due day and its limit. A voucher account carries which pot it is: meal, transport, culture or mobility |
+| `accounts` | checking, savings, cash, credit, voucher or investment. A credit account carries its closing day, its due day and its limit. A voucher account carries which pot it is: meal, transport, culture or mobility, and what lands on it: `quota_amount`, `quota_day` and `quota_carries`, which say the allowance, the day of the month it arrives and whether what is left carries into the next period |
 | `cards` | a card is a way to reach an account and not an account itself. Credit, debit, multiple, benefit or prepaid. A multiple card points at two accounts, one for each side |
-| `transactions` | income, expense or transfer. The amount is always positive and the direction comes from the kind. Planned or settled. Instalments share a group so the set can be undone as one |
+| `transactions` | income, expense or transfer. The amount is always positive and the direction comes from the kind. Planned or settled. Instalments share a group so the set can be undone as one. `invoice_month` says which card invoice it reached, worked out from the closing day of the account, and `invoice_month_by_hand` says a person chose it rather than it being worked out, which is true of an invoice payment and of a purchase moved because the bank closed a day either side |
 | `categories` | two levels, with `parent_id` for the second. Each carries a spending priority: essential, important, desirable or superfluous |
 | `categorization_rules` | text to match, and what to set when it matches. Ordered, and each one can be turned off without being deleted |
 | `recurrences` | a series that writes its own records. Weekly, monthly or yearly, with a start, an optional end and an optional day of the month |
@@ -136,10 +136,18 @@ Four things sit outside that rule on purpose.
    of what happened in the space is a record of other people's doing.
 3. A series is a promise of the household and not a record, so the list of them and the
    calendar they fill are the same for everybody who can see them. Narrowing those would
-   leave a month looking empty.
+   leave a month looking empty. They read that list and they do not write it.
 4. A holding is money the household owns rather than money that moved, so there is nothing
    in it to attribute to a person. The one figure on that screen made of records, how long
    the money would last with no income, closes to them.
+
+Four readings close to them instead of narrowing, because a figure of this shape narrowed
+is a number that is neither the household's nor theirs: a card invoice, which is the whole
+of what the card will charge whoever made the purchases; what is left on a benefit card,
+which is made of every lunch on it; the allowance of a benefit card, which counts as nothing
+for them like every other figure that belongs to the space; and the check up, because every
+threshold behind its verdict was written for a household. How many records are charged to an
+account narrows, like every other count.
 
 Two different answers on purpose: somebody who is not a member of a space is told the
 space does not exist, because confirming that it exists already says something about

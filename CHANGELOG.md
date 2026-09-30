@@ -5,6 +5,256 @@ Every release, what changed in it, and what to do about it if you are running th
 Versions follow semantic versioning. The first number changes when something that worked
 breaks, the second when something is added, the third when something is corrected.
 
+## 1.1.0
+
+Released on 30 September 2026. A large release, and the first one that changes what a figure
+means rather than only correcting one. It answers a question this application had never
+really answered, which is what a credit card is: until now a purchase on a card took the
+money out of the bank on the afternoon of the purchase, and the invoice was a filter over
+records rather than a thing with a state. It also gives the overview four figures on one
+line, turns a benefit card into the allowance it actually is, lets a whole instalment plan be
+corrected at once, and puts the whole month into one file the browser writes.
+
+Then, before the tag, the reading of 1.0.5 was turned on this release, four times over and
+with instructions to refute rather than to agree: the money and the arithmetic, the
+permissions and what a logger reads, the interface and both languages, and every sentence
+this release had written about itself. It found forty six things and it was right about most
+of them, including four figures the release had newly opened to somebody who may not see
+them, two sums that added a foreign currency as though it were the local one, a card whose
+headroom took its instalments off twice, and five sentences in the registries that described
+code this release had not actually written. All of it is below.
+
+> **If you are updating from 1.0.x, read this.**
+>
+> **Se você está atualizando da 1.0.x, leia isto.**
+>
+> Your file is carried across and nothing is deleted. Four things will read differently
+> afterwards, and all four are the old readings being wrong rather than the new ones.
+>
+> 1. **What you have, and what you owe, are two figures now.** The overview used to take a
+>    card invoice off the one number at the top, so the money in the bank looked smaller
+>    than it was and a card with nothing on it looked like money. What you have is the
+>    current accounts, the savings, the cash and the investments. The cards and the benefit
+>    cards are on their own lines under it.
+> 2. **A subscription charged to a credit card reaches its invoice.** Writing a series never
+>    worked out which invoice it belonged to, so every record a series had written on a card
+>    was on no invoice at all and the card showed less than it would charge. The upgrade
+>    repairs those rows, so an invoice of yours may be larger than it was yesterday. That
+>    number was always what the bank was going to ask for.
+> 3. **The months ahead count the invoices, and the balance they start from is the one the
+>    overview shows.** The projection counted only records still waiting to be confirmed,
+>    which a card purchase never is, so nothing your cards were about to charge was in it.
+>    It also treated paying an invoice as money that had not moved, so it opened over by
+>    every invoice you had ever paid. Both are corrected, and the months ahead will usually
+>    read lower than they did.
+> 4. **A benefit card needs its monthly allowance written down.** VR, VA, VT, culture and
+>    mobility are an amount that lands on a day each month and is spent down, and nothing is
+>    written when it lands, so what is left has to be worked out from the allowance. Until
+>    you fill it in, the card says so instead of guessing. What you typed as the opening
+>    balance of that card keeps counting: it is what was on the card the day you wrote it
+>    down, and it is the starting point of the sum.
+>
+> Nothing is asked of you and nothing is converted. Open Painel and Faturas once, and fill
+> in the monthly allowance of any benefit card under Contas.
+
+### Added
+
+**The invoice is a thing with a state, and it can be paid.** An invoice of a card has a
+month, a day it closes, a day it falls due, what it charged, what has been paid against it
+and what is left, and it is open, partly paid, paid or in credit. Paying it is a transfer
+into the card marked with the invoice it pays, with the amount you type rather than the
+amount it says, because paying part of one is a thing people do and the card does not refuse
+it. What is left stays on that invoice with no interest added: this application does not
+model revolving credit and says so on the screen rather than inventing a number. A payment
+that names no invoice, which is what a transfer made by hand or brought in from a statement
+is, pays down the oldest invoice still owing, which is what a bank does with it.
+
+**A purchase on the wrong invoice can be moved**, one invoice earlier or later, and every
+part of an instalment plan moves with it. Banks close a day either side of what any
+application expects, and a purchase on the closing day is the one that lands in the wrong
+month. Moved by hand, it stays where it was put: working the invoice out again from the
+closing day would send it straight back.
+
+**The overview answers the four questions it promises**, in four figures on one line: what
+you have, what is left to spend this month, what falls due in the next days and whether what
+you planned is being put aside. Under them, one line per card and one per benefit card,
+what is late, what falls due with a card invoice as one bill, the month so far, the saving
+and the goals, and where the money is with every account linking to its own records.
+
+**A benefit card is an allowance with a day on it.** An amount, the day of the month it
+lands, and whether what is left carries into the next period or is taken back. VR and VA are
+one pot and carry by default; VT is topped back up and does not. A benefit card only spends:
+it refuses money coming in and refuses a transfer out, because that is what the plastic in
+somebody's pocket does.
+
+**One field for what a record was paid with.** Card and account were two fields asking one
+question, and answering the first without the second wrote a purchase onto no card. It opens
+on the last way you paid, on this device and in this space.
+
+**A whole instalment plan can be corrected from one part onwards.** This part, or this part
+and the ones after it, and never the ones behind: what already happened happened under the
+name and at the price it happened at. A name written over a plan keeps each part's number.
+The day is not one of the things it changes, because each part falls on its own.
+
+**The whole month in one file.** A page of its own at `/relatorio`, which the browser saves
+as a PDF: the month in three numbers, the cards, the categories, the priorities, the last
+twelve months, the limits, the saving and the goals, the check up, the months ahead and the
+investments. Every figure has a table it can be read from, so the file works with a screen
+reader. A month that has gone is read as it stood on its last day. Nothing leaves the device
+to make it.
+
+**An account can be corrected**: its name, where it is, its opening balance, and the
+allowance of a benefit card. Deleting one says how many records are charged to it first.
+What is already on a card invoice can be written down when the card is, as one record dated
+today, because the cycle of a card you already own started before you got here.
+
+**How much you can still spend this month**, which is what you can spend now, plus what is
+still coming in, less what falls due and what you still mean to put aside.
+
+### Changed
+
+**The day says whether a record happened.** There was a tickbox asking whether it had
+happened yet, beside a field that had already been given the day, which is two answers to
+one question. A day that has not come has not happened, so the day decides and the form says
+what the day you chose means.
+
+**A record counts on the day it happens.** A purchase in six parts is six records written as
+facts, five of them dated in months to come, and all six used to leave the balance on the
+afternoon of the purchase while the same five were also counted as still to come next door.
+
+**One definition of what counts as money**, in `packages/core`, which three screens used to
+each have their own version of. What somebody has, what they can spend this afternoon, what
+they owe on the cards and what is left on the benefit cards are four named questions now,
+and every screen asks one of them by name instead of writing a filter of its own.
+
+**The currency of a space is not a setting to be changed.** It is settled by the first
+record, which the model has always held; the picker is switched off once the space counts in
+one, and it says why instead of refusing after you press save.
+
+**Accounts is a section of its own** in the navigation, with the wallet mark, and Settings
+opens on Categories.
+
+**The first part of a month ahead is called what it is:** already certain, which is the bills
+written down for that month and the card invoices falling due in it.
+
+### Fixed
+
+**A record in another currency is added up in the currency of the space.** The total under
+the list of records, three sums on the calendar and the division of a bill between people all
+read the amount as written and labelled the answer with the space currency, so a dinner of
+forty dollars in a household counting in reais went in as forty. Every one of them reads the
+figure that was worked out at the rate of the day, which was already stored beside it. A
+holding is stored in the currency of the space rather than in reais whatever the space says.
+
+**A logger reads what they wrote wherever a figure is made of records.** 1.0.5 said this was
+true of every screen; a series and a holding were outside it, and both are now written down
+in registry 0041 as things that stay outside on purpose. The reports and the budget say whose
+figures they are, which only the overview and the projection did, and the consolidated
+overview says it about the spaces being added rather than about the one that happens to be
+open.
+
+**A refusal is drawn where the person is looking.** Handing a space over was offered where it
+could not be done, the automatic backup said nothing about an address it could not use, a
+series drew its refusal twice, and the file picker drew a refused file somewhere else on the
+screen. Erasing a space with the backup on and the address half typed asked nothing at all
+and left the backup running; it says what will happen to the copy now.
+
+**One set of sentences for a refused invitation.** The invitation screen had a second set for
+the same refusals, so a used link said one thing there and another thing everywhere else. It
+reads the one translator now, like every other failure. A callout for a failure that screen
+cannot be showing is gone, and so is a sentence nobody reads.
+
+**A sentence that says whose job something is waits for the member list.** Until it arrives
+every answer is no, so an owner was told for a moment that making an account, a rule or a
+card belongs to whoever runs the space.
+
+**A refusal names the button that is on the screen.** Leaving a space pointed at a button
+called something else; it quotes the button's own words now, so the two cannot drift.
+
+**A failure nobody can explain to a person leaves a trace.** A server that crashed reached
+the screen as "I could not finish that" and wrote nothing anywhere. A statement a cloud
+database refuses is a failure with the name of the place on it, like every other destination,
+instead of a plain error carrying the raw text of somebody else's server.
+
+**The share weights are sent only to the division that reads them.** Dividing evenly or by
+income shipped a full map of weights nobody had seen.
+
+**A list is cut at the end that was asked for.** A caller that wanted what falls due next
+took the newest twenty and then sorted them the other way round, which showed the twenty
+furthest away and dropped the bills due tomorrow. On a server the route then dropped the
+order and the offset on the floor, so browser mode was right and server mode was not.
+
+### Fixed by the sweep before the tag
+
+**The overview counted the wrong bill, twice, and in the wrong currency.** Four faults in one
+band of figures. Only the invoice still taking purchases was counted, so from the closing day
+to the end of the month the bill the household actually owed was in no figure on the screen,
+and what was left to spend read high by the whole of it. A planned purchase on a card was
+counted as itself and again inside its invoice. In the every space view the money came from
+every space and the bills from whichever one was open, under a heading that says it is about
+all of them. And what is still coming in and still going out added the amounts as they were
+typed, which is the very thing this release took out of every other total.
+
+**An invoice, an allowance, a count of records and a month closed to somebody who only sees
+their own records.** Four figures this release added, each made of every record on an account
+whoever wrote it, each asking for a permission every role holds. The invoice screen closes
+and says why, the benefit line is not drawn, the count counts what the asker can see, and the
+allowance of a benefit card counts as nothing in a month made of one person's records rather
+than being folded into it whole. Registry 0041 now holds all of them.
+
+**A benefit card no longer pays an allowance in months it did not exist in.** The allowance
+was multiplied by the landings of whatever range was asked for, so a card written down in
+September credited a household eight hundred a month back to the beginning of its records,
+and went on crediting one that had been archived. It counts from the period the card was
+written down in, which is the period the first lunches on it belong to as well.
+
+**A month ahead counts every record the opening balance has not.** Cutting the opening at
+today was right and left a hole beside it: a record dated in a month ahead and written as a
+fact is not planned, so the later parts of a purchase in six, and a month filled in from the
+month screen before it arrived, appeared in no figure anywhere. The projection also opens
+with the prices somebody typed for what is invested, which is what the overview shows, rather
+than with what was paid into the broker.
+
+**A card's headroom takes the instalments still to come off once.** They were subtracted as
+what is owed and again as what is charged later, so a limit of five thousand with nine hundred
+in three parts reported three thousand five hundred left instead of four thousand one hundred.
+
+**Moving purchases between invoices is all of them or none.** Both doors moved the rows one
+at a time, so a plan with one part ticked off against the bank, or a card with one in the
+window, moved what came before it and then refused, leaving a purchase split between two
+invoices with nothing saying how far it got.
+
+**An instalment plan is corrected in the space it is in.** The mark of a plan is not renamed
+when a backup is restored into a second space, so two spaces can hold two plans under one
+mark, and asking the permission once on the first part found was asking about one space and
+writing both.
+
+**The closing day, the due day and the limit of a card can be corrected.** Registry 0045 said
+they could and the model took four fields. The closing day is the one on that form most likely
+to have been a guess, every invoice of the card is worked out from it, and banks move it.
+
+**A callout with no words in it.** Two new screens titled their refusals with a key that
+exists in neither language, so a failure came back headed `rules.somethingWentWrong`. One
+sentence started with a day that was never passed to it. An empty account was described in
+Portuguese as holding one record. Four sentences wrote the product name out instead of asking
+for it. The printed file gave the day it was made and the months of its tables in the shape
+the database keeps them in rather than the shape somebody reads. The
+benefit line was always in reais. Three figures shared three columns at any width. Nine
+sentences nobody reads are gone.
+
+**The registries say what the code does.** Five sentences this release wrote about itself
+were ahead of it: the first of the three parts of a month ahead, the list of what a logger
+reads whole, a permission a logger does not have, where the projection starts from, and the
+three fields of a card. Each one is either corrected or is now true because the code caught
+up. The ten routes this release added are in both guides, and so are the four columns and the
+three migrations.
+
+**The migrations are checked against a database that has money in it.** Comparing an empty
+database with the described schema says nothing about the one thing a release can break for
+somebody: their own file, written by the release before. The suite builds the database 1.0.5
+left, fills it with the rows 1.0.5 wrote, upgrades it for real and reads the whole thing back
+on every engine.
+
 ## 1.0.5
 
 Released on 29 September 2026. The site session read the guide against the code at 1.0.4
@@ -78,7 +328,7 @@ space rather than to a person, an opening balance or what a recurring bill will 
 counts as nothing for them rather than being mixed in. The overview and the projection say
 whose the figures are, and the diagnosis closes to them, because every threshold behind its
 verdict was written for a household. What stays outside the rule is written down in registry
-0041, and that list was two entries short when this release shipped.
+0041, and that list was two entries short when this release shipped, which 1.1.0 corrected.
 
 **One currency in one panel.** The settled list was drawn in the currency each settlement
 was written in while the balances above it used the current one, and the division added

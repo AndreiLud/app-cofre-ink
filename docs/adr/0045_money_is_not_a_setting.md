@@ -22,6 +22,13 @@ It also made three of this release's changes awkward to find. Correcting an acco
 allowance on a benefit card and the closing day of a credit card are all things somebody
 does while thinking about money, and all of them were two levels inside settings.
 
+The third of those three only became true late: the model took a name, a place, an opening
+balance and an allowance, and not the closing day, the due day or the limit, so this
+sentence described a screen that did not exist yet. The sweep before the tag found the
+sentence rather than the gap, which is the right way round: the closing day is the field on
+that form most likely to have been a guess, every invoice of the card is worked out from it,
+and a bank moves it. It can be corrected now.
+
 ## Decision
 
 Six sections, not five. Accounts is one of its own, with the wallet mark, and it holds

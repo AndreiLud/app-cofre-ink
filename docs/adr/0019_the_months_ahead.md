@@ -21,15 +21,26 @@ something the owner can take to pieces.
 
 `project` builds each month out of three things and reports them separately:
 
-1. **Already certain.** Records that already exist with a date in that month, and what the
-   cards will charge: for each card, what is left on each invoice, counted in the month its
-   due day falls in. Neither is a guess. A card purchase is left out of the first half and
-   counted only in the second, because it is money that leaves the bank on the day the
-   invoice is paid and not on the afternoon of the purchase, and an invoice that fell due
-   before today and is still owed counts in the first month ahead, because there is no
-   earlier month to put it in. Amended in 1.1.0: until then this was records still waiting
-   to be confirmed, which a card purchase never is, so none of what the cards were about to
-   charge was in the months ahead at all.
+1. **Already certain.** Two things, and neither of them is a guess.
+
+   Every record the opening balance has not already counted, which is exactly a day that has
+   not arrived, whatever the record is marked, and a day that has passed with nobody saying
+   it happened. The opening balance is what the accounts hold on the day the projection is
+   made, so those two are what is left of the table, and together they are all of it.
+
+   And what the cards will charge: for each card, what is left on each invoice, counted in
+   the month its due day falls in. A card purchase is left out of the first half and counted
+   only here, because it is money that leaves the bank on the day the invoice is paid and not
+   on the afternoon of the purchase. An invoice that fell due before today and is still owed
+   counts in the first month ahead, because there is no earlier month to put it in.
+
+   Amended in 1.1.0, twice, the second time by the sweep before the tag. Until then the first
+   half was records still waiting to be confirmed, which a card purchase never is, so none of
+   what the cards were about to charge was in the months ahead at all. Widening it to planned
+   records alone was still short: a record dated in a month ahead and written as a fact is
+   not planned, and an opening balance that stops at today does not hold it either, so it
+   appeared in no figure anywhere. That is what the later parts of a purchase in six are, and
+   what a month filled in from the month screen before it arrives is.
 2. **Recurring.** Series that fall due in that month and have not written their record
    yet. A series that already wrote it is in the first group, and counting it here as
    well is the single most common way a projection goes wrong. The record carries
@@ -41,8 +52,10 @@ something the owner can take to pieces.
 The median and not the mean, because one dentist does not make a year.
 
 The month it all starts from is where the money stands on the day the projection is made,
-and that figure comes from the balances and `moneyOnHand`, which is the same figure the
-overview opens with. It used to be worked out here instead, by adding the opening balances
+and that figure comes from the balances and `moneyOnHand`, with the prices somebody typed
+for what is invested, which makes it the same figure the overview opens with. Without those
+prices it was the same function over two different inputs, so the projection opened at what
+was paid into the broker while the overview showed what it is worth. It used to be worked out here instead, by adding the opening balances
 up and then adding every settled record that was not a transfer, and the second half of
 that is wrong: a transfer nets to nothing only when both of its accounts are inside the
 total. Paying a card invoice is a transfer into an account that is deliberately outside it,

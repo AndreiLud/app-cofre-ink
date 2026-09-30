@@ -31,9 +31,9 @@ Toda tabela e toda coluna é snake_case em inglês: `spaces`, `transactions`, `s
 
 | tabela | o que guarda |
 | --- | --- |
-| `accounts` | corrente, poupança, dinheiro, crédito, benefício ou investimento. Uma conta de crédito carrega o dia de fechamento, o de vencimento e o limite. Uma conta de benefício carrega qual pote é: refeição, transporte, cultura ou mobilidade |
+| `accounts` | corrente, poupança, dinheiro, crédito, benefício ou investimento. Uma conta de crédito carrega o dia de fechamento, o de vencimento e o limite. Uma conta de benefício carrega qual pote é: refeição, transporte, cultura ou mobilidade, e o que cai nela: `quota_amount`, `quota_day` e `quota_carries`, que dizem o valor mensal, o dia do mês em que ele cai e se o que sobra passa para o período seguinte |
 | `cards` | um cartão é um jeito de alcançar uma conta e não uma conta. Crédito, débito, múltiplo, benefício ou pré pago. Um múltiplo aponta para duas contas, uma de cada lado |
-| `transactions` | receita, despesa ou transferência. O valor é sempre positivo e a direção vem do tipo. Previsto ou realizado. Parcelas compartilham um grupo, para que o conjunto possa ser desfeito de uma vez |
+| `transactions` | receita, despesa ou transferência. O valor é sempre positivo e a direção vem do tipo. Previsto ou realizado. Parcelas compartilham um grupo, para que o conjunto possa ser desfeito de uma vez. O `invoice_month` diz em qual fatura do cartão ele caiu, calculado a partir do dia de fechamento da conta, e o `invoice_month_by_hand` diz que uma pessoa escolheu, em vez de ter sido calculado, o que vale para o pagamento de uma fatura e para uma compra movida porque o banco fechou um dia antes ou depois |
 | `categories` | dois níveis, com `parent_id` para o segundo. Cada uma carrega uma prioridade de gasto: essencial, importante, desejável ou supérflua |
 | `categorization_rules` | o texto a casar, e o que definir quando casar. Ordenadas, e cada uma pode ser desligada sem ser apagada |
 | `recurrences` | uma série que escreve os próprios lançamentos. Semanal, mensal ou anual, com início, fim opcional e dia do mês opcional |
@@ -135,10 +135,18 @@ Quatro coisas ficam fora dessa regra de propósito.
    aconteceu no espaço é um registro do que as outras pessoas fizeram.
 3. Uma série é uma promessa da casa, e não um lançamento, então a lista delas e o calendário
    que elas preenchem são os mesmos para todo mundo que pode ver. Estreitar isso deixaria um
-   mês com cara de vazio.
+   mês com cara de vazio. Ele lê essa lista e não escreve nela.
 4. Um investimento é dinheiro que a casa tem, e não dinheiro que se moveu, então não há nada
    nele para atribuir a uma pessoa. O único número daquela tela feito de lançamentos, quanto
    tempo o dinheiro duraria sem entrada nenhuma, fecha para ele.
+
+Quatro leituras fecham para ele em vez de estreitar, porque um número desse tipo estreitado
+não é o da casa nem o dele: a fatura de um cartão, que é tudo o que o cartão vai cobrar de
+quem quer que tenha usado ele; o que resta num cartão de benefício, que é feito de cada
+almoço que passou nele; o valor mensal de um cartão de benefício, que conta como nada para
+ele como todo número que é do espaço; e o diagnóstico, porque cada limite por trás do veredito
+dele foi escrito para uma casa. Quantos lançamentos estão numa conta estreita, como toda
+contagem.
 
 Duas respostas diferentes de propósito: quem não é membro de um espaço ouve que o
 espaço não existe, porque confirmar que existe já diz alguma coisa sobre o dinheiro dos

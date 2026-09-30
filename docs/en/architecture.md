@@ -76,7 +76,18 @@ it carries a space, whether it is replicated. Two generators turn that descripti
 the DDL for SQLite and for PostgreSQL. Nothing is written twice, and a column that
 exists in one and not the other is not possible.
 
-Twelve migrations, applied in order, recorded in a table.
+Fifteen migrations, applied in order, recorded in a table. The last three are the ones
+1.1.0 added: `0013_benefit_quota` puts the allowance of a benefit card on the accounts
+table, `0014_invoice_by_hand` adds the flag that says a person chose which invoice a
+record belongs to, and `0015_subscriptions_reach_their_invoice` repairs rows rather than
+the schema, stamping every record a series wrote on a card with the invoice it always
+belonged to.
+
+A migration that changes data, and not only the shape of it, is checked by carrying a
+database from the release before across the upgrade with rows already in it: the
+conformance suite runs the migrations one release had, writes the rows that release wrote,
+and then upgrades for real and reads the whole thing back. Comparing an empty database
+against the described schema, which the suite also does, says nothing about that.
 
 ## Writing, and the change log
 

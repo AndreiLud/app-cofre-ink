@@ -77,7 +77,18 @@ carrega um espaço, se é replicada. Dois geradores transformam essa descrição
 SQLite e no do PostgreSQL. Nada é escrito duas vezes, e uma coluna que exista em um e
 não no outro não é possível.
 
-Doze migrações, aplicadas em ordem, registradas numa tabela.
+Quinze migrações, aplicadas em ordem, registradas numa tabela. As três últimas são as que a
+1.1.0 trouxe: a `0013_benefit_quota` põe o valor mensal de um cartão de benefício na tabela
+de contas, a `0014_invoice_by_hand` acrescenta a marca que diz que uma pessoa escolheu a
+fatura de um lançamento, e a `0015_subscriptions_reach_their_invoice` conserta dados em vez
+de forma, marcando cada lançamento que uma série escreveu num cartão com a fatura à qual ele
+sempre pertenceu.
+
+Uma migração que muda dado, e não só a forma dele, é conferida levando um banco da versão
+anterior por cima da atualização com linhas já dentro: a suíte de conformidade roda as
+migrações que uma versão tinha, escreve as linhas que aquela versão escrevia, e então
+atualiza de verdade e lê tudo de volta. Comparar um banco vazio com o schema descrito, que a
+suíte também faz, não diz nada sobre isso.
 
 ## Escrever, e o histórico de alterações
 

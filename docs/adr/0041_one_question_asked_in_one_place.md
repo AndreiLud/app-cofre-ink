@@ -76,12 +76,32 @@ two to be found by somebody reading the screens afterwards. All four are written
 3. A series, which is a promise of the household and not a record. The rent and the salary
    are on the calendar for everybody who can see the calendar, and narrowing the list to
    the person who typed it would leave a month looking empty and a projection built on a
-   third of what is coming. The interface offers a logger the same list and the same
-   buttons, because `recurrence.write` is theirs.
+   third of what is coming. They read the list and they do not write it: `recurrence.write`
+   belongs to the owner, the administrator and the editor.
 4. A holding, which is money the household owns rather than money that moved. There is
    nothing in it to attribute to a person. The one figure on that screen that was made of
    records, how long this money would last without an income, closed to them in 1.1.0,
    because the income it divides by is the household's and not theirs.
+
+Four more figures made of records arrived with 1.1.0, and the sweep before the tag found
+every one of them open. Three close, because a figure of this shape cannot be narrowed
+without becoming a number that is neither the household's nor theirs, and one narrows:
+
+1. A card invoice is the whole of what the card will charge, whoever made the purchases,
+   so the invoice screen closes to them and says why. The card standing on the overview
+   refused from the start and the two other doors into the same sums did not.
+2. What is left on a benefit card is made of every lunch on it. It answers nothing for
+   them, and the overview draws no line for a card it cannot read.
+3. The allowance of a benefit card, which the month of a space counts as money that came
+   in. It counts as nothing for them, like every other figure that belongs to the space.
+4. How many records are charged to an account, which counts what the asker can see. Only
+   whoever runs a space can delete an account, so no screen showed them the number, and
+   the contract and the route answered it to anybody signed in.
+
+The pattern in all four is the one the whole registry is about: a permission every role
+holds, asked on a reading that is about the household. `transaction.read` and
+`account.read` are the two to be careful with, because they are the two that say yes to
+everybody.
 
 The currency of a space is settled by its first record. Changing it converted nothing, on
 purpose, which is right for a record and wrong for every total, so the correction is

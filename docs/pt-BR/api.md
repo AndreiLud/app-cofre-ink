@@ -43,23 +43,43 @@ Todo o resto exige sessão e responde `401 {"error": "signedOut"}` sem uma.
 | método | caminho | o que faz |
 | --- | --- | --- |
 | `GET` `POST` | `/api/spaces/:id/accounts` | listar, criar. `?archived=true` inclui arquivadas |
-| `PATCH` `DELETE` | `/api/accounts/:id` | editar, remover |
+| `PATCH` `DELETE` | `/api/accounts/:id` | editar, remover. O nome, onde ela fica, o saldo de abertura, o valor mensal de um cartão de benefício, e o dia de fechamento, o de vencimento e o limite de um cartão de crédito |
 | `POST` | `/api/accounts/:id/archive` e `/unarchive` | guardar, trazer de volta |
+| `GET` | `/api/accounts/:id/benefit` | quanto resta num cartão de benefício, calculado e não guardado. Precisa de `today`. Nada para uma conta sem valor mensal, e nada para quem só vê os próprios lançamentos |
+| `GET` | `/api/accounts/:id/records` | quantos lançamentos estão nela, que é o que fica sem lugar se ela for apagada. Conta o que quem pergunta pode ver |
 | `GET` `POST` | `/api/spaces/:id/cards` | listar, criar |
 | `PATCH` `DELETE` | `/api/cards/:id` | editar, remover. O tipo não pode mudar |
 | `POST` | `/api/cards/:id/archive` e `/unarchive` | guardar, trazer de volta |
 | `GET` `POST` | `/api/spaces/:id/transactions` | listar com filtros, criar |
-| `GET` | `/api/spaces/:id/balances` | o saldo de cada conta |
+| `GET` | `/api/spaces/:id/balances` | o saldo de cada conta. Precisa de `today`, porque um lançamento conta quando é fato e o dia dele chegou |
 | `PATCH` | `/api/transactions` | a mesma mudança sobre uma seleção, até 500 |
 | `POST` | `/api/transactions/remove` | remover uma seleção |
 | `PATCH` `DELETE` | `/api/transactions/:id` | editar, remover |
+| `PATCH` | `/api/transactions/:id/onwards` | a mesma mudança nesta parcela e em todas as seguintes. Nunca nas anteriores, e nunca no dia. Responde quantas parcelas mudou |
 | `POST` | `/api/transactions/:id/settle` | previsto vira realizado |
 | `POST` | `/api/transactions/:id/reconcile` | marcar como batendo com o extrato |
+| `POST` | `/api/transactions/:id/invoice/move` | uma fatura antes ou depois, com todas as parcelas do plano. Todas ou nenhuma |
 | `DELETE` | `/api/installments/:groupId` | o conjunto inteiro de parcelas |
 
 Os filtros da listagem são parâmetros de consulta: `accountId`, `cardId`, `kind`,
 `status`, `from`, `to`, `invoiceMonth`, `search`, `categoryIds` como lista separada por
-vírgula, `withoutCategory`, `limit`.
+vírgula, `withoutCategory`, `externalIds`, `order` como `oldestFirst`, `limit` e `offset`. A
+ordem fica na consulta e não depois dela, porque o limite é aplicado pelo banco: quem pega os
+vinte mais novos e ordena ao contrário está mostrando os vinte mais distantes.
+
+## Os cartões
+
+Uma fatura é tudo o que um cartão vai cobrar, de quem quer que tenha comprado, então toda
+rota daqui fecha para quem só vê os lançamentos que escreveu.
+
+| método | caminho | o que faz |
+| --- | --- | --- |
+| `GET` | `/api/accounts/:id/invoices` | cada fatura de um cartão, da mais antiga para a mais nova, com o que ela cobrou, o que foi pago e o que falta. Precisa de `today` |
+| `GET` | `/api/accounts/:id/invoices/:month` | uma fatura, tenha algo nela ou não. Precisa de `today` |
+| `GET` | `/api/spaces/:id/invoices` | onde cada cartão do espaço está: a fatura aberta, a que fechou e não foi paga, o que as parcelas vão cobrar depois, e o limite que sobra. Precisa de `today` |
+| `POST` | `/api/accounts/:id/invoices/pay` | paga uma, como transferência para o cartão marcada com a fatura que ela paga. O valor é o que a pessoa escreveu, então dá para pagar parte da fatura |
+| `POST` | `/api/accounts/:id/invoices/paidUntil` | escreve um pagamento para cada fatura até um mês, cada um no dia em que ela venceu, para um cartão que já era usado antes de tudo isso |
+| `POST` | `/api/accounts/:id/invoices/closedOn` | diz em que dia a fatura fechou de verdade, e move cada compra dos dias entre uma data e outra para a fatura à qual ela pertence. Todas ou nenhuma |
 
 ## Organizar, repetir, planejar
 
@@ -105,7 +125,7 @@ vírgula, `withoutCategory`, `limit`.
 | `GET` | `/api/reports` | uma rota para todo relatório. `kind` é totals, byCategory, incomeByCategory, byPriority, byMonth ou byDay. Precisa de `from` e `to` |
 | `GET` | `/api/spaces/:id/advice` | os achados, do mais pesado ao mais leve. Precisa de `today` |
 | `GET` | `/api/spaces/:id/reading` | o veredito e os quatro sinais vitais. Precisa de `today` |
-| `GET` | `/api/spaces/:id/projection` | os meses à frente. Precisa de `from` como mês |
+| `GET` | `/api/spaces/:id/projection` | os meses à frente. Precisa de `from` como mês e de `today` como dia, que é até onde o saldo de abertura é contado e o que decide quais faturas ainda estão em aberto |
 | `GET` `POST` | `/api/spaces/:id/scenarios` | ajustes salvos sobre uma projeção |
 | `PATCH` `DELETE` | `/api/scenarios/:id` | editar, remover |
 
