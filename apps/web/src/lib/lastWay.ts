@@ -39,11 +39,8 @@ export function rememberWayUsed(spaceId: string, way: string): void {
 	}
 }
 
-/** Forgotten with everything else this browser holds, when somebody erases it all. */
-export function forgetWaysUsed(): void {
-	try {
-		window.localStorage.removeItem(KEY);
-	} catch {
-		// Already gone.
-	}
-}
+// There was a function here to forget these, exported and never called. Erasing everything
+// on this device already removes every key of this application, this one among them, so it
+// was a second answer to a question that has one. An entry left for a space that has gone
+// costs nothing: the form checks that the remembered way is still one of the ways to pay
+// before it opens on it.

@@ -7,7 +7,8 @@
 // narrow picture is of the screen and not of the door.
 //
 // It is skipped by default: it writes files rather than asserting anything, and it is run
-// on purpose with `--grep shots` when the screens have changed.
+// on purpose with SHOTS=1 when the screens have changed. The comment here used to say
+// `--grep shots`, which on its own still skips every case.
 
 import { expect, test } from "@playwright/test";
 import { go, openCofre } from "./support.ts";
@@ -19,10 +20,19 @@ const WIDTHS = [
 
 const THEMES = ["light", "dark"] as const;
 
-/** Each screen, by how the navigation reaches it, and what has to be on it first. */
-const SCREENS = [
+/**
+ * Each screen, by how the navigation reaches it, and what has to be on it first.
+ *
+ * A screen reached by an address rather than by the navigation says so instead: the file
+ * of the whole month is a page nothing links to from the shell, and it is one of the
+ * things this release added.
+ */
+const SCREENS: { name: string; section?: string; at?: string; waitFor: string }[] = [
 	{ name: "painel", section: "Painel", waitFor: "Você tem" },
 	{ name: "faturas", section: "Faturas", waitFor: "fatura" },
+	{ name: "contas", section: "Contas", waitFor: "Conta" },
+	{ name: "lancamentos", section: "Lançamentos", waitFor: "Novo lançamento" },
+	{ name: "relatorio", at: "/relatorio?mes=2026-09", waitFor: "O mês" },
 ];
 
 test.describe("shots", () => {
@@ -37,7 +47,8 @@ test.describe("shots", () => {
 				}, theme);
 
 				await openCofre(page);
-				await go(page, screen.section);
+				if (screen.at) await page.goto(screen.at);
+				else if (screen.section) await go(page, screen.section);
 				await expect(page.getByText(screen.waitFor).first()).toBeVisible();
 
 				for (const size of WIDTHS) {

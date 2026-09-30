@@ -104,11 +104,31 @@ export function PaperReportPage() {
 	const asOf = to < today ? to : today;
 	const past = to < today;
 
-	const monthName = new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+	const locale = i18n.resolvedLanguage === "en" ? "en" : "pt-BR";
+	const monthName = new Intl.DateTimeFormat(locale, {
 		month: "long",
 		year: "numeric",
 		timeZone: "UTC",
 	}).format(new Date(`${month}-01T00:00:00Z`));
+
+	/**
+	 * A day and a month as somebody reads them, not as the database keeps them.
+	 *
+	 * This file is the one thing here that somebody hands to another person, and it printed
+	 * "Gerado em 2026-09-29" and listed its rows as 2026-10, which is the shape of a column
+	 * in a table and not of a date in a document.
+	 */
+	const dayName = (day: string) =>
+		new Intl.DateTimeFormat(locale, {
+			day: "2-digit",
+			month: "long",
+			year: "numeric",
+			timeZone: "UTC",
+		}).format(new Date(`${day}T00:00:00Z`));
+	const shortMonth = (value: string) =>
+		new Intl.DateTimeFormat(locale, { month: "short", year: "2-digit", timeZone: "UTC" }).format(
+			new Date(`${value}-01T00:00:00Z`),
+		);
 
 	// The browser suggests the document title as the file name, which is the only say this
 	// page has over what the file ends up called.
@@ -237,8 +257,8 @@ export function PaperReportPage() {
 					{t("paper.title", { space: currentSpace.name, month: monthName })}
 				</h1>
 				<p className="text-quiet text-sm">
-					{t("paper.madeOn", { day: today })}
-					{past ? ` ${t("paper.asItStood", { day: to })}` : ""}
+					{t("paper.madeOn", { day: dayName(today) })}
+					{past ? ` ${t("paper.asItStood", { day: dayName(to) })}` : ""}
 				</p>
 				{mine.seesOwnRowsOnly ? <p className="text-quiet text-sm">{t("paper.yoursOnly")}</p> : null}
 			</header>
@@ -377,7 +397,7 @@ export function PaperReportPage() {
 						<TableBody>
 							{(byMonth.data ?? []).map((one) => (
 								<TableRow key={one.month}>
-									<TableCell>{one.month}</TableCell>
+									<TableCell>{shortMonth(one.month)}</TableCell>
 									<TableCell numeric={true}>
 										<Value amount={one.income} currency={currency} />
 									</TableCell>
@@ -399,7 +419,11 @@ export function PaperReportPage() {
 					<Table caption={t("paper.budgetCaption", { month: monthName })}>
 						<TableHead>
 							<TableRow>
-								<TableHeader>{t("paper.limit")}</TableHeader>
+								{/* What the limit is on, which is everything, a priority or a
+								    category, and never a limit. This column was headed with the
+								    same word as the one two along, so the English table read
+								    "Limit, Spent, The limit, State". */}
+								<TableHeader>{t("paper.what")}</TableHeader>
 								<TableHeader numeric={true}>{t("paper.spent")}</TableHeader>
 								<TableHeader numeric={true}>{t("paper.limitAmount")}</TableHeader>
 								<TableHeader>{t("paper.state")}</TableHeader>
@@ -511,7 +535,7 @@ export function PaperReportPage() {
 						<TableBody>
 							{projection.data.months.map((one) => (
 								<TableRow key={one.month}>
-									<TableCell>{one.month}</TableCell>
+									<TableCell>{shortMonth(one.month)}</TableCell>
 									<TableCell numeric={true}>
 										<Value amount={one.income} currency={currency} />
 									</TableCell>
