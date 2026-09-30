@@ -262,7 +262,8 @@
 		"income": "Entrou",
 		"expense": "Saiu",
 		"left": "Diferença",
-		"ofWhichBenefits": "Inclui {{amount}} de benefícios, que caem no cartão e não são lançamento."
+		"ofWhichBenefits": "Inclui {{amount}} de benefícios, que caem no cartão e não são lançamento.",
+		"savePdf": "Salvar em PDF"
 	},
 	"shell": {
 		"opening": "Abrindo o seu banco de dados neste dispositivo.",
@@ -1468,5 +1469,52 @@
 		"keepMine": "Ficar com o deste navegador",
 		"keepTheirs": "Ficar com o do backup",
 		"undoSaved": "As duas últimas jogam fora o que o outro lado escreveu. Antes de fazer isso, eu baixo um arquivo com o lado que vai embora, e você traz ele de volta em Restaurar de um arquivo se mudar de ideia."
+	},
+	"paper": {
+		"title": "{{space}}, {{month}}",
+		"madeOn": "Gerado em {{day}}.",
+		"asItStood": "Os números são como estavam em {{day}}, o último dia do mês.",
+		"yoursOnly": "Só os seus lançamentos. Você é Registrador neste espaço, então estes números são do que você mesmo passou pelas contas.",
+		"save": "Salvar em PDF",
+		"chooseInReports": "No diálogo que abrir, escolha Salvar como PDF no lugar da impressora.",
+		"summary": "O mês",
+		"summaryCaption": "O resumo de {{month}}",
+		"what": "O quê",
+		"howMuch": "Quanto",
+		"benefitsLine": "Benefícios",
+		"moneyAtTheEnd": "Dinheiro no fim do mês",
+		"spendableAtTheEnd": "Disso, disponível para gastar",
+		"cards": "Cartões",
+		"cardsCaption": "As faturas abertas de cada cartão",
+		"card": "Cartão",
+		"state": "Situação",
+		"charged": "Cobrado",
+		"stillToPay": "Falta pagar",
+		"byCategory": "Por categoria",
+		"byPriority": "Por prioridade",
+		"share": "Parte",
+		"priorityCaption": "O mês por prioridade",
+		"twelveMonths": "Os últimos doze meses",
+		"budget": "Orçamento",
+		"budgetCaption": "Os limites de {{month}}",
+		"limit": "Limite",
+		"limitAmount": "Valor do limite",
+		"spent": "Gasto",
+		"limitState": {
+			"comfortable": "Folgado",
+			"tight": "Apertado",
+			"over": "Estourado"
+		},
+		"saving": "Guardar e metas",
+		"savingCaption": "A regra de guardar e as metas",
+		"checkUp": "Diagnóstico",
+		"sign": "Sinal",
+		"signsCaption": "Os quatro sinais",
+		"monthsAhead": "Os meses à frente",
+		"monthsAheadCaption": "O que os próximos meses devem somar",
+		"balanceAtTheEnd": "Saldo no fim",
+		"investments": "Investimentos",
+		"investmentsCaption": "O que está aplicado",
+		"madeHere": "Feito neste aparelho pelo Cofre Ink. Nada saiu daqui para gerar este arquivo."
 	}
 }

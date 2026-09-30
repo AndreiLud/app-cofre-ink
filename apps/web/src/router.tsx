@@ -58,6 +58,15 @@ const monthRoute = createRoute({
 	component: lazyRouteComponent(() => import("./pages/MonthPage.tsx"), "MonthPage"),
 });
 
+// The whole month on one page, made for paper. It is a screen of its own rather than a
+// print stylesheet over the reports screen, because what goes on paper is a different
+// order and more of it: registry 0046.
+const paperRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/relatorio",
+	component: lazyRouteComponent(() => import("./pages/PaperReportPage.tsx"), "PaperReportPage"),
+});
+
 const reportsRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/relatorios",
@@ -146,6 +155,7 @@ const routeTree = rootRoute.addChildren([
 	advisorRoute,
 	dataRoute,
 	importRoute,
+	paperRoute,
 	invitationRoute,
 	designSystemRoute,
 ]);

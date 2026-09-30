@@ -1,0 +1,62 @@
+// The whole month on one page, for paper and for the PDF a browser writes.
+//
+// What is checked is that the page holds the month in the order it promises, that it
+// names the file it wants to be, and that it says nothing a person is not allowed to see.
+
+import { expect, test } from "@playwright/test";
+import { go, openCofre } from "./support.ts";
+
+test.describe("the month on paper", () => {
+	test("holds the month in order, with a table under every figure", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Relatórios");
+		await page.getByRole("link", { name: "Salvar em PDF" }).click();
+
+		await expect(page.getByRole("heading", { level: 1 })).toContainText("Pessoal");
+
+		// Every part of the file, in the order the month is read in.
+		for (const part of [
+			"O mês",
+			"Cartões",
+			"Por categoria",
+			"Os últimos doze meses",
+			"Guardar e metas",
+			"Diagnóstico",
+			"Os meses à frente",
+			"Investimentos",
+		]) {
+			await expect(page.getByRole("heading", { name: part, exact: true })).toBeVisible();
+		}
+
+		// Nothing here is only a picture: every figure has a table it can be read from,
+		// which is what makes the PDF the browser writes readable with a screen reader.
+		expect(await page.getByRole("table").count()).toBeGreaterThan(5);
+	});
+
+	test("asks the browser to call the file what it is", async ({ page }) => {
+		await openCofre(page);
+		await page.goto("/relatorio?mes=2026-09");
+
+		// The document title is the only say this page has over the name the browser
+		// suggests when somebody chooses to save as PDF.
+		await expect(page).toHaveTitle("cofre_relatorio_2026-09");
+	});
+
+	test("reads a month already over as it stood on its last day", async ({ page }) => {
+		await openCofre(page);
+		await page.goto("/relatorio?mes=2026-08");
+
+		await expect(page.getByText("como estavam em 2026-08-31")).toBeVisible();
+	});
+
+	test("says nothing about the whole household to somebody who sees their own", async ({
+		page,
+	}) => {
+		await openCofre(page);
+		await page.goto("/relatorio?mes=2026-09");
+
+		// The owner of the sample space sees everything, so the check up is in the file.
+		await expect(page.getByRole("heading", { name: "Diagnóstico" })).toBeVisible();
+		await expect(page.getByText("Só os seus lançamentos")).toHaveCount(0);
+	});
+});

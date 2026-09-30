@@ -11,6 +11,8 @@ export const ROUTES = {
 	month: "/mes",
 	calendar: "/calendario",
 	reports: "/relatorios",
+	/** The whole month on one page, made for paper and for the PDF a browser writes. */
+	paper: "/relatorio",
 	budget: "/orcamento",
 	invoices: "/faturas",
 	categories: "/categorias",

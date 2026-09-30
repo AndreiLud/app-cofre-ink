@@ -262,7 +262,8 @@
 		"income": "In",
 		"expense": "Out",
 		"left": "Difference",
-		"ofWhichBenefits": "Includes {{amount}} of benefits, which land on the card and are not records."
+		"ofWhichBenefits": "Includes {{amount}} of benefits, which land on the card and are not records.",
+		"savePdf": "Save as PDF"
 	},
 	"shell": {
 		"opening": "Opening your database on this device.",
@@ -1468,5 +1469,52 @@
 		"keepMine": "Keep this browser's",
 		"keepTheirs": "Keep the backup's",
 		"undoSaved": "The last two throw away what the other side wrote. Before either of them, a file with the side that is going is saved for you, and Restore from a file brings it back if you change your mind."
+	},
+	"paper": {
+		"title": "{{space}}, {{month}}",
+		"madeOn": "Made on {{day}}.",
+		"asItStood": "The figures are as they stood on {{day}}, the last day of the month.",
+		"yoursOnly": "Your own records only. You are a Logger in this space, so these figures are what you yourself put through the accounts.",
+		"save": "Save as PDF",
+		"chooseInReports": "In the dialogue that opens, choose Save as PDF instead of a printer.",
+		"summary": "The month",
+		"summaryCaption": "The summary of {{month}}",
+		"what": "What",
+		"howMuch": "How much",
+		"benefitsLine": "Benefits",
+		"moneyAtTheEnd": "Money at the end of the month",
+		"spendableAtTheEnd": "Of that, there to be spent",
+		"cards": "Cards",
+		"cardsCaption": "The open invoice of each card",
+		"card": "Card",
+		"state": "State",
+		"charged": "Charged",
+		"stillToPay": "Still to pay",
+		"byCategory": "By category",
+		"byPriority": "By priority",
+		"share": "Share",
+		"priorityCaption": "The month by priority",
+		"twelveMonths": "The last twelve months",
+		"budget": "Budget",
+		"budgetCaption": "The limits of {{month}}",
+		"limit": "Limit",
+		"limitAmount": "The limit",
+		"spent": "Spent",
+		"limitState": {
+			"comfortable": "Comfortable",
+			"tight": "Tight",
+			"over": "Over"
+		},
+		"saving": "Putting aside, and goals",
+		"savingCaption": "The saving rule and the goals",
+		"checkUp": "The check up",
+		"sign": "Sign",
+		"signsCaption": "The four signs",
+		"monthsAhead": "The months ahead",
+		"monthsAheadCaption": "What the next months should add up to",
+		"balanceAtTheEnd": "Balance at the end",
+		"investments": "Investments",
+		"investmentsCaption": "What is invested",
+		"madeHere": "Made on this device by Cofre Ink. Nothing left it to produce this file."
 	}
 }

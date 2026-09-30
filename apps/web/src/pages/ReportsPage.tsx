@@ -25,9 +25,11 @@ import {
 	TableRow,
 } from "@cofre/ui";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
+import { ROUTES } from "../routes.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 
 const PRIORITY_TONE: Record<string, "ink" | "cedar" | "seal" | "ochre" | "amber"> = {
@@ -223,6 +225,13 @@ export function ReportsPage() {
 					<Button size="small" variant="secondary" onClick={() => window.print()}>
 						{t("reports.print")}
 					</Button>
+					{/* The whole month in one file, which is more than this screen shows and in
+					    another order. It is a page of its own, and the browser writes the PDF. */}
+					<Link to={ROUTES.paper} search={{ mes: month }}>
+						<Button size="small" variant="secondary">
+							{t("reports.savePdf")}
+						</Button>
+					</Link>
 				</div>
 			</div>
 
