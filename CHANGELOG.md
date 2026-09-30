@@ -71,13 +71,14 @@ deleting a card, three empty states with no account, a row of the danger zone, t
 writing the series forward, and the door that brings a file back, which writes whole spaces
 and asked nothing.
 
-**A logger sees what they wrote, on every screen.** The list, the reports, the budget and
-the import held that rule; the balances, the projection, the savings, the goals and the
-whole of the diagnosis did not. Where a figure belongs to the space rather than to a person,
-an opening balance or what a recurring bill will owe, it counts as nothing for them rather
-than being mixed in. The overview and the projection say whose the figures are, and the
-diagnosis closes to them, because every threshold behind its verdict was written for a
-household.
+**A logger sees what they wrote, wherever a figure is made of records.** The list, the
+reports, the budget and the import held that rule; the balances, the projection, the
+savings, the goals and the whole of the diagnosis did not. Where a figure belongs to the
+space rather than to a person, an opening balance or what a recurring bill will owe, it
+counts as nothing for them rather than being mixed in. The overview and the projection say
+whose the figures are, and the diagnosis closes to them, because every threshold behind its
+verdict was written for a household. What stays outside the rule is written down in registry
+0041, and that list was two entries short when this release shipped.
 
 **One currency in one panel.** The settled list was drawn in the currency each settlement
 was written in while the balances above it used the current one, and the division added

@@ -120,16 +120,26 @@ method names a permission that is not in it.
 records and they see the records they wrote, and nothing else. That is enforced in the
 repository layer by filtering rather than by refusing, so nothing on screen suggests
 there is more to see: every query that reads the records narrows to their own, which
-means their balances, their projection, their savings, their goals and their diagnosis
-are readings of what they themselves put through the space and not of the household's
-money. Where a figure belongs to the space rather than to a person, such as the opening
-balance of an account or what a recurring bill will owe, it counts as nothing for them
-rather than being mixed in.
+means their balances, their projection, their savings and their goals are readings of what
+they themselves put through the space and not of the household's money. Where a figure
+belongs to the space rather than to a person, such as the opening balance of an account or
+what a recurring bill will owe, it counts as nothing for them rather than being mixed in.
+The diagnosis is the one reading that closes to them instead of narrowing, because every
+threshold behind its verdict was written for a household and a third of one household reads
+as a household in trouble.
 
-Two things sit outside that rule on purpose. They read who owes whom, because they are
-part of that count: they record what they spent and the division is between everybody.
-And `activity.read` is the one permission in the matrix that excludes them, because the
-log of what happened in the space is a record of other people's doing.
+Four things sit outside that rule on purpose.
+
+1. They read who owes whom, because they are part of that count: they record what they
+   spent and the division is between everybody.
+2. `activity.read` is the one permission in the matrix that excludes them, because the log
+   of what happened in the space is a record of other people's doing.
+3. A series is a promise of the household and not a record, so the list of them and the
+   calendar they fill are the same for everybody who can see them. Narrowing those would
+   leave a month looking empty.
+4. A holding is money the household owns rather than money that moved, so there is nothing
+   in it to attribute to a person. The one figure on that screen made of records, how long
+   the money would last with no income, closes to them.
 
 Two different answers on purpose: somebody who is not a member of a space is told the
 space does not exist, because confirming that it exists already says something about

@@ -5,7 +5,9 @@ Date: 29 September 2026
 ## Status
 
 Accepted. Describes the three origins built in 1.0.4 and what 1.0.5 learned about keeping
-them. Amends registry 0005, which set out the roles and the permission matrix.
+them. Amends registry 0005, which set out the roles and the permission matrix. The list of
+what a logger reads narrowed and what they read whole was corrected in 1.1.0, because it
+said "every screen" and two screens were outside it.
 
 ## Context
 
@@ -60,13 +62,26 @@ The checks are cheap and they are the point. Eighteen missing sentences and a ta
 twenty four of thirty five rows were both invisible to a reader and obvious to a script,
 and both had survived several passes of somebody reading the code against the documents.
 
-A logger reads what they wrote on every screen, which took nine queries in five
-repositories. Where a figure belongs to the space rather than to a person, an opening
-balance or what a recurring bill will owe, it counts as nothing for them rather than being
-mixed with their own rows, because a household opening balance plus one person's records is
-neither number. Two things stay outside that rule and are written down as such: they read
-who owes whom, because they are part of that count, and they do not read the log of what
-happened in the space.
+A logger reads what they wrote wherever a figure is made of records, which took nine
+queries in five repositories. Where a figure belongs to the space rather than to a person,
+an opening balance or what a recurring bill will owe, it counts as nothing for them rather
+than being mixed with their own rows, because a household opening balance plus one person's
+records is neither number.
+
+Four things stay outside that rule, and 1.0.5 wrote two of them down and left the other
+two to be found by somebody reading the screens afterwards. All four are written down here:
+
+1. Who owes whom, because a logger is part of that count.
+2. The log of what happened in the space, which they do not read.
+3. A series, which is a promise of the household and not a record. The rent and the salary
+   are on the calendar for everybody who can see the calendar, and narrowing the list to
+   the person who typed it would leave a month looking empty and a projection built on a
+   third of what is coming. The interface offers a logger the same list and the same
+   buttons, because `recurrence.write` is theirs.
+4. A holding, which is money the household owns rather than money that moved. There is
+   nothing in it to attribute to a person. The one figure on that screen that was made of
+   records, how long this money would last without an income, closed to them in 1.1.0,
+   because the income it divides by is the household's and not theirs.
 
 The currency of a space is settled by its first record. Changing it converted nothing, on
 purpose, which is right for a record and wrong for every total, so the correction is

@@ -120,15 +120,25 @@ de repositório citar uma permissão que não esteja ali.
 lançamentos e vê os lançamentos que escreveu, e mais nada. Isso é aplicado na camada de
 repositórios filtrando em vez de recusando, para que nada na tela sugira que há mais
 para ver: toda consulta que lê os lançamentos estreita para os dele, o que significa que
-os saldos, a projeção, a poupança, as metas e o diagnóstico dele são leituras do que ele
-mesmo passou pelo espaço, e não do dinheiro da casa. Onde um número é do espaço e não de
-uma pessoa, como o saldo de abertura de uma conta ou o que uma conta que se repete vai
-cobrar, ele conta como nada para ele em vez de entrar na mistura.
+os saldos, a projeção, a poupança e as metas dele são leituras do que ele mesmo passou pelo
+espaço, e não do dinheiro da casa. Onde um número é do espaço e não de uma pessoa, como o
+saldo de abertura de uma conta ou o que uma conta que se repete vai cobrar, ele conta como
+nada para ele em vez de entrar na mistura. O diagnóstico é a única leitura que fecha para
+ele em vez de estreitar, porque cada limite por trás do veredito dele foi escrito para uma
+casa, e um terço de uma casa se lê como uma casa em apuros.
 
-Duas coisas ficam fora dessa regra de propósito. Ele lê quem deve a quem, porque ele
-entra nessa conta: ele registra o que gastou e a divisão é entre todos. E o
-`activity.read` é a única permissão da matriz que exclui ele, porque o registro do que
-aconteceu no espaço é um registro do que as outras pessoas fizeram.
+Quatro coisas ficam fora dessa regra de propósito.
+
+1. Ele lê quem deve a quem, porque ele entra nessa conta: ele registra o que gastou e a
+   divisão é entre todos.
+2. O `activity.read` é a única permissão da matriz que exclui ele, porque o registro do que
+   aconteceu no espaço é um registro do que as outras pessoas fizeram.
+3. Uma série é uma promessa da casa, e não um lançamento, então a lista delas e o calendário
+   que elas preenchem são os mesmos para todo mundo que pode ver. Estreitar isso deixaria um
+   mês com cara de vazio.
+4. Um investimento é dinheiro que a casa tem, e não dinheiro que se moveu, então não há nada
+   nele para atribuir a uma pessoa. O único número daquela tela feito de lançamentos, quanto
+   tempo o dinheiro duraria sem entrada nenhuma, fecha para ele.
 
 Duas respostas diferentes de propósito: quem não é membro de um espaço ouve que o
 espaço não existe, porque confirmar que existe já diz alguma coisa sobre o dinheiro dos
