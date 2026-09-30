@@ -14,7 +14,7 @@ import {
 	type SpaceColour,
 	SpaceMark,
 } from "@cofre/ui";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SpacePeople } from "../components/SpacePeople.tsx";
@@ -138,6 +138,24 @@ export function SpacesPage() {
 		onError: (error: unknown) => setProblem(sayWhy(error, t)),
 	});
 
+	/**
+	 * Whether the currency of the space being edited is already settled.
+	 *
+	 * The first record settles it, because nothing is converted when it changes and every
+	 * balance already written is a number of minor units of the old one. One record is
+	 * enough to know, so one is what is asked for.
+	 */
+	const written = useQuery({
+		queryKey: ["spaceHasRecords", target?.made === false ? target.space.id : ""],
+		enabled: Boolean(session) && target?.made === false,
+		queryFn: async () => {
+			if (!session || target?.made !== false) return false;
+			const rows = await session.transactions.list({ spaceId: target.space.id, limit: 1 });
+			return rows.length > 0;
+		},
+	});
+	const settled = written.data ?? false;
+
 	function submit(event: FormEvent) {
 		event.preventDefault();
 		save.mutate();
@@ -213,13 +231,19 @@ export function SpacesPage() {
 						hint={t("spaces.colourHint")}
 					/>
 					{/* Asked nowhere else now that a device can be opened without a form, and
-					    the amounts of a space are counted in it. */}
+					    the amounts of a space are counted in it.
+
+					    Off once the space has a record in it, because the model refuses the
+					    change there and the hint said nothing about it: somebody picked a
+					    currency, pressed save, and read a refusal at the bottom of a dialog
+					    they had already filled in. */}
 					<Select
 						label={t("onboarding.currency")}
 						value={currency}
 						onChange={(event) => setCurrency(event.target.value)}
 						options={CURRENCIES.map((code) => ({ value: code, label: code }))}
-						hint={t("spaces.currencyHint")}
+						hint={settled ? t("spaces.currencySettled") : t("spaces.currencyHint")}
+						disabled={settled}
 					/>
 					{problem ? <Callout tone="problem">{problem}</Callout> : null}
 				</form>

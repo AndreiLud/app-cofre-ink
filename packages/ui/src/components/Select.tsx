@@ -35,6 +35,8 @@ export function Select({ label, options, hint, error, className, ...rest }: Sele
 				className={cn(
 					"h-11 rounded-sm border bg-sunken px-3 text-base text-ink",
 					"transition-colors duration-150 focus:border-accent focus:bg-panel",
+					// Switched off still has to look switched off, and the hint under it says why.
+					"disabled:cursor-not-allowed disabled:opacity-60",
 					error ? "border-seal" : "border-lineStrong",
 					className,
 				)}
