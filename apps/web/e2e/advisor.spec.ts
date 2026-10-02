@@ -5,7 +5,7 @@
 // and something in the records worth pointing at.
 
 import { expect, test } from "@playwright/test";
-import { go, openCofre } from "./support.ts";
+import { go, onTheDay, openCofre } from "./support.ts";
 
 test.describe("the check up", () => {
 	test("is one click from the overview, and says what shape the money is in", async ({ page }) => {
@@ -77,7 +77,7 @@ test.describe("the check up", () => {
 		page,
 	}) => {
 		const months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map((back) => {
-			const when = new Date();
+			const when = onTheDay();
 			when.setUTCDate(1);
 			when.setUTCMonth(when.getUTCMonth() - back);
 			return `${when.getUTCFullYear()}-${String(when.getUTCMonth() + 1).padStart(2, "0")}`;

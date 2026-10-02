@@ -58,7 +58,7 @@ test.describe("reading a statement", () => {
 		await expect(page.getByText("1 lançamento gravado")).toBeVisible();
 
 		await go(page, "Lançamentos");
-		await page.getByLabel("Mês").fill("2026-01");
+		await page.getByLabel("Mês", { exact: true }).fill("2026-01");
 		await expect(record(page, "Padaria da esquina")).toBeVisible();
 		await expect(record(page, "Reembolso do plano")).toHaveCount(0);
 	});
@@ -155,7 +155,7 @@ test.describe("reading a statement", () => {
 		await expect(page.getByText("3 lançamentos gravados")).toBeVisible();
 
 		await go(page, "Lançamentos");
-		await page.getByLabel("Mês").fill("2026-01");
+		await page.getByLabel("Mês", { exact: true }).fill("2026-01");
 		await expect(record(page, "Padaria da esquina")).toBeVisible();
 		await expect(record(page, "Pagamento recebido")).toBeVisible();
 	});

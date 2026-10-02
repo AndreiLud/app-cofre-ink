@@ -7,7 +7,7 @@
 // for a day already gone simply vanishing.
 
 import { expect, test } from "@playwright/test";
-import { go, openCofre, total } from "./support.ts";
+import { dayField, go, onTheDay, openCofre, total } from "./support.ts";
 
 test.describe("the overview", () => {
 	test("answers the four questions the product promises, in one line", async ({ page }) => {
@@ -79,14 +79,6 @@ test.describe("the overview", () => {
 	test("puts what was promised for a day already gone at the top, to be answered", async ({
 		page,
 	}) => {
-		// On a fixed day, late enough in its month to have days behind it.
-		//
-		// A series never writes a record for a month before the one it was written down in,
-		// which is the rule that stops a rent paid since 2019 arriving as six years of
-		// promises. So "six days ago" produced no overdue promise at all whenever the suite
-		// ran in the first days of a month, and this test went red for a reason that had
-		// nothing to do with the screen it is about.
-		await page.clock.setFixedTime(new Date("2026-10-20T12:00:00-03:00"));
 		await openCofre(page);
 
 		// A series that started before today writes a promise for every day it has already
@@ -97,7 +89,10 @@ test.describe("the overview", () => {
 		await page.getByRole("button", { name: "Nova recorrência" }).click();
 		await page.getByRole("dialog").getByLabel("Descrição").fill("Academia");
 		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("149,00");
-		await page.getByRole("dialog").getByLabel("A partir de").fill("2026-10-14");
+		// A few days behind the day the suite runs on, so the series owes promises nobody has
+		// answered. A series never writes a record for a month before the one it was written
+		// down in, which is why the day the suite runs on is fixed rather than real.
+		await page.getByRole("dialog").getByLabel("A partir de").fill(dayField(-6));
 		await page.getByRole("button", { name: "Salvar" }).click();
 		await expect(page.getByText("Academia").first()).toBeVisible();
 
@@ -111,7 +106,6 @@ test.describe("the overview", () => {
 	test("answers a week of late promises in one go", async ({ page }) => {
 		// A series that has already passed three times, which is what coming back from a week
 		// away looks like. Answering them was one press each, each its own write.
-		await page.clock.setFixedTime(new Date("2026-10-20T12:00:00-03:00"));
 		await openCofre(page);
 
 		await go(page, "Calendário");
@@ -119,7 +113,7 @@ test.describe("the overview", () => {
 		await page.getByRole("dialog").getByLabel("Descrição").fill("Van da escola");
 		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("30,00");
 		await page.getByRole("dialog").getByLabel("Repete").selectOption("weekly");
-		await page.getByRole("dialog").getByLabel("A partir de").fill("2026-10-01");
+		await page.getByRole("dialog").getByLabel("A partir de").fill(dayField(-27));
 		await page.getByRole("button", { name: "Salvar" }).click();
 
 		await go(page, "Painel");
@@ -141,8 +135,7 @@ test.describe("the overview", () => {
 		// due long before today, whatever day the suite runs on. The list of what falls due
 		// had one bound, the far end, so that invoice passed it and was drawn under a heading
 		// saying it was still to come, with a date already gone in the column beside it.
-		const old = new Date();
-		old.setDate(old.getDate() - 70);
+		const old = onTheDay(-70);
 
 		await go(page, "Lançamentos");
 		await page.getByRole("button", { name: "Novo lançamento" }).first().click();

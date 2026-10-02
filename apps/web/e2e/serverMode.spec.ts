@@ -258,7 +258,7 @@ test.describe("server mode", () => {
 		// An empty month is the state he is most likely to land on, and it was the one door
 		// left unlocked: the button at the top asked first and this one did not.
 		await go(joao, "Lançamentos");
-		await joao.getByLabel("Mês").fill("2020-01");
+		await joao.getByLabel("Mês", { exact: true }).fill("2020-01");
 		await expect(joao.getByRole("button", { name: "Novo lançamento" })).toHaveCount(0);
 
 		// And correcting the name or the currency of the space is not his either.

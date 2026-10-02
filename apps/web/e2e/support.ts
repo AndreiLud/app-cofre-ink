@@ -1,6 +1,37 @@
 import { expect, type Page } from "@playwright/test";
 
 /**
+ * The day every flow runs on.
+ *
+ * This suite used to run on whatever day it was, and a product about money is full of
+ * rules that depend on the day: a series never writes a record for a month before the one
+ * it was written down in, the records screen opens on this month, a card invoice closes on
+ * the third and falls due on the tenth, and the demonstration data is dated backwards from
+ * today. So three tests of 1.1.0 passed on the thirtieth of September and failed on the
+ * first of October with nobody having touched the code, which is the worst kind of red:
+ * one that arrives without a cause and teaches people to ignore the suite.
+ *
+ * The twenty eighth, because the demonstration data reaches sixteen days back and all of
+ * it has to land in the month the screens open on, and because the open invoice of the
+ * sample card falls due thirteen days later, which is inside the fifteen days the overview
+ * looks ahead. A test that wants another day says so for itself.
+ */
+export const TODAY = "2026-10-28";
+
+/** The same day as a Date, for the few tests that count days in the test rather than the page. */
+export function onTheDay(offset = 0): Date {
+	const day = new Date(`${TODAY}T12:00:00-03:00`);
+	day.setDate(day.getDate() + offset);
+	return day;
+}
+
+/** The same day, written the way a date field wants it. */
+export function dayField(offset = 0): string {
+	const day = onTheDay(offset);
+	return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+}
+
+/**
  * Walks the front door, which every flow starts from because each test opens a browser
  * with nothing stored.
  *
@@ -12,6 +43,9 @@ import { expect, type Page } from "@playwright/test";
  * comes along, because that is the one question the door still asks.
  */
 export async function openCofre(page: Page, options: { demo?: boolean } = {}): Promise<void> {
+	// Before the first load, because the demonstration data is written on the way in and is
+	// dated backwards from whatever day the page thinks it is.
+	await page.clock.setFixedTime(new Date(`${TODAY}T12:00:00-03:00`));
 	await page.goto("/");
 
 	const demo = page.getByRole("checkbox", { name: "Começar com dados de exemplo" });

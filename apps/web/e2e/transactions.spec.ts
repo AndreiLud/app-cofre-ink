@@ -1,18 +1,17 @@
 // Writing money down, which is the thing the product exists to make fast.
 
 import { expect, test } from "@playwright/test";
-import { go, openCofre, record, total } from "./support.ts";
+import { dayField, go, openCofre, record, total } from "./support.ts";
 
 /**
- * A day ahead of today, as the date field wants it.
+ * A day ahead of the day the suite runs on, as the date field wants it.
  *
- * The suite runs in America/Sao_Paulo, which the configuration pins, so the day the
- * browser is on and the day the space is on are the same one.
+ * The suite runs in America/Sao_Paulo, which the configuration pins, and on one fixed day,
+ * which support.ts pins, so the day the browser is on and the day this counts from are the
+ * same one.
  */
 function inDays(count: number): string {
-	const day = new Date();
-	day.setDate(day.getDate() + count);
-	return day.toISOString().slice(0, 10);
+	return dayField(count);
 }
 
 /** The month a day belongs to, because the list opens on this month and a day ahead may not be in it. */
@@ -59,13 +58,13 @@ test.describe("records", () => {
 		await page.getByRole("dialog").getByLabel("Parcelas").selectOption("3");
 		await page.getByRole("button", { name: "Salvar" }).click();
 
-		await page.getByLabel("Mês").fill("2026-09");
+		await page.getByLabel("Mês", { exact: true }).fill("2026-09");
 		await expect(record(page, "Geladeira 1/3")).toBeVisible();
 
-		await page.getByLabel("Mês").fill("2026-10");
+		await page.getByLabel("Mês", { exact: true }).fill("2026-10");
 		await expect(record(page, "Geladeira 2/3")).toBeVisible();
 
-		await page.getByLabel("Mês").fill("2026-11");
+		await page.getByLabel("Mês", { exact: true }).fill("2026-11");
 		await expect(record(page, "Geladeira 3/3")).toBeVisible();
 		await expect(page.getByRole("cell", { name: "-R$ 411,52" })).toBeVisible();
 	});
@@ -85,7 +84,7 @@ test.describe("records", () => {
 		await page.getByRole("dialog").getByLabel("Dia").fill(due);
 		await page.getByRole("button", { name: "Salvar" }).click();
 
-		await page.getByLabel("Mês").fill(monthOfDay(due));
+		await page.getByLabel("Mês", { exact: true }).fill(monthOfDay(due));
 		await expect(record(page, "Aluguel")).toContainText("Previsto");
 
 		await go(page, "Painel");
@@ -125,7 +124,7 @@ test.describe("records", () => {
 		await expect(page.getByRole("dialog")).toContainText("Esse dia ainda não chegou");
 		await page.getByRole("button", { name: "Salvar" }).click();
 
-		await page.getByLabel("Mês").fill(monthOfDay(due));
+		await page.getByLabel("Mês", { exact: true }).fill(monthOfDay(due));
 		await expect(record(page, "Seguro do carro")).toContainText("Previsto");
 	});
 
@@ -230,7 +229,7 @@ test.describe("records", () => {
 			await page.getByRole("button", { name: "Salvar" }).click();
 		}
 
-		await page.getByLabel("Mês").fill(monthOfDay(inDays(5)));
+		await page.getByLabel("Mês", { exact: true }).fill(monthOfDay(inDays(5)));
 		await page.getByRole("checkbox", { name: "Selecionar Conta de luz" }).check();
 		await page.getByRole("checkbox", { name: "Selecionar Conta de água" }).check();
 		await expect(page.getByText("2 selecionados")).toBeVisible();
