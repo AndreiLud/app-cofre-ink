@@ -5,6 +5,125 @@ Every release, what changed in it, and what to do about it if you are running th
 Versions follow semantic versioning. The first number changes when something that worked
 breaks, the second when something is added, the third when something is corrected.
 
+## 1.2.0
+
+Released on 2 October 2026. The release that finished 1.1.0.
+
+1.1.0 shipped with a list of what it had not done, written down rather than quietly carried.
+This is that list, worked through, plus six things the working through found on its way past
+and one that found itself: two days after the tag, three tests of 1.1.0 were red with nobody
+having touched a line of the code, because they had been written against the day they were
+run on.
+
+Every correction here carries a test that fails against the code before it, and each one was
+run against that code to prove it.
+
+> **If you are updating from 1.1.0, four figures will read differently.**
+>
+> **Se você está atualizando da 1.1.0, quatro números vão ler diferente.**
+>
+> All four are the old readings being wrong rather than the new ones.
+>
+> 1. **The months ahead will usually read lower in their first month.** The projection opens
+>    at the money you have today, which already holds everything that happened this month, and
+>    then charged the month a whole usual month of spending and of income on top of it. The
+>    first month now counts only the days still to come.
+> 2. **A card invoice is a figure in your own currency.** It was summed in whatever currency
+>    each purchase was written in and labelled with the currency of the card's account, so an
+>    invoice holding a purchase abroad was a number in no currency at all, and that number was
+>    going into what is left to spend this month.
+> 3. **What is left of a card's limit replaces the limit**, on the invoice screen, which used
+>    to print the limit itself with nothing taken off it.
+> 4. **A benefit card in the list of accounts shows what is on it**, which is worked out, and
+>    not the balance of its records, which for a benefit card is roughly the negative of what
+>    has been eaten.
+>
+> Nothing is asked of you and nothing is converted.
+
+### Added
+
+**A month of three numbers says something back.** Somebody who will not keep a ledger types
+what came in, what went out and what the card charged, and the screen answered with those
+three numbers and their difference. It now reads the month against the middle of the closed
+months before it, ranks what the month went on out of the records that carry a category, and
+says which limits the month has broken. The comparison waits: a month three days old has spent
+almost nothing, and a screen that calls that thrift tells a household it is winning on the
+third and leaves it to find out on the thirtieth.
+
+**A week of late promises is answered in one go.** The overdue block had two buttons per row
+and nothing over the block. Every record still stays on the day it was promised for, so a bill
+stays in the month and in the limit it belongs to, and the dialog says so before it writes.
+
+**A filtered list of records is an address.** The seven filters live in the address now, so a
+narrowed list can be linked to, bookmarked, reloaded and handed to the other person in the
+space. The overview already had a link per account pointing at that screen, carrying the
+account, and the screen read nothing at all.
+
+**A voucher says when the next allowance lands**, and a card that does not keep what is left
+says that instead, because the neutral sentence would be a comfortable lie about a transport
+card.
+
+**A way into the statement import from the records screen**, which offered three ways to type
+a record in and none to read a file.
+
+### Changed
+
+**The habit of the month you are in counts only the days still to come.** See the note above.
+
+**A card invoice is summed in the currency of the space**, from each purchase at the rate
+written down with it, which is what every other total in this application does. An invoice
+holding a purchase in another currency with no rate for the day prints no total at all and
+says why, rather than printing one that quietly leaves that purchase out, and it is in no
+figure on the overview while it says it.
+
+**A control on a screen names the call it makes**, not the permission behind it. The permission
+is read from one table, and every row of that table is proved against the running repositories
+by the permission probes, on all three engines.
+
+### Fixed
+
+**A card invoice past its due day is something to answer.** The list of bills had one bound,
+the far end, so a bill that fell due three months ago passed the only test there was and was
+drawn under the heading saying it is due in the next days, with a date already gone beside it.
+A household whose one overdue thing was a card invoice saw no block for it at all.
+
+**Every invoice that closed and was not paid is a bill of its own.** The model answered with
+the newest, so a household two invoices behind saw one of them while the headroom of the card
+counted both, and the invisible one was the older debt.
+
+**The invoice screen says what is left of the limit.** It printed the raw limit with nothing
+taken off it, so the figure somebody checks before paying at a till was the wrong one, on the
+screen whose only subject is that card.
+
+**A benefit card in the list of accounts shows what is on it.**
+
+**The habit of a projection is read from whole months.** A report made in September about the
+months from November read its habit from September alone, eleven days old.
+
+**Saying a promise did not happen asks for the permission it needs**, which is the delete one
+and not the update one. It agreed with the refusal behind it by accident, because the two hold
+the same roles today.
+
+**The month screen says which invoice it pays**, and an account form that writes a card's
+opening invoice does it through a rule in the core rather than seven lines inside a screen.
+
+### Fixed in the suite, which is where this release started
+
+**The browser suite runs on one fixed day.** Three tests of 1.1.0 passed on the thirtieth of
+September and failed on the first of October without a line of code changing: a series never
+writes a record for a month before the one it was written down in, so "six days ago" produced
+no overdue promise at all in the first days of a month. A test that is red with no cause is
+worse than a test that is missing, because it teaches whoever reads the suite that red is
+weather.
+
+**The translation check refuses two more things**: a sentence quoting another with `$t()` where
+the quoted key does not exist, and a key no source file asks for. The second found fourteen,
+removed here.
+
+**The sweep of 1.1.0 got the tests it was missing**, where no new harness was needed: what an
+address is in the cloud package, which role only ever sees what it wrote, and the whole path of
+the invoice a card is written down with.
+
 ## 1.1.0
 
 Released on 30 September 2026. A large release, and the first one that changes what a figure
