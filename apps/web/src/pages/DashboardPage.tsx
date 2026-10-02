@@ -1055,6 +1055,7 @@ export function DashboardPage() {
 														accountId={account.id}
 														currency={account.currency}
 														today={today}
+														known={!mine.seesOwnRowsOnly}
 													/>
 												) : (
 													<Value amount={amount} currency={account.currency} tone="auto" />
@@ -1264,19 +1265,33 @@ function VoucherAmount({
 	accountId,
 	currency,
 	today,
+	/**
+	 * Whether this person reads the household's rows at all.
+	 *
+	 * The model answers nothing about a benefit card to somebody who only sees their own
+	 * records, on purpose, because what is on the card is made of every lunch on it. Nothing
+	 * is not the same as no allowance written down, and this row said the second: it told a
+	 * Registrador that the allowance was missing on a card whose allowance is filled in,
+	 * which is the exact harm the line at the top of the screen avoids by drawing nothing.
+	 */
+	known,
 }: {
 	accountId: string;
 	currency: string;
 	today: CalendarDate;
+	known: boolean;
 }) {
 	const { session } = useCofre();
 	const state = useQuery({
 		queryKey: ["benefit", accountId, today],
-		enabled: Boolean(session),
+		enabled: Boolean(session) && known,
 		queryFn: () => session?.accounts.benefitLeft(accountId, today) ?? null,
 	});
 
 	const { t } = useTranslation();
+	// Nothing while the answer is on its way either, so the sentence about a missing
+	// allowance is never the first thing a card says about itself.
+	if (!known || state.isPending) return null;
 	if (!state.data) return <span className="text-quiet text-sm">{t("dashboard.quotaMissing")}</span>;
 	return <Value amount={state.data.left} currency={currency} tone="auto" />;
 }
