@@ -86,7 +86,7 @@ export function InvoicePage() {
 	const spaceId = currentSpace?.id ?? "";
 	/** Whether the way out of an empty screen is a way out for this person. */
 	const iMay = useWhatIMayDo(spaceId);
-	const mayMakeAnAccount = iMay.may("account.create");
+	const mayMakeAnAccount = iMay.mayCall("accounts.create");
 	const ready = iMay.ready;
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
 
@@ -112,8 +112,8 @@ export function InvoicePage() {
 	const [closedDay, setClosedDay] = useState("");
 
 	const mine = iMay;
-	const mayPay = mine.may("transaction.create");
-	const mayMove = mine.may("transaction.update");
+	const mayPay = mine.mayCall("invoices.pay");
+	const mayMove = mine.mayCall("transactions.update");
 
 	const accounts = useQuery({
 		queryKey: ["accounts", spaceId],
@@ -334,8 +334,20 @@ export function InvoicePage() {
 	 * the open invoice whichever month is being looked at. Undefined while the invoices are
 	 * still being read, which is not the same as null: null is a card nobody wrote a limit for.
 	 */
+	/**
+	 * And nothing when the card's account counts in another currency than the space.
+	 *
+	 * The limit is a figure in the account's currency and what is owed is a figure in the
+	 * currency of the space, because that is what the stored rate of a purchase converts to.
+	 * Subtracting one from the other would be arithmetic between two units.
+	 */
+	const limitInAnotherCurrency =
+		invoiceAccount !== null &&
+		invoiceAccount.creditLimit !== null &&
+		invoiceAccount.currency !== currentSpace.baseCurrency;
+
 	const limitLeft =
-		invoiceAccount && cycle && older.data
+		invoiceAccount && cycle && older.data && !limitInAnotherCurrency
 			? limitLeftOf({
 					creditLimit: invoiceAccount.creditLimit,
 					states: older.data,
@@ -421,15 +433,28 @@ export function InvoicePage() {
 			<section className="space-y-2">
 				{invoice.isPending ? (
 					<Skeleton lines={1} />
+				) : (state?.withoutRate ?? 0) > 0 ? (
+					/* A purchase in another currency with no rate for the day has no honest figure
+					   here, and a total that quietly leaves it out is worse than no total. The
+					   purchases are still listed below, and the way out is on the record itself. */
+					<Callout tone="attention" title={t("invoice.noRateTitle")}>
+						{t("invoice.noRateBody")}
+					</Callout>
 				) : (
 					<p className="font-mono text-3xl tabular-nums">
 						<Value
 							amount={state?.charged ?? 0}
-							currency={invoiceAccount?.currency ?? currentSpace.baseCurrency}
+							currency={currentSpace.baseCurrency}
 							tone="neutral"
 						/>
 					</p>
 				)}
+
+				{(state?.inOtherCurrencies ?? 0) > 0 && (state?.withoutRate ?? 0) === 0 ? (
+					<p className="text-sm text-quiet">
+						{t("invoice.countedIn", { currency: currentSpace.baseCurrency })}
+					</p>
+				) : null}
 				{/* The day it falls due matters while something is owed on it. On one that is
 				    settled it is a date nobody has to do anything about. */}
 				<p className="text-sm text-quiet">
@@ -439,15 +464,15 @@ export function InvoicePage() {
 						: ""}
 				</p>
 
-				{state && state.paid !== 0 ? (
+				{state && state.paid !== 0 && state.withoutRate === 0 ? (
 					<p className="text-sm text-quiet">
 						{t("invoice.paidSoFar")}{" "}
-						<Value amount={state.paid} currency={invoiceAccount?.currency} />
+						<Value amount={state.paid} currency={currentSpace.baseCurrency} />
 						{state.left > 0 ? (
 							<>
 								{". "}
 								{t("invoice.stillToPay")}{" "}
-								<Value amount={state.left} currency={invoiceAccount?.currency} />
+								<Value amount={state.left} currency={currentSpace.baseCurrency} />
 							</>
 						) : null}
 					</p>
@@ -457,12 +482,14 @@ export function InvoicePage() {
 
 				{/* How much of the limit is left, and not what the limit is. The limit on its own
 				    is a number nobody acts on, and this is the one the card will refuse. */}
-				{limitLeft === undefined ? null : limitLeft === null ? (
+				{limitInAnotherCurrency ? (
+					<p className="text-sm text-quiet">{t("dashboard.limitInAnotherCurrency")}</p>
+				) : limitLeft === undefined ? null : limitLeft === null ? (
 					<p className="text-sm text-quiet">{t("dashboard.noLimitYet")}</p>
 				) : (
 					<p className="text-sm text-quiet">
 						{t("dashboard.limitLeft")}{" "}
-						<Value amount={limitLeft} currency={invoiceAccount?.currency} tone="neutral" />
+						<Value amount={limitLeft} currency={currentSpace.baseCurrency} tone="neutral" />
 					</p>
 				)}
 				{onThisInvoice.length > 0 ? (

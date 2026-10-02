@@ -50,8 +50,17 @@ export type CardStanding = {
 	unpaid: InvoiceState | null;
 	/** What is charged to invoices after the open one, which is instalments still to come. */
 	later: number;
-	/** The limit less what is charged and not yet paid, when a limit is written down. */
+	/**
+	 * The limit less what is charged and not yet paid, when a limit is written down.
+	 *
+	 * Nothing when the card's account is in another currency than the space counts in. The
+	 * limit is a figure in the account's currency and what is owed is now a figure in the
+	 * currency of the space, and the stored rate of a record converts one way only, to the
+	 * base currency, so there is no honest subtraction between the two.
+	 */
 	available: number | null;
+	/** Why there is no headroom, when there is a limit and no figure. */
+	limitInAnotherCurrency: boolean;
 };
 
 function cycleOf(account: Account): CardCycle | undefined {
@@ -66,32 +75,64 @@ export type InvoicesNeeds = {
 };
 
 export function createInvoicesRepository(context: RepositoryContext, needs: InvoicesNeeds) {
+	/** The currency a space counts in, which is the one every total here is summed in. */
+	async function baseCurrencyOf(spaceId: string): Promise<string> {
+		const rows = await context.driver.all(
+			`SELECT "base_currency" FROM "spaces" WHERE "id" = ? AND "deleted_at" IS NULL`,
+			[spaceId],
+		);
+		return String(rows[0]?.base_currency ?? "BRL");
+	}
+
+	type InvoiceSum = {
+		charged: number;
+		paid: number;
+		inOtherCurrencies: number;
+		withoutRate: number;
+	};
+
 	/**
 	 * What each invoice of one card charged and what has been paid against it.
 	 *
 	 * Two sums over the same table. What was charged is every record whose account is the
 	 * card, which is how a purchase reaches an invoice; what was paid is every transfer
 	 * whose destination is the card and which names the invoice it pays.
+	 *
+	 * Both in the currency of the space, from the figure worked out at the rate of the day
+	 * each purchase was written. It used to sum the amount as written, so a dinner of forty
+	 * dollars and a market of a hundred reais came back as fourteen thousand, a number in no
+	 * currency at all, and the screens labelled it with whatever currency the card's account
+	 * carried. Worse, the overview adds that figure to a total in the currency of the space
+	 * and hands the result to what is left to spend this month.
+	 *
+	 * The two counts are how an invoice can say it does not know. A record in another currency
+	 * with no rate written down has no honest figure in the base currency, and a total that
+	 * silently leaves it out is worse than no total.
 	 */
 	async function sums(
 		accountId: string,
-	): Promise<Map<CalendarMonth, { charged: number; paid: number }>> {
+		baseCurrency: string,
+	): Promise<Map<CalendarMonth, InvoiceSum>> {
 		const rows = await context.driver.all(
 			`SELECT "invoice_month" AS month,
-			   COALESCE(SUM(CASE WHEN "account_id" = ? THEN -"amount" ELSE 0 END), 0) AS charged,
-			   COALESCE(SUM(CASE WHEN "counter_account_id" = ? THEN "amount" ELSE 0 END), 0) AS paid
+			   COALESCE(SUM(CASE WHEN "account_id" = ? THEN -"amount_in_base" ELSE 0 END), 0) AS charged,
+			   COALESCE(SUM(CASE WHEN "counter_account_id" = ? THEN "amount_in_base" ELSE 0 END), 0) AS paid,
+			   COALESCE(SUM(CASE WHEN "currency" <> ? THEN 1 ELSE 0 END), 0) AS in_other_currencies,
+			   COALESCE(SUM(CASE WHEN "currency" <> ? AND "fx_rate" IS NULL THEN 1 ELSE 0 END), 0) AS without_rate
 			 FROM "transactions"
 			 WHERE "deleted_at" IS NULL AND "invoice_month" IS NOT NULL
 			   AND ("account_id" = ? OR "counter_account_id" = ?)
 			 GROUP BY "invoice_month"`,
-			[accountId, accountId, accountId, accountId],
+			[accountId, accountId, baseCurrency, baseCurrency, accountId, accountId],
 		);
 
-		const found = new Map<CalendarMonth, { charged: number; paid: number }>();
+		const found = new Map<CalendarMonth, InvoiceSum>();
 		for (const row of rows) {
 			found.set(String(row.month), {
 				charged: asNumber(row.charged),
 				paid: asNumber(row.paid),
+				inOtherCurrencies: asNumber(row.in_other_currencies),
+				withoutRate: asNumber(row.without_rate),
 			});
 		}
 		return found;
@@ -100,7 +141,8 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 	/** A transfer into the card that names no invoice, oldest first. */
 	async function unmarkedPayments(accountId: string): Promise<Transaction[]> {
 		const rows = await context.driver.all(
-			`SELECT "id", "amount", "happened_on" FROM "transactions"
+			// In the currency of the space, like the sums it pays down.
+			`SELECT "id", "amount_in_base" AS "amount", "happened_on" FROM "transactions"
 			 WHERE "counter_account_id" = ? AND "deleted_at" IS NULL AND "kind" = 'transfer'
 			   AND "invoice_month" IS NULL
 			 ORDER BY "happened_on", "created_at"`,
@@ -150,7 +192,8 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 	 */
 	async function statesOf(accountId: string, today: CalendarDate): Promise<InvoiceState[]> {
 		const { account, cycle } = await cardAccount(accountId);
-		const totals = await sums(account.id);
+		const baseCurrency = await baseCurrencyOf(account.spaceId);
+		const totals = await sums(account.id, baseCurrency);
 
 		let loose = 0;
 		for (const payment of await unmarkedPayments(account.id)) {
@@ -160,7 +203,12 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 		const months = [...totals.keys()].sort();
 		const states: InvoiceState[] = [];
 		for (const month of months) {
-			const sum = totals.get(month) ?? { charged: 0, paid: 0 };
+			const sum = totals.get(month) ?? {
+				charged: 0,
+				paid: 0,
+				inOtherCurrencies: 0,
+				withoutRate: 0,
+			};
 			let paid = sum.paid;
 			if (loose > 0) {
 				const owed = Math.max(0, sum.charged - paid);
@@ -168,7 +216,17 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 				paid += used;
 				loose -= used;
 			}
-			states.push(invoiceStateOf({ month, cycle, charged: sum.charged, paid, today }));
+			states.push(
+				invoiceStateOf({
+					month,
+					cycle,
+					charged: sum.charged,
+					paid,
+					today,
+					inOtherCurrencies: sum.inOtherCurrencies,
+					withoutRate: sum.withoutRate,
+				}),
+			);
 		}
 		return states;
 	}
@@ -208,6 +266,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 
 			const accounts = await needs.accounts.list(spaceId);
 			const cards = accounts.filter((account) => cycleOf(account) !== undefined);
+			const baseCurrency = await baseCurrencyOf(spaceId);
 
 			const standing: CardStanding[] = [];
 			for (const account of cards) {
@@ -229,6 +288,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 					.filter((state) => state.month > openMonth)
 					.reduce((total, state) => total + state.charged, 0);
 
+				const limitComparable = account.currency === baseCurrency;
 				standing.push({
 					account,
 					open,
@@ -238,7 +298,10 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 					// The headroom is counted in one place, which is the core, because the invoice
 					// screen asks the same question about the same card and two subtractions in
 					// two packages are how two screens come to disagree.
-					available: limitLeftOf({ creditLimit: account.creditLimit, states, openMonth }),
+					available: limitComparable
+						? limitLeftOf({ creditLimit: account.creditLimit, states, openMonth })
+						: null,
+					limitInAnotherCurrency: !limitComparable && account.creditLimit !== null,
 				});
 			}
 			return standing;

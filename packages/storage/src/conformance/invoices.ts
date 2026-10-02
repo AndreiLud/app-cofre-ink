@@ -394,6 +394,41 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 		});
 
 		/**
+		 * An invoice is a figure in the currency of the space, and never a mixture.
+		 *
+		 * It used to sum the amount as written, so an invoice holding a dinner of forty dollars
+		 * and a market of a hundred reais came back as fourteen thousand, a number in no
+		 * currency at all, and three screens labelled it with whatever currency the card's
+		 * account happened to carry. The overview then added that figure to a total in the
+		 * currency of the space and handed the result to what is left to spend this month.
+		 */
+		it("adds a purchase in another currency up as what it was worth here", async () => {
+			const ready = await readyCard(adapter);
+			try {
+				await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 4_000,
+					currency: "USD",
+					// Five reais and twenty centavos to the dollar, scaled by ten to the eighth.
+					fxRate: 520_000_000,
+					happenedOn: "2026-09-10",
+					description: "Jantar em Nova York",
+					accountId: ready.card.id,
+				});
+
+				const invoices = await ready.fixture.asAna.invoices.list(ready.card.id, TODAY);
+				expect(invoices[0]?.month).toBe("2026-10");
+				// Forty dollars at the rate written down with the purchase, and not forty.
+				expect(invoices[0]?.charged).toBe(20_800);
+				expect(invoices[0]?.inOtherCurrencies).toBe(1);
+				expect(invoices[0]?.withoutRate).toBe(0);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		/**
 		 * Two invoices behind, and both of them are answered for.
 		 *
 		 * The model used to answer with the newest closed invoice still owing and no more, so a

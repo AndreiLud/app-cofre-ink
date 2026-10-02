@@ -357,7 +357,9 @@
 		"invoicesStillOwed": "em {{count}} faturas que já venceram e não foram pagas",
 		"andOlderOnes_one": "E uma mais antiga, ainda em aberto:",
 		"andOlderOnes_other": "E {{count}} mais antigas, ainda em aberto:",
-		"quotaMissing": "cota não preenchida"
+		"quotaMissing": "cota não preenchida",
+		"invoiceWithoutRate": "Sem total: uma compra desta fatura está em outra moeda e sem cotação. Esta fatura ficou de fora do que falta gastar no mês.",
+		"limitInAnotherCurrency": "O limite deste cartão está em outra moeda, então não dá para dizer quanto sobra dele sem inventar uma cotação."
 	},
 	"notice": {
 		"budgetOver": "{{name}} passou do limite em {{over}}.",
@@ -900,7 +902,10 @@
 		"closedOnDay": "Fechou no dia",
 		"moveThem": "Mover as compras",
 		"paymentOf": "Pagamento da fatura de {{month}}",
-		"see": "Ver fatura"
+		"see": "Ver fatura",
+		"countedIn": "Somado em {{currency}}, pela cotação registrada em cada compra. Cada compra aparece abaixo na moeda em que foi feita.",
+		"noRateTitle": "Esta fatura não tem total",
+		"noRateBody": "Uma compra desta fatura está em outra moeda e sem a cotação do dia, então qualquer total aqui seria um número errado. As compras continuam na lista abaixo. Abra a compra em Lançamentos e informe a cotação, e o total volta."
 	},
 	"transactionKind": {
 		"expense": "Despesa",
@@ -1553,6 +1558,7 @@
 		"balanceAtTheEnd": "Saldo no fim",
 		"investments": "Investimentos",
 		"investmentsCaption": "O que está aplicado",
-		"madeHere": "Feito neste aparelho pelo {{app}}. Nada saiu daqui para gerar este arquivo."
+		"madeHere": "Feito neste aparelho pelo {{app}}. Nada saiu daqui para gerar este arquivo.",
+		"noTotal": "sem total"
 	}
 }

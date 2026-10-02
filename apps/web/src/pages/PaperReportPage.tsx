@@ -320,11 +320,22 @@ export function PaperReportPage() {
 								<TableRow key={card.account.id}>
 									<TableCell>{card.account.name}</TableCell>
 									<TableCell>{t(`invoice.standing.${card.open.standing}`)}</TableCell>
+									{/* In the currency of the space, which is what an invoice is summed in:
+									    each purchase at the rate written down with it. A card holding a
+									    purchase with no rate has no honest total and says so. */}
 									<TableCell numeric={true}>
-										<Value amount={card.open.charged} currency={card.account.currency} />
+										{card.open.withoutRate > 0 ? (
+											t("paper.noTotal")
+										) : (
+											<Value amount={card.open.charged} currency={currency} />
+										)}
 									</TableCell>
 									<TableCell numeric={true}>
-										<Value amount={card.open.left} currency={card.account.currency} />
+										{card.open.withoutRate > 0 ? (
+											t("paper.noTotal")
+										) : (
+											<Value amount={card.open.left} currency={currency} />
+										)}
 									</TableCell>
 								</TableRow>
 							))}

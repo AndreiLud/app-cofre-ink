@@ -30,6 +30,10 @@ export type InvoiceInput = {
 	paid: number;
 	/** The day the question is being asked on. */
 	today: CalendarDate;
+	/** How many of its records were written in a currency other than the one it is summed in. */
+	inOtherCurrencies?: number;
+	/** And how many of those carry no rate, so they have no honest figure in that currency. */
+	withoutRate?: number;
 };
 
 export type InvoiceState = {
@@ -52,6 +56,17 @@ export type InvoiceState = {
 	daysToDue: number;
 	/** Closed, due, and still owing. The one state that is somebody's problem today. */
 	late: boolean;
+	/**
+	 * How many of its records were written in another currency, and how many of those have
+	 * no rate.
+	 *
+	 * Carried through rather than used: nothing in this file knows about currency. They are
+	 * facts about the invoice, and the second one is the one that matters, because an invoice
+	 * holding a purchase with no rate has no honest total and must say so instead of printing
+	 * one that quietly leaves that purchase out.
+	 */
+	inOtherCurrencies: number;
+	withoutRate: number;
 };
 
 export function invoiceStateOf(input: InvoiceInput): InvoiceState {
@@ -83,6 +98,8 @@ export function invoiceStateOf(input: InvoiceInput): InvoiceState {
 		daysToClose,
 		daysToDue,
 		late: compareCalendarDates(input.today, dueOn) > 0 && left > 0,
+		inOtherCurrencies: input.inOtherCurrencies ?? 0,
+		withoutRate: input.withoutRate ?? 0,
 	};
 }
 
