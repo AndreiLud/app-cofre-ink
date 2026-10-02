@@ -41,12 +41,14 @@ describe("what to say about a failure", () => {
 	it("says the same thing about the same failure in both modes", () => {
 		// The point of this file: a refusal is one sentence whether the model refused it in
 		// this tab or a server refused it over the wire.
-		expect(sayWhy(new PermissionError("nope"), asKey)).toBe("rules.notAllowedHere");
+		expect(sayWhy(new PermissionError("transaction.create", "space_1"), asKey)).toBe(
+			"rules.notAllowedHere",
+		);
 		expect(sayWhy(new ServerError({ status: 403, error: "notAllowed" }), asKey)).toBe(
 			"rules.notAllowedHere",
 		);
 
-		expect(sayWhy(new NotFoundError("gone"), asKey)).toBe("rules.notThere");
+		expect(sayWhy(new NotFoundError("transaction", "nobody"), asKey)).toBe("rules.notThere");
 		expect(sayWhy(new ServerError({ status: 404, error: "notFound" }), asKey)).toBe(
 			"rules.notThere",
 		);
