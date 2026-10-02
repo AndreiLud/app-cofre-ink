@@ -265,7 +265,11 @@ function aboutTheMonth(snapshot: Snapshot): Finding[] {
 	if (usual > 0 && before.length >= 3) {
 		const saved = usual - thisMonth.expense;
 		// Only once the month is far enough along that the comparison means anything.
-		if (saved > WORTH_SAYING && shareOfMonthGone(snapshot.today) > MONTH_MOSTLY_GONE) {
+		// The same comparison the month screen makes, and not a stricter one. Sharing the
+		// constant and then comparing differently leaves one day a month, the twenty fourth of
+		// a month of thirty, where one screen says the month is far enough along and the other
+		// does not.
+		if (saved > WORTH_SAYING && shareOfMonthGone(snapshot.today) >= MONTH_MOSTLY_GONE) {
 			found.push({
 				code: "betterThanUsual",
 				weight: "good",
