@@ -121,10 +121,11 @@ export function DashboardPage() {
 	const [confirmedAll, setConfirmedAll] = useState(0);
 
 	const mine = useWhatIMayDo(spaceId);
-	const mayUpdate = mine.may("transaction.update");
-	const mayMakeAnAccount = mine.may("account.create");
+	const mayUpdate = mine.mayCall("transactions.settle");
+	const mayDrop = mine.mayCall("transactions.remove");
+	const mayMakeAnAccount = mine.mayCall("accounts.create");
 	// Paying an invoice writes a transfer, so it is the permission a record needs.
-	const mayPay = mine.may("transaction.create");
+	const mayPay = mine.mayCall("invoices.pay");
 	const ready = mine.ready;
 
 	const accounts = useQuery({
@@ -452,7 +453,10 @@ export function DashboardPage() {
 	 */
 	const invoicesDue = shownCards
 		.flatMap((card) => [card.open, ...card.owing])
-		.filter((state) => state.left > 0 && state.dueOn <= endOfMonth)
+		// An invoice holding a purchase in another currency with no rate for the day has no
+		// honest figure here, and a bill with no honest figure must not be folded into what is
+		// left to spend. The block for that card says so instead.
+		.filter((state) => state.left > 0 && state.withoutRate === 0 && state.dueOn <= endOfMonth)
 		.reduce((total, state) => total + state.left, 0);
 	const fallingDue = goingOut + invoicesDue;
 
@@ -469,7 +473,7 @@ export function DashboardPage() {
 	 */
 	const invoiceBills = shownCards.flatMap((card) =>
 		[card.open, ...card.owing]
-			.filter((state): state is NonNullable<typeof state> => state !== null)
+			.filter((state) => state !== null && state.withoutRate === 0)
 			.map((state) => ({
 				id: `invoice:${card.account.id}:${state.month}`,
 				accountId: card.account.id,
@@ -479,9 +483,11 @@ export function DashboardPage() {
 				on: state.dueOn,
 				description: t("dashboard.invoiceOf", { card: card.account.name }),
 				amount: -state.left,
-				// An invoice is charged in the currency of its card, which is not always the
-				// currency the space counts in.
-				currency: card.account.currency,
+				// An invoice is summed in the currency of the space, from each purchase at the
+				// rate written down with it, which is also how this row reaches the figure
+				// above. It used to carry the currency of the card's account and be added into
+				// a total in the base currency anyway.
+				currency,
 				kind: "expense" as const,
 				invoice: true,
 			})),
@@ -681,12 +687,12 @@ export function DashboardPage() {
 								<div className="min-w-0">
 									<p className="truncate">{card.account.name}</p>
 									<p className="text-quiet text-sm">
-										<Value amount={card.open.charged} currency={card.account.currency} />{" "}
+										<Value amount={card.open.charged} currency={currency} />{" "}
 										{t("dashboard.onTheInvoiceDue", { day: dayAndMonth(card.open.dueOn) })}
 										{card.later > 0 ? (
 											<>
 												{", "}
-												<Value amount={card.later} currency={card.account.currency} />{" "}
+												<Value amount={card.later} currency={currency} />{" "}
 												{t("dashboard.inPartsAfter")}
 											</>
 										) : null}
@@ -700,7 +706,7 @@ export function DashboardPage() {
 										<p className="text-sm text-seal">
 											<Value
 												amount={card.owing.reduce((total, state) => total + state.left, 0)}
-												currency={card.account.currency}
+												currency={currency}
 											/>{" "}
 											{card.owing.length === 1
 												? t("dashboard.invoiceStillOwed", {
@@ -793,9 +799,15 @@ export function DashboardPage() {
 											>
 												{row.kind === "income" ? t("dashboard.received") : t("dashboard.happened")}
 											</Button>
-											<Button size="small" variant="quiet" onClick={() => drop.mutate(row.id)}>
-												{t("dashboard.didNotHappen")}
-											</Button>
+											{/* Saying it did not happen deletes the record, so it is the delete
+											    permission and not the update one. The two hold the same roles
+											    today, so this gate agreed with the refusal behind it by
+											    accident, and would have stopped agreeing the day they parted. */}
+											{mayDrop ? (
+												<Button size="small" variant="quiet" onClick={() => drop.mutate(row.id)}>
+													{t("dashboard.didNotHappen")}
+												</Button>
+											) : null}
 										</>
 									) : null}
 								</span>
@@ -908,7 +920,13 @@ export function DashboardPage() {
 				<Panel title={t("dashboard.cardsTitle")}>
 					<div className="grid gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
 						{shownCards.map((card) => (
-							<CardStandingBlock key={card.account.id} card={card} mayPay={mayPay} today={today} />
+							<CardStandingBlock
+								key={card.account.id}
+								card={card}
+								mayPay={mayPay}
+								today={today}
+								currency={currency}
+							/>
 						))}
 					</div>
 				</Panel>
@@ -1127,13 +1145,15 @@ function CardStandingBlock({
 	card,
 	mayPay,
 	today,
+	/** Of the space, because every figure about an invoice is summed in it. */
+	currency,
 }: {
 	card: CardStanding;
 	mayPay: boolean;
 	today: CalendarDate;
+	currency: string;
 }) {
 	const { t } = useTranslation();
-	const currency = card.account.currency;
 
 	/** When the open invoice closes, said as a day and as a count of days. */
 	const closing =
@@ -1189,10 +1209,18 @@ function CardStandingBlock({
 				</p>
 			) : null}
 
+			{/* A bill with no honest total says so rather than printing one that leaves a
+			    purchase out, and it is in no figure on this screen while it says it. */}
+			{card.open.withoutRate > 0 ? (
+				<p className="mt-1 text-seal text-sm">{t("dashboard.invoiceWithoutRate")}</p>
+			) : null}
+
 			{/* The headroom, and only where the bank's limit was written down. Guessing at one
 			    would be inventing the one figure somebody checks before paying at a till. */}
 			<p className="mt-1 text-quiet text-sm">
-				{card.available === null ? (
+				{card.limitInAnotherCurrency ? (
+					t("dashboard.limitInAnotherCurrency")
+				) : card.available === null ? (
 					t("dashboard.noLimitYet")
 				) : (
 					<>

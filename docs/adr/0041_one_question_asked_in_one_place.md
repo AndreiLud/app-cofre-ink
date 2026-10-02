@@ -108,7 +108,25 @@ purpose, which is right for a record and wrong for every total, so the correctio
 allowed while a space is empty and refused afterwards. That closes a class of wrong numbers
 rather than relabelling them.
 
-What is still not checked by anything: that a control on a screen names the permission its
-repository actually asserts. The browser tests walk a Viewer and a Logger across the
-screens, which catches a control that is offered and would be refused, and nothing catches
-a control that asks for the wrong permission and happens to agree today.
+A control no longer names a permission. It names the call it makes, and the permission is
+read from one table, `packages/storage/src/methodPermissions.ts`.
+
+This registry used to end by admitting that nothing checked whether a control named the
+permission its repository actually asserts. The browser tests walk a Viewer and a Logger
+across the screens, which catches a control that is offered and would be refused, and
+nothing caught a control that asked for the wrong permission and happened to agree today.
+One did: the button on the overview that says a promise did not happen deletes the record
+and was drawn behind the update permission. It agreed with the refusal behind it by
+accident, because the two permissions hold the same four roles, and it would have begun
+lying the day they parted, in a release about something else.
+
+The table is not a second opinion about the matrix either. Every entry in it has a
+permission probe in the conformance suite, which proves on all three engines that the call
+refuses exactly the roles that permission refuses, and two assertions tie the two together:
+every probe agrees with the table, and every row of the table has a probe. So a permission
+moved in the matrix reaches every button with nothing copied by hand, and a row nobody
+proved cannot be added.
+
+What stays a judgement nobody checks is `seesOwnRowsOnly`. It is not a permission and is in
+no matrix, deliberately, because it is a narrowing rather than a refusal, and the browser
+tests walking a Viewer and a Logger are still the only thing covering it.

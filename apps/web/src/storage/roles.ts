@@ -11,8 +11,8 @@
 // no, because a button that appears a moment late is better than one that is refused when
 // it is pressed. A space this person is not in answers no for the same reason.
 
-import type { Permission, Role } from "@cofre/storage";
-import { roleCan, roleSeesOwnRowsOnly } from "@cofre/storage";
+import type { Permission, RepositoryMethod, Role } from "@cofre/storage";
+import { METHOD_PERMISSIONS, roleCan, roleSeesOwnRowsOnly } from "@cofre/storage";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { useCofre } from "./CofreProvider.tsx";
@@ -23,6 +23,19 @@ export type WhatIMayDo = {
 	/** The member list has been read. Until then every answer is no. */
 	ready: boolean;
 	may: (permission: Permission) => boolean;
+	/**
+	 * The same question asked about one call rather than about a permission.
+	 *
+	 * A control that is one button on one method says which method, and the permission is
+	 * read from the table the conformance probes prove against the repositories themselves.
+	 * A button cannot then name a permission at all, so it cannot name the wrong one: the
+	 * overview had one that did, gating a delete behind the update permission, and nothing
+	 * could tell, because the two hold the same roles today.
+	 *
+	 * `may` stays for a gate that is not one call, such as a whole screen's editing, because
+	 * naming a method there would be a worse fiction than naming a permission.
+	 */
+	mayCall: (method: RepositoryMethod) => boolean;
 	/**
 	 * This person only ever sees the records they wrote themselves, which is not a
 	 * permission: it is why a screen about the month of the whole household closes to
@@ -49,11 +62,16 @@ export function useWhatIMayDo(spaceId: string | undefined): WhatIMayDo {
 	const role = (members.data ?? []).find((one) => one.userId === user?.id)?.role ?? null;
 
 	const may = useCallback((permission: Permission) => roleCan(role, permission), [role]);
+	const mayCall = useCallback(
+		(method: RepositoryMethod) => roleCan(role, METHOD_PERMISSIONS[method]),
+		[role],
+	);
 
 	return {
 		role,
 		ready: members.isSuccess,
 		may,
+		mayCall,
 		seesOwnRowsOnly: roleSeesOwnRowsOnly(role),
 	};
 }

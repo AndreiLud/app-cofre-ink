@@ -74,7 +74,7 @@ export function SpacePeople() {
 		queryFn: () => session?.members.list(spaceId) ?? [],
 	});
 
-	const { may, role: myRole } = useWhatIMayDo(spaceId);
+	const { mayCall, role: myRole } = useWhatIMayDo(spaceId);
 
 	// The people of this space: this screen names its members and settles up between
 	// them, and somebody from another space of this person's is neither.
@@ -181,8 +181,8 @@ export function SpacePeople() {
 	const rows = members.data ?? [];
 	const isPersonal = currentSpace.kind === "personal";
 	/** Setting somebody else's income asks the same thing as changing their role. */
-	const maySetAnybodys = may("member.changeRole");
-	const mayRemove = may("member.remove");
+	const maySetAnybodys = mayCall("members.changeRole");
+	const mayRemove = mayCall("members.remove");
 
 	// The language on screen, not the one this application was written in. The income
 	// used to be drawn as R$ 4.500,00 in the middle of the English interface, and the
@@ -199,9 +199,9 @@ export function SpacePeople() {
 			useGrouping: false,
 		}).format(cents / 100);
 	// An invitation only means anything where there is a server to accept it.
-	const canInvite = onAServer && may("member.invite");
-	const maySettle = may("sharing.write");
-	const mayLeave = may("space.leave");
+	const canInvite = onAServer && mayCall("members.invite");
+	const maySettle = mayCall("sharing.split");
+	const mayLeave = mayCall("members.leave");
 	/**
 	 * Only the owner hands a space over, and only where there is somebody to hand it to.
 	 *

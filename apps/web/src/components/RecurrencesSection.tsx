@@ -80,7 +80,7 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 	const complain = (error: unknown) => setProblem(sayWhy(error, t));
 
 	// A series writes records into the space, like a rule does.
-	const mayWrite = useWhatIMayDo(spaceId).may("recurrence.write");
+	const mayWrite = useWhatIMayDo(spaceId).mayCall("recurrences.create");
 
 	const save = useMutation({
 		mutationFn: async () => {

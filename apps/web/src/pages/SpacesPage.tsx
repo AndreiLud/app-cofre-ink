@@ -47,7 +47,7 @@ function SpaceRow({
 	onEdit: () => void;
 }) {
 	const { t } = useTranslation();
-	const mayEdit = useWhatIMayDo(space.id).may("space.update");
+	const mayEdit = useWhatIMayDo(space.id).mayCall("spaces.update");
 
 	return (
 		<li className="flex items-center justify-between gap-4 py-3">

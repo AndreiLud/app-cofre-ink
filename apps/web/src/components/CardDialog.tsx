@@ -39,7 +39,7 @@ export function CardDialog({ card, accounts, onClose }: CardDialogProps) {
 	const { session, currentSpace } = useCofre();
 	// Archiving a card asks what correcting an account asks; deleting one asks what
 	// deleting an account asks, which is two roles narrower.
-	const mayDelete = useWhatIMayDo(currentSpace?.id).may("account.delete");
+	const mayDelete = useWhatIMayDo(currentSpace?.id).mayCall("cards.remove");
 	const queries = useQueryClient();
 
 	const [name, setName] = useState("");

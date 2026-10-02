@@ -128,7 +128,7 @@ export function InvestmentsPage() {
 	 * of its own, so that button stays for everybody.
 	 */
 	const mine = useWhatIMayDo(spaceId);
-	const mayWrite = mine.may("investment.write");
+	const mayWrite = mine.mayCall("investments.create");
 
 	const refresh = useMutation({
 		mutationFn: async () => {

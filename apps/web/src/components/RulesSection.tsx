@@ -57,7 +57,7 @@ export function RulesSection({ spaceId, categories }: RulesSectionProps) {
 
 	// A rule writes records into the space, so it is set by the people who may write them.
 	const mine = useWhatIMayDo(spaceId);
-	const mayWrite = mine.may("rule.write");
+	const mayWrite = mine.mayCall("rules.applyToExisting");
 
 	const save = useMutation({
 		mutationFn: async () => {

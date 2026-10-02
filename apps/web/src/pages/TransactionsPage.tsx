@@ -118,13 +118,13 @@ export function TransactionsPage() {
 	 * roles, which is how "Apagar o parcelamento inteiro" ended up offered to a Viewer
 	 * and doing nothing at all when it was pressed.
 	 */
-	const { may } = useWhatIMayDo(spaceId);
-	const mayWrite = may("transaction.create");
-	const mayUpdate = may("transaction.update");
-	const mayDelete = may("transaction.delete");
-	const mayTeach = may("rule.write");
-	const mayShare = may("sharing.write");
-	const mayReconcile = may("transaction.reconcile");
+	const { mayCall } = useWhatIMayDo(spaceId);
+	const mayWrite = mayCall("transactions.create");
+	const mayUpdate = mayCall("transactions.update");
+	const mayDelete = mayCall("transactions.remove");
+	const mayTeach = mayCall("rules.create");
+	const mayShare = mayCall("sharing.split");
+	const mayReconcile = mayCall("transactions.reconcile");
 	/** The checkboxes are worth drawing when at least one thing can be done with them. */
 	const mayPick = mayUpdate || mayDelete;
 	/** And the menu of a row, when at least one item of it would be drawn. */

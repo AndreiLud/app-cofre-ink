@@ -16,6 +16,7 @@ import {
 import { describe, expect, it } from "vitest";
 import { ALL_PERMISSIONS, PERMISSIONS, type Permission, type Role } from "../actor.ts";
 import { NotFoundError, PermissionError, RuleError } from "../errors.ts";
+import { METHOD_PERMISSIONS, type RepositoryMethod } from "../methodPermissions.ts";
 import { migrate } from "../migrate.ts";
 import { BACKUP_FORMAT, BACKUP_VERSION } from "../repositories/backup.ts";
 import { createUser } from "../repositories/users.ts";
@@ -41,57 +42,95 @@ type ProbeContext = {
 	accountId: string;
 	transactionId: string;
 	guestId: string;
+	cardId: string;
+	cardAccountId: string;
+	categoryId: string;
 };
 
 type Probe = {
+	/** The call it makes, so the table a screen reads can be proved against this one. */
+	method: RepositoryMethod;
 	permission: Permission;
 	run: (session: Session, context: ProbeContext) => Promise<unknown>;
 };
 
 const PROBES: Probe[] = [
-	{ permission: "space.read", run: (session, where) => session.spaces.get(where.spaceId) },
 	{
+		method: "spaces.get",
+		permission: "space.read",
+		run: (session, where) => session.spaces.get(where.spaceId),
+	},
+	{
+		method: "spaces.update",
 		permission: "space.update",
 		run: (session, where) => session.spaces.update(where.spaceId, { name: "Outro nome" }),
 	},
-	{ permission: "space.delete", run: (session, where) => session.spaces.remove(where.spaceId) },
-	{ permission: "space.leave", run: (session, where) => session.members.leave(where.spaceId) },
-	{ permission: "member.read", run: (session, where) => session.members.list(where.spaceId) },
 	{
+		method: "spaces.remove",
+		permission: "space.delete",
+		run: (session, where) => session.spaces.remove(where.spaceId),
+	},
+	{
+		method: "members.leave",
+		permission: "space.leave",
+		run: (session, where) => session.members.leave(where.spaceId),
+	},
+	{
+		method: "members.list",
+		permission: "member.read",
+		run: (session, where) => session.members.list(where.spaceId),
+	},
+	{
+		method: "members.invite",
 		permission: "member.invite",
 		run: (session, where) =>
 			session.members.invite({ spaceId: where.spaceId, userId: where.guestId, role: "viewer" }),
 	},
 	{
+		method: "members.changeRole",
 		permission: "member.changeRole",
 		run: (session, where) => session.members.changeRole(where.spaceId, where.guestId, "editor"),
 	},
 	{
+		method: "members.remove",
 		permission: "member.remove",
 		run: (session, where) => session.members.remove(where.spaceId, where.guestId),
 	},
-	{ permission: "account.read", run: (session, where) => session.accounts.list(where.spaceId) },
 	{
+		method: "accounts.list",
+		permission: "account.read",
+		run: (session, where) => session.accounts.list(where.spaceId),
+	},
+	{
+		method: "accounts.create",
 		permission: "account.create",
 		run: (session, where) =>
 			session.accounts.create({ spaceId: where.spaceId, kind: "cash", name: "Dinheiro" }),
 	},
 	{
+		method: "accounts.update",
 		permission: "account.update",
 		run: (session, where) => session.accounts.update(where.accountId, { name: "Renomeada" }),
 	},
 	{
+		method: "accounts.archive",
 		permission: "account.archive",
 		run: (session, where) => session.accounts.archive(where.accountId),
 	},
 	{
+		method: "accounts.remove",
 		permission: "account.delete",
 		run: (session, where) => session.accounts.remove(where.accountId),
 	},
 	// A card holds no money and shows nothing a person could not already see, so it
 	// borrows the words of the accounts rather than inventing five roles of its own.
-	{ permission: "account.read", run: (session, where) => session.cards.list(where.spaceId) },
 	{
+		method: "cards.list",
+		permission: "account.read",
+		run: (session, where) => session.cards.list(where.spaceId),
+	},
+	{
+		method: "cards.create",
 		permission: "account.create",
 		run: (session, where) =>
 			session.cards.create({
@@ -102,10 +141,12 @@ const PROBES: Probe[] = [
 			}),
 	},
 	{
+		method: "transactions.list",
 		permission: "transaction.read",
 		run: (session, where) => session.transactions.list({ spaceId: where.spaceId }),
 	},
 	{
+		method: "transactions.create",
 		permission: "transaction.create",
 		run: (session, where) =>
 			session.transactions.create({
@@ -118,40 +159,90 @@ const PROBES: Probe[] = [
 			}),
 	},
 	{
+		method: "transactions.update",
 		permission: "transaction.update",
 		run: (session, where) =>
 			session.transactions.update(where.transactionId, { description: "Outro" }),
 	},
 	{
+		method: "transactions.remove",
 		permission: "transaction.delete",
 		run: (session, where) => session.transactions.remove(where.transactionId),
 	},
 	{
+		// The button on the overview that says a promise happened.
+		method: "transactions.settle",
+		permission: "transaction.update",
+		run: (session, where) => session.transactions.settle(where.transactionId, "2026-09-29"),
+	},
+	{
+		// And the one beside it that pays a card invoice, which writes a transfer.
+		method: "invoices.pay",
+		permission: "transaction.create",
+		run: (session, where) =>
+			session.invoices.pay({
+				accountId: where.cardAccountId,
+				fromAccountId: where.accountId,
+				amount: 1000,
+				happenedOn: "2026-09-29",
+				month: "2026-10",
+				description: "Pagamento",
+			}),
+	},
+	{
+		method: "cards.remove",
+		permission: "account.delete",
+		run: (session, where) => session.cards.remove(where.cardId),
+	},
+	{
+		method: "recurrences.materialize",
+		permission: "recurrence.write",
+		run: (session, where) => session.recurrences.materialize({ spaceId: where.spaceId }),
+	},
+	{
+		method: "transactions.reconcile",
 		permission: "transaction.reconcile",
 		run: (session, where) => session.transactions.reconcile(where.transactionId, true),
 	},
 	{
+		method: "categories.list",
 		permission: "category.read",
 		run: (session, where) => session.categories.list(where.spaceId),
 	},
 	{
+		method: "categories.create",
 		permission: "category.write",
 		run: (session, where) =>
 			session.categories.create({ spaceId: where.spaceId, name: "Padaria", kind: "expense" }),
 	},
 	{
+		method: "rules.list",
 		permission: "rule.read",
 		run: (session, where) => session.rules.list(where.spaceId),
 	},
 	{
+		// Teaching a rule from a record, which is the button on the records screen.
+		method: "rules.create",
+		permission: "rule.write",
+		run: (session, where) =>
+			session.rules.create({
+				spaceId: where.spaceId,
+				matchText: "mercado",
+				categoryId: where.categoryId,
+			}),
+	},
+	{
+		method: "rules.applyToExisting",
 		permission: "rule.write",
 		run: (session, where) => session.rules.applyToExisting({ spaceId: where.spaceId }),
 	},
 	{
+		method: "recurrences.list",
 		permission: "recurrence.read",
 		run: (session, where) => session.recurrences.list(where.spaceId),
 	},
 	{
+		method: "recurrences.create",
 		permission: "recurrence.write",
 		run: (session, where) =>
 			session.recurrences.create({
@@ -165,28 +256,34 @@ const PROBES: Probe[] = [
 			}),
 	},
 	{
+		method: "budgets.list",
 		permission: "plan.read",
 		run: (session, where) => session.budgets.list(where.spaceId),
 	},
 	{
+		method: "budgets.create",
 		permission: "plan.write",
 		run: (session, where) =>
 			session.budgets.create({ spaceId: where.spaceId, scope: "total", amount: 100_000 }),
 	},
 	{
+		method: "sharing.balances",
 		permission: "sharing.read",
 		run: (session, where) => session.sharing.balances(where.spaceId),
 	},
 	{
+		method: "sharing.split",
 		permission: "sharing.write",
 		run: (session, where) =>
 			session.sharing.split({ transactionId: where.transactionId, method: "evenly" }),
 	},
 	{
+		method: "savedFilters.list",
 		permission: "filter.read",
 		run: (session, where) => session.savedFilters.list(where.spaceId),
 	},
 	{
+		method: "savedFilters.create",
 		permission: "filter.write",
 		run: (session, where) =>
 			session.savedFilters.create({
@@ -196,16 +293,19 @@ const PROBES: Probe[] = [
 			}),
 	},
 	{
+		method: "changes.list",
 		permission: "activity.read",
 		run: (session, where) => session.changes.list({ spaceId: where.spaceId }),
 	},
 	{
+		method: "backup.exportSpace",
 		permission: "backup.export",
 		run: (session, where) => session.backup.exportSpace(where.spaceId),
 	},
 	{
 		// A file naming a space that is already here, with nothing in it: enough to be
 		// refused for the right reason, and harmless when it goes through.
+		method: "backup.restore",
 		permission: "backup.restore",
 		run: (session, where) =>
 			session.backup.restore({
@@ -228,10 +328,12 @@ const PROBES: Probe[] = [
 			}),
 	},
 	{
+		method: "investments.list",
 		permission: "investment.read",
 		run: (session, where) => session.investments.list(where.spaceId),
 	},
 	{
+		method: "investments.create",
 		permission: "investment.write",
 		run: (session, where) =>
 			session.investments.create({
@@ -790,11 +892,36 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 								accountId: account.id,
 							});
 
+							// A card and the account it reaches, so the two calls a card screen makes
+							// are probed like every other one.
+							const cardAccount = await fixture.asAna.accounts.create({
+								spaceId: space.id,
+								kind: "credit",
+								name: "Cartao da casa",
+								closingDay: 3,
+								dueDay: 10,
+							});
+							const card = await fixture.asAna.cards.create({
+								spaceId: space.id,
+								kind: "credit",
+								name: "Plastico",
+								creditAccountId: cardAccount.id,
+							});
+
+							const category = await fixture.asAna.categories.create({
+								spaceId: space.id,
+								name: "Mercado",
+								kind: "expense",
+							});
+
 							const where = {
 								spaceId: space.id,
 								accountId: account.id,
 								transactionId: record?.id ?? "",
 								guestId: fixture.carla.id,
+								cardId: card.id,
+								cardAccountId: cardAccount.id,
+								categoryId: category.id,
 							};
 
 							if (allowed) {
@@ -834,6 +961,29 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 				}
 			}
 
+			/**
+			 * The table a screen reads, against the repositories themselves.
+			 *
+			 * Every probe above proves, on every adapter, that one call refuses exactly the roles
+			 * its permission refuses. This ties the table to those probes, so a control that
+			 * names the call it makes cannot be drawn behind the wrong permission, and moving a
+			 * permission in the matrix reaches every button with nothing copied by hand.
+			 */
+			it("says the same thing about a call as the table the screens read", () => {
+				for (const probe of PROBES) {
+					expect(METHOD_PERMISSIONS[probe.method], probe.method).toBe(probe.permission);
+				}
+			});
+
+			it("has a probe behind every call the table names", () => {
+				// Otherwise the table grows an entry nobody proved, which is the hole this was
+				// built to close, moved from a screen into a file.
+				const probed = new Set(PROBES.map((probe) => probe.method));
+				for (const method of Object.keys(METHOD_PERMISSIONS)) {
+					expect(probed.has(method as RepositoryMethod), method).toBe(true);
+				}
+			});
+
 			it("tells someone who is not a member that the space does not exist", async () => {
 				const fixture: Fixture = await prepare(adapter);
 				try {
@@ -851,11 +1001,32 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 						description: "Cafe da Ana",
 						accountId: account.id,
 					});
+					const cardAccount = await fixture.asAna.accounts.create({
+						spaceId: space.id,
+						kind: "credit",
+						name: "Cartao da casa",
+						closingDay: 3,
+						dueDay: 10,
+					});
+					const card = await fixture.asAna.cards.create({
+						spaceId: space.id,
+						kind: "credit",
+						name: "Plastico",
+						creditAccountId: cardAccount.id,
+					});
+					const category = await fixture.asAna.categories.create({
+						spaceId: space.id,
+						name: "Mercado",
+						kind: "expense",
+					});
 					const where = {
 						spaceId: space.id,
 						accountId: account.id,
 						transactionId: record?.id ?? "",
 						guestId: fixture.carla.id,
+						cardId: card.id,
+						cardAccountId: cardAccount.id,
+						categoryId: category.id,
 					};
 
 					for (const probe of PROBES) {

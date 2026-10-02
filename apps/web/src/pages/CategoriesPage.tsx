@@ -89,7 +89,7 @@ export function CategoriesPage() {
 
 	// One question for the whole screen: the list of categories is a decision about the
 	// space, so creating, editing, archiving and deleting all ask the same thing.
-	const mayWrite = useWhatIMayDo(spaceId).may("category.write");
+	const mayWrite = useWhatIMayDo(spaceId).mayCall("categories.create");
 
 	const save = useMutation({
 		mutationFn: async () => {

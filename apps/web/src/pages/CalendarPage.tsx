@@ -49,7 +49,7 @@ export function CalendarPage() {
 	// nobody and drop the promise, so every opening of this screen by a Viewer or a Logger
 	// left a refusal in the console, on every visit and every space switch, and nothing
 	// said their calendar was missing whatever the series had not written yet.
-	const mayMaterialise = useWhatIMayDo(spaceId).may("recurrence.write");
+	const mayMaterialise = useWhatIMayDo(spaceId).mayCall("recurrences.materialize");
 	useEffect(() => {
 		if (!session || spaceId === "" || !mayMaterialise) return;
 		session.recurrences

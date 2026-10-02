@@ -204,7 +204,7 @@ export function MonthPage() {
 
 	// A role that does not write should not be handed a button that writes. It used to
 	// be offered, pressed, and refused afterwards in a raw English sentence.
-	const { may, ready, role, seesOwnRowsOnly } = useWhatIMayDo(spaceId);
+	const { mayCall, ready, role, seesOwnRowsOnly } = useWhatIMayDo(spaceId);
 	/**
 	 * Two reasons, and they are not the same reason. A Viewer writes nothing at all. A
 	 * Logger writes, but only ever sees the records they wrote themselves, and this
@@ -213,9 +213,9 @@ export function MonthPage() {
 	 * the same three marks, which nothing refuses, and the space would count the month
 	 * twice.
 	 */
-	const mayWrite = may("transaction.create") && !seesOwnRowsOnly;
+	const mayWrite = mayCall("transactions.create") && !seesOwnRowsOnly;
 	/** Whether the way out of an empty screen is a way out for this person. */
-	const mayMakeAnAccount = may("account.create");
+	const mayMakeAnAccount = mayCall("accounts.create");
 
 	const everyAccount = accounts.data ?? [];
 	// A benefit card is neither. It takes no income, because whoever gives it is what

@@ -34,7 +34,7 @@ type Target = { kind: "space"; space: Space } | { kind: "everything" };
  */
 function EraseSpaceRow({ space, onErase }: { space: Space; onErase: () => void }) {
 	const { t } = useTranslation();
-	const mayErase = useWhatIMayDo(space.id).may("space.delete");
+	const mayErase = useWhatIMayDo(space.id).mayCall("spaces.remove");
 
 	return (
 		<li className="flex flex-wrap items-baseline justify-between gap-3 py-3">

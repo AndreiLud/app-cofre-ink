@@ -24,7 +24,7 @@ export type CardsSectionProps = {
 export function CardsSection({ accounts, cards, loading }: CardsSectionProps) {
 	const { currentSpace } = useCofre();
 	const mine = useWhatIMayDo(currentSpace?.id);
-	const mayCreate = mine.may("account.create");
+	const mayCreate = mine.mayCall("cards.create");
 	const { t } = useTranslation();
 
 	const nameOf = (id: string | null) =>

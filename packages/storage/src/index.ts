@@ -7,6 +7,7 @@ export * from "./backupRun.ts";
 export * from "./driver.ts";
 export * from "./errors.ts";
 export * from "./housekeeping.ts";
+export * from "./methodPermissions.ts";
 export * from "./migrate.ts";
 export * from "./models.ts";
 export * from "./repositories/accounts.ts";

@@ -128,8 +128,8 @@ export function ImportPage() {
 	 * the columns and mark the repeats, and only refuse at the end, throwing the whole of
 	 * that work away.
 	 */
-	const { may, ready, role } = useWhatIMayDo(spaceId);
-	const mayWrite = may("transaction.create");
+	const { mayCall, ready, role } = useWhatIMayDo(spaceId);
+	const mayWrite = mayCall("transactions.create");
 
 	const accounts = useQuery({
 		queryKey: ["accounts", spaceId, "open"],

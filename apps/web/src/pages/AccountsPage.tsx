@@ -340,11 +340,11 @@ export function AccountsPage() {
 	 * space, and everything else on this screen is open to an Editor too, so a single
 	 * "may write here" would have been wrong in both directions.
 	 */
-	const { may, ready } = useWhatIMayDo(spaceId);
-	const mayCreate = may("account.create");
-	const mayUpdate = may("account.update");
-	const mayArchive = may("account.archive");
-	const mayDelete = may("account.delete");
+	const { mayCall, ready } = useWhatIMayDo(spaceId);
+	const mayCreate = mayCall("accounts.create");
+	const mayUpdate = mayCall("accounts.update");
+	const mayArchive = mayCall("accounts.archive");
+	const mayDelete = mayCall("accounts.remove");
 
 	// None of these three said anything when they failed: the menu closed, the row stayed,
 	// and a refusal looked exactly like a click that had not landed.
