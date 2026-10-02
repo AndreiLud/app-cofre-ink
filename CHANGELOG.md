@@ -5,6 +5,40 @@ Every release, what changed in it, and what to do about it if you are running th
 Versions follow semantic versioning. The first number changes when something that worked
 breaks, the second when something is added, the third when something is corrected.
 
+## 1.2.1
+
+Released on 2 October 2026, hours after 1.2.0 and for one reason: the report written about
+1.2.0 was audited against the repository before it was handed over, and the audit found four
+things wrong in the code rather than in the report. All four were shipped by 1.2.0.
+
+**What the month went on was summed in whatever currency each purchase was written in.** It is
+the same fault 1.2.0 took out of the card invoice, written again in the module added in the same
+release: a month holding a dinner in dollars and a market in reais came back as a number in no
+currency at all, with the currency of the space printed beside it. It sums the figure worked out
+at the rate of each day now, like every other total.
+
+**A benefit card told a Registrador that its allowance was not filled in.** The model answers
+nothing about a benefit card to somebody who only sees their own records, on purpose, and the row
+read that silence as a missing allowance. It is the exact harm the line at the top of the same
+screen avoids by drawing nothing at all. That row now draws nothing either, and nothing while the
+answer is still on its way.
+
+**A sentence about limits could not appear in the case it was written for.** When every limit of a
+month is on a category, none of them can see a typed total, so none is ever near breaking, so the
+warning that carried the sentence was never drawn and the silence read as safety. The sentence
+stands on its own now when a month has typed numbers and no limit able to see them.
+
+**The share on each line of the ranking said "of what is sorted"** while being measured against a
+total that includes the line for money nobody sorted. The words changed rather than the
+arithmetic, because the line for unsorted money is deliberate.
+
+Also: the check up and the month screen share the constant for when a month is far enough along
+to be compared, and now share the comparison too. They differed by one day a month.
+
+Registries 0041, 0048 and 0049 carried four claims the same audit refuted, about what the probes
+prove, which flows run on the fixed day, what registry 0023 says, and how many records three
+numbers write. All four are corrected.
+
 ## 1.2.0
 
 Released on 2 October 2026. The release that finished 1.1.0.
