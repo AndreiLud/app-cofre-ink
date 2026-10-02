@@ -17,8 +17,15 @@
 // produces codes and numbers, so that the same finding reads in Portuguese, in English
 // and in a table.
 
+import { WORTH_SAYING } from "../money/money.ts";
 import { median } from "../plan/projection.ts";
-import { type CalendarDate, daysBetween, monthOf } from "../time/calendar.ts";
+import {
+	type CalendarDate,
+	daysBetween,
+	MONTH_MOSTLY_GONE,
+	monthOf,
+	shareOfMonthGone,
+} from "../time/calendar.ts";
 
 export type FindingWeight = "problem" | "attention" | "good";
 
@@ -184,9 +191,6 @@ export type Snapshot = {
 	inflation: { percent: number; months: number } | null;
 };
 
-/** Under this, a difference is not worth a line on a screen. Fifty units of currency. */
-const NOISE = 5_000;
-
 /** A category has to be this much above its usual month before anybody is told. */
 const ABOVE_USUAL = 1.3;
 const BELOW_USUAL = 0.7;
@@ -211,12 +215,6 @@ function share(part: number, whole: number): number {
 /** A share as a whole number of hundredths, so nothing carries a fraction. */
 function percent(value: number): number {
 	return Math.round(value * 100);
-}
-
-function howFarThroughTheMonth(today: CalendarDate): number {
-	const day = Number(today.slice(8, 10));
-	const daysInMonth = new Date(Number(today.slice(0, 4)), Number(today.slice(5, 7)), 0).getDate();
-	return share(day, daysInMonth);
 }
 
 /**
@@ -248,7 +246,7 @@ function aboutTheMonth(snapshot: Snapshot): Finding[] {
 	const found: Finding[] = [];
 
 	const over = thisMonth.expense - thisMonth.income;
-	if (over > NOISE && thisMonth.income > 0) {
+	if (over > WORTH_SAYING && thisMonth.income > 0) {
 		found.push({
 			code: "spentMoreThanEarned",
 			weight: "problem",
@@ -267,7 +265,7 @@ function aboutTheMonth(snapshot: Snapshot): Finding[] {
 	if (usual > 0 && before.length >= 3) {
 		const saved = usual - thisMonth.expense;
 		// Only once the month is far enough along that the comparison means anything.
-		if (saved > NOISE && howFarThroughTheMonth(snapshot.today) > 0.8) {
+		if (saved > WORTH_SAYING && shareOfMonthGone(snapshot.today) > MONTH_MOSTLY_GONE) {
 			found.push({
 				code: "betterThanUsual",
 				weight: "good",
@@ -292,7 +290,7 @@ function aboutCategories(snapshot: Snapshot): Finding[] {
 		if (usual <= 0) continue;
 
 		const difference = category.thisMonth - usual;
-		if (difference > NOISE && category.thisMonth >= usual * ABOVE_USUAL) {
+		if (difference > WORTH_SAYING && category.thisMonth >= usual * ABOVE_USUAL) {
 			found.push({
 				code: "categoryAboveUsual",
 				weight: "attention",
@@ -308,7 +306,7 @@ function aboutCategories(snapshot: Snapshot): Finding[] {
 			continue;
 		}
 
-		if (-difference > NOISE && category.thisMonth <= usual * BELOW_USUAL) {
+		if (-difference > WORTH_SAYING && category.thisMonth <= usual * BELOW_USUAL) {
 			found.push({
 				code: "categoryBelowUsual",
 				weight: "good",
@@ -329,7 +327,7 @@ function aboutCategories(snapshot: Snapshot): Finding[] {
 
 function aboutBudgets(snapshot: Snapshot): Finding[] {
 	const found: Finding[] = [];
-	const through = howFarThroughTheMonth(snapshot.today);
+	const through = shareOfMonthGone(snapshot.today);
 
 	for (const budget of snapshot.budgets) {
 		if (budget.limit <= 0) continue;
@@ -378,7 +376,7 @@ function aboutRepeating(snapshot: Snapshot): Finding[] {
 	const settled = snapshot.repeating.filter((charge) => charge.occurrences >= 3);
 	const everyMonth = settled.reduce((total, charge) => total + charge.amount, 0);
 
-	if (everyMonth > NOISE) {
+	if (everyMonth > WORTH_SAYING) {
 		found.push({
 			code: "subscriptionLoad",
 			weight: "attention",

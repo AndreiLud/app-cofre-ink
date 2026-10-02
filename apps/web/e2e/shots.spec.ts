@@ -32,6 +32,7 @@ const SCREENS: { name: string; section?: string; at?: string; waitFor: string }[
 	{ name: "faturas", section: "Faturas", waitFor: "fatura" },
 	{ name: "contas", section: "Contas", waitFor: "Conta" },
 	{ name: "lancamentos", section: "Lançamentos", waitFor: "Novo lançamento" },
+	{ name: "mes", at: "/mes", waitFor: "Comparado com um mês comum" },
 	{ name: "relatorio", at: "/relatorio?mes=2026-09", waitFor: "O mês" },
 ];
 

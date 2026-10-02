@@ -60,6 +60,21 @@ export function lastDayOfMonth(year: number, month: number): number {
 	return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
+/** How much of the month a day is in has gone, counting that day as gone. */
+export function shareOfMonthGone(today: CalendarDate): number {
+	const { year, month, day } = parseCalendarDate(today);
+	return day / lastDayOfMonth(year, month);
+}
+
+/**
+ * The point at which a month is far enough along to be compared with another one.
+ *
+ * Four fifths. Before that, a month that has spent little has mostly not spent yet, and a
+ * screen that says a household is doing well on the third of the month is not telling it
+ * anything about the month. The line is drawn once because two screens draw it.
+ */
+export const MONTH_MOSTLY_GONE = 0.8;
+
 /** Turns the thirty first into the last day a shorter month actually has. */
 export function clampDay(year: number, month: number, day: number): number {
 	return Math.min(Math.max(day, 1), lastDayOfMonth(year, month));

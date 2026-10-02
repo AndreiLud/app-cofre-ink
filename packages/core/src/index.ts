@@ -17,6 +17,7 @@ export * from "./cards/openingCharge.ts";
 export * from "./cards/whatFallsDue.ts";
 export * from "./categories/defaults.ts";
 export * from "./entry/monthInThree.ts";
+export * from "./entry/monthReading.ts";
 export * from "./entry/quickEntry.ts";
 export * from "./ids/uuidV7.ts";
 export * from "./language/firstLanguage.ts";

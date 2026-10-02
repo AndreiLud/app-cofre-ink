@@ -14,10 +14,12 @@
 
 import {
 	addMonthsToMonth,
+	againstAUsualMonth,
 	type CardCycle,
 	type CurrencyCode,
 	dateInMonth,
 	invoiceMonthOf,
+	limitsNearBreaking,
 	MONTH_FIELDS,
 	MONTH_PARTS,
 	type MonthPart,
@@ -27,6 +29,8 @@ import {
 	parseMoney,
 	readMonthMark,
 	todayIn,
+	USUAL_WINDOW,
+	whatTookIt,
 } from "@cofre/core";
 import type { Account, Transaction, TransactionStatus } from "@cofre/storage";
 import {
@@ -256,6 +260,40 @@ export function MonthPage() {
 			session?.transactions.list({ spaceId, from: firstOfMonth, to, limit: 1000 }) ?? [],
 	});
 
+	/**
+	 * The three readings of the month, for somebody who gave it three numbers.
+	 *
+	 * Drawn for nobody who only sees their own records. Each of the three is a household
+	 * figure, and narrowed to one person's rows it is a household limit measured against one
+	 * person's spending, which is worse than silence. That is what the flag is for.
+	 */
+	const reads = enabled && shown !== "" && ready && !seesOwnRowsOnly;
+
+	const behind = useQuery({
+		queryKey: ["reports", "byMonth", spaceId, shown],
+		enabled: reads,
+		queryFn: () =>
+			session?.reports.byMonth({
+				spaceId,
+				from: dateInMonth(addMonthsToMonth(shown, -USUAL_WINDOW), 1),
+				to,
+			}) ?? [],
+	});
+
+	const limits = useQuery({
+		// No day is passed on purpose: the month is read whole, because that is what three
+		// typed numbers are a claim about.
+		queryKey: ["budgets", "progress", spaceId, shown],
+		enabled: reads,
+		queryFn: () => session?.budgets.progress({ spaceId, month: shown }) ?? [],
+	});
+
+	const categories = useQuery({
+		queryKey: ["categories", spaceId],
+		enabled: reads,
+		queryFn: () => session?.categories.list(spaceId) ?? [],
+	});
+
 	const byHand = (records.data ?? []).filter(
 		(row) => readMonthMark(row.externalId) === null && row.kind !== "transfer",
 	);
@@ -279,6 +317,46 @@ export function MonthPage() {
 			style: "currency",
 			currency,
 		}).format(cents / 100);
+
+	/** This month against the middle of the closed months before it, when there are enough. */
+	const usual = reads
+		? againstAUsualMonth({ month: shown, today, months: behind.data ?? [] })
+		: null;
+	const monthsBehind = (behind.data ?? []).filter((one) => one.month < shown).length;
+
+	/**
+	 * What the month went on, out of the records that say.
+	 *
+	 * Not drawn when the month holds more records than the query asks for, because a ranking
+	 * of a truncated month is a ranking of whichever thousand came back.
+	 */
+	const truncated = (records.data ?? []).length >= 1000;
+	const took = reads && !truncated ? whatTookIt(records.data ?? []) : null;
+	const nameOfCategory = (categoryId: string | null) =>
+		categoryId === null
+			? t("reports.noCategory")
+			: (categories.data?.find((one) => one.id === categoryId)?.name ?? t("reports.noCategory"));
+
+	const risks = reads
+		? limitsNearBreaking(
+				(limits.data ?? []).map((one) => ({
+					budgetId: one.id,
+					limit: one.progress.limit,
+					spent: one.progress.spent,
+				})),
+			)
+		: [];
+	const nameOfLimit = (budgetId: string) => {
+		const found = (limits.data ?? []).find((one) => one.id === budgetId);
+		if (!found) return "";
+		if (found.scope === "total") return t("budget.everything");
+		if (found.scope === "priority") return t(`priority.${found.priority ?? "important"}`);
+		return categories.data?.find((one) => one.id === found.categoryId)?.name ?? "";
+	};
+	// A limit on a category cannot see a typed total, which carries none, so a household with
+	// only those is told rather than left reading silence as safety.
+	const onlyNarrowLimits =
+		(limits.data ?? []).length > 0 && (limits.data ?? []).every((one) => one.scope !== "total");
 
 	const withYear = new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
 		month: "long",
@@ -447,6 +525,10 @@ export function MonthPage() {
 			void queries.invalidateQueries({ queryKey: ["transactions"] });
 			void queries.invalidateQueries({ queryKey: ["balances"] });
 			void queries.invalidateQueries({ queryKey: ["advice"] });
+			// The three readings below are about the month that was just typed, so they are
+			// stale the moment it is saved.
+			void queries.invalidateQueries({ queryKey: ["reports"] });
+			void queries.invalidateQueries({ queryKey: ["budgets"] });
 		},
 	});
 
@@ -553,6 +635,39 @@ export function MonthPage() {
 							income: asMoney(byHandIn),
 							expense: asMoney(byHandOut),
 						})}
+					</p>
+				</Callout>
+			) : null}
+
+			{/* A limit already broken is the one thing somebody has to see the second the month
+			    is typed, so it goes above the form rather than below the table. */}
+			{risks.length > 0 ? (
+				<Callout tone="attention" title={t("theMonth.limitsTitle")}>
+					<p>{t("theMonth.limitsBody")}</p>
+					<ul className="mt-1 space-y-1">
+						{risks.map((risk) => (
+							<li key={risk.budgetId}>
+								{risk.state === "over"
+									? t("theMonth.limitOver", {
+											name: nameOfLimit(risk.budgetId),
+											spent: asMoney(risk.spent),
+											limit: asMoney(risk.limit),
+											over: asMoney(-risk.left),
+										})
+									: t("theMonth.limitClose", {
+											name: nameOfLimit(risk.budgetId),
+											spent: asMoney(risk.spent),
+											limit: asMoney(risk.limit),
+											left: asMoney(risk.left),
+										})}
+							</li>
+						))}
+					</ul>
+					{onlyNarrowLimits ? <p className="mt-1">{t("theMonth.limitsTotalOnly")}</p> : null}
+					<p className="mt-1">
+						<Link to={ROUTES.budget} className="underline">
+							{t("theMonth.limitsSeeBudget")}
+						</Link>
 					</p>
 				</Callout>
 			) : null}
@@ -703,6 +818,93 @@ export function MonthPage() {
 						</Link>
 					</p>
 				</section>
+			) : null}
+
+			{/* The two readings of the month, as lists rather than tables: the one table on this
+			    screen stays the one table, which is also what the browser tests locate by. */}
+			{reads ? (
+				<Panel title={t("theMonth.usualTitle")}>
+					{usual === null ? (
+						<p className="text-sm text-quiet">
+							{t("theMonth.usualTooFew", { count: monthsBehind })}
+						</p>
+					) : (
+						<>
+							<p className="text-sm text-quiet">
+								{t("theMonth.usualBody", { count: usual.months, month: monthName })}
+							</p>
+							<ul className="mt-3 divide-y divide-line">
+								{(
+									[
+										["movement.income", usual.usualIn, usual.monthIn],
+										["movement.expense", usual.usualOut, usual.monthOut],
+									] as const
+								).map(([label, was, now]) => (
+									<li
+										key={label}
+										className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3 first:pt-0 last:pb-0"
+									>
+										<span>{t(label)}</span>
+										<span className="font-mono text-sm">
+											{t("theMonth.usualFigures", { usual: asMoney(was), now: asMoney(now) })}
+										</span>
+									</li>
+								))}
+							</ul>
+							<p className="mt-4 border-line border-t pt-4 text-sm">
+								{usual.verdict === "tooEarly"
+									? t("theMonth.usualTooEarly", { month: monthName })
+									: usual.verdict === "same"
+										? t("theMonth.usualSame")
+										: t(
+												usual.verdict === "lower" ? "theMonth.usualLower" : "theMonth.usualHigher",
+												{
+													difference: asMoney(Math.abs(usual.differenceOut)),
+												},
+											)}
+							</p>
+						</>
+					)}
+				</Panel>
+			) : null}
+
+			{took ? (
+				<Panel title={t("theMonth.tookTitle")}>
+					{took.ranked.length === 0 ? (
+						<p className="text-sm text-quiet">{t("theMonth.tookNothing", { month: monthName })}</p>
+					) : (
+						<>
+							{/* Only when there is a typed total to account for. Saying that nothing is a
+							    total nobody itemised is a sentence about nothing. */}
+							{took.notItemised > 0 ? (
+								<p className="text-sm text-quiet">
+									{t("theMonth.tookBody", { amount: asMoney(took.notItemised) })}
+								</p>
+							) : null}
+							<ul className="mt-3 divide-y divide-line">
+								{took.ranked.slice(0, 5).map((line) => (
+									<li
+										key={line.categoryId ?? "none"}
+										className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3 first:pt-0 last:pb-0"
+									>
+										<span className="min-w-0">
+											<span className="truncate">{nameOfCategory(line.categoryId)}</span>{" "}
+											<span className="text-quiet text-xs">
+												{t("theMonth.tookLine", { share: Math.round(line.share * 100) })}
+											</span>
+										</span>
+										<Value amount={-line.amount} currency={currency} tone="auto" />
+									</li>
+								))}
+							</ul>
+						</>
+					)}
+					<p className="mt-4 text-sm text-quiet">
+						<Link to={ROUTES.reports} className="underline">
+							{t("theMonth.tookSeeReports")}
+						</Link>
+					</p>
+				</Panel>
 			) : null}
 
 			<Disclosure summary={t("theMonth.whatItWrites")} hint={t("theMonth.whatItWritesHint")}>

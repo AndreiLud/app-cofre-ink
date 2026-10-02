@@ -15,6 +15,7 @@
 // transfer into an investment is not spending, and a balance reconstructed without it
 // would say a household saved less than it did.
 
+import { WORTH_SAYING } from "../money/money.ts";
 import { median } from "../plan/projection.ts";
 import type { CalendarMonth } from "../time/calendar.ts";
 import type { Snapshot } from "./findings.ts";
@@ -55,11 +56,8 @@ export type Trend = {
 /** Three each side. Fewer is one month with an opinion, more is last year deciding today. */
 const WINDOW = 3;
 
-/** Under this, a difference is not a direction. Fifty units of currency. */
-const NOISE = 5_000;
-
 function directionOf(difference: number, wantMore: boolean): Movement["direction"] {
-	if (Math.abs(difference) < NOISE) return "same";
+	if (Math.abs(difference) < WORTH_SAYING) return "same";
 	return difference > 0 === wantMore ? "better" : "worse";
 }
 

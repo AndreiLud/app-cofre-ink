@@ -141,6 +141,59 @@ test.describe("a month in three numbers", () => {
 		await expect(row(page, /Pagamento da fatura de/)).toHaveCount(0);
 	});
 
+	test("reads the month back against a usual one", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "O mês");
+
+		// The screen used to show the three numbers, their difference, and nothing else: the
+		// one question the numbers are for, which is whether this month was a normal one, had
+		// no answer anywhere in the product.
+		const usual = page.locator("section").filter({ hasText: "Comparado com um mês comum" });
+		await expect(usual).toBeVisible();
+		await expect(usual).toContainText("num mês comum");
+		await expect(usual).toContainText("neste");
+	});
+
+	test("ranks what the month went on, and leaves the typed totals out of it", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "O mês");
+
+		await page.getByLabel("Quanto você gastou").fill("2.200,00");
+		await page.getByRole("button", { name: "Guardar o mês" }).click();
+		await expect(page.getByText("Está tudo no lugar de sempre")).toBeVisible();
+
+		const took = page.locator("section").filter({ hasText: "No que foi" });
+		await expect(took).toBeVisible();
+
+		// The typed total is named apart rather than ranked. Counted in, it would be the top
+		// line of the block, announcing that the month went on nothing in particular.
+		await expect(took).toContainText("R$ 2.200,00");
+		await expect(took).toContainText("um total que ninguém detalhou");
+		await expect(took.getByRole("listitem").filter({ hasText: "R$ 2.200,00" })).toHaveCount(0);
+	});
+
+	test("says which limit the month has broken, read as a whole month", async ({ page }) => {
+		await openCofre(page);
+
+		await go(page, "Orçamento");
+		await page.getByRole("button", { name: "Novo limite" }).first().click();
+		await page.getByRole("dialog").getByText("Tudo", { exact: true }).click();
+		await page.getByRole("dialog").getByLabel("Quanto por mês").fill("1.000,00");
+		await page.getByRole("button", { name: "Salvar" }).click();
+
+		await go(page, "O mês");
+		await page.getByLabel("Quanto você gastou").fill("3.000,00");
+		await page.getByRole("button", { name: "Guardar o mês" }).click();
+		await expect(page.getByText("Está tudo no lugar de sempre")).toBeVisible();
+
+		// Read whole, with no pace: three typed numbers are a claim about the whole month, and
+		// measuring them against how far through it today is would warn a household on the
+		// third that it is spending ten times too fast.
+		const limits = page.locator("div").filter({ hasText: "Limites perto de estourar" }).first();
+		await expect(limits).toContainText("passou em");
+		await expect(limits).toContainText("Lido como um mês inteiro");
+	});
+
 	test("refuses an amount it cannot read, and says nothing was typed", async ({ page }) => {
 		await openCofre(page);
 		await go(page, "O mês");

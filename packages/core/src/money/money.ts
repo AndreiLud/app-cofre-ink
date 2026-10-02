@@ -27,6 +27,16 @@ const MINOR_DIGITS: Record<string, number> = {
 
 export const DEFAULT_CURRENCY = "BRL";
 
+/**
+ * Under this, a difference is not worth a line on a screen. Fifty units of currency.
+ *
+ * In minor units, and in the base currency of whoever is reading, which is the same
+ * approximation every other threshold in this application makes. It was written three times
+ * in three files before it was written once here, and a line drawn three times is a line
+ * that moves twice.
+ */
+export const WORTH_SAYING = 5_000;
+
 export class MoneyError extends Error {
 	constructor(message: string) {
 		super(message);
