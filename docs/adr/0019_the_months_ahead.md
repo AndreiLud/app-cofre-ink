@@ -45,9 +45,31 @@ something the owner can take to pieces.
    yet. A series that already wrote it is in the first group, and counting it here as
    well is the single most common way a projection goes wrong. The record carries
    `recurrence_id`, so the question is answered exactly and not by matching amounts.
-3. **Habitual.** The median of the last months, minus the two groups above, floored at
-   zero. It is what is left of ordinary life once the things we already know about are
-   removed.
+3. **Habitual.** The median of the last months, cut to the part of the month the opening
+   balance has not already counted, minus the two groups above, floored at zero. It is what
+   is left of ordinary life once the things we already know about are removed.
+
+   The cut matters only for the month the reading is made in. The opening balance counts
+   every record whose day has come, so the days from the first of that month up to and
+   including today are already inside it, and a whole month of habit on top of them counted
+   those days twice: the household's own salary, already received, was credited a second
+   time, and the groceries already bought were charged again. What the first month adds is
+   the median times the days after today over the days the month has: on the fifteenth of a
+   month of thirty one days, sixteen thirty firsts of it, and on the last day of a month,
+   nothing at all. A month wholly behind today adds no habit, because the opening holds all
+   of it, and every month after the current one adds the whole median. `daysStillToCome` is
+   the one place that measures this.
+
+   Corrected after 1.1.0. The fault is older than that release, which fixed the same double
+   count in the first group and left this one, and it was written down in the report of 1.1.0
+   rather than quietly carried.
+
+   What the cut does not do is spread a lumpy bill fairly. A household whose rent left on the
+   fifth still carries rent sized money inside the prorated habit for the rest of the month,
+   so the first month can still read high, by less. The sharper answer is the median minus
+   what that month has actually spent so far, which needs a second read and overshoots the
+   other way near the end of a quiet month. The share is what ships, because it needs no new
+   read, it moves one way through the month, and somebody can recompute it in their head.
 
 The median and not the mean, because one dentist does not make a year.
 

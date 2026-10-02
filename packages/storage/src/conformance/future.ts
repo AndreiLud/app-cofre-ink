@@ -77,9 +77,12 @@ export function runFutureConformance(adapter: AdapterUnderTest): void {
 				const september = ahead.months[0];
 				expect(september?.expenseFrom.written).toBe(100_000);
 				expect(september?.expenseFrom.recurring).toBe(5000);
-				// The usual month costs three thousand, and two of it is already known.
-				expect(september?.expense).toBe(300_000);
-				expect(september?.income).toBe(500_000);
+				// The usual month costs three thousand, and two of it is already known. The
+				// reading is made on the first, so twenty nine of September's thirty days are
+				// still to come and the habit is that share of a usual month: the first day is
+				// already inside the opening balance.
+				expect(september?.expense).toBe(290_000);
+				expect(september?.income).toBe(483_333);
 
 				// The opening balance counts what happened, not what is planned.
 				expect(ahead.opening).toBe(1_000_000 + 2 * (500_000 - 300_000));

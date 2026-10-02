@@ -2,6 +2,7 @@ import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import {
 	applyScenario,
+	daysStillToCome,
 	firstShortfall,
 	type MonthlyAmounts,
 	median,
@@ -29,6 +30,24 @@ describe("the middle of the months behind", () => {
 	});
 });
 
+describe("how much of a month is still to come", () => {
+	it("counts the day itself as gone, because the balance already holds it", () => {
+		expect(daysStillToCome("2026-10", "2026-10-01")).toEqual({ days: 30, outOf: 31 });
+		expect(daysStillToCome("2026-10", "2026-10-15")).toEqual({ days: 16, outOf: 31 });
+		expect(daysStillToCome("2026-10", "2026-10-31")).toEqual({ days: 0, outOf: 31 });
+	});
+
+	it("gives a month ahead all of itself and a month behind none", () => {
+		expect(daysStillToCome("2026-11", "2026-10-15")).toEqual({ days: 30, outOf: 30 });
+		expect(daysStillToCome("2026-09", "2026-10-15")).toEqual({ days: 0, outOf: 30 });
+	});
+
+	it("knows how long February is", () => {
+		expect(daysStillToCome("2027-02", "2027-02-01")).toEqual({ days: 27, outOf: 28 });
+		expect(daysStillToCome("2028-02", "2028-02-01")).toEqual({ days: 28, outOf: 29 });
+	});
+});
+
 describe("the months ahead", () => {
 	it("adds up the three things and carries the balance", () => {
 		const projected = project({
@@ -42,6 +61,8 @@ describe("the months ahead", () => {
 				{ month: "2026-12", income: 0, expense: 100_000 },
 			],
 			history,
+			// The day before the first projected month, so every month here is whole.
+			today: "2026-09-30",
 		});
 
 		expect(projected).toHaveLength(3);
@@ -73,19 +94,68 @@ describe("the months ahead", () => {
 			written: [{ month: "2026-10", income: 0, expense: 800_000 }],
 			recurring: [],
 			history,
+			today: "2026-09-30",
 		});
 
 		expect(projected[0]?.expenseFrom.habitual).toBe(0);
 		expect(projected[0]?.expense).toBe(800_000);
 	});
 
+	/**
+	 * The opening balance holds every record whose day has come, so a whole month of habit
+	 * on top of it charges the days already gone a second time: the salary already received
+	 * is credited again and the groceries already bought are charged again.
+	 */
+	it("counts only the days still to come in the month it is made in", () => {
+		const projected = project({
+			opening: 1_000_000,
+			from: "2026-10",
+			months: 2,
+			written: [],
+			recurring: [],
+			history,
+			today: "2026-10-15",
+		});
+
+		// October has thirty one days and fifteen of them are already inside the opening
+		// balance, so what is left of a usual month is sixteen thirty firsts of it.
+		expect(projected[0]?.incomeFrom.habitual).toBe(258_065);
+		expect(projected[0]?.expenseFrom.habitual).toBe(209_032);
+		expect(projected[0]?.balance).toBe(1_049_033);
+
+		// November is whole, so it is the whole habit.
+		expect(projected[1]?.expenseFrom.habitual).toBe(405_000);
+		expect(projected[1]?.incomeFrom.habitual).toBe(500_000);
+	});
+
+	it("adds no habit to a month the opening balance already holds whole", () => {
+		const projected = project({
+			opening: 1_000_000,
+			from: "2026-10",
+			months: 1,
+			written: [],
+			recurring: [],
+			history,
+			today: "2026-10-31",
+		});
+
+		expect(projected[0]?.expenseFrom.habitual).toBe(0);
+		expect(projected[0]?.incomeFrom.habitual).toBe(0);
+		expect(projected[0]?.balance).toBe(1_000_000);
+	});
+
 	it("keeps to thirty six months, whatever it is asked for", () => {
-		expect(
-			project({ opening: 0, from: "2026-10", months: 120, written: [], recurring: [], history }),
-		).toHaveLength(36);
-		expect(
-			project({ opening: 0, from: "2026-10", months: 0, written: [], recurring: [], history }),
-		).toHaveLength(1);
+		const asked = {
+			opening: 0,
+			from: "2026-10",
+			written: [],
+			recurring: [],
+			history,
+			today: "2026-09-30",
+		};
+
+		expect(project({ ...asked, months: 120 })).toHaveLength(36);
+		expect(project({ ...asked, months: 0 })).toHaveLength(1);
 	});
 
 	it("says which month the money runs out", () => {
@@ -99,6 +169,7 @@ describe("the months ahead", () => {
 				{ month: "2026-09", income: 100_000, expense: 200_000 },
 				{ month: "2026-08", income: 100_000, expense: 200_000 },
 			],
+			today: "2026-09-30",
 		});
 
 		// October ends at exactly nothing, which is not yet short. November is.
@@ -116,6 +187,7 @@ describe("the months ahead", () => {
 					written: [],
 					recurring: [],
 					history,
+					today: "2026-09-30",
 				}),
 			),
 		).toBe(null);
@@ -130,6 +202,7 @@ describe("trying something out", () => {
 		written: [],
 		recurring: [],
 		history,
+		today: "2026-09-30",
 	});
 
 	it("takes a share off what goes out", () => {
@@ -197,6 +270,7 @@ describe("whatever it is given", () => {
 						written,
 						recurring: [],
 						history: past,
+						today: "2026-09-30",
 					});
 
 					expect(

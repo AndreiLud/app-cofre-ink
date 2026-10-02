@@ -11,13 +11,23 @@
 //    tenth will happen on the tenth, and the rule is in the database.
 // 3. The rest, which is the habit: the groceries, the fuel, the small things nobody
 //    writes down in advance. That one is estimated from what actually happened in the
-//    months behind, and it is the only part that can be wrong.
+//    months behind, and it is the only part that can be wrong. In the month the reading
+//    is made in it counts only the days still to come, because the opening balance
+//    already holds the days that have gone.
 //
 // Nothing here smooths, weights or learns. A median of the recent months is used rather
 // than an average, because one holiday should not become a monthly expense, and because
 // a number somebody can recompute in their head is a number they can argue with.
 
-import { addMonthsToMonth, type CalendarMonth } from "../time/calendar.ts";
+import {
+	addMonthsToMonth,
+	type CalendarDate,
+	type CalendarMonth,
+	lastDayOfMonth,
+	monthOf,
+	parseCalendarDate,
+	parseCalendarMonth,
+} from "../time/calendar.ts";
 
 export type ProjectionSource = {
 	/** Records already written for that month, planned or settled. */
@@ -50,6 +60,13 @@ export type ProjectionInput = {
 	/** Where the money stands today, in minor units. */
 	opening: number;
 	from: CalendarMonth;
+	/**
+	 * The day the reading is made on, in the timezone of the space.
+	 *
+	 * The opening balance holds every record whose day has come, so the month this day
+	 * falls in is already part way spent and only the days after it are still to come.
+	 */
+	today: CalendarDate;
 	/** One to thirty six. Beyond that the habit is fiction. */
 	months: number;
 	/** Records already written, month by month, positive amounts. */
@@ -86,6 +103,28 @@ function amountsOf(list: readonly MonthlyAmounts[], month: CalendarMonth): Month
 }
 
 /**
+ * How much of a month is still to come on a given day, as two whole numbers of days.
+ *
+ * Days and not a fraction, so the share stays integer arithmetic over cents. The day
+ * itself counts as gone, because the opening balance counts every record up to and
+ * including it: on the first of a month of thirty one days thirty are left, and on the
+ * last day of any month nothing is. A month wholly behind that day has nothing left,
+ * because the opening holds all of it, and a month wholly ahead has all of it.
+ */
+export function daysStillToCome(
+	month: CalendarMonth,
+	today: CalendarDate,
+): { days: number; outOf: number } {
+	const parts = parseCalendarMonth(month);
+	const outOf = lastDayOfMonth(parts.year, parts.month);
+	const now = monthOf(today);
+
+	if (month > now) return { days: outOf, outOf };
+	if (month < now) return { days: 0, outOf };
+	return { days: Math.max(0, outOf - parseCalendarDate(today).day), outOf };
+}
+
+/**
  * The months ahead, each one made of the three things above.
  *
  * The habit is the same number every month, because a habit that changed every month
@@ -108,18 +147,27 @@ export function project(input: ProjectionInput): ProjectedMonth[] {
 		const here = amountsOf(input.written, month);
 		const rule = amountsOf(input.recurring, month);
 
+		// A whole month of habit over a month that is already part way gone counts the days
+		// that have passed twice: once as a fact inside the opening balance, and once more
+		// as a share of the median. So the habit of the month the reading is made in is only
+		// the part of a usual month that the opening has not already absorbed. Every month
+		// after it is whole and gets the whole median.
+		const left = daysStillToCome(month, input.today);
+		const usualIncome = Math.round((habitualIncome * left.days) / left.outOf);
+		const usualExpense = Math.round((habitualExpense * left.days) / left.outOf);
+
 		// The habit is what is left of a usual month once the things that are already
 		// known about it are taken out. Without this, a month with the rent written down
 		// would count the rent twice: once as itself and once inside the habit.
 		const incomeFrom: ProjectionSource = {
 			written: here.income,
 			recurring: rule.income,
-			habitual: Math.max(0, habitualIncome - here.income - rule.income),
+			habitual: Math.max(0, usualIncome - here.income - rule.income),
 		};
 		const expenseFrom: ProjectionSource = {
 			written: here.expense,
 			recurring: rule.expense,
-			habitual: Math.max(0, habitualExpense - here.expense - rule.expense),
+			habitual: Math.max(0, usualExpense - here.expense - rule.expense),
 		};
 
 		const income = incomeFrom.written + incomeFrom.recurring + incomeFrom.habitual;

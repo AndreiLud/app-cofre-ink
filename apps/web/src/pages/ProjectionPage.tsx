@@ -331,6 +331,10 @@ export function ProjectionPage() {
 
 					<Panel title={t("projection.monthByMonth")}>
 						<p className="max-w-[60ch] text-sm text-quiet">{t("projection.madeOf")}</p>
+						{/* The first row is always the month somebody is standing in, and it is the
+						    one row where the habit is not a whole month. Saying so is cheaper than
+						    letting somebody work out why the first month looks mild. */}
+						<p className="max-w-[60ch] text-sm text-quiet">{t("projection.partOfMonth")}</p>
 
 						<Table caption={t("projection.caption")}>
 							<TableHead>

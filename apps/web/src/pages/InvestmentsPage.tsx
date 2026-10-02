@@ -10,7 +10,7 @@
 // what the CDI actually did. The numbers come from the Banco Central and are asked for
 // when somebody presses the button, never on a schedule.
 
-import { grow, growAtRates, independence, monthOf, todayIn } from "@cofre/core";
+import { addMonthsToMonth, grow, growAtRates, independence, monthOf, todayIn } from "@cofre/core";
 import type { HoldingKind, HoldingValue, IndexRate } from "@cofre/storage";
 import { RuleError } from "@cofre/storage";
 import {
@@ -97,11 +97,15 @@ export function InvestmentsPage() {
 		queryFn: () => session?.investments.list(spaceId) ?? [],
 	});
 
+	// The month after this one, because the question below is what a whole month costs and
+	// the month somebody is standing in is already part way gone. The projection counts only
+	// the days still to come of it, which is right there and wrong here.
+	const whole = addMonthsToMonth(monthOf(today), 1);
 	const ahead = useQuery({
-		queryKey: ["projection", spaceId, monthOf(today), 1, today],
+		queryKey: ["projection", spaceId, whole, 1, today],
 		enabled: Boolean(session && spaceId !== ""),
 		queryFn: () =>
-			session?.projections.monthsAhead({ spaceId, from: monthOf(today), months: 1, today }) ?? null,
+			session?.projections.monthsAhead({ spaceId, from: whole, months: 1, today }) ?? null,
 	});
 
 	const indices = useQuery({
@@ -213,7 +217,7 @@ export function InvestmentsPage() {
 	});
 
 	// What a month costs, taken from the same arithmetic the projection uses, so the
-	// two screens never disagree about it.
+	// two screens never disagree about it. A whole month, which is the month after this one.
 	const monthlyExpense = ahead.data?.months[0]?.expense ?? 0;
 
 	const independent = independence({

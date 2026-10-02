@@ -386,6 +386,9 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 					recurring,
 					history,
 					window,
+					// The habit of the month this is read in counts only the days still to
+					// come, because the opening balance already holds the ones that have gone.
+					today: input.today,
 				}),
 			};
 		},

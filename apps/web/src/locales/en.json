@@ -148,7 +148,8 @@
 		"emptyTitle": "No months to project",
 		"emptyBody": "The projection uses what you have already written down. Record a few months and it appears.",
 		"thinHistoryTitle": "Not much history",
-		"thinHistoryBody": "I have only {{count}} months to work your usual month out from, so the habit is an educated guess. The more months you record, the better it gets."
+		"thinHistoryBody": "I have only {{count}} months to work your usual month out from, so the habit is an educated guess. The more months you record, the better it gets.",
+		"partOfMonth": "In the month you are in, the habit counts only the days still to come, because today's balance already holds the days that have gone."
 	},
 	"investments": {
 		"headline": "You have {{amount}} put aside",
