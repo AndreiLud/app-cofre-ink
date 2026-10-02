@@ -16,6 +16,7 @@ import {
 	lazyRouteComponent,
 	Outlet,
 } from "@tanstack/react-router";
+import { readRecordsSearch } from "./lib/recordFilters.ts";
 import { DashboardPage } from "./pages/DashboardPage.tsx";
 import { TransactionsPage } from "./pages/TransactionsPage.tsx";
 import { AppShell } from "./shell/AppShell.tsx";
@@ -49,6 +50,17 @@ const accountsRoute = createRoute({
 const transactionsRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/lancamentos",
+	/**
+	 * The filters of the list, in the address.
+	 *
+	 * A filtered list is a question, and a question nobody can link to, reload or hand to
+	 * the other person in the space is one they have to ask again every time. The overview
+	 * already had a link per account pointing here, and the screen ignored it.
+	 *
+	 * The names and the reading are in lib/recordFilters.ts, so the address and the screen
+	 * cannot disagree about what a name means.
+	 */
+	validateSearch: readRecordsSearch,
 	component: TransactionsPage,
 });
 

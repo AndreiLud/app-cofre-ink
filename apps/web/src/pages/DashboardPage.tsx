@@ -46,6 +46,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Findings } from "../components/Findings.tsx";
 import { Value } from "../components/Value.tsx";
+import { EVERY_MONTH } from "../lib/recordFilters.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -1009,10 +1010,12 @@ export function DashboardPage() {
 									return (
 										<li key={account.id}>
 											{/* Every account opens the records charged to it, which is the
-											    question somebody has when a number surprises them. */}
+											    question somebody has when a number surprises them. The name
+											    is the one the address uses, which it did not until now: this
+											    link carried accountId and the screen read nothing at all. */}
 											<Link
 												to={ROUTES.transactions}
-												search={{ accountId: account.id }}
+												search={{ conta: account.id, mes: EVERY_MONTH }}
 												className="flex items-baseline justify-between gap-4 py-2 hover:underline"
 											>
 												<span className="min-w-0 truncate">{account.name}</span>

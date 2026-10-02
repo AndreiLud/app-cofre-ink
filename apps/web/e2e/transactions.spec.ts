@@ -257,6 +257,65 @@ test.describe("records", () => {
 		await page.getByRole("button", { name: "Lazer", exact: true }).click();
 		await expect(page.getByLabel("Buscar")).toHaveValue("cinema");
 		await expect(record(page, "Salário")).toHaveCount(0);
+
+		// A saved filter is a starting point, and the address is what the list shows. Applying
+		// one has to write the address, or a reload would quietly undo it.
+		await expect(page).toHaveURL(/busca=cinema/);
+	});
+
+	test("opens on the filters the address carries", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Lançamentos");
+
+		// Two records today, so whatever month the list opens on holds both of them.
+		for (const [amount, description] of [
+			["30,00", "Padaria da esquina"],
+			["80,00", "Farmácia"],
+		]) {
+			await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+			await page
+				.getByRole("dialog")
+				.getByLabel("Valor", { exact: true })
+				.fill(amount ?? "");
+			await page
+				.getByRole("dialog")
+				.getByLabel("Descrição")
+				.fill(description ?? "");
+			await page.getByRole("button", { name: "Salvar" }).click();
+			await expect(page.getByRole("dialog")).toHaveCount(0);
+		}
+		await expect(record(page, "Padaria da esquina")).toBeVisible();
+		await expect(record(page, "Farmácia")).toBeVisible();
+
+		const month = await page.getByLabel("Mês", { exact: true }).inputValue();
+
+		// A link, loaded cold, and the list is already narrowed. Nothing read the address
+		// before this, so the same link opened on an unfiltered list of the current month.
+		await page.goto(`/lancamentos?mes=${month}&busca=padaria&tipo=expense`);
+		await expect(page.getByRole("navigation", { name: "Seções do aplicativo" })).toBeVisible({
+			timeout: 20_000,
+		});
+
+		await expect(page.getByLabel("Buscar")).toHaveValue("padaria");
+		await expect(page.getByLabel("Mês", { exact: true })).toHaveValue(month);
+		await expect(page.getByRole("button", { name: "1 filtro ativo" })).toBeVisible();
+		await expect(record(page, "Padaria da esquina")).toBeVisible();
+		await expect(record(page, "Farmácia")).toHaveCount(0);
+
+		// And a filter changed by hand goes into the address, so the list stays a link.
+		await page.getByLabel("Buscar").fill("farmácia");
+		await expect(page).toHaveURL(/busca=farm/);
+		await expect(record(page, "Farmácia")).toBeVisible();
+	});
+
+	test("leads to the statement import from the records screen", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Lançamentos");
+
+		// It was four clicks away under the settings, on a screen whose whole subject is
+		// records arriving.
+		await page.getByRole("link", { name: "Importar extrato" }).first().click();
+		await expect(page).toHaveURL(/importar/);
 	});
 });
 

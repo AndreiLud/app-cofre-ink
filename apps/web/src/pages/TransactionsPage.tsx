@@ -26,6 +26,7 @@ import {
 	TableRow,
 } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { QuickEntry } from "../components/QuickEntry.tsx";
@@ -33,51 +34,46 @@ import { type FilterQuery, SavedFilters } from "../components/SavedFilters.tsx";
 import { SplitDialog } from "../components/SplitDialog.tsx";
 import { TransactionForm } from "../components/TransactionForm.tsx";
 import { Value } from "../components/Value.tsx";
+import {
+	addressFromFilters,
+	type Filters,
+	filtersFromAddress,
+	filtersFromSaved,
+	narrowedIn,
+} from "../lib/recordFilters.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
+import { ROUTES } from "../routes.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
-
-type Filters = {
-	kind: TransactionKind | "";
-	status: TransactionStatus | "";
-	accountId: string;
-	/** One piece of plastic, which is narrower than an account when a card is multiple. */
-	cardId: string;
-	/** A category, the word "none" for what was never sorted, or empty for everything. */
-	categoryId: string;
-	search: string;
-	month: string;
-};
-
-/** A saved filter is stored as it was written, so an old one may not have every key. */
-function filtersFrom(query: FilterQuery, fallbackMonth: string): Filters {
-	const text = (name: string) => (typeof query[name] === "string" ? (query[name] as string) : "");
-	return {
-		kind: text("kind") as TransactionKind | "",
-		status: text("status") as TransactionStatus | "",
-		accountId: text("accountId"),
-		cardId: text("cardId"),
-		categoryId: text("categoryId"),
-		search: text("search"),
-		month: "month" in query ? text("month") : fallbackMonth,
-	};
-}
 
 export function TransactionsPage() {
 	const { t } = useTranslation();
 	const { session, currentSpace } = useCofre();
 	const queries = useQueryClient();
+	const navigate = useNavigate();
 
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
-	const [filters, setFilters] = useState<Filters>({
-		kind: "",
-		status: "",
-		accountId: "",
-		cardId: "",
-		categoryId: "",
-		search: "",
-		month: monthOf(today),
-	});
+	const thisMonth = monthOf(today);
+
+	/**
+	 * What the list shows comes from the address and from nowhere else.
+	 *
+	 * Holding it in state as well, and keeping the two in step, is how a click, a reload, a
+	 * link and the back button come to disagree. So there is one source of truth, and
+	 * narrowing the list is a change of address.
+	 */
+	const asked = useSearch({ from: ROUTES.transactions });
+	const filters = useMemo(() => filtersFromAddress(asked, thisMonth), [asked, thisMonth]);
+
+	/** Replacing rather than pushing, so the back button leaves instead of walking keystrokes. */
+	const show = (next: Filters) =>
+		void navigate({
+			to: ROUTES.transactions,
+			search: addressFromFilters(next, thisMonth),
+			replace: true,
+		});
+	const change = (patch: Partial<Filters>) => show({ ...filters, ...patch });
+
 	const [isOpen, setOpen] = useState(false);
 	const [editing, setEditing] = useState<Transaction | null>(null);
 	const [picked, setPicked] = useState<string[]>([]);
@@ -99,7 +95,11 @@ export function TransactionsPage() {
 	const [problem, setProblem] = useState<string | null>(null);
 	const [taught, setTaught] = useState<string | null>(null);
 	const [dividing, setDividing] = useState<Transaction | null>(null);
-	const [showFilters, setShowFilters] = useState(false);
+	/**
+	 * Open when the address arrives already narrowed, so a link that carries a kind opens
+	 * with the control that set it in view rather than hiding why the list is short.
+	 */
+	const [showFilters, setShowFilters] = useState(() => narrowedIn(filters) > 0);
 
 	const spaceId = currentSpace?.id ?? "";
 
@@ -267,17 +267,10 @@ export function TransactionsPage() {
 		onError: complain,
 	});
 
-	/** How many of the filters behind the button are doing something. */
-	const narrowed = [
-		filters.kind,
-		filters.status,
-		filters.accountId,
-		filters.cardId,
-		filters.categoryId,
-	].filter((value) => value !== "").length;
+	const narrowed = narrowedIn(filters);
 
 	const clearFilters = () => {
-		setFilters({ ...filters, kind: "", status: "", accountId: "", cardId: "", categoryId: "" });
+		show({ ...filters, kind: "", status: "", accountId: "", cardId: "", categoryId: "" });
 		setPicked([]);
 	};
 
@@ -306,17 +299,27 @@ export function TransactionsPage() {
 				level="h1"
 				action={
 					mayWrite ? (
-						<Button
-							size="small"
-							variant="primary"
-							icon={<Icon name="plus" />}
-							onClick={() => {
-								setEditing(null);
-								setOpen(true);
-							}}
-						>
-							{t("transactions.create")}
-						</Button>
+						<>
+							<Button
+								size="small"
+								variant="primary"
+								icon={<Icon name="plus" />}
+								onClick={() => {
+									setEditing(null);
+									setOpen(true);
+								}}
+							>
+								{t("transactions.create")}
+							</Button>
+							{/* The screen offered three ways to type a record in and no way to read a
+							    file, which was four clicks away under the settings. This is where
+							    somebody already is when they decide not to type a month by hand. */}
+							<Link to={ROUTES.import}>
+								<Button size="small" variant="secondary">
+									{t("importing.title")}
+								</Button>
+							</Link>
+						</>
 					) : null
 				}
 			>
@@ -361,12 +364,12 @@ export function TransactionsPage() {
 						label={t("transactions.month")}
 						type="month"
 						value={filters.month}
-						onChange={(event) => setFilters({ ...filters, month: event.target.value })}
+						onChange={(event) => change({ month: event.target.value })}
 					/>
 					<Field
 						label={t("transactions.search")}
 						value={filters.search}
-						onChange={(event) => setFilters({ ...filters, search: event.target.value })}
+						onChange={(event) => change({ search: event.target.value })}
 						placeholder={t("transactions.searchPlaceholder")}
 						type="search"
 					/>
@@ -377,9 +380,7 @@ export function TransactionsPage() {
 						<Select
 							label={t("transactions.kind")}
 							value={filters.kind}
-							onChange={(event) =>
-								setFilters({ ...filters, kind: event.target.value as TransactionKind | "" })
-							}
+							onChange={(event) => change({ kind: event.target.value as TransactionKind | "" })}
 							options={[
 								{ value: "", label: t("transactions.anyKind") },
 								{ value: "expense", label: t("transactionKind.expense") },
@@ -390,9 +391,7 @@ export function TransactionsPage() {
 						<Select
 							label={t("transactions.status")}
 							value={filters.status}
-							onChange={(event) =>
-								setFilters({ ...filters, status: event.target.value as TransactionStatus | "" })
-							}
+							onChange={(event) => change({ status: event.target.value as TransactionStatus | "" })}
 							options={[
 								{ value: "", label: t("transactions.anyStatus") },
 								{ value: "settled", label: t("transactionStatus.settled") },
@@ -402,7 +401,7 @@ export function TransactionsPage() {
 						<Select
 							label={t("transactions.account")}
 							value={filters.accountId}
-							onChange={(event) => setFilters({ ...filters, accountId: event.target.value })}
+							onChange={(event) => change({ accountId: event.target.value })}
 							options={[
 								{ value: "", label: t("transactions.anyAccount") },
 								...(accounts.data ?? []).map((account) => ({
@@ -417,7 +416,7 @@ export function TransactionsPage() {
 							<Select
 								label={t("filters.card")}
 								value={filters.cardId}
-								onChange={(event) => setFilters({ ...filters, cardId: event.target.value })}
+								onChange={(event) => change({ cardId: event.target.value })}
 								options={[
 									{ value: "", label: t("filters.anyCard") },
 									...(cards.data ?? []).map((card) => ({ value: card.id, label: card.name })),
@@ -427,7 +426,7 @@ export function TransactionsPage() {
 						<Select
 							label={t("transactions.category")}
 							value={filters.categoryId}
-							onChange={(event) => setFilters({ ...filters, categoryId: event.target.value })}
+							onChange={(event) => change({ categoryId: event.target.value })}
 							options={[
 								{ value: "", label: t("transactions.anyCategory") },
 								{ value: "none", label: t("transactions.noCategory") },
@@ -452,7 +451,7 @@ export function TransactionsPage() {
 						spaceId={spaceId}
 						current={filters as unknown as FilterQuery}
 						onApply={(query) => {
-							setFilters(filtersFrom(query, monthOf(today)));
+							show(filtersFromSaved(query, thisMonth));
 							setPicked([]);
 						}}
 					/>
@@ -472,15 +471,21 @@ export function TransactionsPage() {
 						// read as the sanctioned way in, and it is the state a Viewer is most
 						// likely to land on: any quiet month, or a filter that matches nothing.
 						mayWrite ? (
-							<Button
-								variant="primary"
-								onClick={() => {
-									setEditing(null);
-									setOpen(true);
-								}}
-							>
-								{t("transactions.create")}
-							</Button>
+							<div className="flex flex-wrap justify-center gap-2">
+								<Button
+									variant="primary"
+									onClick={() => {
+										setEditing(null);
+										setOpen(true);
+									}}
+								>
+									{t("transactions.create")}
+								</Button>
+								{/* A quiet month is exactly where somebody reaches for a statement. */}
+								<Link to={ROUTES.import}>
+									<Button variant="secondary">{t("importing.title")}</Button>
+								</Link>
+							</div>
 						) : null
 					}
 				/>
