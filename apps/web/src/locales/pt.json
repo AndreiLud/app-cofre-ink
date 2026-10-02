@@ -350,7 +350,8 @@
 		"landsIn_one": "O próximo crédito cai em {{day}}, daqui a {{count}} dia.",
 		"landsIn_other": "O próximo crédito cai em {{day}}, daqui a {{count}} dias.",
 		"landsInAndGoes_one": "O próximo crédito cai em {{day}}, daqui a {{count}} dia. O que sobrar agora vai embora com ele.",
-		"landsInAndGoes_other": "O próximo crédito cai em {{day}}, daqui a {{count}} dias. O que sobrar agora vai embora com ele."
+		"landsInAndGoes_other": "O próximo crédito cai em {{day}}, daqui a {{count}} dias. O que sobrar agora vai embora com ele.",
+		"lateInvoice": "fatura vencida"
 	},
 	"notice": {
 		"budgetOver": "{{name}} passou do limite em {{over}}.",

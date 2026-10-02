@@ -107,4 +107,40 @@ test.describe("the overview", () => {
 		await expect(page.getByRole("button", { name: "Aconteceu" }).first()).toBeVisible();
 		await expect(page.getByRole("button", { name: "Não aconteceu" }).first()).toBeVisible();
 	});
+
+	test("puts a card invoice whose due day has gone with the things to answer", async ({ page }) => {
+		await openCofre(page);
+
+		// A purchase made more than two months ago lands on an invoice that closed and fell
+		// due long before today, whatever day the suite runs on. The list of what falls due
+		// had one bound, the far end, so that invoice passed it and was drawn under a heading
+		// saying it was still to come, with a date already gone in the column beside it.
+		const old = new Date();
+		old.setDate(old.getDate() - 70);
+
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		await page
+			.getByRole("dialog")
+			.getByLabel("Pago com")
+			.selectOption({ label: "Cartão do banco (Crédito)" });
+		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("210,00");
+		await page.getByRole("dialog").getByLabel("Descrição").fill("Pneu");
+		await page.getByRole("dialog").getByLabel("Dia").fill(old.toISOString().slice(0, 10));
+		await page.getByRole("button", { name: "Salvar" }).click();
+
+		await go(page, "Painel");
+
+		// The sample card closes on the third and falls due on the tenth, so the bill for that
+		// purchase was due on the tenth of the month after the one it was bought in.
+		const month = new Date(old.getFullYear(), old.getMonth(), 1);
+		if (old.getDate() >= 3) month.setMonth(month.getMonth() + 1);
+		const dueOn = `10/${String(month.getMonth() + 1).padStart(2, "0")}`;
+
+		const late = page.locator("section,div").filter({ hasText: "Atrasado" }).first();
+		await expect(late.getByText("fatura vencida")).toBeVisible();
+
+		const due = page.locator("section").filter({ hasText: "Vence nos próximos dias" });
+		await expect(due.getByText(dueOn)).toHaveCount(0);
+	});
 });

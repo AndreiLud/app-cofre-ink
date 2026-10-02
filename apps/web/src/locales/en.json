@@ -350,7 +350,8 @@
 		"landsIn_one": "The next allowance lands on {{day}}, in {{count}} day.",
 		"landsIn_other": "The next allowance lands on {{day}}, in {{count}} days.",
 		"landsInAndGoes_one": "The next allowance lands on {{day}}, in {{count}} day. What is left now goes with it.",
-		"landsInAndGoes_other": "The next allowance lands on {{day}}, in {{count}} days. What is left now goes with it."
+		"landsInAndGoes_other": "The next allowance lands on {{day}}, in {{count}} days. What is left now goes with it.",
+		"lateInvoice": "invoice past due"
 	},
 	"notice": {
 		"budgetOver": "{{name}} went over its limit by {{over}}.",

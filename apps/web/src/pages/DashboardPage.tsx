@@ -25,6 +25,7 @@ import {
 	noticesFor,
 	parseCalendarMonth,
 	spendableNow,
+	splitInvoicesFallingDue,
 	todayIn,
 } from "@cofre/core";
 import type { CardStanding } from "@cofre/storage";
@@ -406,6 +407,12 @@ export function DashboardPage() {
 	 * paid. Only the first was counted, so for every day between the closing day and the end
 	 * of the month the bill the household actually owes was in no figure on this screen, and
 	 * what was left to spend read high by the whole of it.
+	 *
+	 * There is deliberately no bound at the near end. An invoice whose due day has gone is
+	 * still money that has not left the account, and this figure is what canSpendThisMonth
+	 * subtracts, so dropping a late bill here would quietly hand it back as money to spend.
+	 * The list below is bounded at the near end, which looks like an inconsistency and is
+	 * not: a list answers where a bill belongs, a total answers what is owed.
 	 */
 	const invoicesDue = shownCards
 		.flatMap((card) => [card.open, card.unpaid])
@@ -416,6 +423,41 @@ export function DashboardPage() {
 	const putAside = consolidated ? savingsEverywhere.data : savings.data;
 	const stillToSave = Math.max(0, (putAside?.expected ?? 0) - (putAside?.put ?? 0));
 	const left = canSpendThisMonth({ spendable, comingIn, fallingDue, stillToSave });
+
+	/**
+	 * Every invoice a card is still owing, as one bill each, with the card it belongs to.
+	 *
+	 * Both of them: the one still taking purchases, and the one that closed and has not been
+	 * paid. The second is the one somebody has to act on, and it was on no list here at all.
+	 */
+	const invoiceBills = shownCards.flatMap((card) =>
+		[card.open, card.unpaid]
+			.filter((state): state is NonNullable<typeof state> => state !== null)
+			.map((state) => ({
+				id: `invoice:${card.account.id}:${state.month}`,
+				accountId: card.account.id,
+				month: state.month,
+				dueOn: state.dueOn,
+				left: state.left,
+				on: state.dueOn,
+				description: t("dashboard.invoiceOf", { card: card.account.name }),
+				amount: -state.left,
+				// An invoice is charged in the currency of its card, which is not always the
+				// currency the space counts in.
+				currency: card.account.currency,
+				kind: "expense" as const,
+				invoice: true,
+			})),
+	);
+
+	// Coming, or already somebody's problem. A bill past its due day used to pass the only
+	// test there was, which asked whether it was inside the horizon, and was drawn under a
+	// heading saying it was still to come.
+	const bills = splitInvoicesFallingDue({
+		invoices: invoiceBills,
+		today,
+		until: addDays(today, AHEAD),
+	});
 
 	/** What falls due next, with a card invoice as one bill on the day it falls due. */
 	const dues = [
@@ -430,29 +472,19 @@ export function DashboardPage() {
 				kind: row.kind,
 				invoice: false,
 			})),
-		// Both invoices of each card: the one still taking purchases, and the one that
-		// closed and has not been paid. The second is the one somebody has to act on, and
-		// it was on no list here at all.
-		...shownCards
-			.flatMap((card) =>
-				[card.open, card.unpaid].map((state) => ({ account: card.account, state })),
-			)
-			.filter(
-				(row) =>
-					row.state !== null && row.state.left > 0 && row.state.dueOn <= addDays(today, AHEAD),
-			)
-			.map((row) => ({
-				id: `invoice:${row.account.id}:${row.state?.month}`,
-				on: row.state?.dueOn ?? today,
-				description: t("dashboard.invoiceOf", { card: row.account.name }),
-				amount: -(row.state?.left ?? 0),
-				// An invoice is charged in the currency of its card, which is not always the
-				// currency the space counts in.
-				currency: row.account.currency,
-				kind: "expense" as const,
-				invoice: true,
-			})),
+		...bills.coming,
 	].sort((one, other) => (one.on < other.on ? -1 : 1));
+
+	/**
+	 * What was promised for a day already gone, with the card purchases left out.
+	 *
+	 * A planned purchase charged to a card is already inside the invoice that is in the same
+	 * block, so listing both shows the same money twice. A purchase is confirmed on the
+	 * records screen, which is where somebody goes to argue with one.
+	 */
+	const lateRecords = (late.data ?? []).filter(
+		(row) => !open.has(row.accountId) || accountKind(row.accountId) !== "credit",
+	);
 
 	function accountKind(id: string): string {
 		return shownAccounts.find((account) => account.id === id)?.kind ?? "";
@@ -649,10 +681,35 @@ export function DashboardPage() {
 			</Panel>
 
 			{/* Late first, because it is the only thing on this screen that is already wrong. */}
-			{(late.data ?? []).length > 0 ? (
+			{lateRecords.length > 0 || bills.toAnswer.length > 0 ? (
 				<Callout tone="problem" title={t("dashboard.late")}>
+					{/* The bills above the promises, because an invoice past its due day is costing
+					    money every day it waits while a record is only waiting for a yes. */}
+					{bills.toAnswer.length > 0 ? (
+						<ul className="mt-1 space-y-2">
+							{bills.toAnswer.map((row) => (
+								<li key={row.id} className="flex flex-wrap items-baseline justify-between gap-2">
+									<span className="min-w-0">
+										<span className="font-mono text-quiet text-xs">{dayAndMonth(row.dueOn)}</span>{" "}
+										{row.description}{" "}
+										<span className="text-quiet text-xs">{t("dashboard.lateInvoice")}</span>
+									</span>
+									<span className="flex items-center gap-2">
+										<Value amount={row.amount} currency={row.currency} tone="auto" />
+										{mayPay ? (
+											<Link to={ROUTES.invoices} search={{ cartao: row.accountId }}>
+												<Button size="small" variant="secondary">
+													{t("invoice.pay")}
+												</Button>
+											</Link>
+										) : null}
+									</span>
+								</li>
+							))}
+						</ul>
+					) : null}
 					<ul className="mt-1 space-y-2">
-						{(late.data ?? []).map((row) => (
+						{lateRecords.map((row) => (
 							<li key={row.id} className="flex flex-wrap items-baseline justify-between gap-2">
 								<span className="min-w-0">
 									<span className="font-mono text-quiet text-xs">
