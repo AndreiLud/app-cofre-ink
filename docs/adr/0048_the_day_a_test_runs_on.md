@@ -10,8 +10,10 @@ Accepted.
 
 Release 1.1.0 was tagged on 30 September 2026 with every check green: the readings, the unit
 tests, the conformance suite on three engines, the build and one hundred and fifty nine flows
-in a real browser. On 1 October, with nobody having touched a line of it, three of those tests
-were red.
+in a real browser. On 1 October, the day after, with nobody having touched a line of it, the
+suite was red: one conformance case, which runs once per engine, and at least eight browser
+flows. Only two of them were found by reading the failures; the rest came out when the day was
+pinned and the data moved.
 
 Nothing had broken. The tests had been written against the day they were run on.
 
@@ -34,11 +36,18 @@ whoever reads the suite that red is weather, and the next real failure is read a
 ## Decision
 
 **The browser suite runs on one fixed day**, set in `apps/web/e2e/support.ts` and applied by
-the browser clock before the first page load, which is the one place every flow passes through.
-The day is 28 October 2026, chosen so that two things hold at once: the demonstration data,
-which reaches sixteen days back, all lands in the month the screens open on, and the open
-invoice of the sample card falls due thirteen days later, which is inside the fifteen days the
-overview looks ahead.
+the browser clock before the first page load, inside `openCofre`, which is the door most
+flows walk through. The ones that load the page by themselves still read the real day: the
+front door flows, the installed build, server mode, which has its own way in, and one of the
+language flows. That is about twenty nine of the flows that run, and it is a gap rather than
+a decision: those flows are the ones least sensitive to the day, which is why they have not
+been moved, and moving them is the right next step rather than an open question.
+The day is 28 October 2026, chosen so that two things hold at once: the demonstration records
+of the current block, which reach sixteen days back, all land in the month the screens open
+on, and the open invoice of the sample card falls due thirteen days later, which is inside the
+fifteen days the overview looks ahead. The three months of history the seed writes behind that
+block, which reach a hundred and six days back, are dated into earlier months on purpose, so
+that the screens which look backwards have something to read.
 
 **A test that counts days counts from that day, never from the real one.** `onTheDay` and
 `dayField` in the same module are how a test says "six days before" or "seventy days before",
@@ -64,17 +73,19 @@ is in a leap year.
 
 The suite says the same thing on every day of the month, and on any day of any year.
 
-The three tests that were red on 1 October are green, and two of them were rewritten rather
-than patched: one derives its month from the day the suite runs on, the other its start date.
+Everything that was red on 1 October is green. Two of them were rewritten rather than patched,
+one deriving its month from the day the suite runs on and the other its start date, and the
+rest were carried by the pinned day alone.
 
 A test that wants to see what the first days of a month look like now has to say so. That is
 the right trade: it was previously impossible to say anything about which day a test saw.
 
-One fragility came out when the data moved into the month the screens open on, and it is the
-kind this change is expected to surface: a record of the demonstration data is called "Mercado
-do mês", and the checkbox that selects its row is labelled with its description, so a field
-looked up by the short label "Mês" began matching two elements. Field lookups by a short label
-say that they mean the whole label now.
+One fragility came out when the data moved, and it is the kind this change is expected to
+surface. A record of the demonstration data is called "Mercado do mês", and the checkbox that
+selects its row is labelled with its description. Pinning the day moved one copy of it into
+September 2026, which is the month a test navigates the list to by hand, so a field looked up
+by the short label "Mês" began matching two elements on that screen. Field lookups by a short
+label say that they mean the whole label now.
 
 The day will have to move eventually, when 28 October 2026 is far enough in the past that a
 rate, an index or a projection horizon written in the fixtures stops making sense beside it.

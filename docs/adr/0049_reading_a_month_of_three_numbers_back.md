@@ -10,12 +10,13 @@ a month down, and adds what the product says back about one.
 ## Context
 
 Registry 0038 gave a household that will not keep a ledger a way in: what came in, what went
-out, what the card charged. Three fields, three records, and every other screen reads them
-because they are ordinary records.
+out, what the card charged. Three fields and four records, the fourth being the payment of the
+invoice that registry 0039 added, and every other screen reads them because they are ordinary
+records.
 
 What the screen then said about the month was the three numbers, their difference, and a count
-of whatever had been written by hand in the same month so the money was not counted twice. That
-is all. So the one question the three numbers exist to answer, which is whether this month was a
+of whatever had been written by hand in the same month, with its two totals, so the money was
+not counted twice. That is all. So the one question the three numbers exist to answer, which is whether this month was a
 normal one, had no answer on that screen or anywhere else that a household typing three numbers
 would look: the check up reads categories they do not have, and the reports screen draws charts
 of a month that is three records.
@@ -41,7 +42,9 @@ saying it is too early to say. That line, four fifths, is the one the check up a
 the same reason, and it is now drawn once in `MONTH_MOSTLY_GONE` rather than in each of them.
 This is the one way this reading can do harm, and the restraint is the design.
 
-**What the month went on, out of the records that carry a category.** The three typed numbers
+**What the month went on, out of the records that are not one of the three typed totals.** The
+share on each line is of that whole, which includes the line for money nobody sorted, so the
+shares add up over the lines that are drawn. The three typed numbers
 are deliberately not in that ranking. They carry no category, and a total somebody typed is not
 a kind of spending: counted in, the block's top line says that ninety per cent of the month went
 on nothing in particular, which is the typed total looking at itself. They are named apart
@@ -69,8 +72,11 @@ month is a category or a priority the block says so. Otherwise silence would rea
 figure, and narrowed to one person's rows it is a household limit measured against one person's
 spending, which is worse than silence. Registry 0041 is what makes that answerable.
 
-**Lists, not tables, and no boxes.** The screen has one table and keeps one, which registry 0023
-asks for and which the browser tests locate by. The shapes are the ones the check up already
+**Lists, not tables, and no boxes.** The screen has one table and keeps one. Registry 0023 does
+not say that in those words: what it rules is one section title and one filled button per screen,
+and the rest of it is about surfaces, line weights and colour. The one table is decided here, for
+two reasons of this screen's own: the shapes below are lists everywhere else in the product, and
+the browser tests locate the written records by asking for the table without naming it. The shapes are the ones the check up already
 uses for its trend and its exposure.
 
 ## Consequences

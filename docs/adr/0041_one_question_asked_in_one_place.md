@@ -121,12 +121,20 @@ accident, because the two permissions hold the same four roles, and it would hav
 lying the day they parted, in a release about something else.
 
 The table is not a second opinion about the matrix either. Every entry in it has a
-permission probe in the conformance suite, which proves on all three engines that the call
-refuses exactly the roles that permission refuses, and two assertions tie the two together:
-every probe agrees with the table, and every row of the table has a probe. So a permission
-moved in the matrix reaches every button with nothing copied by hand, and a row nobody
-proved cannot be added.
+permission probe in the conformance suite, and two assertions tie the two together: every
+probe agrees with the table, and every row of the table has a probe. So a permission moved
+in the matrix reaches every button with nothing copied by hand, and a row nobody proved
+cannot be added.
 
-What stays a judgement nobody checks is `seesOwnRowsOnly`. It is not a permission and is in
-no matrix, deliberately, because it is a narrowing rather than a refusal, and the browser
-tests walking a Viewer and a Logger are still the only thing covering it.
+What the probes prove, exactly, because the strength of this depends on it: for each call,
+that it refuses exactly the roles its permission refuses, on all three engines, over the
+four roles that are not the owner. The owner is not walked, so a row whose permission the
+owner does not hold is proved one role short. There is one such permission, `space.leave`,
+which belongs to everybody except the owner, and the call behind it is `members.leave`.
+
+What stays a judgement nobody checks is where `seesOwnRowsOnly` is applied. The predicate
+itself gained unit tests in the same release, in `packages/storage/src/actor.test.ts`, over
+every role and over an actor. It is not a permission and is in no matrix, deliberately,
+because it is a narrowing rather than a refusal, so which screen closes to that role is
+still decided by hand, and the browser tests walking a Viewer and a Logger are the only
+thing covering those decisions.
