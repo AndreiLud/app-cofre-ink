@@ -94,3 +94,37 @@ export function invoiceStateOf(input: InvoiceInput): InvoiceState {
 export function amountToPay(state: InvoiceState): number {
 	return Math.max(0, state.left);
 }
+
+export type LimitLeftInput = {
+	/** What the bank allows on the card, or nothing, when nobody wrote it down. */
+	creditLimit: number | null;
+	/** Every invoice of the card that has anything on it. */
+	states: readonly InvoiceState[];
+	/** The invoice a purchase made today lands on. */
+	openMonth: CalendarMonth;
+};
+
+/**
+ * How much of the limit a card still has, which is the figure somebody checks before
+ * paying at a till.
+ *
+ * Counted once. Up to and including the invoice still taking purchases, what is owed is
+ * what is left to pay on it, because an invoice already paid is headroom given back. After
+ * it, what is owed is the whole of what was charged, which is the instalments still to
+ * come: nothing has been paid against an invoice that has not closed. Counting the months
+ * ahead in both halves took them off twice, and a card with a limit of five thousand and a
+ * purchase of nine hundred in three parts reported three thousand five hundred left
+ * instead of four thousand one hundred.
+ *
+ * Nothing comes back when no limit was written down. Guessing at one would be inventing
+ * the figure, so the screens say so in words instead.
+ */
+export function limitLeftOf(input: LimitLeftInput): number | null {
+	if (input.creditLimit === null) return null;
+
+	let owed = 0;
+	for (const state of input.states) {
+		owed += state.month > input.openMonth ? state.charged : Math.max(0, state.left);
+	}
+	return input.creditLimit - owed;
+}

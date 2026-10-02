@@ -280,6 +280,23 @@ test.describe("the card invoice", () => {
 		await expect(record(page, "Streaming")).toBeVisible();
 	});
 
+	test("says how much of the limit is left, and agrees with the overview", async ({ page }) => {
+		await openCofre(page);
+
+		// What the overview says about this card. The invoice screen used to print the raw
+		// limit instead, so the two screens disagreed by the whole of what the card had
+		// already spent, and the wrong one was on the screen whose only subject is the card.
+		const sentence = "Ainda dá para gastar no cartão:";
+		const onOverview = await page.locator("p").filter({ hasText: sentence }).first().innerText();
+
+		await go(page, "Faturas");
+
+		const onInvoice = page.locator("p").filter({ hasText: sentence });
+		await expect(onInvoice).toHaveCount(1);
+		expect(await onInvoice.innerText()).toBe(onOverview);
+		await expect(page.getByText("Limite do cartão:")).toHaveCount(0);
+	});
+
 	test("pays the invoice, and says so", async ({ page }) => {
 		await openCofre(page);
 		await go(page, "Faturas");

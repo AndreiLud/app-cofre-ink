@@ -18,6 +18,7 @@ import {
 	type InvoiceState,
 	invoiceMonthOf,
 	invoiceStateOf,
+	limitLeftOf,
 } from "@cofre/core";
 import { assertCan, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber } from "../driver.ts";
@@ -220,21 +221,15 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 					.filter((state) => state.month > openMonth)
 					.reduce((total, state) => total + state.charged, 0);
 
-				// What is owed up to and including the invoice still taking purchases. The
-				// months after it are `later`, and counting them here as well took the
-				// instalments still to come off the headroom twice: a card with a limit of
-				// five thousand and a purchase of nine hundred in three parts reported three
-				// thousand five hundred left instead of four thousand one hundred.
-				const owing = states
-					.filter((state) => state.month <= openMonth)
-					.reduce((total, state) => total + Math.max(0, state.left), 0);
-
 				standing.push({
 					account,
 					open,
 					unpaid,
 					later,
-					available: account.creditLimit === null ? null : account.creditLimit - owing - later,
+					// The headroom is counted in one place, which is the core, because the invoice
+					// screen asks the same question about the same card and two subtractions in
+					// two packages are how two screens come to disagree.
+					available: limitLeftOf({ creditLimit: account.creditLimit, states, openMonth }),
 				});
 			}
 			return standing;

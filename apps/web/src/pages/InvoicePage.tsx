@@ -18,6 +18,7 @@ import {
 	type CardCycle,
 	type InvoiceState,
 	invoiceMonthOf,
+	limitLeftOf,
 	todayIn,
 } from "@cofre/core";
 import {
@@ -325,6 +326,23 @@ export function InvoicePage() {
 	/** Every invoice before this one that still owes something, which is what one action clears. */
 	const owingBefore = (older.data ?? []).filter((one) => one.month < shown && one.left > 0);
 
+	/**
+	 * How much of the limit is left, from the same function the overview reads, so the two
+	 * screens cannot disagree about one card.
+	 *
+	 * It is a fact about the card today and not about the invoice on screen, so it counts from
+	 * the open invoice whichever month is being looked at. Undefined while the invoices are
+	 * still being read, which is not the same as null: null is a card nobody wrote a limit for.
+	 */
+	const limitLeft =
+		invoiceAccount && cycle && older.data
+			? limitLeftOf({
+					creditLimit: invoiceAccount.creditLimit,
+					states: older.data,
+					openMonth,
+				})
+			: undefined;
+
 	// The year is only worth saying when it is not this one.
 	const monthName =
 		shown === ""
@@ -437,16 +455,16 @@ export function InvoicePage() {
 
 				{state?.late ? <p className="text-sm text-seal">{t("invoice.noInterest")}</p> : null}
 
-				{invoiceAccount?.creditLimit ? (
+				{/* How much of the limit is left, and not what the limit is. The limit on its own
+				    is a number nobody acts on, and this is the one the card will refuse. */}
+				{limitLeft === undefined ? null : limitLeft === null ? (
+					<p className="text-sm text-quiet">{t("dashboard.noLimitYet")}</p>
+				) : (
 					<p className="text-sm text-quiet">
-						{t("invoice.limit")}{" "}
-						<Value
-							amount={invoiceAccount.creditLimit}
-							currency={invoiceAccount.currency}
-							tone="neutral"
-						/>
+						{t("dashboard.limitLeft")}{" "}
+						<Value amount={limitLeft} currency={invoiceAccount?.currency} tone="neutral" />
 					</p>
-				) : null}
+				)}
 				{onThisInvoice.length > 0 ? (
 					<p className="text-sm text-quiet">
 						{t("cards.onInvoice")}:{" "}

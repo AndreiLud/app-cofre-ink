@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CardCycle } from "./invoice.ts";
-import { amountToPay, invoiceStateOf } from "./invoiceState.ts";
+import { amountToPay, invoiceStateOf, limitLeftOf } from "./invoiceState.ts";
 
 // A card that closes on the third and falls due on the tenth, as the sample data has.
 const early: CardCycle = { closingDay: 3, dueDay: 10 };
@@ -99,5 +99,46 @@ describe("what a payment is offered for", () => {
 
 	it("offers nothing on an invoice that is already in credit", () => {
 		expect(amountToPay(state({ paid: 150_000 }))).toBe(0);
+	});
+});
+
+describe("how much of the limit is left", () => {
+	const inThree = [
+		state({ month: "2026-10", charged: 30_000, paid: 0 }),
+		state({ month: "2026-11", charged: 30_000, paid: 0 }),
+		state({ month: "2026-12", charged: 30_000, paid: 0 }),
+	];
+
+	it("takes what is owed and the instalments still to come off once", () => {
+		expect(limitLeftOf({ creditLimit: 500_000, states: inThree, openMonth: "2026-10" })).toBe(
+			410_000,
+		);
+	});
+
+	it("gives the headroom back as the invoices are paid", () => {
+		const paid = [
+			state({ month: "2026-10", charged: 30_000, paid: 30_000 }),
+			state({ month: "2026-11", charged: 30_000, paid: 0 }),
+			state({ month: "2026-12", charged: 30_000, paid: 0 }),
+		];
+		expect(limitLeftOf({ creditLimit: 500_000, states: paid, openMonth: "2026-10" })).toBe(440_000);
+	});
+
+	it("does not count an invoice paid into credit as headroom of its own", () => {
+		const credited = [state({ month: "2026-10", charged: 30_000, paid: 50_000 })];
+		expect(limitLeftOf({ creditLimit: 500_000, states: credited, openMonth: "2026-10" })).toBe(
+			500_000,
+		);
+	});
+
+	it("answers nothing when no limit was written down", () => {
+		expect(limitLeftOf({ creditLimit: null, states: inThree, openMonth: "2026-10" })).toBe(null);
+	});
+
+	it("goes past the limit rather than stopping at it, because the card did", () => {
+		const over = [state({ month: "2026-10", charged: 600_000, paid: 0 })];
+		expect(limitLeftOf({ creditLimit: 500_000, states: over, openMonth: "2026-10" })).toBe(
+			-100_000,
+		);
 	});
 });

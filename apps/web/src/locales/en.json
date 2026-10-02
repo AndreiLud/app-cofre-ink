@@ -839,7 +839,6 @@
 		"period": "Purchases from {{from}} to {{to}}",
 		"inCredit": "in credit for you,",
 		"dueOn": "falls due on {{day}}",
-		"limit": "Card limit:",
 		"empty": "No purchases on this invoice.",
 		"caption": "Purchases on the card {{card}} in the {{month}} invoice, with day, description and amount",
 		"paidHeadline": "The {{month}} invoice is paid",
