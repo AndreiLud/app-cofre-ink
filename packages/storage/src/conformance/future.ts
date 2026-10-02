@@ -92,6 +92,64 @@ export function runFutureConformance(adapter: AdapterUnderTest): void {
 		});
 
 		/**
+		 * The habit is a median of whole months, and a part month is not one.
+		 *
+		 * A reading that starts further ahead than the month somebody is standing in, which is
+		 * what the month on paper asks for, took its history up to the month before the first
+		 * projected one. For a report made in September about the months from November, that was
+		 * September, which was eleven days old, and October, which had not happened at all. A
+		 * month of eleven days enters a median as a cheap month and drags the habit down.
+		 */
+		it("reads the habit from whole months only, however far ahead it starts", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+				});
+
+				for (const month of ["2026-07", "2026-08", "2026-09"]) {
+					await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "expense",
+						amount: 100_000,
+						happenedOn: `${month}-05`,
+						description: "Vida",
+						accountId: account.id,
+					});
+				}
+
+				// Made on the fifteenth of September, about the months from November.
+				const ahead = await fixture.asAna.projections.monthsAhead({
+					spaceId: space.id,
+					from: "2026-11",
+					months: 2,
+					window: 2,
+					today: "2026-09-15",
+				});
+
+				// July and August, and not the September it is standing in, nor the October that
+				// has not happened.
+				expect(ahead.history.map((month) => month.month)).toEqual(["2026-07", "2026-08"]);
+
+				// And a report about a month that has gone counts that month, because it is read
+				// as that month stood on its last day, which makes it whole.
+				const closed = await fixture.asAna.projections.monthsAhead({
+					spaceId: space.id,
+					from: "2026-10",
+					months: 1,
+					window: 2,
+					today: "2026-09-30",
+				});
+				expect(closed.history.map((month) => month.month)).toEqual(["2026-08", "2026-09"]);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		/**
 		 * The month this runs in, and not a month written into the test.
 		 *
 		 * A series never writes a record earlier than the month it was written down in, which

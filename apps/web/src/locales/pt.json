@@ -353,7 +353,11 @@
 		"confirmAllIsFinal": "Não existe desfazer: um registro confirmado por engano se apaga na tela de lançamentos.",
 		"confirmAllAction": "Aconteceram todos",
 		"confirmedLate_one": "1 registro confirmado, no dia para o qual foi prometido.",
-		"confirmedLate_other": "{{count}} registros confirmados, cada um no dia para o qual foi prometido."
+		"confirmedLate_other": "{{count}} registros confirmados, cada um no dia para o qual foi prometido.",
+		"invoicesStillOwed": "em {{count}} faturas que já venceram e não foram pagas",
+		"andOlderOnes_one": "E uma mais antiga, ainda em aberto:",
+		"andOlderOnes_other": "E {{count}} mais antigas, ainda em aberto:",
+		"quotaMissing": "cota não preenchida"
 	},
 	"notice": {
 		"budgetOver": "{{name}} passou do limite em {{over}}.",

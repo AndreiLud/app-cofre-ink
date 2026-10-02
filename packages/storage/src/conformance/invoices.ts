@@ -394,6 +394,55 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 		});
 
 		/**
+		 * Two invoices behind, and both of them are answered for.
+		 *
+		 * The model used to answer with the newest closed invoice still owing and no more, so a
+		 * household two behind saw one of them on every screen, while the headroom of the card
+		 * took both off. Two figures on one screen disagreed, and the invisible one was the
+		 * older debt, which is the one that has been unpaid longest.
+		 */
+		it("lists every invoice that closed and was not paid, oldest first", async () => {
+			const ready = await readyCard(adapter);
+			try {
+				// One purchase in the August invoice, one in the September one, and one in the
+				// invoice still taking purchases. Nothing is paid.
+				for (const [day, description] of [
+					["2026-07-20", "Julho"],
+					["2026-08-20", "Agosto"],
+					["2026-09-20", "Setembro"],
+				] as const) {
+					await ready.fixture.asAna.transactions.create({
+						spaceId: ready.spaceId,
+						kind: "expense",
+						amount: 10_000,
+						happenedOn: day,
+						description,
+						accountId: ready.card.id,
+					});
+				}
+
+				const standing = await ready.fixture.asAna.invoices.standing(ready.spaceId, TODAY);
+				const card = standing[0];
+
+				// The twenty ninth of September: the invoice of October is still open, and the two
+				// before it have closed with nothing paid against them.
+				expect(card?.open.month).toBe("2026-10");
+				expect(card?.owing.map((state) => state.month)).toEqual(["2026-08", "2026-09"]);
+				expect(card?.unpaid?.month).toBe("2026-09");
+
+				// And the headroom takes every one of them off, which is what it always did. The
+				// agreement between the two is the point: three invoices owed, three off the limit.
+				expect(card?.available).toBe(500_000 - 30_000);
+				expect(
+					(card?.owing.reduce((total, state) => total + state.left, 0) ?? 0) +
+						(card?.open.left ?? 0),
+				).toBe(30_000);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		/**
 		 * The headroom on a card is the limit less what it will charge, counted once.
 		 *
 		 * What is owed was summed over every invoice, including the ones after the one still

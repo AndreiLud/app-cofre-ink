@@ -353,7 +353,11 @@
 		"confirmAllIsFinal": "There is no undoing this: a record confirmed by mistake is deleted on the records screen.",
 		"confirmAllAction": "All of them happened",
 		"confirmedLate_one": "1 record confirmed, on the day it was promised for.",
-		"confirmedLate_other": "{{count}} records confirmed, each on the day it was promised for."
+		"confirmedLate_other": "{{count}} records confirmed, each on the day it was promised for.",
+		"invoicesStillOwed": "across {{count}} invoices that fell due and were not paid",
+		"andOlderOnes_one": "And one older one, still owed:",
+		"andOlderOnes_other": "And {{count}} older ones, still owed:",
+		"quotaMissing": "allowance not filled in"
 	},
 	"notice": {
 		"budgetOver": "{{name}} went over its limit by {{over}}.",

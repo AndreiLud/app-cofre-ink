@@ -34,10 +34,18 @@ export type CardStanding = {
 	/** The invoice still taking purchases. */
 	open: InvoiceState;
 	/**
-	 * The newest invoice that has closed and is not paid, when there is one.
+	 * Every invoice that has closed and is still owed, oldest first.
 	 *
-	 * It is the one thing on this screen somebody has to act on, so it is separate from
-	 * the open invoice rather than being one row of a list.
+	 * A list and not one invoice. It used to answer with the newest only, so a household two
+	 * invoices behind saw one of them, while the headroom of the card took both off: the two
+	 * figures on the same screen disagreed, and the one that was invisible was the older debt.
+	 */
+	owing: InvoiceState[];
+	/**
+	 * The newest of those, when there is one.
+	 *
+	 * Kept beside the list because the question "and the one before this" is a question a
+	 * card screen asks, and because the newest is the one most likely to be a surprise.
 	 */
 	unpaid: InvoiceState | null;
 	/** What is charged to invoices after the open one, which is instalments still to come. */
@@ -212,10 +220,10 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 					states.find((state) => state.month === openMonth) ??
 					invoiceStateOf({ month: openMonth, cycle, charged: 0, paid: 0, today });
 
-				const unpaid =
-					[...states]
-						.reverse()
-						.find((state) => state.closed && state.left > 0 && state.month !== openMonth) ?? null;
+				const owing = states.filter(
+					(state) => state.closed && state.left > 0 && state.month !== openMonth,
+				);
+				const unpaid = owing[owing.length - 1] ?? null;
 
 				const later = states
 					.filter((state) => state.month > openMonth)
@@ -224,6 +232,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 				standing.push({
 					account,
 					open,
+					owing,
 					unpaid,
 					later,
 					// The headroom is counted in one place, which is the core, because the invoice

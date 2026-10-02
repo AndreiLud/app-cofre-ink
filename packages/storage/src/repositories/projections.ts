@@ -349,8 +349,26 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 
 			const opening = moneyOnHand({ accounts, balances, worth });
 
-			const behindFrom = addMonthsToMonth(input.from, -window);
-			const behindTo = addMonthsToMonth(input.from, -1);
+			/**
+			 * The months the habit is read from, and never a month that is not over.
+			 *
+			 * The habit is a median of whole months. Reading up to the month before the first
+			 * projected one is right when the projection starts where the money stands, which is
+			 * the usual case: the month before this one is over. It is wrong for a reading that
+			 * starts further ahead, which the month on paper does, because then the month before
+			 * the first projected one is the one somebody is standing in, and a month that is
+			 * eleven days old enters the median as a cheap month and drags the habit down.
+			 *
+			 * A month counts as over once today has reached its last day, which is what a report
+			 * about a month that has gone asks for: it is read as that month stood on its last
+			 * day, so that month is whole and belongs in the history.
+			 */
+			const nowMonth = monthOf(input.today);
+			const lastWhole =
+				input.today === lastDayOf(nowMonth) ? nowMonth : addMonthsToMonth(nowMonth, -1);
+			const behindTo =
+				addMonthsToMonth(input.from, -1) < lastWhole ? addMonthsToMonth(input.from, -1) : lastWhole;
+			const behindFrom = addMonthsToMonth(behindTo, -(window - 1));
 
 			const history = await amountsByMonth(input.spaceId, behindFrom, behindTo);
 			const recurring = await recurringByMonth(input.spaceId, input.from, to);

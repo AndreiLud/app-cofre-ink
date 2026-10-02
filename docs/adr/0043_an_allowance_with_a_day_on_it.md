@@ -56,6 +56,25 @@ A voucher with no allowance on it answers nothing rather than guessing. Every vo
 written before this release is one, and the screen asks for the allowance rather than the
 model inventing one.
 
+The figure carries the day it has to last until, and whether it will. Amended after 1.1.0,
+which shipped the arithmetic and showed only half of what it worked out: the line said what is
+left of what lands, and never when the next one lands, so whether three hundred had to cover
+twenty days or two was something somebody had to know by heart. The model had both ends of the
+period all along and the screen threw them away.
+
+A card that does not carry gets a different sentence, and not the same one with a date in it.
+The neutral sentence is true of a meal card and a comfortable lie about a transport card: what
+is left there does not survive the landing day, it is taken back on it. So whether the leftover
+carries is a field of the state the screen reads, beside the day and the count of days, and the
+screen picks the sentence rather than the reader working it out.
+
+What is on the card is never read off a balance, on any screen. The overview lists accounts by
+group as well as by figure, and for a voucher that list showed the settled balance, which for a
+benefit card is roughly the negative of what has been spent, since nothing is written when the
+money lands. So one card showed two unrelated numbers on one screen. Corrected after 1.1.0: a
+voucher row in that list shows what the model says is on the card, from the same function and
+the same request as the line above it.
+
 ## Consequences
 
 A benefit card leaves every total of money: the headline, the money the check up measures

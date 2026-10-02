@@ -68,6 +68,16 @@ the projection came to give three different answers to the same question.
 Two of the four figures did not exist and are new pure functions in the core, with tests:
 what is still there to spend, and what counts as money at all.
 
+A third joined them after 1.1.0. How much of a card's limit is left was arithmetic inside a
+repository method, which left the invoice screen no way to ask for it other than doing the
+subtraction again, so it did not: it printed the raw limit instead, with nothing taken off it.
+The two screens disagreed about one card by the whole of what the card had already spent, and
+the wrong figure was on the screen whose only subject is that card, which is the figure somebody
+checks before paying at a till. It is `limitLeftOf` in the core now, called by the repository and
+by the screen. The rule this release learned: a figure that two screens show is a function in the
+core, and a figure that lives in a repository will be reinvented by the first screen that wants
+it.
+
 The list of what falls due is cut at the near end now. It was fetched newest first and
 sorted oldest first afterwards, so a household with more than twenty planned records in
 the next fifteen days was shown the twenty furthest away and the bills due tomorrow were
@@ -76,6 +86,28 @@ condition.
 
 A card invoice appears there as one bill on the day it falls due, rather than as one line
 per purchase on the day of each purchase, which is what a card actually does.
+
+And only while that day is still to come. Amended after 1.1.0, which bounded that list at the
+far end and not at the near one: for a record that is enough, because the query feeding it
+starts at today, but an invoice came from the model with one test applied to it, whether it fell
+due inside the next fifteen days, which a bill from three months ago passes. So a bill nobody
+paid was drawn under the heading that says it is due in the next days, with a date already gone
+beside it, and the block for things that need answering handled records only, so a household
+whose one overdue thing was a card invoice saw no such block at all. Which list a bill belongs
+in is `splitInvoicesFallingDue` in the core now, with its own tests, rather than a filter inside
+a component.
+
+The figure for what falls due before the month ends deliberately keeps no bound at the near end,
+and that is not the same inconsistency. A list answers where a bill belongs; a total answers
+what is owed. The money of a late bill has not left the account, and that total is what the
+amount still available to spend is measured against, so dropping a late bill from it would hand
+it back as money to spend. The obvious next move after bounding the list is to bound the total
+the same way, which is why the code says so where somebody would do it.
+
+Every closed invoice still owing is a bill of its own. The model used to answer with the newest
+one, so a household two invoices behind saw one of them, while the headroom of the card counted
+both: the two figures on that screen disagreed, and the invisible one was the older debt.
+Corrected after 1.1.0.
 
 What was promised for a day already gone appears at the top, as something to answer, with
 a button for each answer. It used to disappear: the list looked forward from today, so a

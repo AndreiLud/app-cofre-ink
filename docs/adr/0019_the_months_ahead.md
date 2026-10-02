@@ -73,6 +73,17 @@ something the owner can take to pieces.
 
 The median and not the mean, because one dentist does not make a year.
 
+And of whole months only. The months behind were read as the window ending at the month before
+the first projected one, which is right when a projection starts where the money stands,
+because the month before this one is over. It is wrong for a reading that starts further ahead,
+which the month on paper asks for: a report made on the fifteenth of September about the months
+from November took September, eleven days old, and October, which had not happened at all. A
+month of eleven days enters a median as a cheap month and drags the habit down with it, so the
+report said the household usually spends less than it does. A month counts as over once the day
+the reading is made on has reached its last day, which is also what makes a report about a month
+that has gone able to count that month: it is read as that month stood on its last day.
+Corrected after 1.1.0.
+
 The month it all starts from is where the money stands on the day the projection is made,
 and that figure comes from the balances and `moneyOnHand`, with the prices somebody typed
 for what is invested, which makes it the same figure the overview opens with. Without those

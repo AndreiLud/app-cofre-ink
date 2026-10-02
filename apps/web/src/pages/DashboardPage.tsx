@@ -451,9 +451,9 @@ export function DashboardPage() {
 	 * not: a list answers where a bill belongs, a total answers what is owed.
 	 */
 	const invoicesDue = shownCards
-		.flatMap((card) => [card.open, card.unpaid])
-		.filter((state) => state !== null && state.left > 0 && state.dueOn <= endOfMonth)
-		.reduce((total, state) => total + (state?.left ?? 0), 0);
+		.flatMap((card) => [card.open, ...card.owing])
+		.filter((state) => state.left > 0 && state.dueOn <= endOfMonth)
+		.reduce((total, state) => total + state.left, 0);
 	const fallingDue = goingOut + invoicesDue;
 
 	const putAside = consolidated ? savingsEverywhere.data : savings.data;
@@ -463,11 +463,12 @@ export function DashboardPage() {
 	/**
 	 * Every invoice a card is still owing, as one bill each, with the card it belongs to.
 	 *
-	 * Both of them: the one still taking purchases, and the one that closed and has not been
-	 * paid. The second is the one somebody has to act on, and it was on no list here at all.
+	 * The one still taking purchases, and every one that closed and was not paid. The closed
+	 * ones are what somebody has to act on, and they were on no list here at all; then they
+	 * were, one of them, the newest, while the headroom of the card counted all of them.
 	 */
 	const invoiceBills = shownCards.flatMap((card) =>
-		[card.open, card.unpaid]
+		[card.open, ...card.owing]
 			.filter((state): state is NonNullable<typeof state> => state !== null)
 			.map((state) => ({
 				id: `invoice:${card.account.id}:${state.month}`,
@@ -690,15 +691,22 @@ export function DashboardPage() {
 											</>
 										) : null}
 									</p>
-									{/* The invoice that closed and is still owed, said on the card's own
-									    line, because it is the one thing about a card somebody has to
-									    act on and the line above it is about the one still open. */}
-									{card.unpaid && card.unpaid.left > 0 ? (
+									{/* What closed and is still owed, said on the card's own line, because it
+									    is the one thing about a card somebody has to act on and the line
+									    above it is about the one still open. Every one of them, summed:
+									    answering with the newest hid the older debt while the headroom of
+									    the card went on counting it. */}
+									{card.owing.length > 0 ? (
 										<p className="text-sm text-seal">
-											<Value amount={card.unpaid.left} currency={card.account.currency} />{" "}
-											{t("dashboard.invoiceStillOwed", {
-												day: dayAndMonth(card.unpaid.dueOn),
-											})}
+											<Value
+												amount={card.owing.reduce((total, state) => total + state.left, 0)}
+												currency={card.account.currency}
+											/>{" "}
+											{card.owing.length === 1
+												? t("dashboard.invoiceStillOwed", {
+														day: dayAndMonth(card.owing[0]?.dueOn ?? ""),
+													})
+												: t("dashboard.invoicesStillOwed", { count: card.owing.length })}
 										</p>
 									) : null}
 								</div>
@@ -1019,7 +1027,20 @@ export function DashboardPage() {
 												className="flex items-baseline justify-between gap-4 py-2 hover:underline"
 											>
 												<span className="min-w-0 truncate">{account.name}</span>
-												<Value amount={amount} currency={account.currency} tone="auto" />
+												{/* What is on a benefit card is worked out and never read off a
+												    balance, which is registry 0043. This row read the balance,
+												    and since nothing is written when an allowance lands that is
+												    roughly the negative of what has been eaten, so one card
+												    showed two unrelated numbers on one screen. */}
+												{account.kind === "voucher" ? (
+													<VoucherAmount
+														accountId={account.id}
+														currency={account.currency}
+														today={today}
+													/>
+												) : (
+													<Value amount={amount} currency={account.currency} tone="auto" />
+												)}
 											</Link>
 										</li>
 									);
@@ -1137,7 +1158,9 @@ function CardStandingBlock({
 
 			{/* The one before it, when it closed and was not paid. It is the only thing about
 			    a card that is already wrong rather than merely coming, so it is the one line
-			    here drawn in the colour of a problem. */}
+			    here drawn in the colour of a problem. When there is more than one, the line
+			    says how many and sums them, because a household two invoices behind used to
+			    be shown the newer one and left to wonder about the figure above. */}
 			{card.unpaid && card.unpaid.left > 0 ? (
 				<p className="mt-1 text-seal text-sm">
 					{t("dashboard.oneBefore", {
@@ -1145,6 +1168,18 @@ function CardStandingBlock({
 						day: dayAndMonth(card.unpaid.dueOn),
 					})}{" "}
 					<Value amount={card.unpaid.left} currency={currency} />
+					{card.owing.length > 1 ? (
+						<>
+							{". "}
+							{t("dashboard.andOlderOnes", {
+								count: card.owing.length - 1,
+							})}{" "}
+							<Value
+								amount={card.owing.slice(0, -1).reduce((total, state) => total + state.left, 0)}
+								currency={currency}
+							/>
+						</>
+					) : null}
 				</p>
 			) : null}
 
@@ -1167,7 +1202,7 @@ function CardStandingBlock({
 			</p>
 
 			<div className="mt-2 flex flex-wrap gap-2">
-				{mayPay && (card.open.left > 0 || (card.unpaid?.left ?? 0) > 0) ? (
+				{mayPay && (card.open.left > 0 || card.owing.length > 0) ? (
 					<Link to={ROUTES.invoices} search={{ cartao: card.account.id }}>
 						<Button size="small" variant="secondary">
 							{t("invoice.pay")}
@@ -1188,6 +1223,34 @@ function CardStandingBlock({
 			) : null}
 		</div>
 	);
+}
+
+/**
+ * What is on a benefit card, where a list of accounts shows a figure per account.
+ *
+ * The same request as the line further up the screen, by the same key, so it is one read and
+ * the two places cannot answer differently. A card with no allowance written down shows
+ * nothing rather than a balance, because a balance is not what is on it.
+ */
+function VoucherAmount({
+	accountId,
+	currency,
+	today,
+}: {
+	accountId: string;
+	currency: string;
+	today: CalendarDate;
+}) {
+	const { session } = useCofre();
+	const state = useQuery({
+		queryKey: ["benefit", accountId, today],
+		enabled: Boolean(session),
+		queryFn: () => session?.accounts.benefitLeft(accountId, today) ?? null,
+	});
+
+	const { t } = useTranslation();
+	if (!state.data) return <span className="text-quiet text-sm">{t("dashboard.quotaMissing")}</span>;
+	return <Value amount={state.data.left} currency={currency} tone="auto" />;
 }
 
 function DueRow({
