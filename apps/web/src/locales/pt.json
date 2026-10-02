@@ -837,7 +837,7 @@
 		"tookTitle": "No que foi",
 		"tookBody": "Só os lançamentos que têm categoria. Os três números não têm nenhuma, então {{amount}} deste mês é um total que ninguém detalhou.",
 		"tookNothing": "Nada em {{month}} tem categoria. Três números dizem quanto saiu e não dizem no que, e essa é a troca honesta.",
-		"tookLine": "{{share}} por cento do que está classificado",
+		"tookLine": "{{share}} por cento do que está detalhado",
 		"tookSeeReports": "Ver todas as categorias, com os totais, nos Relatórios",
 		"limitsTitle": "Limites perto de estourar",
 		"limitsBody": "Lido como um mês inteiro, porque é isso que estes três números são.",

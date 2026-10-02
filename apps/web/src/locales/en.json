@@ -837,7 +837,7 @@
 		"tookTitle": "What took it",
 		"tookBody": "Only the records that carry a category. The three numbers carry none, so {{amount}} of this month is a total nobody itemised.",
 		"tookNothing": "Nothing in {{month}} carries a category. Three numbers say how much went out and cannot say what on, and that is the honest trade.",
-		"tookLine": "{{share}} per cent of what is sorted",
+		"tookLine": "{{share}} per cent of what is itemised",
 		"tookSeeReports": "See every category, with the totals, in Reports",
 		"limitsTitle": "Limits close to breaking",
 		"limitsBody": "Read as a whole month, because that is what these three numbers are.",
