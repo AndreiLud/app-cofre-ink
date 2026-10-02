@@ -415,6 +415,11 @@ export function createRemoteSession(
 					.changed,
 			settle: (id: string, today: CalendarDate) =>
 				send<Transaction>(`/api/transactions/${id}/settle?today=${today}`, "POST", {}),
+			settleMany: async (ids: string[], today: CalendarDate) =>
+				ids.length === 0
+					? 0
+					: (await send<{ settled: number }>("/api/transactions/settle", "POST", { ids, today }))
+							.settled,
 			reconcile: (id: string, reconciled: boolean) =>
 				send<Transaction>(`/api/transactions/${id}/reconcile`, "POST", { reconciled }),
 			remove: (id: string) => send<void>(`/api/transactions/${id}`, "DELETE"),

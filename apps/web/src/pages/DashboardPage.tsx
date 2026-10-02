@@ -30,7 +30,16 @@ import {
 } from "@cofre/core";
 import type { CardStanding } from "@cofre/storage";
 import { roleSeesOwnRowsOnly } from "@cofre/storage";
-import { Button, Callout, EmptyState, InsightTitle, Panel, Segmented, Skeleton } from "@cofre/ui";
+import {
+	Button,
+	Callout,
+	Dialog,
+	EmptyState,
+	InsightTitle,
+	Panel,
+	Segmented,
+	Skeleton,
+} from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
@@ -104,6 +113,11 @@ export function DashboardPage() {
 	const [across, setAcross] = useState<"space" | "everything">("space");
 	const [problem, setProblem] = useState<string | null>(null);
 	const consolidated = across === "everything" && spaces.length > 1;
+
+	// Answering the whole overdue block at once. There is no undoing a confirmation, so the
+	// dialog is not decoration: it is the only stop between the button and the writes.
+	const [askingAll, setAskingAll] = useState(false);
+	const [confirmedAll, setConfirmedAll] = useState(0);
 
 	const mine = useWhatIMayDo(spaceId);
 	const mayUpdate = mine.may("transaction.update");
@@ -330,6 +344,26 @@ export function DashboardPage() {
 		mutationFn: async (id: string) => session?.transactions.settle(id, today),
 		onSuccess: () => {
 			setProblem(null);
+			setConfirmedAll(0);
+			for (const key of ["transactions", "balances", "advice", "budgets", "savings", "goals"]) {
+				void queries.invalidateQueries({ queryKey: [key] });
+			}
+		},
+		onError: (error: unknown) => setProblem(sayWhy(error, t)),
+	});
+
+	/**
+	 * The whole block at once, for a household coming back from a week away.
+	 *
+	 * One request, one database transaction, all of them or none of them. Each record stays on
+	 * the day it was promised for, which is what the single button does and what keeps a bill
+	 * inside the month and the limit it belongs to.
+	 */
+	const settleAllLate = useMutation({
+		mutationFn: async (ids: string[]) => session?.transactions.settleMany(ids, today),
+		onSuccess: (count) => {
+			setProblem(null);
+			setConfirmedAll(count ?? 0);
 			for (const key of ["transactions", "balances", "advice", "budgets", "savings", "goals"]) {
 				void queries.invalidateQueries({ queryKey: [key] });
 			}
@@ -341,6 +375,7 @@ export function DashboardPage() {
 		mutationFn: async (id: string) => session?.transactions.remove(id),
 		onSuccess: () => {
 			setProblem(null);
+			setConfirmedAll(0);
 			for (const key of ["transactions", "balances", "advice"]) {
 				void queries.invalidateQueries({ queryKey: [key] });
 			}
@@ -485,6 +520,12 @@ export function DashboardPage() {
 	const lateRecords = (late.data ?? []).filter(
 		(row) => !open.has(row.accountId) || accountKind(row.accountId) !== "credit",
 	);
+
+	// What answering the whole block would move, so the dialog says it rather than asking
+	// somebody to trust a count. Both in the currency of the space, at the rate stored on each
+	// record, which is what every other total on this screen does. A transfer is in neither.
+	const lateGoing = Math.abs(addUpInBase(lateRecords.filter((row) => row.kind === "expense")));
+	const lateArriving = addUpInBase(lateRecords.filter((row) => row.kind === "income"));
 
 	function accountKind(id: string): string {
 		return shownAccounts.find((account) => account.id === id)?.kind ?? "";
@@ -680,9 +721,24 @@ export function DashboardPage() {
 				) : null}
 			</Panel>
 
+			{confirmedAll > 0 ? (
+				<Callout tone="neutral">{t("dashboard.confirmedLate", { count: confirmedAll })}</Callout>
+			) : null}
+
 			{/* Late first, because it is the only thing on this screen that is already wrong. */}
 			{lateRecords.length > 0 || bills.toAnswer.length > 0 ? (
-				<Callout tone="problem" title={t("dashboard.late")}>
+				<Callout
+					tone="problem"
+					title={t("dashboard.late")}
+					action={
+						// From two upwards. With one record its own button is already the shortest path.
+						mayUpdate && lateRecords.length > 1 ? (
+							<Button size="small" variant="secondary" onClick={() => setAskingAll(true)}>
+								{t("dashboard.confirmAllLate", { count: lateRecords.length })}
+							</Button>
+						) : null
+					}
+				>
 					{/* The bills above the promises, because an invoice past its due day is costing
 					    money every day it waits while a record is only waiting for a yes. */}
 					{bills.toAnswer.length > 0 ? (
@@ -970,6 +1026,41 @@ export function DashboardPage() {
 					);
 				})}
 			</Panel>
+
+			{/* The one stop between the button and the writes, because nothing in the interface
+			    undoes a confirmation. It says what moves, and on which days, before it moves. */}
+			<Dialog
+				open={askingAll}
+				onOpenChange={(next) => !next && setAskingAll(false)}
+				title={t("dashboard.confirmAllTitle", { count: lateRecords.length })}
+				description={t("dashboard.confirmAllDescription")}
+				closeLabel={t("actions.close")}
+				footer={
+					<>
+						<Button variant="quiet" onClick={() => setAskingAll(false)}>
+							{t("actions.cancel")}
+						</Button>
+						<Button
+							variant="primary"
+							onClick={() => {
+								settleAllLate.mutate(lateRecords.map((row) => row.id));
+								setAskingAll(false);
+							}}
+						>
+							{t("dashboard.confirmAllAction")}
+						</Button>
+					</>
+				}
+			>
+				<p className="text-sm">
+					{t("dashboard.confirmAllTotals", {
+						going: money(lateGoing),
+						arriving: money(lateArriving),
+					})}
+				</p>
+				<p className="mt-2 text-quiet text-sm">{t("dashboard.confirmAllKeepsTheDay")}</p>
+				<p className="mt-2 text-quiet text-sm">{t("dashboard.confirmAllIsFinal")}</p>
+			</Dialog>
 		</div>
 	);
 }

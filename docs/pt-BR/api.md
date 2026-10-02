@@ -54,6 +54,7 @@ Todo o resto exige sessão e responde `401 {"error": "signedOut"}` sem uma.
 | `GET` | `/api/spaces/:id/balances` | o saldo de cada conta. Precisa de `today`, porque um lançamento conta quando é fato e o dia dele chegou |
 | `PATCH` | `/api/transactions` | a mesma mudança sobre uma seleção, até 500 |
 | `POST` | `/api/transactions/remove` | remover uma seleção |
+| `POST` | `/api/transactions/settle` | uma seleção de lançamentos previstos vira realizada, todos ou nenhum. Precisa de `today` no corpo. Cada lançamento fica no dia para o qual foi prometido, e só um datado adiante volta para hoje |
 | `PATCH` `DELETE` | `/api/transactions/:id` | editar, remover |
 | `PATCH` | `/api/transactions/:id/onwards` | a mesma mudança nesta parcela e em todas as seguintes. Nunca nas anteriores, e nunca no dia. Responde quantas parcelas mudou |
 | `POST` | `/api/transactions/:id/settle` | previsto vira realizado |

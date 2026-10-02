@@ -108,6 +108,32 @@ test.describe("the overview", () => {
 		await expect(page.getByRole("button", { name: "Não aconteceu" }).first()).toBeVisible();
 	});
 
+	test("answers a week of late promises in one go", async ({ page }) => {
+		// A series that has already passed three times, which is what coming back from a week
+		// away looks like. Answering them was one press each, each its own write.
+		await page.clock.setFixedTime(new Date("2026-10-20T12:00:00-03:00"));
+		await openCofre(page);
+
+		await go(page, "Calendário");
+		await page.getByRole("button", { name: "Nova recorrência" }).click();
+		await page.getByRole("dialog").getByLabel("Descrição").fill("Van da escola");
+		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("30,00");
+		await page.getByRole("dialog").getByLabel("Repete").selectOption("weekly");
+		await page.getByRole("dialog").getByLabel("A partir de").fill("2026-10-01");
+		await page.getByRole("button", { name: "Salvar" }).click();
+
+		await go(page, "Painel");
+		await page.getByRole("button", { name: /^Confirmar os \d+$/ }).click();
+
+		// The dialog says what moves and that the days do not, before anything moves.
+		const asking = page.getByRole("dialog");
+		await expect(asking.getByText("fica no dia para o qual foi prometido")).toBeVisible();
+		await asking.getByRole("button", { name: "Aconteceram todos" }).click();
+
+		await expect(page.getByText(/registros confirmados/)).toBeVisible();
+		await expect(page.getByRole("button", { name: /^Confirmar os \d+$/ })).toHaveCount(0);
+	});
+
 	test("puts a card invoice whose due day has gone with the things to answer", async ({ page }) => {
 		await openCofre(page);
 

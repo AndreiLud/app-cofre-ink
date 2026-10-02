@@ -813,6 +813,48 @@ export function createTransactionsRepository(context: RepositoryContext) {
 		},
 
 		/**
+		 * The same, over several records, all of them or none of them.
+		 *
+		 * A household coming back from a week away has a week of promises nobody has answered,
+		 * and answering them one at a time is seven presses, seven stamps and, on a server,
+		 * seven requests. Every row is read and checked before any row is written, so a refusal
+		 * on the fifth leaves neither rows nor log entries from the first four.
+		 *
+		 * The day rule is applied per record, exactly as the one above applies it, and never as
+		 * one date over the selection: a bill promised for the fifth stays on the fifth. And
+		 * like the one above, and unlike updateMany and removeMany beside it, this does not
+		 * refuse a record already ticked off against the bank. The batch is the same button
+		 * pressed several times and nothing stricter.
+		 */
+		async settleMany(ids: string[], today: CalendarDate): Promise<number> {
+			if (ids.length === 0) return 0;
+
+			const planned: { found: Transaction; values: Record<string, SqlValue> }[] = [];
+			for (const id of ids) {
+				const found = await reachable(id);
+				assertCan(context.actor(), found.spaceId, "transaction.update");
+				const ahead = compareCalendarDates(found.happenedOn, today) > 0;
+				planned.push({
+					found,
+					values: ahead ? { status: "settled", happened_on: today } : { status: "settled" },
+				});
+			}
+
+			await context.driver.transaction(async (tx) => {
+				const write = { ...context.write(), driver: tx };
+				for (const { found, values } of planned) {
+					await updateRow(write, {
+						table: transactions,
+						spaceId: found.spaceId,
+						id: found.id,
+						values,
+					});
+				}
+			});
+			return planned.length;
+		},
+
+		/**
 		 * Putting a record on an invoice by hand, and leaving it there.
 		 *
 		 * The bank closes a day either side of the day this application expected, so a

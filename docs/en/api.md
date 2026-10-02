@@ -55,6 +55,7 @@ one.
 | `GET` | `/api/spaces/:id/balances` | the balance of every account. Needs `today`, because a record counts once it is a fact and its day has come |
 | `PATCH` | `/api/transactions` | the same change over a selection, up to 500 |
 | `POST` | `/api/transactions/remove` | remove a selection |
+| `POST` | `/api/transactions/settle` | a selection of planned records becomes settled, all of them or none. Needs `today` in the body. Each record keeps the day it was promised for, and only one dated ahead comes back to today |
 | `PATCH` `DELETE` | `/api/transactions/:id` | edit, remove |
 | `PATCH` | `/api/transactions/:id/onwards` | the same change on this part of an instalment plan and every part after it. Never the parts behind, and never the day. Answers how many parts it changed |
 | `POST` | `/api/transactions/:id/settle` | planned becomes settled |

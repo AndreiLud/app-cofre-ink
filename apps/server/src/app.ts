@@ -940,6 +940,14 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		return context.json({ removed });
 	});
 
+	// Above the routes with an identifier in them, so "settle" is never read as the name of a
+	// record. The day is in the body beside the identifiers, as the removal above has its own.
+	app.post("/api/transactions/settle", async (context) => {
+		const input = z.object({ ids: selection, today: calendarDate }).parse(await context.req.json());
+		const settled = await context.get("session").transactions.settleMany(input.ids, input.today);
+		return context.json({ settled });
+	});
+
 	app.patch("/api/transactions/:id", async (context) => {
 		const input = transactionPatch.parse(await context.req.json());
 		return context.json(

@@ -485,6 +485,26 @@ describe("the api", () => {
 			expect(rows.every((row) => row.status === "settled")).toBe(true);
 		});
 
+		it("confirms a selection in one request, leaving every day alone", async () => {
+			const ana = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			const { spaceId, ids } = await threeBills(ana);
+
+			// The day comes from the caller, because it is a day in the timezone of the space and
+			// not of the machine answering. A bill promised for a day already gone stays on it.
+			const answer = await ana.json<{ settled: number }>("/api/transactions/settle", {
+				method: "POST",
+				body: JSON.stringify({ ids, today: "2026-09-29" }),
+			});
+			expect(answer.settled).toBe(3);
+
+			const rows = await ana.json<Array<{ status: string; happenedOn: string }>>(
+				`/api/spaces/${spaceId}/transactions`,
+			);
+			expect(rows.every((row) => row.status === "settled")).toBe(true);
+			expect(rows.every((row) => row.happenedOn === "2026-09-10")).toBe(true);
+		});
+
 		it("removes a selection in one request", async () => {
 			const ana = createClient(app);
 			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });

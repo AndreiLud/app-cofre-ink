@@ -351,7 +351,16 @@
 		"landsIn_other": "The next allowance lands on {{day}}, in {{count}} days.",
 		"landsInAndGoes_one": "The next allowance lands on {{day}}, in {{count}} day. What is left now goes with it.",
 		"landsInAndGoes_other": "The next allowance lands on {{day}}, in {{count}} days. What is left now goes with it.",
-		"lateInvoice": "invoice past due"
+		"lateInvoice": "invoice past due",
+		"confirmAllLate": "Confirm all {{count}}",
+		"confirmAllTitle": "Confirm {{count}} late records?",
+		"confirmAllDescription": "Say in one go that all of them happened.",
+		"confirmAllTotals": "{{going}} going out and {{arriving}} coming in.",
+		"confirmAllKeepsTheDay": "Each record stays on the day it was promised for, never on today, so it stays in the month and in the limit it belongs to.",
+		"confirmAllIsFinal": "There is no undoing this: a record confirmed by mistake is deleted on the records screen.",
+		"confirmAllAction": "All of them happened",
+		"confirmedLate_one": "1 record confirmed, on the day it was promised for.",
+		"confirmedLate_other": "{{count}} records confirmed, each on the day it was promised for."
 	},
 	"notice": {
 		"budgetOver": "{{name}} went over its limit by {{over}}.",

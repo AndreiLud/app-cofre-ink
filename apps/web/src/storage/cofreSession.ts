@@ -247,6 +247,8 @@ export type CofreSession = {
 		updateFrom: (id: string, input: UpdateTransactionInput) => Promise<number>;
 		/** Saying it happened writes when, so the day comes from the screen that knows it. */
 		settle: (id: string, today: CalendarDate) => Promise<Transaction>;
+		/** The same over several, all of them or none, each staying on its own day. */
+		settleMany: (ids: string[], today: CalendarDate) => Promise<number>;
 		reconcile: (id: string, reconciled: boolean) => Promise<Transaction>;
 		remove: (id: string) => Promise<void>;
 		removeMany: (ids: string[]) => Promise<number>;

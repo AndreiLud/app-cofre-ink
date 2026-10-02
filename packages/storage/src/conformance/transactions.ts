@@ -767,6 +767,76 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		it("confirms a selection of late bills, each on the day it was promised for", async () => {
+			const { ready, ids } = await threeBills(adapter);
+			try {
+				// A household back from a holiday on the twenty ninth. Every bill stays on the day
+				// it was promised for, so it stays in the month and in the limit it belongs to.
+				expect(await ready.fixture.asAna.transactions.settleMany(ids, "2026-09-29")).toBe(3);
+
+				const rows = await ready.fixture.asAna.transactions.list({ spaceId: ready.spaceId });
+				expect(rows.every((row) => row.status === "settled")).toBe(true);
+				expect(rows.map((row) => row.happenedOn).sort()).toEqual([
+					"2026-09-05",
+					"2026-09-10",
+					"2026-09-15",
+				]);
+
+				// One change row per record, each with its own stamp, so a device that was offline
+				// learns about three records and not about one.
+				const log = (await ready.fixture.asAna.changes.list({ spaceId: ready.spaceId })).filter(
+					(change) => change.entity === "transactions" && change.operation === "update",
+				);
+				expect(log.length).toBe(3);
+				expect(new Set(log.map((change) => change.hlc)).size).toBe(3);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		it("brings a record dated ahead back to today, as the single one does", async () => {
+			const { ready, ids } = await threeBills(adapter);
+			try {
+				const [ahead] = await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 10_000,
+					happenedOn: "2026-09-30",
+					description: "Ainda vai acontecer",
+					accountId: ready.checking.id,
+					status: "planned",
+				});
+
+				expect(
+					await ready.fixture.asAna.transactions.settleMany(
+						[...ids, ahead?.id ?? ""],
+						"2026-09-20",
+					),
+				).toBe(4);
+
+				const rows = await ready.fixture.asAna.transactions.list({ spaceId: ready.spaceId });
+				const moved = rows.find((row) => row.description === "Ainda vai acontecer");
+				expect(moved?.happenedOn).toBe("2026-09-20");
+				expect(rows.find((row) => row.description === "Aluguel")?.happenedOn).toBe("2026-09-05");
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		it("writes nothing when one of the records cannot be reached", async () => {
+			const { ready, ids } = await threeBills(adapter);
+			try {
+				await expect(
+					ready.fixture.asAna.transactions.settleMany([...ids, "nobody"], "2026-09-29"),
+				).rejects.toBeInstanceOf(NotFoundError);
+
+				const rows = await ready.fixture.asAna.transactions.list({ spaceId: ready.spaceId });
+				expect(rows.every((row) => row.status === "planned")).toBe(true);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		it("changes nothing at all when one of them is frozen", async () => {
 			const { ready, ids } = await threeBills(adapter);
 			try {

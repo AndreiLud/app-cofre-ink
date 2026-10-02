@@ -351,7 +351,16 @@
 		"landsIn_other": "O próximo crédito cai em {{day}}, daqui a {{count}} dias.",
 		"landsInAndGoes_one": "O próximo crédito cai em {{day}}, daqui a {{count}} dia. O que sobrar agora vai embora com ele.",
 		"landsInAndGoes_other": "O próximo crédito cai em {{day}}, daqui a {{count}} dias. O que sobrar agora vai embora com ele.",
-		"lateInvoice": "fatura vencida"
+		"lateInvoice": "fatura vencida",
+		"confirmAllLate": "Confirmar os {{count}}",
+		"confirmAllTitle": "Confirmar {{count}} registros atrasados?",
+		"confirmAllDescription": "Diga de uma vez que todos aconteceram.",
+		"confirmAllTotals": "{{going}} saindo e {{arriving}} entrando.",
+		"confirmAllKeepsTheDay": "Cada registro fica no dia para o qual foi prometido, nunca no dia de hoje, para continuar no mês e no limite a que pertence.",
+		"confirmAllIsFinal": "Não existe desfazer: um registro confirmado por engano se apaga na tela de lançamentos.",
+		"confirmAllAction": "Aconteceram todos",
+		"confirmedLate_one": "1 registro confirmado, no dia para o qual foi prometido.",
+		"confirmedLate_other": "{{count}} registros confirmados, cada um no dia para o qual foi prometido."
 	},
 	"notice": {
 		"budgetOver": "{{name}} passou do limite em {{over}}.",
