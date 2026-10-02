@@ -10,6 +10,7 @@
 		"build": "tsc --noEmit && vite build && node ../../scripts/buildServiceWorker.mjs && node ../../scripts/copyFallback.mjs",
 		"preview": "vite preview --port 5174",
 		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
 		"test:e2e": "playwright test"
 	},
 	"dependencies": {
