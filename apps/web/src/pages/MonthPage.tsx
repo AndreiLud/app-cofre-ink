@@ -672,6 +672,19 @@ export function MonthPage() {
 				</Callout>
 			) : null}
 
+			{/* And the case the sentence above was written for, which could not reach it.
+			    When every limit of the month is on a category, none of them can see a typed
+			    total, so none of them is ever near breaking and the warning above is never
+			    drawn: the silence read as safety, which is the one thing it had to avoid. */}
+			{risks.length === 0 && onlyNarrowLimits && mine.size > 0 ? (
+				<Callout tone="neutral">
+					{t("theMonth.limitsTotalOnly")}{" "}
+					<Link to={ROUTES.budget} className="underline">
+						{t("theMonth.limitsSeeBudget")}
+					</Link>
+				</Callout>
+			) : null}
+
 			<Panel>
 				<form className="space-y-5" onSubmit={submit}>
 					<Field
