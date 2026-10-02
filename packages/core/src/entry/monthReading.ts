@@ -115,7 +115,14 @@ export function againstAUsualMonth(input: {
 export type TookLine = {
 	categoryId: string | null;
 	amount: number;
-	/** Of what carries a category, and not of the month. */
+	/**
+	 * Of what is itemised, and not of the month.
+	 *
+	 * What is itemised is every expense that is not one of the three typed totals, including
+	 * the money nobody sorted, which has a line of its own. So the shares add up to one over
+	 * the lines that are drawn, and the part of the month this reading cannot see is named
+	 * separately rather than being a hundredth of anything.
+	 */
 	share: number;
 };
 
@@ -128,7 +135,15 @@ export type WhatTookIt = {
 };
 
 export type SpendingRow = {
-	amount: number;
+	/**
+	 * In the currency of the space, worked out at the rate of the day it was written.
+	 *
+	 * Never the amount as it was typed. This module shipped summing that one, which is the
+	 * same fault this release took out of the card invoice: a month holding a dinner in
+	 * dollars and a market in reais came back as a number in no currency at all, and the
+	 * screen labelled it with the currency of the space.
+	 */
+	amountInBase: number;
 	kind: string;
 	categoryId: string | null;
 	externalId: string | null;
@@ -154,7 +169,7 @@ export function whatTookIt(rows: readonly SpendingRow[]): WhatTookIt {
 
 	for (const row of rows) {
 		if (row.kind !== "expense") continue;
-		const amount = Math.abs(row.amount);
+		const amount = Math.abs(row.amountInBase);
 
 		if (readMonthMark(row.externalId) !== null) {
 			notItemised += amount;

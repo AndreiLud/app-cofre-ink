@@ -67,12 +67,22 @@ describe("this month against a usual one", () => {
 
 describe("what the month went on", () => {
 	const rows = [
-		{ amount: -220_000, kind: "expense", categoryId: null, externalId: "mes:2026-10:spending" },
-		{ amount: -180_000, kind: "expense", categoryId: null, externalId: "mes:2026-10:invoice" },
-		{ amount: -30_000, kind: "expense", categoryId: "food", externalId: null },
-		{ amount: -10_000, kind: "expense", categoryId: "fun", externalId: null },
-		{ amount: -20_000, kind: "expense", categoryId: null, externalId: null },
-		{ amount: 500_000, kind: "income", categoryId: "wages", externalId: null },
+		{
+			amountInBase: -220_000,
+			kind: "expense",
+			categoryId: null,
+			externalId: "mes:2026-10:spending",
+		},
+		{
+			amountInBase: -180_000,
+			kind: "expense",
+			categoryId: null,
+			externalId: "mes:2026-10:invoice",
+		},
+		{ amountInBase: -30_000, kind: "expense", categoryId: "food", externalId: null },
+		{ amountInBase: -10_000, kind: "expense", categoryId: "fun", externalId: null },
+		{ amountInBase: -20_000, kind: "expense", categoryId: null, externalId: null },
+		{ amountInBase: 500_000, kind: "income", categoryId: "wages", externalId: null },
 	];
 
 	it("leaves the three typed numbers out of the ranking, and names them apart", () => {
@@ -90,6 +100,39 @@ describe("what the month went on", () => {
 		const took = whatTookIt(rows);
 		expect(took.ranked[0]?.share).toBeCloseTo(0.5);
 		expect(took.ranked.reduce((total, one) => total + one.share, 0)).toBeCloseTo(1);
+	});
+
+	/**
+	 * In the currency of the space, from the figure worked out at the rate of each day.
+	 *
+	 * This shipped summing the amount as it was typed, which is the same fault this release
+	 * took out of the card invoice: a month holding a dinner of forty dollars and a market of
+	 * a hundred reais came back as fourteen thousand, a number in no currency at all, and the
+	 * screen printed it with the currency of the space beside it.
+	 */
+	it("adds a purchase in another currency up as what it was worth here", () => {
+		// Both columns, as a record carries them: forty dollars as typed, worth two hundred and
+		// eight reais on the day, and a hundred reais that are the same in both.
+		const rows = [
+			{
+				amount: -4_000,
+				amountInBase: -20_800,
+				kind: "expense",
+				categoryId: "food",
+				externalId: null,
+			},
+			{
+				amount: -10_000,
+				amountInBase: -10_000,
+				kind: "expense",
+				categoryId: "fun",
+				externalId: null,
+			},
+		];
+		const took = whatTookIt(rows);
+
+		expect(took.sorted).toBe(30_800);
+		expect(took.ranked[0]).toMatchObject({ categoryId: "food", amount: 20_800 });
 	});
 
 	it("answers nothing for a month that is only three numbers", () => {
