@@ -79,6 +79,14 @@ test.describe("the overview", () => {
 	test("puts what was promised for a day already gone at the top, to be answered", async ({
 		page,
 	}) => {
+		// On a fixed day, late enough in its month to have days behind it.
+		//
+		// A series never writes a record for a month before the one it was written down in,
+		// which is the rule that stops a rent paid since 2019 arriving as six years of
+		// promises. So "six days ago" produced no overdue promise at all whenever the suite
+		// ran in the first days of a month, and this test went red for a reason that had
+		// nothing to do with the screen it is about.
+		await page.clock.setFixedTime(new Date("2026-10-20T12:00:00-03:00"));
 		await openCofre(page);
 
 		// A series that started before today writes a promise for every day it has already
@@ -89,9 +97,7 @@ test.describe("the overview", () => {
 		await page.getByRole("button", { name: "Nova recorrência" }).click();
 		await page.getByRole("dialog").getByLabel("Descrição").fill("Academia");
 		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("149,00");
-		const past = new Date();
-		past.setDate(past.getDate() - 6);
-		await page.getByRole("dialog").getByLabel("A partir de").fill(past.toISOString().slice(0, 10));
+		await page.getByRole("dialog").getByLabel("A partir de").fill("2026-10-14");
 		await page.getByRole("button", { name: "Salvar" }).click();
 		await expect(page.getByText("Academia").first()).toBeVisible();
 
