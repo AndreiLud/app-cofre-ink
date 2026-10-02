@@ -13,6 +13,7 @@ export * from "./budget/progress.ts";
 export * from "./cards/installments.ts";
 export * from "./cards/invoice.ts";
 export * from "./cards/invoiceState.ts";
+export * from "./cards/openingCharge.ts";
 export * from "./cards/whatFallsDue.ts";
 export * from "./categories/defaults.ts";
 export * from "./entry/monthInThree.ts";

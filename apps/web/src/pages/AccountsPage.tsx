@@ -1,6 +1,6 @@
 // Accounts of the current space: what exists, how to add one, and how to correct one.
 
-import { carriesByDefault, parseMoney, todayIn } from "@cofre/core";
+import { carriesByDefault, openingChargeOf, parseMoney, todayIn } from "@cofre/core";
 import type { Account, AccountKind, BenefitKind, Card, CardKind } from "@cofre/storage";
 import {
 	Button,
@@ -302,14 +302,18 @@ export function AccountsPage() {
 			// A record and not a column, so it reaches the invoice, the projection and the
 			// balance by the paths they already have, and so somebody who typed the wrong
 			// number can open it and correct it like anything else.
-			if (kind === "credit" && makesAnAccount && invoiceSoFar.trim() !== "") {
-				const charged = parseMoney(invoiceSoFar, { currency: currentSpace?.baseCurrency }).amount;
-				if (charged > 0) {
+			if (kind === "credit" && makesAnAccount) {
+				const charge = openingChargeOf({
+					charged:
+						invoiceSoFar.trim() === ""
+							? null
+							: parseMoney(invoiceSoFar, { currency: currentSpace?.baseCurrency }).amount,
+					today,
+				});
+				if (charge) {
 					await session.transactions.create({
+						...charge,
 						spaceId,
-						kind: "expense",
-						amount: charged,
-						happenedOn: today,
 						description: t("accounts.invoiceSoFarRecord"),
 						accountId: account.id,
 					});

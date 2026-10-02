@@ -16,6 +16,8 @@ import {
 	type Permission,
 	type Role,
 	roleCan,
+	roleSeesOwnRowsOnly,
+	seesOwnRowsOnly,
 } from "./actor.ts";
 
 const SPACE = "space_1";
@@ -58,5 +60,35 @@ describe("what a role may do", () => {
 
 	it("knows a permission that does not exist is not a permission", () => {
 		expect(roleCan("owner", "nothing.atAll" as Permission)).toBe(false);
+	});
+});
+
+/**
+ * The second of the two questions the matrix answers, and the one with no test.
+ *
+ * Whether somebody sees the household's records or only their own is not a permission, it is
+ * a narrowing, and half the screens of this application ask it to decide what sentence to
+ * write. The first question is covered three ways above and this one was covered none.
+ */
+describe("which role only ever sees what it wrote", () => {
+	it("is the logger, and nobody else", () => {
+		for (const role of ROLES) {
+			expect(roleSeesOwnRowsOnly(role), role).toBe(role === "logger");
+		}
+	});
+
+	it("says no to nothing, which is a member list that has not arrived", () => {
+		// The same answer as roleCan gives on nothing: a screen that does not know yet draws
+		// the sentence for everybody rather than the sentence for one role.
+		expect(roleSeesOwnRowsOnly(null)).toBe(false);
+		expect(roleSeesOwnRowsOnly(undefined)).toBe(false);
+	});
+
+	it("answers the same as an actor would", () => {
+		for (const role of ROLES) {
+			expect(seesOwnRowsOnly(memberOf(role), SPACE)).toBe(roleSeesOwnRowsOnly(role));
+		}
+		// And for a space this person is not in at all, which is not the same as a role.
+		expect(seesOwnRowsOnly(memberOf("logger"), "space_2")).toBe(false);
 	});
 });

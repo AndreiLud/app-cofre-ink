@@ -1,7 +1,6 @@
 {
 	"app": {
-		"name": "Cofre Ink",
-		"tagline": "Suas finanças, na sua infraestrutura"
+		"name": "Cofre Ink"
 	},
 	"actions": {
 		"save": "Salvar",
@@ -9,7 +8,6 @@
 		"newEntry": "Novo lançamento",
 		"delete": "Apagar",
 		"seeTable": "Ver tabela",
-		"markPaid": "Marcar como pago",
 		"done": "Pronto",
 		"close": "Fechar"
 	},
@@ -72,10 +70,8 @@
 		"cannotOpenTitle": "Não consegui abrir o convite"
 	},
 	"theme": {
-		"label": "Tema",
 		"light": "Tema claro",
-		"dark": "Tema escuro",
-		"system": "Do sistema"
+		"dark": "Tema escuro"
 	},
 	"language": {
 		"label": "Idioma",
@@ -212,8 +208,7 @@
 		"independenceWhen": "Guardando o que está aí em cima, chegaria lá em {{years}} anos e {{months}} meses.",
 		"independenceNever": "Guardando o que está aí em cima, não chega lá. Aumente o quanto guarda por mês ou o quanto rende.",
 		"emptyTitle": "Nenhum investimento cadastrado",
-		"emptyBody": "Cadastre o que você já tem, com o preço de hoje. Depois é só atualizar o preço de vez em quando.",
-		"noAccountBody": "Crie uma conta antes, em Contas."
+		"emptyBody": "Cadastre o que você já tem, com o preço de hoje. Depois é só atualizar o preço de vez em quando."
 	},
 	"reports": {
 		"headlineLeft": "Em {{month}} sobrou {{amount}}",
@@ -292,7 +287,6 @@
 	},
 	"dashboard": {
 		"headline": "Você tem isto em {{space}}",
-		"nothingPending": "Nada previsto mexendo nesse número por enquanto.",
 		"yoursOnly": "Só os seus lançamentos. Você é Registrador neste espaço, então estes números são do que você mesmo passou pelas contas, e não do dinheiro da casa.",
 		"yoursOnlySomewhere": "Em {{day}}. Um dos espaços somados aqui mostra só os seus lançamentos, então parte destes números é do que você mesmo escreveu, e não do dinheiro da casa.",
 		"dueSoon": "Vence nos próximos dias",
@@ -301,7 +295,6 @@
 		"seeAccounts": "Ver todas",
 		"whereItIs": "Onde o dinheiro está",
 		"attention": "O que precisa de atenção",
-		"seeBudget": "Ver orçamento",
 		"headlineEverywhere": "Você tem isto somando todos os espaços",
 		"seeMore": "Ver mais",
 		"youHave": "Você tem",
@@ -428,7 +421,6 @@
 		"stateOver": "Passou {{amount}} do limite.",
 		"stateTight": "Nesse ritmo o mês fecha em {{amount}}.",
 		"stateComfortable": "Sobram {{amount}} para o resto do mês.",
-		"emptyTitle": "Comece por um",
 		"emptyBody": "Escolha o que costuma fugir do controle, como delivery ou lazer. Um limite por categoria já muda o mês."
 	},
 	"sharing": {
@@ -1005,7 +997,6 @@
 		"components": "Componentes",
 		"tableSample": "Vence nos próximos dias",
 		"chartSample": "Para onde foi o dinheiro",
-		"ratio": "contraste",
 		"specimenTitle": "Quanto sobra até o fim do mês",
 		"specimenBody": "Texto de interface em IBM Plex Sans, no tamanho padrão de leitura.",
 		"specimenSupport": "Texto de apoio, em grafite, para rótulos e explicações curtas.",
@@ -1406,11 +1397,8 @@
 		"usesCredit": "Fatura de {{name}}",
 		"usesDebit": "Saldo de {{name}}",
 		"digits": "Final {{digits}}",
-		"actions": "Ações do cartão",
 		"archive": "Arquivar",
 		"unarchive": "Desarquivar",
-		"emptyTitle": "Nenhum cartão cadastrado",
-		"emptyBody": "Cadastre o cartão que você usa no dia a dia. Depois cada compra diz com qual foi, e a fatura fecha sozinha.",
 		"needsDebitAccount": "Para cadastrar um cartão de débito ou de benefício, crie antes a conta de onde o dinheiro sai.",
 		"onInvoice": "Cartões desta fatura",
 		"editDescription": "Dá para corrigir o nome, os dígitos e as contas. O tipo não muda: um cartão de outro tipo é outro cartão.",
@@ -1423,9 +1411,7 @@
 		"removeKeeps": "Os lançamentos ficam. Só o nome do cartão sai deles."
 	},
 	"transaction": {
-		"card": "Cartão",
-		"cardNone": "Sem cartão",
-		"cardHint": "Escolher o cartão já leva o lançamento para a conta certa."
+		"card": "Cartão"
 	},
 	"filters": {
 		"card": "Cartão",

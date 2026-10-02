@@ -57,6 +57,48 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		/**
+		 * The invoice a card is written down with, which is the field on the account form.
+		 *
+		 * The cycle of a card somebody already owns started before they got here, so the form
+		 * asks what is on it today and writes one record dated today. Everything after that is
+		 * the ordinary path, and this holds it: on the open invoice, and in no total of money.
+		 */
+		it("puts what was already on the invoice on the open one, and moves no money", async () => {
+			const ready = await readyCard(adapter);
+			try {
+				const written = await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 50_000,
+					happenedOn: TODAY,
+					description: "Fatura em aberto quando o cartao foi cadastrado",
+					accountId: ready.card.id,
+				});
+
+				expect(written).toHaveLength(1);
+				expect(written[0]?.happenedOn).toBe(TODAY);
+				// The twenty ninth is past the closing day, so it lands on the invoice of the
+				// month after, which is the one still taking purchases.
+				expect(written[0]?.invoiceMonth).toBe("2026-10");
+
+				const standing = await ready.fixture.asAna.invoices.standing(ready.spaceId, TODAY);
+				expect(standing[0]?.open.month).toBe("2026-10");
+				expect(standing[0]?.open.charged).toBe(50_000);
+				expect(standing[0]?.unpaid).toBe(null);
+				// And it comes off the headroom, because the card has spent it.
+				expect(standing[0]?.available).toBe(450_000);
+
+				// No money moved. The current account is untouched and the card owes the amount,
+				// which is what a card is: the money leaves when the invoice is paid.
+				const balances = await ready.fixture.asAna.transactions.balances(ready.spaceId, TODAY);
+				expect(balances.find((one) => one.accountId === ready.checking.id)?.settled).toBe(500_000);
+				expect(balances.find((one) => one.accountId === ready.card.id)?.settled).toBe(-50_000);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		it("is paid by a transfer into the card that names the invoice", async () => {
 			const ready = await readyCard(adapter);
 			try {

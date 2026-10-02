@@ -1,7 +1,6 @@
 {
 	"app": {
-		"name": "Cofre Ink",
-		"tagline": "Your money, on your own infrastructure"
+		"name": "Cofre Ink"
 	},
 	"actions": {
 		"save": "Save",
@@ -9,7 +8,6 @@
 		"newEntry": "New entry",
 		"delete": "Delete",
 		"seeTable": "See the table",
-		"markPaid": "Mark as paid",
 		"done": "Done",
 		"close": "Close"
 	},
@@ -72,10 +70,8 @@
 		"cannotOpenTitle": "I could not open the invitation"
 	},
 	"theme": {
-		"label": "Theme",
 		"light": "Light theme",
-		"dark": "Dark theme",
-		"system": "From the system"
+		"dark": "Dark theme"
 	},
 	"language": {
 		"label": "Language",
@@ -212,8 +208,7 @@
 		"independenceWhen": "Putting aside what is set above, you would get there in {{years}} years and {{months}} months.",
 		"independenceNever": "Putting aside what is set above, you never get there. Raise what you put aside each month, or what it earns.",
 		"emptyTitle": "No holdings written down",
-		"emptyBody": "Write down what you already have, with today's price. After that it is a price to update now and then.",
-		"noAccountBody": "Create an account first, under Accounts."
+		"emptyBody": "Write down what you already have, with today's price. After that it is a price to update now and then."
 	},
 	"reports": {
 		"headlineLeft": "{{month}} left {{amount}} over",
@@ -292,7 +287,6 @@
 	},
 	"dashboard": {
 		"headline": "You have this much in {{space}}",
-		"nothingPending": "Nothing coming up moves that number for now.",
 		"yoursOnly": "Your own records only. You are a Logger in this space, so these figures are what you yourself put through the accounts, and not the money of the household.",
 		"yoursOnlySomewhere": "On {{day}}. One of the spaces added together here shows your own records only, so part of these figures is what you yourself wrote, and not the money of the household.",
 		"dueSoon": "Due in the next days",
@@ -301,7 +295,6 @@
 		"seeAccounts": "See all",
 		"whereItIs": "Where the money is",
 		"attention": "What needs attention",
-		"seeBudget": "See the budget",
 		"headlineEverywhere": "This is what you have, every space added together",
 		"seeMore": "See more",
 		"youHave": "You have",
@@ -428,7 +421,6 @@
 		"stateOver": "{{amount}} over the limit.",
 		"stateTight": "At this rate the month closes at {{amount}}.",
 		"stateComfortable": "{{amount}} left for the rest of the month.",
-		"emptyTitle": "Start with one",
 		"emptyBody": "Pick what usually gets away from you, takeaway or going out. One limit on one category already changes the month."
 	},
 	"sharing": {
@@ -1005,7 +997,6 @@
 		"components": "Components",
 		"tableSample": "Due in the next days",
 		"chartSample": "Where the money went",
-		"ratio": "contrast",
 		"specimenTitle": "What is left until the end of the month",
 		"specimenBody": "Interface text in IBM Plex Sans, at the standard reading size.",
 		"specimenSupport": "Supporting text, in graphite, for labels and short explanations.",
@@ -1406,11 +1397,8 @@
 		"usesCredit": "Invoice of {{name}}",
 		"usesDebit": "Balance of {{name}}",
 		"digits": "Ending {{digits}}",
-		"actions": "Card actions",
 		"archive": "Archive",
 		"unarchive": "Unarchive",
-		"emptyTitle": "No cards yet",
-		"emptyBody": "Add the card you use every day. Then each purchase says which one it was, and the invoice closes on its own.",
 		"needsDebitAccount": "To add a debit or a benefit card, first create the account the money leaves.",
 		"onInvoice": "Cards on this invoice",
 		"editDescription": "The name, the digits and the accounts can be corrected. The kind does not change: a card of another kind is another card.",
@@ -1423,9 +1411,7 @@
 		"removeKeeps": "The records stay. Only the name of the card leaves them."
 	},
 	"transaction": {
-		"card": "Card",
-		"cardNone": "No card",
-		"cardHint": "Choosing the card already takes the record to the right account."
+		"card": "Card"
 	},
 	"filters": {
 		"card": "Card",

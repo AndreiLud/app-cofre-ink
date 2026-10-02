@@ -7,7 +7,7 @@
 // inside a sentence that exists in one language and not the other is worse, because the
 // sentence comes out with a gap in it.
 //
-// So this walks both files and refuses five things:
+// So this walks both files and refuses seven things:
 //
 //   1. a key one language has and the other does not
 //   2. an empty string, which is a key somebody meant to come back to
@@ -15,6 +15,8 @@
 //   4. a rule the model can refuse with, that neither language has a sentence for
 //   5. a sentence asked for by a screen without the names it needs, which prints the
 //      {{name}} to a person exactly as it is written here
+//   6. a sentence quoting another with $t(), where the key it quotes does not exist
+//   7. a key no source file asks for
 //
 // The fourth one is the same class of fault seen from the other end. A refusal carries
 // the name of the rule and the interface looks that name up under "rules"; a name with
@@ -28,6 +30,17 @@
 // name in it, so the three checks above were all satisfied, and the screen said the name
 // out loud. It is the cheapest of the five to check and the only one that catches a
 // sentence that is right in the file and wrong on the screen.
+//
+// The sixth is a sentence that quotes a button by reading its own label, which is how a
+// sentence and the control it names stay in step through a rename. The quote is a key, so
+// it can be wrong, and a wrong one prints nothing at all where the button's name should be.
+//
+// The seventh is the one the fifteen orphans of 1.1.0 asked for. A key nothing reads costs
+// nothing to run and a great deal to maintain: it is translated, audited, read by whoever is
+// deciding what a screen says, and it answers a question no screen asks. Two of them were
+// found by reading in 1.1.0 and thirteen more were still there afterwards. A key is asked for
+// when a source file holds its name, or holds a template whose fixed part is a prefix of it,
+// which is how rules.*, priority.* and auto.every${minutes} are reached.
 //
 // Plural forms count as one key: i18next chooses between "_one" and "_other" by the
 // count, and a language is allowed to need fewer of them than another.
@@ -52,12 +65,16 @@ const ROLE_TABLE_END = "<!-- /roleTable -->";
  * Both extensions: a rule thrown from a React file was invisible here, because ".tsx"
  * does not end with ".ts", and two rules lived only in one.
  */
-function sourcesIn(dir) {
+function sourcesIn(dir, extensions = [".ts", ".tsx"]) {
 	if (!existsSync(dir)) return [];
 	return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
 		const path = join(dir, entry.name);
-		if (entry.isDirectory()) return entry.name === "node_modules" ? [] : sourcesIn(path);
-		const source = path.endsWith(".ts") || path.endsWith(".tsx");
+		if (entry.isDirectory()) {
+			return entry.name === "node_modules" || entry.name === "dist"
+				? []
+				: sourcesIn(path, extensions);
+		}
+		const source = extensions.some((one) => path.endsWith(one));
 		return source && !/\.test\.tsx?$/.test(path) ? [path] : [];
 	});
 }
@@ -151,6 +168,72 @@ function sentencesMissingTheirNames(table) {
 	return problems;
 }
 
+/**
+ * Every sentence that quotes another one, and whether the key it quotes exists.
+ *
+ * A sentence that names a button reads the button's own label with $t(), so the two stay in
+ * step through a rename instead of the sentence repeating a word that has moved on. That
+ * makes the quote a key, and a key can be wrong: i18next prints nothing where a missing one
+ * was, so the sentence comes out with a hole in it exactly where the name of the control
+ * belongs. The release that introduced the habit had no check on it.
+ */
+function quotesThatNameNothing(tables) {
+	const problems = [];
+	for (const [language, table] of tables) {
+		for (const [key, text] of table) {
+			for (const quote of text.matchAll(/\$t\(\s*([a-zA-Z][\w.]*)\s*\)/g)) {
+				const named = quote[1].replace(/_(one|other|zero|two|few|many)$/, "");
+				if (!table.has(named)) {
+					problems.push(`${language}.json: "${key}" quotes $t(${named}), which does not exist`);
+				}
+			}
+		}
+	}
+	return problems;
+}
+
+/**
+ * Every key no source file asks for.
+ *
+ * A key is asked for when its name is written somewhere, or when a template whose fixed part
+ * is a prefix of it is: `t(\`rules.${name}\`)` reaches every rules.* and `auto.every${count}`
+ * reaches auto.every15. Sentences count as sources too, because one sentence may quote
+ * another with $t(), and so does the manifest, which is written from these files.
+ *
+ * Tests are not sources. A key asserted in a test and rendered by nothing is still a key
+ * nothing reads.
+ */
+function keysNobodyAsksFor(tables) {
+	// Every extension that can hold a key, and not only the ones a screen is written in. A
+	// script writes the manifest and the page is a file of its own, so a key asked for there
+	// is asked for.
+	const folders = ["apps", "packages", "scripts"];
+	const files = folders.flatMap((one) =>
+		sourcesIn(join(root, one), [".ts", ".tsx", ".mjs", ".js", ".html"]),
+	);
+	const text = [
+		...files.map((file) => readFileSync(file, "utf8")),
+		// The sentences themselves, for the quotes above.
+		...[...tables.values()].flatMap((table) => [...table.values()]),
+	].join("\n");
+
+	// The fixed part of every template, which is a prefix of whatever it builds.
+	const prefixes = [...text.matchAll(/[`"']([a-zA-Z][\w.]*)\$\{/g)]
+		.map((one) => one[1])
+		.filter((one) => one.length > 3);
+
+	const problems = [];
+	const table = tables.get(LANGUAGES[0]);
+	if (!table) return problems;
+
+	for (const key of table.keys()) {
+		if (text.includes(key)) continue;
+		if (prefixes.some((prefix) => key.startsWith(prefix))) continue;
+		problems.push(`"${key}" is in both languages and no source file asks for it`);
+	}
+	return problems;
+}
+
 function main() {
 	const problems = [];
 	const tables = new Map();
@@ -206,6 +289,9 @@ function main() {
 	// disagree about which names they hold.
 	const first = tables.get(LANGUAGES[0]);
 	if (first) problems.push(...sentencesMissingTheirNames(first));
+
+	problems.push(...quotesThatNameNothing(tables));
+	problems.push(...keysNobodyAsksFor(tables));
 
 	const { found: rules, problems: unreadable } = rulesThrown();
 	problems.push(...unreadable);
