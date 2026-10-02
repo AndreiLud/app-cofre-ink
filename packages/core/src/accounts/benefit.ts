@@ -24,6 +24,7 @@ import {
 	type CalendarDate,
 	compareCalendarDates,
 	dateInMonth,
+	daysBetween,
 	monthOf,
 	parseCalendarDate,
 	parseCalendarMonth,
@@ -52,6 +53,12 @@ export type BenefitState = BenefitPeriod & {
 	landed: number;
 	/** What is left to spend now. Negative when the card was overspent, because it was. */
 	left: number;
+	/** The day the next allowance lands. */
+	landsOn: CalendarDate;
+	/** How many days off that is, counted from the day the question was asked. */
+	daysToLanding: number;
+	/** Whether what is left survives that day, or goes with it. */
+	carries: boolean;
 };
 
 /**
@@ -73,6 +80,22 @@ export function periodOf(day: CalendarDate, quotaDay: number): BenefitPeriod {
 			: dateInMonth(addMonthsToMonth(monthOf(day), -1), quotaDay);
 	const next = dateInMonth(addMonthsToMonth(monthOf(from), 1), quotaDay);
 	return { from, to: addDays(next, -1) };
+}
+
+/** The day the next allowance lands, which is the day after the last day of this period. */
+export function nextLandingOf(day: CalendarDate, quotaDay: number): CalendarDate {
+	return addDays(periodOf(day, quotaDay).to, 1);
+}
+
+/**
+ * How many days until the next allowance lands.
+ *
+ * Never less than one, because a day on the landing day belongs to the period that starts
+ * on it, so the next landing is always ahead. This is the number that makes the figure
+ * beside it mean something: what is left has to last exactly this long.
+ */
+export function daysToLanding(day: CalendarDate, quotaDay: number): number {
+	return daysBetween(day, nextLandingOf(day, quotaDay));
 }
 
 function assertQuotaDay(quotaDay: number): void {
@@ -118,6 +141,16 @@ export type BenefitInput = {
 export function benefitState(input: BenefitInput): BenefitState {
 	const period = periodOf(input.today, input.quota.day);
 
+	// When the next one lands, and whether this one survives it. A figure with no horizon on
+	// it says nothing: three hundred has to last twenty days or two, and on a card that does
+	// not carry it does not last at all.
+	const landsOn = addDays(period.to, 1);
+	const until = {
+		landsOn,
+		daysToLanding: daysBetween(input.today, landsOn),
+		carries: input.quota.carries,
+	};
+
 	/**
 	 * Whether the landing of the period the card was written down in counts.
 	 *
@@ -142,6 +175,7 @@ export function benefitState(input: BenefitInput): BenefitState {
 	if (input.quota.carries) {
 		return {
 			...period,
+			...until,
 			quota: input.quota.amount,
 			landed,
 			left: input.openingBalance + landed * input.quota.amount - input.spentSinceOpening,
@@ -153,6 +187,7 @@ export function benefitState(input: BenefitInput): BenefitState {
 	const started = landed === 0;
 	return {
 		...period,
+		...until,
 		quota: input.quota.amount,
 		landed,
 		left: started

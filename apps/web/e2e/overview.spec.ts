@@ -42,6 +42,18 @@ test.describe("the overview", () => {
 		expect(headline).not.toBe("");
 	});
 
+	test("says when a voucher renews, because the figure has to last until then", async ({
+		page,
+	}) => {
+		await openCofre(page);
+
+		// What is left on a meal card means nothing without the day the next one lands: three
+		// hundred has to cover twenty days or two, and the line said neither.
+		await expect(
+			page.getByText(/O próximo crédito cai em \d\d\/\d\d, daqui a \d+ dias?\./),
+		).toBeVisible();
+	});
+
 	test("shows a card invoice as one bill, on the day it falls due", async ({ page }) => {
 		await openCofre(page);
 

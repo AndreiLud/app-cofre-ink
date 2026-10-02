@@ -1114,6 +1114,18 @@ function VoucherLine({
 						t("dashboard.noQuota")
 					)}
 				</p>
+				{/* When the next allowance lands, because the figure above has to last until that
+				    day and said nothing about how far off it is. A card that does not carry loses
+				    what is left on that day, which is the opposite of reassuring, so it gets a
+				    sentence of its own rather than the neutral one. */}
+				{state.data ? (
+					<p className="text-quiet text-sm">
+						{t(state.data.carries ? "dashboard.landsIn" : "dashboard.landsInAndGoes", {
+							day: dayAndMonth(state.data.landsOn),
+							count: state.data.daysToLanding,
+						})}
+					</p>
+				) : null}
 			</div>
 		</div>
 	);

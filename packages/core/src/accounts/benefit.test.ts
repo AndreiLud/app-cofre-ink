@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { benefitState, carriesByDefault, landingsBetween, periodOf } from "./benefit.ts";
+import {
+	benefitState,
+	carriesByDefault,
+	daysToLanding,
+	landingsBetween,
+	nextLandingOf,
+	periodOf,
+} from "./benefit.ts";
 
 describe("which period a day falls in", () => {
 	it("starts the period on the day the money lands", () => {
@@ -40,6 +47,46 @@ describe("how many allowances have landed", () => {
 
 	it("counts none backwards", () => {
 		expect(landingsBetween("2026-09-10", "2026-08-10", 5)).toBe(0);
+	});
+});
+
+describe("when the next allowance lands", () => {
+	it("says the day it lands and how many days off it is", () => {
+		const state = benefitState({
+			quota: { amount: 90_000, day: 5, carries: true },
+			today: "2026-10-25",
+			openedOn: "2026-08-10",
+			openingBalance: 0,
+			spentSinceOpening: 0,
+			spentThisPeriod: 0,
+		});
+
+		expect(state.landsOn).toBe("2026-11-05");
+		expect(state.daysToLanding).toBe(11);
+		expect(state.carries).toBe(true);
+	});
+
+	it("counts at least one day, because the landing day starts a period rather than ending one", () => {
+		expect(daysToLanding("2026-11-04", 5)).toBe(1);
+		expect(daysToLanding("2026-11-05", 5)).toBe(30);
+	});
+
+	it("lands on the last day of a month too short for the day", () => {
+		expect(nextLandingOf("2026-03-01", 31)).toBe("2026-03-31");
+	});
+
+	it("says a card that does not carry will lose what is left", () => {
+		const fare = benefitState({
+			quota: { amount: 30_000, day: 1, carries: false },
+			today: "2026-11-20",
+			openedOn: "2026-09-10",
+			openingBalance: 0,
+			spentSinceOpening: 0,
+			spentThisPeriod: 0,
+		});
+
+		expect(fare.carries).toBe(false);
+		expect(fare.landsOn).toBe("2026-12-01");
 	});
 });
 
