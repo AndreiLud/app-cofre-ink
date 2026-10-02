@@ -4,6 +4,7 @@
 // projection are gathered from the database without counting anything twice, and that
 // a portfolio keeps the prices it was given rather than only the last one.
 
+import { addMonthsToMonth, dateInMonth, monthOf, todayIn } from "@cofre/core";
 import { describe, expect, it } from "vitest";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { QUANTITY_SCALE } from "../repositories/investments.ts";
@@ -87,9 +88,20 @@ export function runFutureConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		/**
+		 * The month this runs in, and not a month written into the test.
+		 *
+		 * A series never writes a record earlier than the month it was written down in, which
+		 * is the rule that stops a rent paid since 2019 arriving as six years of promises. So a
+		 * test that materialises a series into a fixed month passes only while the calendar
+		 * agrees with that month, and this one went red on the first of October without anybody
+		 * touching the code. The dates the projection is asked about are derived from the same
+		 * month, so the arithmetic under test is the same whenever it is run.
+		 */
 		it("never counts a recurrence that already wrote its record", async () => {
 			const fixture = await prepare(adapter);
 			try {
+				const month = monthOf(todayIn("America/Sao_Paulo"));
 				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
 				const account = await fixture.asAna.accounts.create({
 					spaceId: space.id,
@@ -104,26 +116,21 @@ export function runFutureConformance(adapter: AdapterUnderTest): void {
 					amount: 150_000,
 					accountId: account.id,
 					frequency: "monthly",
-					startsOn: "2026-09-05",
+					startsOn: dateInMonth(month, 5),
 				});
 
-				const before = await fixture.asAna.projections.monthsAhead({
-					spaceId: space.id,
-					from: "2026-09",
-					months: 2,
-					today: "2026-09-01",
-				});
+				const asked = { spaceId: space.id, from: month, months: 2, today: dateInMonth(month, 1) };
+
+				const before = await fixture.asAna.projections.monthsAhead(asked);
 				expect(before.months[0]?.expenseFrom.recurring).toBe(150_000);
 
 				// The series writes the records it owes, and the rule stops owing them.
-				await fixture.asAna.recurrences.materialize({ spaceId: space.id, until: "2026-10-31" });
-
-				const after = await fixture.asAna.projections.monthsAhead({
+				await fixture.asAna.recurrences.materialize({
 					spaceId: space.id,
-					from: "2026-09",
-					months: 2,
-					today: "2026-09-01",
+					until: dateInMonth(addMonthsToMonth(month, 1), 31),
 				});
+
+				const after = await fixture.asAna.projections.monthsAhead(asked);
 
 				expect(after.months[0]?.expenseFrom.recurring).toBe(0);
 				expect(after.months[0]?.expenseFrom.written).toBe(150_000);
