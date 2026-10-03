@@ -15,6 +15,7 @@ import {
 	addMonthsToMonth,
 	amountToPay,
 	type CalendarDate,
+	type CalendarMonth,
 	type CardCycle,
 	type InvoiceState,
 	invoiceMonthOf,
@@ -243,6 +244,35 @@ export function InvoicePage() {
 		onError: (error: unknown) => setProblem(sayWhy(error, t)),
 	});
 
+	/**
+	 * Moving purchases between two invoices when either already has a payment on it.
+	 *
+	 * The payment does not move with them, so one invoice ends up with credit and the other
+	 * owes more, which is right and is a surprise if nobody says it first. So the screen says
+	 * it and waits.
+	 */
+	const [askingFirst, setAskingFirst] = useState<{
+		month: CalendarMonth;
+		other: CalendarMonth;
+		go: () => void;
+	} | null>(null);
+
+	function withPaymentsInMind(months: [CalendarMonth, CalendarMonth], go: () => void) {
+		const paidOne = months.find((month) => {
+			const one = (older.data ?? []).find((state) => state.month === month);
+			return one !== undefined && (one.paid > 0 || one.scheduled > 0);
+		});
+		if (paidOne === undefined) {
+			go();
+			return;
+		}
+		setAskingFirst({
+			month: paidOne,
+			other: months.find((month) => month !== paidOne) ?? months[1],
+			go,
+		});
+	}
+
 	const reclose = useMutation({
 		mutationFn: async () => {
 			if (!session || !invoiceAccount) throw new Error("no session");
@@ -356,14 +386,15 @@ export function InvoicePage() {
 			: undefined;
 
 	// The year is only worth saying when it is not this one.
-	const monthName =
-		shown === ""
-			? ""
-			: new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
-					month: "long",
-					year: shown.slice(0, 4) === today.slice(0, 4) ? undefined : "numeric",
-					timeZone: "UTC",
-				}).format(new Date(`${shown}-01T00:00:00Z`));
+	function monthLabel(month: string): string {
+		if (month === "") return "";
+		return new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+			month: "long",
+			year: month.slice(0, 4) === today.slice(0, 4) ? undefined : "numeric",
+			timeZone: "UTC",
+		}).format(new Date(`${month}-01T00:00:00Z`));
+	}
+	const monthName = monthLabel(shown);
 
 	return (
 		<div className="space-y-8">
@@ -633,13 +664,47 @@ export function InvoicePage() {
 						<Button
 							variant="secondary"
 							disabled={closedDay === "" || reclose.isPending}
-							onClick={() => reclose.mutate()}
+							onClick={() =>
+								withPaymentsInMind([shown, addMonthsToMonth(shown, 1)], () => reclose.mutate())
+							}
 						>
 							{t("invoice.moveThem")}
 						</Button>
 					</div>
 				</Disclosure>
 			) : null}
+
+			<Dialog
+				open={askingFirst !== null}
+				onOpenChange={(next) => !next && setAskingFirst(null)}
+				title={t("invoice.alreadyPaidTitle")}
+				description={
+					askingFirst
+						? t("invoice.alreadyPaidBody", {
+								month: monthLabel(askingFirst.month),
+								other: monthLabel(askingFirst.other),
+							})
+						: ""
+				}
+				closeLabel={t("actions.close")}
+				footer={
+					<>
+						<Button variant="quiet" onClick={() => setAskingFirst(null)}>
+							{t("actions.cancel")}
+						</Button>
+						<Button
+							onClick={() => {
+								askingFirst?.go();
+								setAskingFirst(null);
+							}}
+						>
+							{t("invoice.moveAnyway")}
+						</Button>
+					</>
+				}
+			>
+				{problem ? <Callout tone="problem">{problem}</Callout> : null}
+			</Dialog>
 
 			<Dialog
 				open={paying !== null}

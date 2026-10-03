@@ -581,6 +581,29 @@ test.describe("the card invoice", () => {
 		await expect(page.getByRole("heading", { level: 1 })).toContainText("setembro está paga");
 	});
 
+	// Part 1, A.8.5 of the request for 2.0.0: an invoice with a payment on it is asked about
+	// before purchases move across it, because the payment stays where it is.
+	test("asks before moving purchases across an invoice that has a payment", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Faturas");
+
+		await page.getByRole("button", { name: "Pagar fatura" }).click();
+		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("10,00");
+		await page.getByRole("dialog").getByLabel("Dia").fill(dayField(0));
+		await page.getByRole("dialog").getByRole("button", { name: "Pagar fatura" }).click();
+		await expect(page.getByText("Paga em parte")).toBeVisible();
+
+		await page.getByText("Esta fatura fechou em outro dia").click();
+		await page.getByLabel("Fechou no dia").fill("2026-11-04");
+		await page.getByRole("button", { name: "Mover as compras" }).click();
+
+		const asking = page.getByRole("dialog");
+		await expect(asking.getByText("Uma das faturas já tem pagamento")).toBeVisible();
+		await expect(asking).toContainText("deixa uma com crédito e a outra devendo mais");
+		await asking.getByRole("button", { name: "Cancelar" }).click();
+		await expect(page.getByRole("dialog")).toHaveCount(0);
+	});
+
 	test("moves a purchase the bank closed onto another invoice, and keeps it there", async ({
 		page,
 	}) => {

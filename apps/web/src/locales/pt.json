@@ -594,7 +594,8 @@
 		"limitIsForCards": "Só um cartão de crédito tem limite.",
 		"notOnAnInvoice": "Só um lançamento que está numa fatura pode ser movido para outra.",
 		"benefitIsNotIncome": "Um cartão de benefício só gasta. O valor que cai nele é o valor mensal do cartão, e o {{app}} conta esse valor sozinho.",
-		"benefitDoesNotLeave": "O dinheiro de um cartão de benefício é gasto no próprio cartão e não sai dele. Recarregar por Pix você lança como transferência para o cartão, que isso existe."
+		"benefitDoesNotLeave": "O dinheiro de um cartão de benefício é gasto no próprio cartão e não sai dele. Recarregar por Pix você lança como transferência para o cartão, que isso existe.",
+		"closingDayTooFar": "Esse dia está longe demais do fechamento previsto. Um banco muda o fechamento em poucos dias, por fim de semana ou feriado; confira o dia, e o ano."
 	},
 	"transactions": {
 		"title": "Lançamentos",
@@ -910,7 +911,10 @@
 		"scheduled": "Pagamento agendado para {{day}}. Até esse dia o dinheiro continua na conta e a fatura continua em aberto:",
 		"openingDebt": "Inclui o que o cartão já devia quando foi cadastrado, o saldo de abertura dele:",
 		"carriedIn": "Crédito que veio da fatura anterior, pago a mais lá:",
-		"carriedOut": "Foi pago a mais nesta fatura, e isso abate a fatura seguinte:"
+		"carriedOut": "Foi pago a mais nesta fatura, e isso abate a fatura seguinte:",
+		"alreadyPaidTitle": "Uma das faturas já tem pagamento",
+		"alreadyPaidBody": "A fatura de {{month}} já tem pagamento marcado, e o pagamento não muda de fatura. Mover compras entre ela e a de {{other}} deixa uma com crédito e a outra devendo mais.",
+		"moveAnyway": "Mover mesmo assim"
 	},
 	"transactionKind": {
 		"expense": "Despesa",

@@ -17,6 +17,7 @@ import {
 	type CalendarMonth,
 	type CardCycle,
 	compareCalendarDates,
+	daysBetween,
 	type InvoiceState,
 	invoiceMonthOf,
 	invoiceStateOf,
@@ -574,6 +575,17 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 		 * Everything charged between the day the application expected it to close and the
 		 * day it really did belongs to the other invoice, and this moves all of them at
 		 * once rather than asking somebody to find them.
+		 *
+		 * Only what is on this invoice or the next one, only what nobody put on an invoice by
+		 * hand, and only the first part of a purchase in instalments, which takes the rest of
+		 * its plan along one invoice in the same direction. It took every purchase on the card
+		 * in the window: a plan bought on the fourth of July, on a card that closes on the
+		 * third, has a part on the fourth of September that belongs to October, and saying
+		 * September closed on the fifth put that part beside the one already on September.
+		 *
+		 * And only a day near the one expected. A bank moves a closing by a weekend or a
+		 * holiday, and the field took any day at all, so a year typed wrong moved a year of
+		 * purchases.
 		 */
 		async closedOn(input: {
 			accountId: string;
@@ -592,6 +604,12 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 				today: input.day,
 			}).closesOn;
 			if (input.day === expected) return 0;
+			if (Math.abs(daysBetween(expected, input.day)) > CLOSING_MOVES_BY_AT_MOST) {
+				throw new RuleError(
+					"closingDayTooFar",
+					`an invoice closes within ${CLOSING_MOVES_BY_AT_MOST} days of the day expected`,
+				);
+			}
 
 			// The days between the two, whichever way round they are, and which invoice the
 			// records on them belong to. Closing later than expected pulls purchases back
@@ -599,26 +617,56 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 			const earlier = compareCalendarDates(input.day, expected) < 0;
 			const from = earlier ? input.day : expected;
 			const to = earlier ? expected : input.day;
+			const next = shiftMonth(input.month, 1);
 
 			const rows = await context.driver.all(
-				`SELECT "id", "invoice_month" FROM "transactions"
+				`SELECT "id", "invoice_month", "installment_group", "installment_number"
+				 FROM "transactions"
 				 WHERE "account_id" = ? AND "deleted_at" IS NULL AND "kind" <> 'transfer'
-				   AND "happened_on" >= ? AND "happened_on" < ?`,
-				[input.accountId, from, to],
+				   AND "happened_on" >= ? AND "happened_on" < ?
+				   AND "invoice_month" IN (?, ?)
+				   AND COALESCE("invoice_month_by_hand", 0) = 0
+				   AND COALESCE("installment_number", 1) = 1`,
+				[input.accountId, from, to, input.month, next],
 			);
+
+			const wanted = earlier ? next : input.month;
+			const moves: { id: string; month: CalendarMonth }[] = [];
+			for (const row of rows) {
+				const current = String(row.invoice_month);
+				if (current === wanted) continue;
+				const step = earlier ? 1 : -1;
+				const group = row.installment_group === null ? null : String(row.installment_group);
+				if (group === null) {
+					moves.push({ id: String(row.id), month: wanted });
+					continue;
+				}
+				// The first part brings its plan, each part one invoice along, which keeps them
+				// one invoice apart. A part somebody put somewhere by hand stays there.
+				const parts = await needs.transactions.list({
+					spaceId: account.spaceId,
+					installmentGroup: group,
+				});
+				for (const part of parts) {
+					if (part.invoiceMonth === null || part.invoiceMonthByHand) continue;
+					moves.push({ id: part.id, month: shiftMonth(part.invoiceMonth, step) });
+				}
+			}
 
 			// All of them or none of them. One purchase in the window already ticked off
 			// against the bank used to move the ones before it and then refuse, which leaves
 			// a card's own month split between two invoices with nothing saying how far it got.
-			const wanted = earlier ? shiftMonth(input.month, 1) : input.month;
-			return needs.transactions.setInvoiceMonths(
-				rows
-					.filter((row) => String(row.invoice_month) !== wanted)
-					.map((row) => ({ id: String(row.id), month: wanted })),
-			);
+			return needs.transactions.setInvoiceMonths(moves);
 		},
 	};
 }
+
+/**
+ * How far from the expected day a bank moves a closing: a weekend, a holiday, a change of
+ * a day or two that nobody announced. A week either side covers all of them, and a year
+ * typed wrong is not one of them.
+ */
+const CLOSING_MOVES_BY_AT_MOST = 7;
 
 /** One month forwards or backwards, on the calendar month a card invoice is named by. */
 function shiftMonth(month: CalendarMonth, step: number): CalendarMonth {

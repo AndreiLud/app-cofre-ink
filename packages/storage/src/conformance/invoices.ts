@@ -479,6 +479,94 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 			});
 		});
 
+		// Part 1, A.8 of the request for 2.0.0, with its example: a plan bought on the fourth
+		// of July, on a card that closes on the third, has parts on the invoices of August,
+		// September and October. Saying September closed on the fifth took the part of the
+		// fourth of September and put it on September, beside the part already there.
+		it("says which day an invoice closed on, and moves only what belongs to it", async () => {
+			const ready = await readyCard(adapter);
+			try {
+				const plan = await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 90_000,
+					happenedOn: "2026-07-04",
+					description: "Geladeira",
+					accountId: ready.card.id,
+					installments: 3,
+				});
+				expect(plan.map((part) => part.invoiceMonth)).toEqual(["2026-08", "2026-09", "2026-10"]);
+				const [plain] = await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 12_000,
+					happenedOn: "2026-09-04",
+					description: "Padaria",
+					accountId: ready.card.id,
+				});
+				const [chosen] = await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 5_000,
+					happenedOn: "2026-09-03",
+					description: "Revista",
+					accountId: ready.card.id,
+				});
+				await ready.fixture.asAna.transactions.setInvoiceMonth(chosen?.id ?? "", "2026-10");
+
+				const moved = await ready.fixture.asAna.invoices.closedOn({
+					accountId: ready.card.id,
+					month: "2026-09",
+					day: "2026-09-05",
+				});
+				expect(moved).toBe(1);
+
+				const monthOf = async (id: string) =>
+					(await ready.fixture.asAna.transactions.get(id)).invoiceMonth;
+				expect(await Promise.all(plan.map((part) => monthOf(part.id)))).toEqual([
+					"2026-08",
+					"2026-09",
+					"2026-10",
+				]);
+				expect(await monthOf(plain?.id ?? "")).toBe("2026-09");
+				expect(await monthOf(chosen?.id ?? "")).toBe("2026-10");
+
+				// A year typed wrong is refused, and moves nothing.
+				await expect(
+					ready.fixture.asAna.invoices.closedOn({
+						accountId: ready.card.id,
+						month: "2026-09",
+						day: "2027-09-05",
+					}),
+				).rejects.toMatchObject({ rule: "closingDayTooFar" });
+
+				// The first part of a plan in the window takes the plan along, one invoice each.
+				const second = await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 60_000,
+					happenedOn: "2026-09-04",
+					description: "Televisao",
+					accountId: ready.card.id,
+					installments: 2,
+				});
+				expect(second.map((part) => part.invoiceMonth)).toEqual(["2026-10", "2026-11"]);
+				expect(
+					await ready.fixture.asAna.invoices.closedOn({
+						accountId: ready.card.id,
+						month: "2026-09",
+						day: "2026-09-05",
+					}),
+				).toBe(2);
+				expect(await Promise.all(second.map((part) => monthOf(part.id)))).toEqual([
+					"2026-09",
+					"2026-10",
+				]);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		it("lets a payment with no invoice named on it pay down the oldest one owing", async () => {
 			const ready = await readyCard(adapter);
 			try {
