@@ -88,10 +88,12 @@ export function TransactionForm({
 		queryFn: () => session?.categories.list(spaceId) ?? [],
 	});
 
+	// The ones put away too, for the record of a card since archived: without it the way of
+	// that record was missing from the list, and saving took the card off it.
 	const cards = useQuery({
-		queryKey: ["cards", spaceId],
+		queryKey: ["cards", spaceId, "includingArchived"],
 		enabled: Boolean(session && spaceId !== ""),
-		queryFn: () => session?.cards.list(spaceId) ?? [],
+		queryFn: () => session?.cards.list(spaceId, { includeArchived: true }) ?? [],
 	});
 
 	const usable = useMemo(
@@ -130,7 +132,16 @@ export function TransactionForm({
 	 * The value of an option carries the card and the account with a colon between them, and
 	 * the card half is nothing rather than an empty string when there is no plastic.
 	 */
-	const ways = useMemo(() => waysToPay(cards.data ?? [], usable, t), [cards.data, usable, t]);
+	const ways = useMemo(
+		() =>
+			waysToPay(
+				cards.data ?? [],
+				accounts,
+				t,
+				editing ? { cardId: editing.cardId, accountId: editing.accountId } : undefined,
+			),
+		[cards.data, accounts, t, editing],
+	);
 
 	const chosenWay = ways.find((entry) => entry.value === way) ?? null;
 
@@ -266,6 +277,11 @@ export function TransactionForm({
 				// The status is not sent. A record that is waiting to be confirmed is waiting
 				// because somebody has not said it happened, and correcting the description of
 				// it is not saying so. The two buttons on the overview are what say so.
+				// The card only when somebody changed how it was paid. Sent on every save, a
+				// purchase of a card since put away lost its card the first time anything else
+				// about it was corrected.
+				const opened = `${editing.cardId ?? ""}:${editing.accountId}`;
+				const { cardId, ...sortedOnly } = sorting;
 				const change = {
 					// Only when it changed, which only a record that stands alone offers.
 					...(kind !== editing.kind && kind !== "transfer" ? { kind } : {}),
@@ -274,7 +290,8 @@ export function TransactionForm({
 					accountId,
 					counterAccountId: kind === "transfer" ? counterAccountId : null,
 					notes: notes.trim() === "" ? null : notes.trim(),
-					...sorting,
+					...sortedOnly,
+					...(way !== opened || kind !== editing.kind ? { cardId } : {}),
 				};
 				// The whole of the plan from here on, when that is what was asked for. The day
 				// is left out of it on purpose: each part falls on its own.

@@ -100,6 +100,43 @@ test.describe("records", () => {
 		await expect(dialog.getByRole("radio", { name: "Entrada" })).toHaveCount(0);
 	});
 
+	// Part 1, D.6 of the request for 2.0.0: the form read the cards without the ones put away,
+	// so correcting the description of a purchase made with a card since archived took the
+	// card off it, and the edit opened on whichever way to pay came first.
+	test("keeps the card of a purchase when the card was put away", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByLabel("Pago com").selectOption({ label: "Cartão do banco (Crédito)" });
+		await dialog.getByLabel("Valor", { exact: true }).fill("80,00");
+		await dialog.getByLabel("Descrição").fill("Romance policial");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(dialog).toHaveCount(0);
+		await expect(record(page, "Romance policial")).toContainText("Cartão do banco");
+
+		await go(page, "Contas");
+		await page
+			.getByRole("row")
+			.filter({ hasText: "Cartão de crédito" })
+			.getByRole("button", { name: "Ações da conta" })
+			.click();
+		await page.getByRole("menuitem", { name: "Editar cartão Cartão do banco" }).click();
+		await dialog.getByRole("button", { name: "Arquivar" }).click();
+		await expect(dialog).toHaveCount(0);
+
+		await go(page, "Lançamentos");
+		await record(page, "Romance policial").getByRole("button", { name: "Ações" }).click();
+		await page.getByRole("menuitem", { name: "Editar" }).click();
+		await expect(dialog.getByLabel("Pago com").locator("option:checked")).toHaveText(
+			"Cartão do banco (arquivado)",
+		);
+		await dialog.getByLabel("Descrição").fill("Romance usado");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(dialog).toHaveCount(0);
+		await expect(record(page, "Romance usado")).toContainText("Cartão do banco");
+	});
+
 	// Part 1, D.4 of the request for 2.0.0: instalments on any account, which is decision 6
 	// of 1.1.0. The form offered them only on a credit card, so a carnê of 300 in three on the
 	// current account could not be written as one.

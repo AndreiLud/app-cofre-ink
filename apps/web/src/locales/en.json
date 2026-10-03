@@ -1656,6 +1656,7 @@
 		"cards": "Cards",
 		"accounts": "Accounts",
 		"side": "{{name}} ({{side}})",
-		"withEnding": "{{name}}, ending {{ending}}"
+		"withEnding": "{{name}}, ending {{ending}}",
+		"archived": "{{name}} (archived)"
 	}
 }

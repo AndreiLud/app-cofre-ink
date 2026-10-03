@@ -100,6 +100,36 @@ describe("the ways to pay", () => {
 		]);
 	});
 
+	// Part 1, D.6 of the request for 2.0.0: the form read the cards without the archived ones,
+	// so saving a purchase of a card since put away took the card off it, and a record on a
+	// benefit card with no plastic opened on whichever way came first.
+	it("keeps the way of the record being corrected, a card put away included", () => {
+		const accounts = [
+			account("checking", "checking", "Conta"),
+			account("credit", "credit", "Fatura"),
+			account("voucher", "voucher", "Vale"),
+		];
+		const away = card("away", "Cartão antigo", {
+			creditAccountId: "credit",
+			archivedAt: 1,
+		});
+		expect(waysToPay([away], accounts, t).some((way) => way.cardId === "away")).toBe(false);
+
+		const kept = waysToPay([away], accounts, t, { cardId: "away", accountId: "credit" });
+		expect(kept.find((way) => way.value === "away:credit")).toMatchObject({
+			label: 'ways.archived{"name":"Cartão antigo"}',
+			cardId: "away",
+			accountId: "credit",
+		});
+
+		const lunch = waysToPay([], accounts, t, { cardId: null, accountId: "voucher" });
+		expect(lunch.find((way) => way.value === ":voucher")).toMatchObject({
+			label: "Vale",
+			cardId: null,
+			accountId: "voucher",
+		});
+	});
+
 	it("lists accounts with cards first, each under its heading", () => {
 		const options = accountOptions(
 			[account("checking", "checking", "Nubank"), account("credit", "credit", "Nubank")],

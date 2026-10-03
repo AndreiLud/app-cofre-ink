@@ -1656,6 +1656,7 @@
 		"cards": "Cartões",
 		"accounts": "Contas",
 		"side": "{{name}} ({{side}})",
-		"withEnding": "{{name}}, final {{ending}}"
+		"withEnding": "{{name}}, final {{ending}}",
+		"archived": "{{name}} (arquivado)"
 	}
 }

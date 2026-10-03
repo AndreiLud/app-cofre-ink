@@ -51,7 +51,36 @@ export function waysToPay(
 	cards: readonly Card[],
 	accounts: readonly Account[],
 	t: Translate,
+	/**
+	 * The way of the record being corrected, which is offered whatever has happened to it
+	 * since: a card put away, an account archived, a benefit card written with no plastic. Left
+	 * out, the list opened on whichever way came first, and saving took the card off.
+	 */
+	keep?: { cardId: string | null; accountId: string },
 ): Way[] {
+	const ways = everyWay(cards, accounts, t);
+	if (!keep) return ways;
+	const value = `${keep.cardId ?? ""}:${keep.accountId}`;
+	if (ways.some((way) => way.value === value)) return ways;
+
+	const account = accounts.find((one) => one.id === keep.accountId);
+	if (!account) return ways;
+	const plastic = keep.cardId === null ? null : cards.find((one) => one.id === keep.cardId);
+	const name = plastic ? plastic.name : account.name;
+	const putAway = plastic ? plastic.archivedAt !== null : account.archivedAt !== null;
+	return [
+		...ways,
+		{
+			value,
+			label: putAway ? t("ways.archived", { name }) : name,
+			group: plastic ? t("ways.cards") : groupOf(account, t),
+			cardId: plastic ? plastic.id : null,
+			accountId: account.id,
+		},
+	];
+}
+
+function everyWay(cards: readonly Card[], accounts: readonly Account[], t: Translate): Way[] {
 	const usable = accounts.filter((account) => account.archivedAt === null);
 	const reachable = new Set(usable.map((account) => account.id));
 
