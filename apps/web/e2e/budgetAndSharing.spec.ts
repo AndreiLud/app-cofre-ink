@@ -223,6 +223,8 @@ test.describe("what needs attention", () => {
 
 		await go(page, "Painel");
 		await expect(page.getByText("O que precisa de atenção")).toBeVisible();
-		await expect(page.getByText("passou do limite")).toBeVisible();
+		await expect(page.getByText(/^Tudo passou do limite em R\$/)).toBeVisible();
+		// And "O mês até agora" names it beside what the month went on (part 1, E.5).
+		await expect(page.getByText(/^Passou do limite: Tudo, R\$/)).toBeVisible();
 	});
 });
