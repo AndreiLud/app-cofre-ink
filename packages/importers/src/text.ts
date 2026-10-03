@@ -206,6 +206,20 @@ export function readAmountValue(value: string, currency = "BRL"): number | null 
 	return readAmount(value, currency)?.value ?? null;
 }
 
+/** Lowercase and without accents, so "Crédito" and "credito" are the same word. */
+export function fold(text: string): string {
+	return text
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.toLowerCase();
+}
+
+/** Whether a phrase is in a text as whole words. Both are folded first. */
+export function saysWord(folded: string, phrase: string): boolean {
+	const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/ /g, "\\s+");
+	return new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`).test(folded);
+}
+
 /** Collapses the spacing banks leave behind, without touching what the words say. */
 export function tidy(value: string): string {
 	return value.replace(/\s+/g, " ").trim();

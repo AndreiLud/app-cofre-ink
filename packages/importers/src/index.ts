@@ -1,6 +1,7 @@
 export * from "./account.ts";
 export * from "./csv.ts";
 export * from "./mapping.ts";
+export * from "./nature.ts";
 export * from "./ofx.ts";
 export * from "./pdf/index.ts";
 export * from "./pipeline.ts";

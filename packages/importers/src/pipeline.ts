@@ -8,6 +8,7 @@
 import type { CalendarDate } from "@cofre/core";
 import { readCsv } from "./csv.ts";
 import { applyMapping, type ColumnMapping, guessMapping } from "./mapping.ts";
+import { type Nature, natureOf } from "./nature.ts";
 import { readOfx } from "./ofx.ts";
 import { looksLikePdf, readPdf } from "./pdf/index.ts";
 import { readQif } from "./qif.ts";
@@ -27,6 +28,8 @@ export type DraftRecord = {
 	externalId: string | null;
 	/** What the file called the category, which may match nothing here. */
 	category: string | null;
+	/** What the line is, apart from the direction. */
+	nature: Nature;
 	/** The line it came from, so a problem can be pointed at. */
 	line: number;
 	/**
@@ -161,6 +164,7 @@ function fromPdf(bytes: Uint8Array, today?: CalendarDate): ReadFileResult {
 			notes: null,
 			externalId: entry.externalId,
 			category: null,
+			nature: entry.nature,
 			line: entry.line,
 			confidence: entry.confidence,
 			source: entry.source,
@@ -218,6 +222,8 @@ function fromRows(
 			notes: read.notes,
 			externalId: read.externalId,
 			category: read.category,
+			// A file whose positive numbers are purchases is an invoice.
+			nature: natureOf(description, mapping.positiveMeans === "expense" ? "invoice" : "statement"),
 			line,
 			// A table was read rather than understood, so there is nothing to be unsure of.
 			confidence: 1,
@@ -251,6 +257,7 @@ function fromOfx(text: string): ReadFileResult {
 			notes: entry.checkNumber === null ? null : `Documento ${entry.checkNumber}`,
 			externalId: entry.externalId,
 			category: null,
+			nature: natureOf(description, "statement"),
 			line: index + 1,
 			confidence: 1,
 			source: null,
@@ -281,6 +288,7 @@ function fromQif(text: string): ReadFileResult {
 			notes: entry.memo,
 			externalId: null,
 			category: entry.category,
+			nature: natureOf(entry.description, "statement"),
 			line: index + 1,
 			confidence: 1,
 			source: null,
@@ -325,6 +333,7 @@ function fromJson(text: string): ReadFileResult {
 			notes: typeof row.notes === "string" ? row.notes : null,
 			externalId: typeof row.externalId === "string" ? row.externalId : null,
 			category: typeof row.category === "string" ? row.category : null,
+			nature: natureOf(typeof row.description === "string" ? row.description : "", "statement"),
 			line: index + 1,
 			confidence: 1,
 			source: null,

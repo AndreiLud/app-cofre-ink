@@ -9,7 +9,16 @@
 // on a screen next to the line it came from, and a person says yes.
 
 import type { CalendarDate } from "@cofre/core";
-import { guessDateOrder, readAmount, readDate, tidy, type WrittenSign } from "../text.ts";
+import { type Nature, natureOf } from "../nature.ts";
+import {
+	fold,
+	guessDateOrder,
+	readAmount,
+	readDate,
+	saysWord,
+	tidy,
+	type WrittenSign,
+} from "../text.ts";
 
 export type DocumentKind = "statement" | "invoice" | "receipt" | "unknown";
 
@@ -20,6 +29,8 @@ export type RecognisedEntry = {
 	description: string;
 	/** Zero to one. Under two thirds the screen asks the person to look. */
 	confidence: number;
+	/** What the line is, apart from the direction: a purchase, a fee, a refund, a payment. */
+	nature: Nature;
 	/** What the bank called it, when the line carried an identifier. */
 	externalId: string | null;
 	/** The line it came from, so the person can compare. */
@@ -162,12 +173,6 @@ const INVOICE_BACK = [
 	"payment",
 ];
 
-/** Whether a phrase is in a text as whole words. Both are folded first. */
-export function saysWord(folded: string, phrase: string): boolean {
-	const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/ /g, "\\s+");
-	return new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`).test(folded);
-}
-
 /**
  * Lines that are furniture: a heading, a total, a page number.
  *
@@ -202,10 +207,6 @@ const FURNITURE_AT_START = [
 	"pagina",
 	"page",
 ];
-
-export function fold(text: string): string {
-	return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-}
 
 /** A sign, written by a keyboard or a typesetter. Escaped, so it can be read here. */
 const SIGN = "[-+\\u2212\\u2013\\u2014]";
@@ -454,6 +455,8 @@ export type RecogniseOptions = {
 	order?: "dayFirst" | "monthFirst" | "yearFirst";
 	/** Given when the person turned the signs of an invoice round on the screen. */
 	convention?: InvoiceConvention;
+	/** The banks of the cards written down, which a statement names when it pays one. */
+	cardBanks?: readonly string[];
 };
 
 /**
@@ -593,6 +596,9 @@ export function recogniseStatement(
 			amount,
 			description: description === "" ? tidy(line) : description,
 			confidence: Math.min(0.99, confidence),
+			nature: natureOf(description === "" ? line : description, "statement", {
+				cardBanks: options.cardBanks ?? [],
+			}),
 			externalId: findIdentifier(line),
 			line: index + 1,
 			source: line,
@@ -624,6 +630,7 @@ export function recogniseStatement(
 			amount: read.direction * Math.abs(charge.chosen.value),
 			description: charge.description === "" ? charge.line : charge.description,
 			confidence: Math.min(0.99, confidence),
+			nature: natureOf(charge.description === "" ? charge.line : charge.description, "invoice"),
 			externalId: findIdentifier(charge.line),
 			line: charge.index + 1,
 			source: charge.line,

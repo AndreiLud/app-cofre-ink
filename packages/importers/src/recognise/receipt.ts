@@ -7,13 +7,13 @@
 // being written down twice.
 
 import type { CalendarDate } from "@cofre/core";
-import { tidy } from "../text.ts";
+import { natureOf } from "../nature.ts";
+import { fold, tidy } from "../text.ts";
 import {
 	currencyOf,
 	findAmounts,
 	findDate,
 	findIdentifier,
-	fold,
 	institutionOf,
 	type RecognisedDocument,
 	type RecogniseOptions,
@@ -115,6 +115,9 @@ export function recogniseReceipt(
 			amount,
 			description: description.slice(0, 120),
 			confidence: Math.min(0.99, confidence),
+			nature: natureOf(lines.slice(0, 15).join(" "), "statement", {
+				cardBanks: options.cardBanks ?? [],
+			}),
 			externalId: identifier ?? null,
 			line: labelledAmount?.index !== undefined ? labelledAmount.index + 1 : 1,
 			source: tidy(lines.join(" ")).slice(0, 200),

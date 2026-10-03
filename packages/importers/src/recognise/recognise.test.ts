@@ -1,5 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import { natureOf } from "../nature.ts";
 import { recognise, recogniseReceipt, recogniseStatement } from "./index.ts";
 
 const today = "2026-09-22";
@@ -221,6 +222,47 @@ describe("the sign by the kind of document", () => {
 		// "credito" in the name of a loan is not money coming in.
 		expect(read.kind).toBe("statement");
 		expect(read.entries[0]?.amount).toBe(-30_000);
+	});
+});
+
+// Part 2, E.3: what a line is, apart from its sign.
+describe("the nature of each line", () => {
+	it("tells a purchase from a refund and from the bill being paid", () => {
+		const read = recogniseStatement(
+			[
+				"Fatura do cartao de credito",
+				"Total desta fatura R$ 130,00",
+				"12/09/2026 Padaria 18,40",
+				"13/09/2026 Mercado 131,60",
+				"13/09/2026 Farmacia 30,00",
+				"14/09/2026 Estorno Loja X -50,00",
+				"15/09/2026 Pagamento recebido -1.000,00",
+			],
+			{ today },
+		);
+		expect(read.entries.map((entry) => entry.nature)).toEqual([
+			"purchase",
+			"purchase",
+			"purchase",
+			"credit",
+			"payment",
+		]);
+	});
+
+	it("knows a card paid from a statement", () => {
+		const read = recogniseStatement(["Extrato", "10/09/2026 PAGTO CARTAO CREDITO 1.000,00"], {
+			today,
+		});
+		expect(read.entries.map((entry) => [entry.nature, entry.amount])).toEqual([
+			["cardPayment", -100_000],
+		]);
+	});
+
+	it("names the fees a bank charges", () => {
+		expect(natureOf("IOF compra internacional", "invoice")).toBe("fee");
+		expect(natureOf("Encargos de parcelamento", "invoice")).toBe("fee");
+		expect(natureOf("FATURA NUBANK", "statement", { cardBanks: ["Nubank"] })).toBe("cardPayment");
+		expect(natureOf("Mercado do bairro", "statement")).toBe("purchase");
 	});
 });
 
