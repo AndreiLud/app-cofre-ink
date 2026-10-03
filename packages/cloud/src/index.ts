@@ -8,12 +8,21 @@
 // and registry 0026 has the database.
 
 export {
+	DAILY_CODE,
+	type DailySeries,
+	type DayPoint,
+	dailyUrl,
+	type FetchedIndices,
 	type FetchSeriesOptions,
+	fetchDailySeries,
+	fetchEveryIndex,
 	fetchSeries,
+	type HeldIndices,
 	SERIES_CODE,
 	type Series,
 	type SeriesPoint,
 	seriesUrl,
+	windowsOf,
 } from "./bancoCentral.ts";
 export {
 	mirrorToSheet,

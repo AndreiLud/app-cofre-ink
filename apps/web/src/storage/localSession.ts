@@ -6,8 +6,8 @@
 // query. In server mode the server makes that request for everybody; here, the browser
 // makes it for itself, when somebody presses the button.
 
-import { fetchSeries } from "@cofre/cloud";
-import type { IndexSeries, Session } from "@cofre/storage";
+import { fetchEveryIndex } from "@cofre/cloud";
+import type { Session } from "@cofre/storage";
 import type { CofreSession } from "./cofreSession.ts";
 
 export function asCofreSession(session: Session): CofreSession {
@@ -16,13 +16,22 @@ export function asCofreSession(session: Session): CofreSession {
 		indices: {
 			list: (series, range) => session.indices.list(series, range),
 			latest: () => session.indices.latest(),
-			refresh: async (input: { series: IndexSeries[]; from: string }) => {
+			refresh: async (input: { today: string }) => {
+				// One request at a time, inside: six requests at once to a public service is how a
+				// public service starts refusing them.
+				const fetched = await fetchEveryIndex({
+					held: await session.indices.held(),
+					today: input.today,
+				});
 				const written: Record<string, number> = {};
-				for (const series of input.series) {
-					// One at a time, on purpose: three requests at once to a public service
-					// is how a public service starts refusing them.
-					const points = await fetchSeries(series, { from: input.from });
-					written[series] = await session.indices.save(series, points);
+				for (const [series, points] of Object.entries(fetched.monthly)) {
+					written[series] = await session.indices.save(series as "cdi" | "selic" | "ipca", points);
+				}
+				for (const [series, points] of Object.entries(fetched.daily)) {
+					written[series] = await session.indices.saveDays(
+						series as "cdiDaily" | "selicDaily" | "savings",
+						points,
+					);
 				}
 				return written;
 			},

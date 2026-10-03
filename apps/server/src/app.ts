@@ -5,7 +5,7 @@
 // rules about who may do what live in the repository layer, not here, which is what
 // keeps the server and the browser honest about the same model.
 
-import { fetchSeries } from "@cofre/cloud";
+import { fetchEveryIndex } from "@cofre/cloud";
 import { CalendarError, parseCalendarDate } from "@cofre/core";
 import type { Session } from "@cofre/storage";
 import {
@@ -1837,24 +1837,23 @@ export function createApp({ config, database, auth }: AppDependencies) {
 	 * them, and a browser never has to be allowed to call somebody else's address.
 	 */
 	app.post("/api/indices/refresh", async (context) => {
-		const input = z
-			.object({
-				series: z
-					.array(z.enum(["cdi", "selic", "ipca"]))
-					.min(1)
-					.max(3),
-				from: existingMonth,
-			})
-			.parse(await context.req.json());
-
+		const input = z.object({ today: calendarDate }).parse(await context.req.json());
 		const session = context.get("session");
+		// Always the same six series, the monthly and the daily, one request at a time.
+		const fetched = await fetchEveryIndex({
+			held: await session.indices.held(),
+			today: input.today,
+		});
 		const written: Record<string, number> = {};
-
-		for (const series of input.series) {
-			const points = await fetchSeries(series, { from: input.from });
-			written[series] = await session.indices.save(series, points);
+		for (const [series, points] of Object.entries(fetched.monthly)) {
+			written[series] = await session.indices.save(series as "cdi" | "selic" | "ipca", points);
 		}
-
+		for (const [series, points] of Object.entries(fetched.daily)) {
+			written[series] = await session.indices.saveDays(
+				series as "cdiDaily" | "selicDaily" | "savings",
+				points,
+			);
+		}
 		return context.json({ written });
 	});
 

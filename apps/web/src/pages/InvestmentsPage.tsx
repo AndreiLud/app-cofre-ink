@@ -134,10 +134,7 @@ export function InvestmentsPage() {
 	const refresh = useMutation({
 		mutationFn: async () => {
 			if (!session) throw new Error("no session");
-			return session.indices.refresh({
-				series: ["cdi", "selic", "ipca"],
-				from: monthOf(today).slice(0, 4).concat("-01"),
-			});
+			return session.indices.refresh({ today });
 		},
 		onSuccess: async () => {
 			setProblem(null);

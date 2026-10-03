@@ -769,7 +769,7 @@ export function createRemoteSession(
 			latest: () => get<Record<string, IndexRate | null>>("/api/indices/latest"),
 			// The server asks the Banco Central, which is better than the browser doing
 			// it: one fetch serves everybody who uses that server.
-			refresh: async (input: { series: IndexSeries[]; from: string }) =>
+			refresh: async (input: { today: string }) =>
 				(await send<{ written: Record<string, number> }>("/api/indices/refresh", "POST", input))
 					.written,
 		},

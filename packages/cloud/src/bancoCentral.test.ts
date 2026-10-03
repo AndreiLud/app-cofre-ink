@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { fetchSeries, SERIES_CODE, seriesUrl } from "./bancoCentral.ts";
+import {
+	fetchDailySeries,
+	fetchEveryIndex,
+	fetchSeries,
+	SERIES_CODE,
+	seriesUrl,
+	windowsOf,
+} from "./bancoCentral.ts";
 
 function fakeService(body: unknown, status = 200) {
 	const calls: string[] = [];
@@ -58,5 +65,59 @@ describe("asking the Banco Central", () => {
 	it("gives back nothing for an answer that is not a list", async () => {
 		const service = fakeService({ nada: true });
 		expect(await fetchSeries("selic", { from: "2026-07", fetcher: service.fetcher })).toEqual([]);
+	});
+});
+
+// Part 2, H.6 of the request for 2.0.0.
+describe("the daily series", () => {
+	it("asks for eleven years in two requests, each with both dates", async () => {
+		expect(windowsOf("2016-01-01", "2026-10-28")).toEqual([
+			{ from: "2016-01-01", to: "2025-12-31" },
+			{ from: "2026-01-01", to: "2026-10-28" },
+		]);
+		const service = fakeService([{ data: "28/10/2026", valor: "0.050788" }]);
+		const points = await fetchDailySeries("cdiDaily", {
+			from: "2016-01-01",
+			to: "2026-10-28",
+			fetcher: service.fetcher,
+		});
+		expect(service.calls).toHaveLength(2);
+		expect(
+			service.calls.every((url) => url.includes("dataInicial") && url.includes("dataFinal")),
+		).toBe(true);
+		expect(points[0]).toEqual({ day: "2026-10-28", rate: 5_078_800 });
+	});
+
+	it("always asks for the same six series, whatever anybody holds", async () => {
+		const service = fakeService([]);
+		const none = {
+			monthly: { cdi: null, selic: null, ipca: null },
+			daily: { cdiDaily: null, selicDaily: null, savings: null },
+		};
+		await fetchEveryIndex({ held: none, today: "2026-10-28", fetcher: service.fetcher });
+		const codes = service.calls.map((url) => /bcdata\.sgs\.(\d+)/.exec(url)?.[1]);
+		expect([...new Set(codes)].sort()).toEqual(["11", "12", "195", "433", "4390", "4391"]);
+		// The first time, from January of ten years before.
+		for (const code of ["11", "12", "195", "433", "4390", "4391"]) {
+			const first = service.calls.find((url) => url.includes(`sgs.${code}/`));
+			expect(first, code).toContain("dataInicial=01%2F01%2F2016");
+		}
+
+		// After that, only the days that are new, and at least thirteen months of the monthly ones.
+		const later = fakeService([]);
+		await fetchEveryIndex({
+			held: {
+				monthly: { cdi: "2026-09", selic: "2026-09", ipca: "2026-09" },
+				daily: { cdiDaily: "2026-10-27", selicDaily: "2026-10-27", savings: "2026-10-01" },
+			},
+			today: "2026-10-28",
+			fetcher: later.fetcher,
+		});
+		expect(later.calls.filter((url) => url.includes("sgs.4391"))[0]).toContain(
+			"dataInicial=01%2F09%2F2025",
+		);
+		expect(later.calls.filter((url) => url.includes("sgs.12/"))[0]).toContain(
+			"dataInicial=28%2F10%2F2026",
+		);
 	});
 });

@@ -52,6 +52,33 @@ export async function saveIndexRates(
 	return points.length;
 }
 
+/** A day of a daily series, in hundred millionths of a percentage point. */
+export type IndexDayPoint = { day: string; rate: number };
+
+/** Writes the days a fetch brought back, replacing what was there for the same days. */
+export async function saveIndexDays(
+	driver: Driver,
+	series: "cdiDaily" | "selicDaily" | "savings",
+	points: readonly IndexDayPoint[],
+	now: () => number = Date.now,
+): Promise<number> {
+	if (points.length === 0) return 0;
+	await driver.transaction(async (tx) => {
+		for (const point of points) {
+			await tx.run(`DELETE FROM "index_days" WHERE "series" = ? AND "day" = ?`, [
+				series,
+				point.day,
+			]);
+			await tx.run(
+				`INSERT INTO "index_days" ("id", "series", "day", "rate", "fetched_at")
+				 VALUES (?, ?, ?, ?, ?)`,
+				[`${series}:${point.day}`, series, point.day, Math.round(point.rate), now()],
+			);
+		}
+	});
+	return points.length;
+}
+
 export function createIndicesRepository(context: RepositoryContext) {
 	return {
 		/**
@@ -100,6 +127,42 @@ export function createIndicesRepository(context: RepositoryContext) {
 		/** Writes what a fetch brought back. */
 		save(series: IndexSeries, points: readonly IndexPoint[]): Promise<number> {
 			return saveIndexRates(context.driver, series, points, context.now);
+		},
+
+		/** Writes the days of a daily series a fetch brought back. */
+		saveDays(
+			series: "cdiDaily" | "selicDaily" | "savings",
+			points: readonly IndexDayPoint[],
+		): Promise<number> {
+			return saveIndexDays(context.driver, series, points, context.now);
+		},
+
+		/**
+		 * The newest month and day held of every series, which is where the next fetch starts, and
+		 * the newest day of the CDI, which is how far an estimate can go.
+		 */
+		async held(): Promise<{
+			monthly: Record<"cdi" | "selic" | "ipca", string | null>;
+			daily: Record<"cdiDaily" | "selicDaily" | "savings", string | null>;
+		}> {
+			const months = await context.driver.all(
+				`SELECT "series", MAX("month") AS "newest" FROM "index_rates" GROUP BY "series"`,
+			);
+			const days = await context.driver.all(
+				`SELECT "series", MAX("day") AS "newest" FROM "index_days" GROUP BY "series"`,
+			);
+			const of = (rows: typeof months, series: string) => {
+				const found = rows.find((row) => String(row.series) === series)?.newest;
+				return found === null || found === undefined ? null : String(found);
+			};
+			return {
+				monthly: { cdi: of(months, "cdi"), selic: of(months, "selic"), ipca: of(months, "ipca") },
+				daily: {
+					cdiDaily: of(days, "cdiDaily"),
+					selicDaily: of(days, "selicDaily"),
+					savings: of(days, "savings"),
+				},
+			};
 		},
 
 		/** Everything held for a set of months, for comparing a portfolio against. */

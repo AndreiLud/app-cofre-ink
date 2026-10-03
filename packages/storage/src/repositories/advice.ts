@@ -10,6 +10,7 @@ import {
 	addMonthsToMonth,
 	type CalendarDate,
 	type ChargePair,
+	inflationOverAYear as compoundedYear,
 	type Finding,
 	findEverything,
 	isDebt,
@@ -192,15 +193,14 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 	 * fresh install. A figure about somebody's money that depends on a number nobody
 	 * has is better left unsaid than guessed.
 	 */
+	/** Twelve months of the IPCA that follow one another, compounded, in packages/core. */
 	async function inflationOverAYear(): Promise<{ percent: number; months: number } | null> {
 		const rows = await context.driver.all(
-			`SELECT "rate" FROM "index_rates" WHERE "series" = 'ipca' ORDER BY "month" DESC LIMIT 12`,
+			`SELECT "month", "rate" FROM "index_rates" WHERE "series" = 'ipca' ORDER BY "month" DESC LIMIT 13`,
 		);
-		if (rows.length < 12) return null;
-
-		// Each month is hundredths of a per cent, and they compound rather than add.
-		const factor = rows.reduce((total, row) => total * (1 + asNumber(row.rate) / 10_000), 1);
-		return { percent: Math.round((factor - 1) * 10_000), months: rows.length };
+		return compoundedYear(
+			rows.map((row) => ({ month: String(row.month), rate: asNumber(row.rate) })),
+		);
 	}
 
 	async function spendingByCategory(spaceId: string, from: string, today: CalendarDate) {

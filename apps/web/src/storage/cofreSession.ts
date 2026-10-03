@@ -419,8 +419,11 @@ export type CofreSession = {
 	indices: {
 		list: (series: IndexSeries, range?: { from?: string; to?: string }) => Promise<IndexRate[]>;
 		latest: () => Promise<Record<string, IndexRate | null>>;
-		/** Asks the Banco Central for what this installation does not have. */
-		refresh: (input: { series: IndexSeries[]; from: string }) => Promise<Record<string, number>>;
+		/**
+		 * Asks the Banco Central for what this installation does not have: always the same six
+		 * series, the monthly and the daily, whatever anybody holds.
+		 */
+		refresh: (input: { today: string }) => Promise<Record<string, number>>;
 	};
 	imports: {
 		/** What the space already has around those days, so a repeat can be marked. */

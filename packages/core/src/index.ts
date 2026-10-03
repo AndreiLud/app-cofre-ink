@@ -26,6 +26,7 @@ export * from "./entry/quickEntry.ts";
 export * from "./ids/occurrenceId.ts";
 export * from "./ids/uuidV7.ts";
 export * from "./invest/estimate.ts";
+export * from "./invest/inflation.ts";
 export * from "./invest/products.ts";
 export * from "./invest/tax.ts";
 export * from "./invest/valuation.ts";
