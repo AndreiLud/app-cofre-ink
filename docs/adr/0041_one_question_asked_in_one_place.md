@@ -84,7 +84,10 @@ two to be found by somebody reading the screens afterwards. All four are written
 4. A holding, which is money the household owns rather than money that moved. There is
    nothing in it to attribute to a person. The one figure on that screen that was made of
    records, how long this money would last without an income, closed to them in 1.1.0,
-   because the income it divides by is the household's and not theirs.
+   because the income it divides by is the household's and not theirs. And since 2.0.0 the
+   check up tells them nothing about money at all, neither the reserve nor what falls due:
+   their balance is made of their own rows and an invoice is the whole card's, so both were a
+   household's sentence measured against what one person wrote (registry 0071).
 
 Four more figures made of records arrived with 1.1.0, and the sweep before the tag found
 every one of them open. Three close, because a figure of this shape cannot be narrowed

@@ -35,7 +35,7 @@ new one.
 | [0026](0026_a_copy_that_is_a_database.md) | a copy that is a database, and a screen ordered by how often | accepted, the screen amended by 0035 |
 | [0027](0027_a_cost_before_a_password.md) | a cost before a password, and no captcha from anybody else | accepted |
 | [0028](0028_the_front_door.md) | the front door of an address anybody can open | accepted, the profiles replaced by 0037 |
-| [0029](0029_four_signs_and_a_verdict.md) | four signs, and a word for the state of the money | accepted |
+| [0029](0029_four_signs_and_a_verdict.md) | four signs, and a word for the state of the money | accepted, amended by 0071 |
 | [0030](0030_a_plan_with_a_month_on_it.md) | a plan with a month on it, and a target they have already hit | accepted |
 | [0031](0031_whether_it_is_getting_better.md) | whether it is getting better, and the months already spent | accepted |
 | [0032](0032_the_year_ahead_and_the_one_income.md) | the year ahead, the one income, and what standing still costs | accepted |
@@ -48,7 +48,7 @@ new one.
 | [0039](0039_the_invoice_is_also_paid.md) | the invoice is also paid, so the accounts stop drifting | accepted |
 | [0040](0040_a_server_is_not_a_destination.md) | a server of theirs is not a place the automatic backup writes | accepted |
 | [0041](0041_one_question_asked_in_one_place.md) | one question asked in one place, and a check that keeps it so | accepted |
-| [0042](0042_what_money_is_and_when_it_counts.md) | what money is, and the day it counts on | accepted |
+| [0042](0042_what_money_is_and_when_it_counts.md) | what money is, and the day it counts on | accepted, amended by 0071 |
 | [0043](0043_an_allowance_with_a_day_on_it.md) | an allowance with a day on it | accepted |
 | [0044](0044_four_figures_on_one_line.md) | four figures on one line | accepted |
 | [0045](0045_money_is_not_a_setting.md) | money is not a setting | accepted, amended by 0070 |
@@ -76,3 +76,4 @@ new one.
 | [0068](0068_what_repeats_is_a_chain.md) | what repeats has a screen, a chain and one writer | accepted, three choices wait for confirmation |
 | [0069](0069_a_holding_is_a_product.md) | a holding is a product, and the indices estimate it | accepted, six choices wait for confirmation |
 | [0070](0070_planning_and_reports_in_one_section.md) | planning and reports in one section | accepted |
+| [0071](0071_an_invoice_is_a_bill_on_its_due_day.md) | an invoice is a bill on its due day, and the reserve is less the cards | accepted |
