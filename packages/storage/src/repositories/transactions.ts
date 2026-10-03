@@ -159,7 +159,13 @@ function signFor(kind: TransactionKind, amount: number): number {
 }
 
 /**
- * The two rules of a benefit card, which every path that puts a record on an account asks.
+ * What an account refuses to have written on it, which every path that puts a record on an
+ * account asks.
+ *
+ * A credit card is not an origin: money does not move out of one into another account. What
+ * leaves a card is a purchase on its invoice, which is decision 2 of 2.0.0, and the two ways
+ * that write one, paying an invoice with another card and splitting one into parts, write it
+ * by a path of their own. A move into a card is a payment of its invoice, and stays.
  *
  * A benefit card is an allowance, not an account. The money on it was put there by an
  * employer and it does not come back out: it buys lunch or a fare and that is the whole of
@@ -169,7 +175,13 @@ function signFor(kind: TransactionKind, amount: number): number {
  * Only creating a record asked, so editing one, moving a selection to another account, a
  * series and a file brought in all wrote what creating refused.
  */
-export function assertBenefitRules(kind: TransactionKind, account: { kind: string }): void {
+export function assertAccountRules(kind: TransactionKind, account: { kind: string }): void {
+	if (account.kind === "credit" && kind === "transfer") {
+		throw new RuleError(
+			"cardIsNotAnOrigin",
+			"money does not move out of a credit card, what leaves one is a purchase on its invoice",
+		);
+	}
 	if (account.kind !== "voucher") return;
 	if (kind === "income") {
 		throw new RuleError(
@@ -456,7 +468,7 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			const moved = await accountIn(found.spaceId, input.accountId);
 			// Onto a benefit card only what a benefit card can hold. A record already there,
 			// an income written on one before 2.0.0, stays editable where it is.
-			if (input.accountId !== found.accountId) assertBenefitRules(found.kind, moved);
+			if (input.accountId !== found.accountId) assertAccountRules(found.kind, moved);
 			values.account_id = input.accountId;
 		}
 
@@ -525,7 +537,7 @@ export function createTransactionsRepository(context: RepositoryContext) {
 				);
 			}
 
-			assertBenefitRules(input.kind, account);
+			assertAccountRules(input.kind, account);
 
 			if (input.kind === "transfer") {
 				if (!input.counterAccountId) {

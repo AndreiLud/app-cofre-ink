@@ -527,7 +527,7 @@
 		"amountIsPositiveInteger": "Escreva um valor maior que zero.",
 		"descriptionIsRequired": "Escreva uma descrição.",
 		"transferNeedsDestination": "Escolha a conta de destino.",
-		"transferNeedsTwoAccounts": "A transferência precisa de duas contas diferentes.",
+		"transferNeedsTwoAccounts": "Mover entre contas precisa de duas contas diferentes: a de onde o dinheiro sai e a para onde ele vai.",
 		"reconciledIsFrozen": "Esse lançamento foi conferido com o banco. Desfaça a conferência antes de mudar.",
 		"categoryDepthIsTwo": "Uma categoria entra dentro de outra e para por aí. Escolha uma que esteja sozinha.",
 		"categoryHasChildren": "Essa categoria tem outras dentro dela. Mova ou apague as de dentro primeiro.",
@@ -565,7 +565,7 @@
 		"invitationUsed": "Esse convite já foi usado. Cada link serve uma vez só.",
 		"noSelfPromotion": "Ninguém muda o próprio papel. Peça a outra pessoa que cuida do espaço.",
 		"onlyOwnerTransfers": "Só o Dono passa um espaço para outra pessoa.",
-		"onlyTransfersHaveDestination": "Só uma transferência move dinheiro para outra conta. Escolha Transferência, ou tire a conta de destino.",
+		"onlyTransfersHaveDestination": "Só Mover entre contas leva dinheiro para outra conta sua. Uma entrada ou uma saída fica numa conta só.",
 		"ownerRoleIsTransferred": "O papel de Dono não se dá como os outros: ele muda quando o espaço é passado para outra pessoa.",
 		"ownerStays": "O Dono não pode ser removido do próprio espaço. Passe o espaço para outra pessoa antes.",
 		"personalSpaceIsPrivate": "O espaço pessoal é de uma pessoa só e não recebe ninguém. Crie um espaço compartilhado para dividir.",
@@ -605,7 +605,8 @@
 		"knownAmountIsForCarryingVouchers": "Quanto tem no cartão hoje só vale para um benefício que acumula. Num que zera, o valor do mês já diz o que tem.",
 		"onlyAPurchaseIsRefunded": "Só uma compra pode ser estornada.",
 		"refundIsForVouchers": "O estorno que volta para o próprio cartão é de cartão de benefício.",
-		"refundIsUpToThePurchase": "O estorno é um valor maior que zero e até o valor da compra."
+		"refundIsUpToThePurchase": "O estorno é um valor maior que zero e até o valor da compra.",
+		"cardIsNotAnOrigin": "Dinheiro não sai de um cartão de crédito para outra conta: o que sai dele é compra, na fatura. Para pagar a fatura, use Pagar fatura."
 	},
 	"transactions": {
 		"title": "Lançamentos",

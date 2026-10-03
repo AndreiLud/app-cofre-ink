@@ -527,7 +527,7 @@
 		"amountIsPositiveInteger": "Write an amount greater than zero.",
 		"descriptionIsRequired": "Write a description.",
 		"transferNeedsDestination": "Pick the account the money lands in.",
-		"transferNeedsTwoAccounts": "A transfer needs two different accounts.",
+		"transferNeedsTwoAccounts": "Moving between accounts needs two different accounts: the one the money leaves and the one it goes to.",
 		"reconciledIsFrozen": "That record was checked against the bank. Undo the check before changing it.",
 		"categoryDepthIsTwo": "A category goes inside another one and stops there. Pick one that stands on its own.",
 		"categoryHasChildren": "That category has others inside it. Move or delete those first.",
@@ -565,7 +565,7 @@
 		"invitationUsed": "That invitation has already been used. Each link works once.",
 		"noSelfPromotion": "Nobody changes their own role. Ask somebody else who runs the space.",
 		"onlyOwnerTransfers": "Only the Owner hands a space to somebody else.",
-		"onlyTransfersHaveDestination": "Only a transfer moves money into another account. Choose Transfer, or take the destination account out.",
+		"onlyTransfersHaveDestination": "Only Move between accounts takes money into another account of yours. Money in or money out stays in one account.",
 		"ownerRoleIsTransferred": "The Owner role is not handed out like the others: it changes when the space is passed to somebody else.",
 		"ownerStays": "The Owner cannot be removed from their own space. Hand the space to somebody else first.",
 		"personalSpaceIsPrivate": "The personal space belongs to one person and takes nobody else. Make a shared space to divide anything.",
@@ -605,7 +605,8 @@
 		"knownAmountIsForCarryingVouchers": "How much is on the card today is only for a benefit that carries. On one that resets, the monthly allowance already says what is on it.",
 		"onlyAPurchaseIsRefunded": "Only a purchase can be refunded.",
 		"refundIsForVouchers": "A refund that goes back on the card itself is for a benefit card.",
-		"refundIsUpToThePurchase": "A refund is more than nothing and at most what the purchase cost."
+		"refundIsUpToThePurchase": "A refund is more than nothing and at most what the purchase cost.",
+		"cardIsNotAnOrigin": "Money does not move out of a credit card into another account: what leaves a card is a purchase, on its invoice. To pay the invoice, use Pay the invoice."
 	},
 	"transactions": {
 		"title": "Records",

@@ -178,6 +178,57 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 2, A.5 of the request for 2.0.0, and decision 2: a transfer out of a credit card is
+		// a purchase on its invoice, and only paying an invoice with another card writes one.
+		// Release 1.2.1 wrote 500 moved from the card into the current account and took it off
+		// the invoice; reading one written before is in the invoice suite.
+		it("refuses a move that leaves a credit card, written, edited or repeated", async () => {
+			const ready = await readySpace(adapter);
+			try {
+				const on = ready.fixture.asAna;
+				const move = (accountId: string, counterAccountId: string, amount: number) =>
+					on.transactions.create({
+						spaceId: ready.spaceId,
+						kind: "transfer",
+						amount,
+						happenedOn: "2026-09-10",
+						description: "Movimentacao",
+						accountId,
+						counterAccountId,
+					});
+
+				await expect(move(ready.card.id, ready.checking.id, 50_000)).rejects.toMatchObject({
+					rule: "cardIsNotAnOrigin",
+				});
+
+				// A move between two accounts edited so that it leaves the card.
+				const [between] = await move(ready.checking.id, ready.savings.id, 10_000);
+				await expect(
+					on.transactions.update(between?.id ?? "", { accountId: ready.card.id }),
+				).rejects.toMatchObject({ rule: "cardIsNotAnOrigin" });
+
+				// A series of them, which writes one every month.
+				await expect(
+					on.recurrences.create({
+						spaceId: ready.spaceId,
+						description: "Todo mes",
+						kind: "transfer",
+						amount: 50_000,
+						accountId: ready.card.id,
+						counterAccountId: ready.checking.id,
+						frequency: "monthly",
+						dayOfMonth: 10,
+						startsOn: "2026-09-10",
+					}),
+				).rejects.toMatchObject({ rule: "cardIsNotAnOrigin" });
+
+				// A move into the card is paying its invoice, and stays.
+				await expect(move(ready.checking.id, ready.card.id, 10_000)).resolves.toHaveLength(1);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		it("splits a purchase into installments that add up to it", async () => {
 			const ready = await readySpace(adapter);
 			try {

@@ -35,7 +35,7 @@ import {
 import { marks } from "../sql.ts";
 import { insertRow, softDeleteRow, updateRow } from "../writer.ts";
 import type { RepositoryContext } from "./context.ts";
-import { assertBenefitRules } from "./transactions.ts";
+import { assertAccountRules } from "./transactions.ts";
 
 export type CreateRecurrenceInput = {
 	spaceId: string;
@@ -94,15 +94,16 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 	}
 
 	/**
-	 * The rules of a benefit card, asked of a series as they are of a record: a series of
-	 * income on a voucher, or of moves out of one, writes every month what a record may not.
+	 * The rules of an account, asked of a series as they are of a record: a series of income
+	 * on a voucher, or of moves out of one or out of a credit card, writes every month what a
+	 * record may not.
 	 */
-	async function benefitRulesFor(spaceId: string, kind: string, accountId: string): Promise<void> {
+	async function accountRulesFor(spaceId: string, kind: string, accountId: string): Promise<void> {
 		const rows = await context.driver.all(
 			`SELECT "kind" FROM "accounts" WHERE "id" = ? AND "space_id" = ? AND "deleted_at" IS NULL`,
 			[accountId, spaceId],
 		);
-		assertBenefitRules(kind as TransactionKind, { kind: String(rows[0]?.kind ?? "") });
+		assertAccountRules(kind as TransactionKind, { kind: String(rows[0]?.kind ?? "") });
 	}
 
 	/**
@@ -204,7 +205,7 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 
 			const accountCurrency = await accountIn(input.spaceId, input.accountId);
 			const currency = await sameCurrency(input.spaceId, accountCurrency);
-			await benefitRulesFor(input.spaceId, input.kind, input.accountId);
+			await accountRulesFor(input.spaceId, input.kind, input.accountId);
 			if (input.kind === "transfer" && !input.counterAccountId) {
 				throw new RuleError("transferNeedsDestination", "a transfer needs an account to land in");
 			}
@@ -248,7 +249,7 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 			if (input.accountId !== undefined) {
 				await sameCurrency(found.spaceId, await accountIn(found.spaceId, input.accountId));
 				if (input.accountId !== found.accountId) {
-					await benefitRulesFor(found.spaceId, found.kind, input.accountId);
+					await accountRulesFor(found.spaceId, found.kind, input.accountId);
 				}
 				values.account_id = input.accountId;
 			}
