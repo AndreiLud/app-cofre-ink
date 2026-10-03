@@ -162,6 +162,67 @@ export function runImportingConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// E.11: the payment on an invoice was income on the card, and the month earned what it paid.
+		it("writes the payment on an invoice as the invoice before it, paid from the bank", async () => {
+			const setup = await ready(adapter);
+			try {
+				const { on, spaceId } = setup;
+				const before = await on.reports.totals({ spaceId, from: "2026-09-01", to: "2026-09-30" });
+				const written = await on.imports.create({
+					spaceId,
+					accountId: setup.card.id,
+					invoiceMonth: "2026-09",
+					records: [
+						{ happenedOn: "2026-08-20", amount: 5000, description: "Padaria", nature: "purchase" },
+						{
+							happenedOn: "2026-09-05",
+							amount: -100_000,
+							description: "Pagamento da fatura de agosto de 2026 (Itau)",
+							nature: "payment",
+							paymentFrom: setup.checking.id,
+						},
+					],
+				});
+				const payment = await on.transactions.get(written.ids[1] ?? "");
+				expect([
+					payment.kind,
+					payment.amount,
+					payment.accountId,
+					payment.counterAccountId,
+					payment.invoiceMonth,
+					payment.invoiceMonthByHand,
+				]).toEqual(["transfer", 100_000, setup.checking.id, setup.card.id, "2026-08", true]);
+				const after = await on.reports.totals({ spaceId, from: "2026-09-01", to: "2026-09-30" });
+				expect(after.income).toBe(before.income);
+
+				// Never from a card, and never with no account at all.
+				const line = {
+					happenedOn: "2026-09-05",
+					amount: -1000,
+					description: "Pagamento",
+					nature: "payment" as const,
+				};
+				await expect(
+					on.imports.create({
+						spaceId,
+						accountId: setup.card.id,
+						invoiceMonth: "2026-09",
+						records: [line],
+					}),
+				).rejects.toMatchObject({ rule: "paymentNeedsItsAccount" });
+				await expect(
+					on.imports.create({
+						spaceId,
+						accountId: setup.card.id,
+						invoiceMonth: "2026-09",
+						records: [{ ...line, paymentFrom: setup.card.id }],
+					}),
+				).rejects.toMatchObject({ rule: "paymentFromMoney" });
+			} finally {
+				await setup.fixture.close();
+			}
+		});
+
 		// E.10.2: the one record a card was written down with for its open invoice is replaced by
 		// the invoice that details it, in the same write.
 		it("removes the record an invoice details, in the same write", async () => {

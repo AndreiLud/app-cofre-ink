@@ -152,13 +152,19 @@ test.describe("reading a statement", () => {
 		await expect(page.getByRole("cell", { name: "-R$ 18,40" })).toBeVisible();
 		await expect(page.getByRole("cell", { name: "R$ 500,00", exact: true })).toBeVisible();
 
+		// The payment is the invoice before paid from an account of money, and no longer a record
+		// of its own on the card (part 2, E.11 and E.20.3 of the request for 2.0.0).
+		await page
+			.getByLabel("De onde saiu Pagamento recebido")
+			.selectOption({ label: "Conta corrente" });
 		await page.getByRole("button", { name: "Gravar 3 lançamentos" }).click();
 		await expect(page.getByText("3 lançamentos gravados")).toBeVisible();
 
 		await go(page, "Lançamentos");
 		await page.getByLabel("Mês", { exact: true }).fill("2026-01");
 		await expect(record(page, "Padaria da esquina")).toBeVisible();
-		await expect(record(page, "Pagamento recebido")).toBeVisible();
+		await expect(record(page, "Pagamento recebido")).toHaveCount(0);
+		await expect(record(page, "Pagamento da fatura de janeiro de 2026")).toBeVisible();
 	});
 
 	test("says a PDF is a picture instead of pretending to read it", async ({ page }) => {

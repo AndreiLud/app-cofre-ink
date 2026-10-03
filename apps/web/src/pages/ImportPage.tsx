@@ -458,6 +458,43 @@ export function ImportPage() {
 	/** Whether the person kept the offer to take that record out, which starts taken. */
 	const [keepWrittenDown, setKeepWrittenDown] = useState(false);
 
+	/** Where an invoice is paid from: an account that holds money, never a card or a voucher. */
+	const moneyAccounts = usable.filter(
+		(account) =>
+			account.kind === "checking" || account.kind === "savings" || account.kind === "cash",
+	);
+	// The account that paid this card last time, which a payment on its invoice starts on.
+	const paidBefore = useQuery({
+		queryKey: ["transactions", spaceId, "lastPayer", chosen?.id],
+		enabled: Boolean(session && isInvoice && chosen),
+		queryFn: () =>
+			chosen
+				? (session?.transactions.list({
+						spaceId,
+						accountId: chosen.id,
+						kind: "transfer",
+						limit: 20,
+					}) ?? [])
+				: [],
+	});
+	const lastPayer =
+		(paidBefore.data ?? []).find(
+			(record) =>
+				record.counterAccountId === chosen?.id &&
+				moneyAccounts.some((account) => account.id === record.accountId),
+		)?.accountId ?? null;
+	/** The account the person said a payment came from, by the place of its line. */
+	const [payers, setPayers] = useState<Map<number, string>>(new Map());
+	const payerOf = (index: number): string | null => payers.get(index) ?? lastPayer;
+	/** The invoice a payment on this one pays, which is the one before. */
+	const paidMonth = invoiceMonth ? addMonthsToMonth(invoiceMonth, -1) : null;
+	/** Whether that invoice already has a payment, so the one in the file starts unticked. */
+	const paidAlready = useMemo(() => {
+		if (!paidMonth) return false;
+		const state = (cardInvoices.data ?? []).find((one) => one.month === paidMonth);
+		return state ? state.paid + state.scheduled + state.byCard + state.rolled > 0 : false;
+	}, [paidMonth, cardInvoices.data]);
+
 	/**
 	 * The plastic of a line: the card whose digits head the part of the invoice it is under,
 	 * when that card is on the account the file goes to.
@@ -543,13 +580,25 @@ export function ImportPage() {
 
 	const willBeSorted = sortedInto.filter((name) => name !== null).length;
 
+	/**
+	 * Whether a line is left out. Some start out: a payment of an invoice that already has one,
+	 * which is most likely the same payment written before. A tick turns a line from how it
+	 * started, which is what `left` holds.
+	 */
+	const startsOut = (record: MarkedRecord) =>
+		isInvoice && record.nature === "payment" && paidAlready;
+	const isOut = (record: MarkedRecord, index: number) =>
+		(record.certain && record.duplicateOf !== null) || startsOut(record) !== left.has(index);
+
 	/** The lines that will be written, with their place in the file. */
 	const kept = marked
 		.map((record, index) => ({ record, index }))
-		.filter(
-			({ record, index }) => !left.has(index) && !(record.certain && record.duplicateOf !== null),
-		);
+		.filter(({ record, index }) => !isOut(record, index));
 	const keeping = kept.map(({ record }) => record);
+	/** A payment kept with no account to say where its money came from, which holds the write. */
+	const waiting = kept.find(
+		({ record, index }) => isInvoice && record.nature === "payment" && payerOf(index) === null,
+	);
 
 	/** Whether the invoice lists more than one card, so each line says which. */
 	const severalCards = (read?.document?.cards.length ?? 0) > 1;
@@ -607,6 +656,7 @@ export function ImportPage() {
 		setLineCards(new Map());
 		setAsParts(new Set());
 		setKeepWrittenDown(false);
+		setPayers(new Map());
 
 		try {
 			setPicked({ name: file.name, bytes: await readPickedFile(file) });
@@ -633,13 +683,18 @@ export function ImportPage() {
 			if (!session || !chosen) throw new Error("no session");
 			const records: ImportedRecord[] = kept.map(({ record, index }) => {
 				const card = lineCards.get(index) ?? cardOfLine(record);
+				// A payment is the invoice before paid, named the way the invoices name one.
+				const payment = isInvoice && record.nature === "payment" && paidMonth !== null;
 				return {
 					happenedOn: record.happenedOn,
 					amount: record.amount,
-					description: record.description,
+					description: payment
+						? t("invoice.paymentOf", { month: monthName(paidMonth), card: chosen.name })
+						: record.description,
 					notes: record.notes,
 					externalId: record.externalId,
 					nature: record.nature,
+					...(payment ? { paymentFrom: payerOf(index) } : {}),
 					...(card ? { cardId: card } : {}),
 				};
 			});
@@ -1005,7 +1060,7 @@ export function ImportPage() {
 							<TableBody>
 								{marked.map((record, index) => {
 									const certain = record.certain && record.duplicateOf !== null;
-									const off = certain || left.has(index);
+									const off = isOut(record, index);
 									return (
 										<TableRow key={`${record.line}:${record.externalId ?? index}`}>
 											<TableCell>
@@ -1109,7 +1164,38 @@ export function ImportPage() {
 															))}
 														</select>
 													) : null}
+													{/* A payment on an invoice is the one before it paid from an
+													    account of money: which one, starting on the one that paid this
+													    card last time. */}
+													{isInvoice && record.nature === "payment" ? (
+														<select
+															aria-label={t("importing.paidFromOf", {
+																description: record.description,
+															})}
+															value={payerOf(index) ?? ""}
+															onChange={(event) =>
+																setPayers((current) =>
+																	new Map(current).set(index, event.target.value),
+																)
+															}
+															className="rounded-sm border border-line bg-sunken px-1 py-0.5 text-xs text-ink"
+														>
+															{payerOf(index) === null ? (
+																<option value="">{t("importing.pickPayer")}</option>
+															) : null}
+															{moneyAccounts.map((account) => (
+																<option key={account.id} value={account.id}>
+																	{account.name}
+																</option>
+															))}
+														</select>
+													) : null}
 												</span>
+												{isInvoice && record.nature === "payment" && paidMonth ? (
+													<span className="block text-xs text-quiet">
+														{t("importing.paysInvoice", { month: monthName(paidMonth) })}
+													</span>
+												) : null}
 												{/* A part of a plan says what will be written. A loose "2/10" may be
 												    the day printed again, so it is offered and not taken. */}
 												{record.installment?.sure ? (
@@ -1172,12 +1258,17 @@ export function ImportPage() {
 					) : null}
 
 					{problem ? <Callout tone="problem">{problem}</Callout> : null}
+					{waiting ? (
+						<p className="text-sm text-ochre">
+							{t("importing.paymentWaits", { description: waiting.record.description })}
+						</p>
+					) : null}
 
 					<div className="flex flex-wrap items-center gap-3">
 						<Button
 							variant="primary"
 							icon={<Icon name="plus" />}
-							disabled={keeping.length === 0 || !chosen || save.isPending}
+							disabled={keeping.length === 0 || !chosen || save.isPending || waiting !== undefined}
 							onClick={() => save.mutate()}
 						>
 							{keeping.length === 0

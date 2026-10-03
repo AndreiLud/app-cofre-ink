@@ -164,6 +164,41 @@ test.describe("reading a card invoice in", () => {
 		await expect(page.getByText("R$ 160,00").first()).toBeVisible();
 	});
 
+	// E.11: the payment on an invoice was income on the card, and the month earned what it paid.
+	test("writes the payment as the invoice before paid from the bank, and does not write it twice", async ({
+		page,
+	}) => {
+		await twoCards(page);
+		const invoice = [
+			"Fatura do cartao",
+			"Vencimento: 10/10/2026",
+			"Total desta fatura R$ 150,00",
+			"12/09/2026 Padaria 50,00",
+			"13/09/2026 Mercado 100,00",
+			"15/09/2026 Pagamento recebido -1.000,00",
+		];
+		await importPdf(page, invoice);
+		await page.getByLabel("Cartão", { exact: true }).selectOption({ label: "Itaú" });
+		await expect(page.getByText("Paga a fatura de setembro de 2026.")).toBeVisible();
+		await expect(page.getByRole("button", { name: "Gravar 3 lançamentos" })).toBeDisabled();
+		await page.getByLabel("De onde saiu Pagamento recebido").selectOption({ label: "Banco" });
+		await page.getByRole("button", { name: "Gravar 3 lançamentos" }).click();
+		await expect(page.getByText("3 lançamentos gravados")).toBeVisible();
+
+		await go(page, "Lançamentos");
+		await page.getByLabel("Mês", { exact: true }).fill("2026-09");
+		await expect(
+			page.getByRole("row").filter({ hasText: "Pagamento da fatura de setembro de 2026 (Itaú)" }),
+		).toBeVisible();
+
+		// The same file again: the invoice before already has its payment.
+		await importPdf(page, invoice);
+		await page.getByLabel("Cartão", { exact: true }).selectOption({ label: "Itaú" });
+		await expect(
+			page.getByRole("checkbox", { name: "Gravar Pagamento recebido" }),
+		).not.toBeChecked();
+	});
+
 	// E.10.2: the card written down with what its open invoice held, and that invoice read in
 	// line by line, counted the same purchases twice.
 	test("takes out the record a card was written down with when its invoice comes in", async ({

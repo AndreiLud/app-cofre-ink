@@ -323,6 +323,7 @@ const importedRecord = z.object({
 		.enum(["purchase", "fee", "credit", "installment", "payment", "cardPayment"])
 		.nullable()
 		.optional(),
+	paymentFrom: z.string().min(1).max(64).nullable().optional(),
 });
 
 const importInput = z.object({

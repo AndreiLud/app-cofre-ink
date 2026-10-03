@@ -12,6 +12,7 @@
 // what they kept reaches here.
 
 import {
+	addMonthsToMonth,
 	type CalendarDate,
 	type CalendarMonth,
 	type CardCycle,
@@ -57,6 +58,12 @@ export type ImportedRecord = {
 	 */
 	cardId?: string | null;
 	nature?: ImportNature | null;
+	/**
+	 * Where the money of a payment on an invoice came from: a current account, a savings
+	 * account or cash. A payment is the invoice before being paid, a transfer from there, and
+	 * never income on the card.
+	 */
+	paymentFrom?: string | null;
 };
 
 export type ImportInput = {
@@ -300,6 +307,36 @@ export function createImportsRepository(context: RepositoryContext) {
 				}
 			}
 
+			// The accounts the payments of an invoice came from, each one money of this space.
+			const payers = [
+				...new Set(
+					input.records
+						.filter((record) => invoiceMonth !== null && record.nature === "payment")
+						.map((record) => record.paymentFrom ?? ""),
+				),
+			];
+			if (payers.includes("")) {
+				throw new RuleError(
+					"paymentNeedsItsAccount",
+					"a payment on an invoice needs the account the money came from",
+				);
+			}
+			if (payers.length > 0) {
+				const rows = await context.driver.all(
+					`SELECT "id" FROM "accounts"
+					 WHERE "id" IN (${marks(payers.length)}) AND "space_id" = ? AND "deleted_at" IS NULL
+					   AND "archived_at" IS NULL AND "currency" = ?
+					   AND "kind" IN ('checking', 'savings', 'cash')`,
+					[...payers, input.spaceId, account.currency],
+				);
+				if (rows.length !== payers.length) {
+					throw new RuleError(
+						"paymentFromMoney",
+						"an invoice is paid from a current account, a savings account or cash",
+					);
+				}
+			}
+
 			// What the file replaces, each one on this account and removable by this person, checked
 			// before anything is written.
 			const removes = [...new Set(input.removes ?? [])];
@@ -334,6 +371,44 @@ export function createImportsRepository(context: RepositoryContext) {
 				}
 
 				for (const record of input.records) {
+					// A payment on an invoice pays the invoice before it: the transfer an invoice is
+					// paid with, from the account the money came from, marked with that invoice. It
+					// was income on the card, and September earned the thousand it paid.
+					if (invoiceMonth !== null && record.nature === "payment") {
+						const amount = Math.abs(record.amount);
+						written.push(
+							await insertRow(write, {
+								table: transactions,
+								spaceId: input.spaceId,
+								values: {
+									kind: "transfer",
+									status: "settled",
+									amount,
+									currency: account.currency,
+									fx_rate: null,
+									amount_in_base: amount,
+									happened_on: record.happenedOn,
+									description: record.description.trim(),
+									account_id: record.paymentFrom ?? "",
+									counter_account_id: input.accountId,
+									notes: record.notes ?? null,
+									reconciled_at: null,
+									installment_group: null,
+									installment_number: null,
+									installment_count: null,
+									invoice_month: addMonthsToMonth(invoiceMonth, -1),
+									invoice_month_by_hand: 1,
+									category_id: null,
+									priority: null,
+									external_id: record.externalId ?? null,
+									card_id: null,
+									created_by: context.actor().userId,
+								},
+							}),
+						);
+						continue;
+					}
+
 					// On a benefit card a line that adds is a refund, which is a purchase taken
 					// back (registry 0055), because a benefit card takes no income. Written as
 					// income it was the one path that put income on a voucher. On an invoice a
