@@ -38,7 +38,16 @@ cabeça que nada confere. Preencha as duas, ou esvazie as duas.
 Um container construído a partir de uma imagem incompleta. O estágio de execução copia o
 `package.json` e o `src` de cada pacote que o servidor importa, e o Node lê o TypeScript
 direto, então um pacote faltando não é um build que falha, é um container que sobe e
-morre. Reconstrua com `docker compose build --no-cache`.
+morre. Puxe a imagem publicada de novo com `docker compose pull`, ou, numa imagem construída
+aqui, reconstrua com `docker compose -f compose.yaml -f compose.build.yaml build --no-cache`.
+
+### `this database was migrated by a newer version of Cofre Ink`
+
+O servidor achou no banco migrações que ele não conhece, o que quer dizer que uma versão mais
+nova já passou por ele, e se recusa a subir em vez de gravar linhas que aquela versão lê de
+outro jeito. Suba a versão que migrou o banco, ou restaure a cópia feita antes da atualização
+e suba esta sobre ela. Nunca suba uma versão anterior sobre um banco que uma mais nova já
+migrou; o guia de [atualizar](deploy.md#atualizar) começa todo caminho com essa cópia.
 
 ### SQLite é um recurso experimental
 
@@ -147,6 +156,41 @@ O service worker serve o que guardou. Todo build tem um nome de cache novo e o a
 apagado quando o worker novo assume, então isso se resolve na segunda carga. Para
 forçar: abra a página, limpe os dados do site, carregue de novo. Note que no modo
 navegador isso também apaga o banco, então guarde uma cópia antes.
+
+Uma aba deixada aberta enquanto uma versão nova foi instalada diz isso, com um botão para
+recarregar: as telas que ela ainda não tinha aberto eram da versão antiga e não existem mais.
+
+## Atualizar um servidor
+
+### Toda tela diz que o servidor está numa versão anterior à 2.0.0
+
+A página é da 2.x e o servidor da 1.x, o que acontece quando a página vem de outro endereço
+ou o servidor não foi atualizado junto. Até o servidor ser atualizado a página lê tudo e não
+grava nada, porque uma gravação entre versões maiores diferentes poderia perder campos que um
+dos lados não conhece. Atualize o servidor; a página não precisa de nada.
+
+### Toda tela diz que a página é de uma versão anterior à do servidor
+
+O contrário: recarregue a página, e ela vem na versão do servidor.
+
+### `{"error": "serverOtherVersion"}`
+
+A mesma recusa, vinda do servidor, para um aparelho de outra versão maior que tentou trocar
+mudanças. Atualize o lado que está atrás.
+
+### A verificação de atualização diz que o GitHub recusou, ou não respondeu
+
+O GitHub responde um número limitado de perguntas por hora de um mesmo endereço sem token, e
+o servidor nunca manda um. Recusou quase sempre é esse limite: tente mais tarde. Não
+respondeu quase sempre é um servidor sem saída para a internet, o que é um jeito correto de
+rodar, e aí o [changelog](../../CHANGELOG.md) é onde olhar.
+
+### A verificação de atualização não mostra comando nenhum
+
+Os dados do servidor não estão num volume com nome: estão dentro do contêiner, ou no volume
+sem nome que um `docker run` sem volume cria, que recriar o contêiner troca por um vazio. Uma
+atualização recria o contêiner, então a tela diz o que fazer antes: salvar a cópia manual de
+cada espaço, pôr os dados num volume com nome e restaurar.
 
 ## Importar um extrato
 

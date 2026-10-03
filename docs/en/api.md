@@ -11,7 +11,7 @@ never here: it is in the repository layer, which is why a route is three lines.
 | method | path | what it does |
 | --- | --- | --- |
 | `GET` | `/health` | answers `{"ok": true}`. What the container healthcheck asks |
-| `GET` | `/api/setup` | whether this server has anybody on it yet, and the public Turnstile key if one is configured |
+| `GET` | `/api/setup` | whether this server has anybody on it yet, the public Turnstile key if one is configured, and the `version` it runs, which a page reads before it writes anything. A server of 1.x does not say one |
 | `GET` | `/api/challenge` | a proof of work challenge. Anybody may ask for one |
 | `GET` | `/api/invitations/:token` | what an invitation offers, for somebody who does not have an account yet |
 | `GET` `POST` | `/api/auth/*` | sign up, sign in, sign out and the rest, handled by Better Auth |
@@ -52,6 +52,7 @@ one.
 | `PATCH` `DELETE` | `/api/cards/:id` | edit, remove. The kind cannot be changed |
 | `POST` | `/api/cards/:id/archive` and `/unarchive` | put away, bring back |
 | `GET` `POST` | `/api/spaces/:id/transactions` | list with filters, create |
+| `GET` | `/api/spaces/:id/transactions/summary` | what the list adds up to with the same filters, every record they reach and not only one page |
 | `GET` | `/api/spaces/:id/balances` | the balance of every account. Needs `today`, because a record counts once it is a fact and its day has come |
 | `PATCH` | `/api/transactions` | the same change over a selection, up to 500 |
 | `POST` | `/api/transactions/remove` | remove a selection |
@@ -61,6 +62,8 @@ one.
 | `POST` | `/api/transactions/:id/settle` | planned becomes settled |
 | `POST` | `/api/transactions/:id/reconcile` | mark as matching a statement |
 | `POST` | `/api/transactions/:id/invoice/move` | one invoice earlier or later, with every part of an instalment plan. All of them or none |
+| `POST` | `/api/transactions/:id/refund` | a purchase on a benefit card taken back, written as the purchase the other way round, so it returns to the card and leaves its category. `amount`, `happenedOn` and `description` |
+| `POST` | `/api/transactions/:id/toTransfer` | a record that was money moving between two accounts of the same person becomes a move. `otherAccountId`, `invoiceMonth` when the other end is a card, and `mergeWith` when the other end was written too, which is then taken out |
 | `DELETE` | `/api/installments/:groupId` | the whole instalment set |
 
 A record in parts is created with `installments`, a whole number from one, and the amount of
@@ -93,6 +96,14 @@ route here closes to somebody who only ever sees the records they wrote.
 | `POST` | `/api/accounts/:id/invoices/pay` | pays one, as a transfer into the card marked with the invoice it pays. The amount is what somebody typed, so part of an invoice can be paid |
 | `POST` | `/api/accounts/:id/invoices/paidUntil` | writes one payment for every invoice up to a month, each dated on the day it fell due, for a card that was already in use before any of this |
 | `POST` | `/api/accounts/:id/invoices/closedOn` | says which day an invoice really closed, and moves every purchase in the days between onto the invoice it belongs to. All of them or none |
+| `POST` | `/api/accounts/:id/invoices/payWithCard` | pays the invoice of `month` with another card, `cardAccountId`, in `parts` on that card's invoices from the one open on `happenedOn`. `charged` is what the other card charges in all, and what it charges over the invoice is written as a cost |
+| `POST` | `/api/accounts/:id/invoices/split` | splits the invoice of `month` with the bank: an `entry` paid from `entryFromAccountId`, or a payment already written named by `useAsEntry`, then `parts` on the card's invoices after it, and a `tax` charged apart |
+| `POST` | `/api/accounts/:id/invoices/undoPlan` | takes a payment with another card or a split of the invoice of `month` back, all of it, while no invoice of its parts has been paid |
+
+A part of a payment with another card is a transfer out of that card, and it touches two
+invoices: the one it pays, in `invoice_month`, and the one of the card it leaves, where it is a
+purchase, in `origin_invoice_month`. Only these two routes write the second, once. A transfer
+written before 2.0.0 has none and is read as it always was.
 
 ## Sorting, repeating, planning
 
@@ -105,9 +116,12 @@ route here closes to somebody who only ever sees the records they wrote.
 | `GET` `POST` | `/api/spaces/:id/rules` | list, create |
 | `POST` | `/api/spaces/:id/rules/apply` | run the rules over records nobody has sorted |
 | `PATCH` `DELETE` | `/api/rules/:id` | edit, remove |
-| `GET` `POST` | `/api/spaces/:id/recurrences` | list, create |
-| `POST` | `/api/spaces/:id/recurrences/materialize` | write the planned records the series owe |
-| `PATCH` `DELETE` | `/api/recurrences/:id` | edit, remove. `?keepPlanned=true` leaves what it already wrote |
+| `GET` `POST` | `/api/spaces/:id/recurrences` | list, one line for each series however many times it was changed, create |
+| `POST` | `/api/spaces/:id/recurrences/startWith` | a record and the series it starts, in one write: the record is the first of the series, and the series writes the next ones |
+| `POST` | `/api/spaces/:id/recurrences/materialize` | write the records the series owe, up to the horizon. Each one once, under an identifier made from the series and the day, so a second call writes nothing |
+| `PATCH` | `/api/recurrences/:id` | edit, pause with `paused`. A change goes on as a new link of the series from the next time, and what was already written stays as it is |
+| `GET` | `/api/recurrences/:id/removal` | what deleting a series would take back, for the question asked before it |
+| `DELETE` | `/api/recurrences/:id` | remove the series, and the records it wrote ahead that nobody touched. `?keepPlanned=true` leaves them |
 | `GET` `POST` | `/api/spaces/:id/budgets` | list, create |
 | `GET` | `/api/spaces/:id/budgets/progress` | how each limit is going. Needs `month` |
 | `PATCH` `DELETE` | `/api/budgets/:id` | edit, remove |
@@ -154,6 +168,9 @@ be six places to forget the same permission check.
 | `PATCH` `DELETE` | `/api/holdings/:id` | edit, remove |
 | `POST` | `/api/holdings/:id/price` | type in a price, for a day |
 | `GET` | `/api/holdings/:id/prices` | the prices typed in so far |
+| `GET` `POST` | `/api/holdings/:id/moves` | the movements, put one in: `kind` is `in`, `out` or `income`, with `onDay`, `amount`, the `accountId` at the other end, and for a sale `arrived`, what reached the account after tax |
+| `GET` | `/api/holdings/:id/goingBack` | what deleting a holding, or one movement with `moveId`, gives back to each account |
+| `DELETE` | `/api/holdingMoves/:id` | remove one movement, and the record that moved its money |
 | `GET` | `/api/indices` | CDI, Selic or IPCA, per month |
 | `GET` | `/api/indices/latest` | the most recent of each |
 | `POST` | `/api/indices/refresh` | ask the Banco Central for the months this installation does not have |
@@ -170,11 +187,22 @@ The series names come from a fixed list, so there is nothing a caller can point 
 | `POST` | `/api/spaces/:id/imports` | write reviewed records, up to 3000 at a time, all of them or none. `invoiceMonth` makes the file an invoice of that month; `removes` takes out records it replaces. Each record may say its `cardId`, `nature`, `installment` (`number` from 1 to `count`, `count` from 2), `paymentFrom`, `reverses`, `paysCard` and `paysInvoice`. Over 48 parts is 409 `tooManyInstallments`; a month that is not one is 400 |
 | `POST` | `/api/imports/undo` | take an import back by the ids it answered with, in one call, all of them or none |
 | `GET` | `/api/backup/spaces` | which spaces this person may take a copy of |
+| `GET` | `/api/backup/restorable` | which spaces a file may be written back into, which is the other permission |
 | `GET` | `/api/spaces/:id/backup` and `/api/backup` | a space, or everything. `?spaces=a,b` for the ones that were ticked |
 | `GET` | `/api/spaces/:id/records` | the records alone, for a spreadsheet |
 | `POST` | `/api/backup/restore` | restore. The body is the file, and an optional `only` names the spaces of it to bring back. Whoever is signed in becomes the owner of what they restore |
 | `GET` | `/api/spaces/:id/changes` | the change log after a stamp |
-| `POST` | `/api/spaces/:id/sync` | one round trip: push what this device wrote, pull what it has not seen |
+| `POST` | `/api/spaces/:id/sync` | one round trip: push what this device wrote, pull what it has not seen. The body says the `version` of the device, and one of another major version, or one that does not say, is refused with 409 `serverOtherVersion` before anything is read |
+
+## This copy, and the versions published
+
+| method | path | what it does |
+| --- | --- | --- |
+| `GET` | `/api/about` | the version, how this copy was installed (`compose`, `dockerRun`, `built` or `source`), the image, which database, where the SQLite file is, with any password taken out, and whether that file is on a named volume. Asks nobody anything |
+| `POST` | `/api/updates/check` | asks GitHub which versions were published after this one, only when called. An answer is kept an hour and a failure five minutes, and calls that arrive together share one request. In test mode nothing is asked |
+
+The second route is the only one that talks to a third party, and only because somebody pressed
+a button: the server never asks on a schedule (registry 0061).
 
 ## What comes back when something is wrong
 
@@ -188,7 +216,9 @@ The series names come from a fixed list, so there is nothing a caller can point 
 | `403` | `{"error": "profileBelongsToAnAccount"}` | a device tried to write in the name of somebody who has an account here |
 | `404` | `{"error": "notFound", "entity": "..."}` | not there, or a space you are not a member of |
 | `409` | `{"error": "<the rule>", "message": "..."}` | a rule of the model refused it |
+| `409` | `{"error": "serverOtherVersion"}` | a device of another major version tried to exchange changes |
 | `413` | `{"error": "refused", "status": 413}` | a body over 25MB |
+| `502` | `{"error": "githubRefused"}`, `githubUnreachable` or `githubUnreadable` | GitHub refused the question (usually its limit an hour), nothing answered (usually a server with no internet), or the answer could not be read |
 | `500` | `{"error": "unexpected"}` | anything else. The detail goes to the log and not to the caller |
 
 The difference between `403` and `404` is deliberate. Somebody who is not in a space is

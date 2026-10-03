@@ -78,7 +78,8 @@ It opens from where the money is:
 
 A credit card is never where a move starts: what leaves a card is a purchase on its invoice,
 and the invoice is paid from the invoice screen, which says which month it paid. An
-investment account is never where a move lands, because it is worth what is bought in it.
+investment account is never where a move lands, because it is worth what is bought in it:
+money goes into a holding with **Guardar** (Put in), described further down.
 
 A record that was really a move, a Pix into savings read in as money out, or an invoice
 payment the importer of 1.x wrote as money out of the bank and again as money in on the card,
@@ -87,6 +88,91 @@ accounts). It asks for the other end and, for a card, the invoice paid, and offe
 the same move written on the other account, which is then deleted so the money is not counted
 twice. [Decision record 0057](../adr/0057_moving_money_is_not_a_kind_of_record.md) has the
 reasoning.
+
+## Paying a card
+
+An invoice is paid from the invoice screen, and every payment says which invoice it paid, so
+a payment never lands on another month by accident. There are three ways.
+
+1. **From an account of money**: the whole of what is left, or a part of it. A payment dated
+   ahead, before the day it falls due, is scheduled: it counts on its own day, the invoice
+   says it is scheduled, and the button to pay goes away once what is scheduled covers what
+   is left.
+2. **With another card**, at once or in parts. The parts go on the other card's invoices from
+   the one open on the day of the payment, and what that card charges beyond the invoice is a
+   cost of its own, on the same invoices.
+3. **In parts with the bank**: an entry paid from an account, or a payment already written
+   used as the entry, then the parts on the card's next invoices, and a tax charged apart
+   when there is one.
+
+The last two are taken back whole, and only while no invoice of their parts has been paid.
+Until then the records they wrote are locked: they are changed by undoing the arrangement,
+never one by one, and the list says which invoice locks them.
+
+An invoice is open while it takes purchases and closed once it stops. After that it is paid,
+paid in part, in credit when more was paid than charged, or in parts when it was split, and
+it is late once its day has gone with something still owed. What a card owes counts against
+the money on the day the invoice falls due, and not on the day of each purchase
+([decision record 0071](../adr/0071_an_invoice_is_a_bill_on_its_due_day.md)). A card that
+was already in use when it was written down carries what it owed then as an invoice of its
+own, the one already closed on that day.
+
+A purchase the bank put on another invoice is moved one invoice earlier or later, with every
+part of its plan, and an invoice that closed on a different day than the card says is
+corrected from the invoice screen, which moves every purchase of the days between.
+
+A withdrawal on a credit card has no way in yet. It is neither a purchase nor a move, and
+writing it as either would get its interest wrong, so 2.0.0 leaves it out rather than
+pretend.
+
+## What repeats
+
+A series writes its own records: a rent, a subscription, a salary, weekly, monthly or yearly,
+on an account or a card. **Repete** (Repeats) on the form starts one, with the record typed as
+its first; the series screen is under Records, **Recorrentes**.
+
+It writes about two months ahead, every time the application opens, for every space this
+person may write a series in, and again when the day turns while it is open. A record dated
+ahead counts on its day and not before. On a server nothing writes by itself: the series of a
+space are written when somebody opens the application against it.
+
+A change does not rewrite what was written. It applies from the next time on, as a new link
+of the same series, and the records already there stay as they were. Pausing takes back what
+the series wrote ahead that nobody touched; deleting asks first, saying which days it takes
+back, and also keeps whatever somebody changed. Deleting one record of a series is remembered
+as a day it does not write, so the day never comes back, not even from a restore.
+[Decision record 0068](../adr/0068_what_repeats_is_a_chain.md) has the reasoning.
+
+## Putting money aside
+
+A holding is a product of a fixed catalog, inside an investment account: a caixinha, a CDB,
+an LCI or an LCA, the three kinds of Tesouro, a share, a real estate fund, a fund traded on the
+exchange, a BDR, a fund, crypto, a pension, money left at the broker. Each asks only for its
+own fields: a share its code, how many and the average price; a CDB its bank, what it
+follows, the rate and when it was bought.
+
+What it is worth comes from one of three places. A caixinha, a poupança, a CDB, an LCI or an
+LCA that follow the CDI, and the Tesouro Selic, are estimated from the daily rates of the
+Banco Central, which are fetched only when somebody asks and say up to which day they go. A
+share or a fund is worth the last price typed for it. A value typed from a statement always
+wins over an estimate. Every value on screen is the gross one, as a statement shows it, with
+the net one beside it where income tax is known.
+
+Money goes in with **Guardar** (Put in), from an account of money, comes out with
+**Resgatar** (Take out), saying what reached the account after tax, and an income it pays is
+**Proventos**. Nothing goes into or out of an investment account without a holding, and a
+goal or the saving rule may point at one holding rather than at the whole account.
+[Decision record 0069](../adr/0069_a_holding_is_a_product.md) has the reasoning.
+
+## The list of records
+
+The list reads one month, a whole year or every month, and what it reads is in the address,
+with its filters, so a narrowed list can be linked to, kept and reloaded. Its totals are every
+record the filters reach, not only the page on screen. In the year it is, and in every month,
+the months still to come are a closed group at the top, read only when opened.
+
+A saved filter is a starting point and keeps the month it was saved with: saved on "this
+month", it follows the calendar; saved on October, it opens on October.
 
 ## Reading a statement
 
@@ -121,7 +207,8 @@ file -> reader -> records -> review -> written
 
 For somebody who is not going to log a line at a time. The screen is beside the list, in
 the records section, and it asks for a month and three amounts: what came in, what went
-out apart from the card, and what the card invoice came to.
+out apart from the card, and what the card invoice came to. With more than one card there
+is one field for each, named after it.
 
 What it writes are ordinary records, on the last day of that month. The card one goes to
 the credit account, on the last day the invoice of that month still takes, so it lands on
@@ -132,7 +219,9 @@ from the same number as a transfer out of the chosen account on the day the invo
 due, which for a card that closes late in the month is the month after. Without it the
 account the wages arrive in would keep the whole invoice it really handed over and the
 card would owe a debt nobody ever settled, with the total right and both accounts wrong.
-An invoice that has not fallen due yet is written as planned rather than settled.
+An invoice that has not fallen due yet gets its payment on its due day, which counts from
+that day, like any record dated ahead. The payment names the invoice it pays, and an invoice
+somebody already paid with another card or split into parts gets none.
 [Decision record 0039](../adr/0039_the_invoice_is_also_paid.md) has the reasoning.
 
 Everything else in the application reads them as it reads any record: the balances, the
@@ -147,6 +236,14 @@ takes that record away, and the payment goes with the invoice it paid.
 Before the fields, the screen says how many records the month already holds and what they
 add up to. Somebody who writes a few by hand and then types the whole month as a total has
 counted those few twice, and only they can know whether the total includes them.
+
+Once the month is written, the screen reads it back. It sets the month against the middle of
+the closed months before it, with the benefit cards counted as money in, as they are on the
+overview. It ranks what the month went on, with the money nobody sorted as a line of its own
+and the rest gathered in one line, and it names the limits the month broke or is close to
+breaking. The comparison waits until most of the month has gone: a month three days old has
+spent almost nothing, and calling that thrift would tell a household it is winning on the
+third and leave it to find out on the thirtieth.
 
 What this does not give is anything that needs a category or a day: which sort of spending
 grew, what falls due on Thursday, whether the supermarket is over its limit. The reasoning
@@ -194,6 +291,10 @@ The rules that make it safe:
 3. **A space that the server has never seen can arrive with a push**, and is adopted by
    whoever pushed it, but only if it has nobody in it. A space that already has members
    belongs to them.
+4. **Both sides are of the same major version.** A device says its version, and one of
+   another major version, or one that does not say it, which is every device of 1.x, is
+   refused before anything is read or handed back. A page and a server do the same: a page
+   of 2.x reads a server of 1.x and writes nothing to it, and says so on every screen.
 
 There used to be a path with no server at all, a file carried from one device to the
 other with the same change log in it. It is gone. Two devices with nothing between them
@@ -270,6 +371,11 @@ inflation.
 
 Every finding carries the figures it was made from inside the sentence, so it can be
 checked rather than believed.
+
+The money it reads is what is in the accounts less what the cards owe, and a card invoice is a
+bill on the day it falls due, the same as the overview's list of what falls due. Money that
+can be taken out any day, in a caixinha or left at the broker, is named beside the reserve and
+not counted in it.
 
 It never says what to buy, where to put money, or which investment is better. That line
 is deliberate and is in

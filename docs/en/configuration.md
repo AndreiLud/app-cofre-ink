@@ -92,7 +92,28 @@ never leaves the server.
 
 `production` on a server. In `test` the rate limit is off and the proof of work drops
 to eight bits, so a suite does not spend minutes proving arithmetic that has a test of
-its own.
+its own. In `test` the button that asks GitHub for the latest version asks nothing and
+answers as a server with no internet would.
+
+### `COFRE_TAG`
+
+Read by Compose, not by the server: which published image `compose.yaml` runs. Left out it is
+`2`, the line of version 2, so a pull brings what 2.x publishes and never a version 3 nobody
+chose. Pin a whole version, `2.0.0`, to decide every update yourself, and change it to a new
+major only after reading that version's notes.
+
+### `COFRE_LOCAL_IMAGE`
+
+Read by Compose when `compose.build.yaml` is added to build the image from this folder: the
+name that build gets. `cofre-local` when left out, and never the name of the published image,
+so a build here is never mistaken for a release.
+
+### `COFRE_IMAGE_SOURCE` and `COFRE_INSTALLED_WITH`
+
+Not for you to set. The image says where it was built, `ghcr` for the one a release publishes
+and `local` for one built here, and `compose.yaml` says `compose`. Together they tell the
+server how this copy was installed, which is what decides the commands its data screen shows
+for updating it. With neither, the server is running from the source.
 
 ## What the container passes through
 

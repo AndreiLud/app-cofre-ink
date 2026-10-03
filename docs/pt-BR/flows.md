@@ -78,7 +78,8 @@ Ele abre de onde o dinheiro está:
 
 Um cartão de crédito nunca é de onde uma movimentação sai: o que sai de um cartão é compra,
 na fatura, e a fatura se paga na tela Faturas, que diz qual mês foi pago. Uma conta de
-investimento nunca é para onde ela vai, porque vale pelo que se compra nela.
+investimento nunca é para onde ela vai, porque vale pelo que se compra nela: o dinheiro entra
+numa aplicação por **Guardar**, descrito mais abaixo.
 
 Um lançamento que era uma movimentação, um Pix para a poupança lido como Saída, ou um
 pagamento de fatura que a importação da 1.x gravou como Saída no banco e de novo como Entrada
@@ -87,6 +88,91 @@ ponta e, num cartão, a fatura paga, e oferece juntar a mesma movimentação lan
 conta, que então é apagada para o dinheiro não contar duas vezes. O
 [registro de decisão 0057](../adr/0057_moving_money_is_not_a_kind_of_record.md) tem o
 raciocínio.
+
+## Pagar um cartão
+
+Uma fatura se paga na tela Faturas, e todo pagamento diz qual fatura pagou, então um
+pagamento nunca cai noutro mês por engano. São três jeitos.
+
+1. **De uma conta de dinheiro**: tudo o que falta, ou uma parte. Um pagamento com data
+   adiante, antes do vencimento, fica agendado: conta no próprio dia, a fatura diz que está
+   agendada, e o botão de pagar some quando o agendado cobre o que falta.
+2. **Com outro cartão**, de uma vez ou parcelado. As parcelas vão para as faturas do outro
+   cartão a partir da que está aberta no dia do pagamento, e o que esse cartão cobra além da
+   fatura é um custo à parte, nas mesmas faturas.
+3. **Parcelando com o banco**: uma entrada paga de uma conta, ou um pagamento já lançado
+   usado como entrada, depois as parcelas nas faturas seguintes do cartão, e um imposto
+   cobrado à parte quando houver.
+
+Os dois últimos se desfazem inteiros, e só enquanto nenhuma fatura das parcelas foi paga. Até
+lá os lançamentos que eles escreveram ficam travados: mudam desfazendo o combinado, nunca um
+por um, e a lista diz qual fatura os trava.
+
+Uma fatura está aberta enquanto recebe compras e fechada quando para de receber. Depois disso
+ela está paga, paga em parte, com crédito quando se pagou mais do que ela cobrou, ou
+parcelada, e fica atrasada quando o vencimento passou e ainda falta pagar. O que um cartão
+deve conta contra o dinheiro no dia em que a fatura vence, e não no dia de cada compra
+([registro de decisão 0071](../adr/0071_an_invoice_is_a_bill_on_its_due_day.md)). Um cartão
+que já era usado quando foi cadastrado leva o que devia como uma fatura própria, a que já
+tinha fechado naquele dia.
+
+Uma compra que o banco pôs em outra fatura se move uma fatura antes ou depois, com todas as
+parcelas do plano, e uma fatura que fechou num dia diferente do que o cartão diz se corrige
+pela tela Faturas, que move cada compra dos dias entre um e outro.
+
+Um saque no cartão de crédito ainda não tem por onde entrar. Ele não é compra nem
+movimentação, e lançado como qualquer dos dois teria os juros errados, então a 2.0.0 deixa
+ele de fora em vez de fingir.
+
+## O que se repete
+
+Uma série escreve os próprios lançamentos: um aluguel, uma assinatura, um salário, toda
+semana, todo mês ou todo ano, numa conta ou num cartão. **Repete** no formulário começa uma,
+com o lançamento digitado como o primeiro dela; a tela das séries fica em Lançamentos,
+**Recorrentes**.
+
+Ela escreve uns dois meses adiante, toda vez que o aplicativo abre, em todo espaço onde a
+pessoa pode gravar uma série, e de novo quando o dia vira com ele aberto. Um lançamento com
+data adiante conta no dia dele e não antes. Num servidor nada se escreve sozinho: as séries
+de um espaço são escritas quando alguém abre o aplicativo naquele servidor.
+
+Uma mudança não reescreve o que já foi escrito. Ela vale da próxima vez em diante, como um
+elo novo da mesma série, e os lançamentos que já existem ficam como estavam. Pausar tira o
+que a série escreveu adiante e ninguém mexeu; apagar pergunta antes, dizendo quais dias tira,
+e também guarda o que alguém mudou. Apagar um lançamento de uma série fica lembrado como um
+dia que ela não escreve, então o dia nunca volta, nem por uma restauração. O
+[registro de decisão 0068](../adr/0068_what_repeats_is_a_chain.md) tem o raciocínio.
+
+## Guardar dinheiro
+
+Uma aplicação é um produto de um catálogo fixo, dentro de uma conta de investimento: uma
+caixinha, um CDB, uma LCI ou uma LCA, os três tipos de Tesouro, uma ação, um fundo
+imobiliário, um fundo negociado em bolsa, um BDR, um fundo, cripto, previdência, dinheiro
+parado na corretora. Cada um pede só os próprios campos: uma ação, o código, quantas e o
+preço médio; um CDB, o banco, o que ele segue, a taxa e quando foi comprado.
+
+O valor vem de um de três lugares. Uma caixinha, uma poupança, um CDB, uma LCI ou uma LCA que
+seguem o CDI, e o Tesouro Selic, são estimados pelas taxas diárias do Banco Central, que só
+são buscadas quando alguém pede e dizem até que dia vão. Uma ação ou um fundo vale o último
+preço digitado. Um valor digitado do extrato sempre vence a estimativa. Todo valor na tela é o
+bruto, como o extrato mostra, com o líquido ao lado onde o imposto de renda é conhecido.
+
+O dinheiro entra por **Guardar**, de uma conta de dinheiro, sai por **Resgatar**, dizendo o
+que chegou na conta depois do imposto, e um rendimento que a aplicação paga é **Proventos**.
+Nada entra nem sai de uma conta de investimento sem uma aplicação, e uma meta ou a regra de
+guardar podem apontar para uma aplicação em vez da conta inteira. O
+[registro de decisão 0069](../adr/0069_a_holding_is_a_product.md) tem o raciocínio.
+
+## A lista de lançamentos
+
+A lista lê um mês, um ano inteiro ou todos os meses, e o que ela lê está no endereço, com os
+filtros, então uma lista filtrada pode ser enviada, guardada e recarregada. Os totais são
+todos os lançamentos que os filtros alcançam, não só a página na tela. No ano corrente, e em
+todos os meses, os meses que ainda vão chegar ficam num grupo fechado no alto, lido só quando
+aberto.
+
+Um filtro salvo é um ponto de partida e guarda o mês com que foi salvo: salvo em "este mês",
+acompanha o calendário; salvo em outubro, abre em outubro.
 
 ## Ler um extrato
 
@@ -121,7 +207,7 @@ arquivo -> leitor -> lançamentos -> revisão -> gravado
 
 Para quem não vai lançar uma linha de cada vez. A tela fica ao lado da lista, na seção de
 lançamentos, e pergunta um mês e três valores: quanto entrou, quanto saiu fora o cartão, e
-quanto veio na fatura.
+quanto veio na fatura. Com mais de um cartão há um campo para cada, com o nome dele.
 
 O que ela escreve são lançamentos comuns, no último dia daquele mês. O do cartão vai para
 a conta de crédito, no último dia que a fatura daquele mês ainda pega, então ele cai
@@ -132,7 +218,9 @@ escrito a partir do mesmo número como uma transferência que sai da conta escol
 do vencimento, que num cartão que fecha no fim do mês cai no mês seguinte. Sem ele, a
 conta onde cai o salário ficaria com a fatura inteira que ela de fato entregou e o cartão
 deveria uma dívida que ninguém nunca quitou, com o total certo e as duas contas erradas.
-Uma fatura que ainda não venceu entra como prevista, e não como realizada. O
+Uma fatura que ainda não venceu recebe o pagamento no dia do vencimento, que conta a partir
+daquele dia, como qualquer lançamento com data adiante. O pagamento diz qual fatura ele paga,
+e uma fatura que alguém já pagou com outro cartão ou parcelou não recebe nenhum. O
 [registro de decisão 0039](../adr/0039_the_invoice_is_also_paid.md) tem o raciocínio.
 
 Todo o resto do aplicativo lê esses lançamentos como lê qualquer outro: os saldos, os
@@ -148,6 +236,14 @@ a fatura que ele pagou.
 Antes dos campos, a tela diz quantos lançamentos o mês já tem e quanto eles somam. Quem
 escreve alguns à mão e depois digita o mês inteiro como total contou aqueles alguns duas
 vezes, e só a pessoa sabe se o total já inclui eles.
+
+Com o mês escrito, a tela devolve uma leitura. Ela compara o mês com o meio dos meses
+fechados antes dele, com os cartões de benefício contando como entrada, como no Painel.
+Ordena no que o mês foi gasto, com o dinheiro que ninguém categorizou numa linha própria e o
+resto junto numa linha só, e nomeia os limites que o mês estourou ou está perto de estourar. A
+comparação espera a maior parte do mês passar: um mês de três dias quase não gastou nada, e
+chamar isso de economia diria a uma casa que ela está ganhando no dia três e deixaria ela
+descobrir no dia trinta.
 
 O que isso não dá é qualquer coisa que precise de categoria ou de dia: qual tipo de gasto
 cresceu, o que vence na quinta, se o mercado passou do limite. O raciocínio está no
@@ -195,6 +291,10 @@ As regras que tornam isso seguro:
 3. **Um espaço que o servidor nunca viu pode chegar num push**, e é adotado por quem o
    empurrou, mas só se não tiver ninguém dentro. Um espaço que já tem membros pertence a
    eles.
+4. **Os dois lados são da mesma versão maior.** Um aparelho diz a própria versão, e um de
+   outra versão maior, ou que não diz, que é todo aparelho da 1.x, é recusado antes de
+   qualquer leitura ou entrega. Uma página e um servidor fazem o mesmo: uma página da 2.x lê
+   um servidor da 1.x e não grava nada nele, e diz isso em toda tela.
 
 Existia também um caminho sem servidor nenhum, um arquivo levado de um aparelho ao outro
 com o mesmo histórico de alterações dentro. Ele não existe mais. Dois aparelhos sem nada
@@ -272,6 +372,11 @@ dinheiro parado diante da inflação.
 
 Todo achado carrega, dentro da frase, as contas que o produziram, para que possa ser
 conferido em vez de acreditado.
+
+O dinheiro que ele lê é o que há nas contas menos o que os cartões devem, e uma fatura de
+cartão é uma conta no dia em que vence, igual à lista do Painel do que vence. O dinheiro que
+sai em qualquer dia, numa caixinha ou parado na corretora, é nomeado ao lado da reserva e não
+conta nela.
 
 Ele nunca diz o que comprar, onde colocar dinheiro, ou qual investimento é melhor. Essa
 linha é deliberada e está no

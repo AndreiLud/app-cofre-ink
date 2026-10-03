@@ -94,7 +94,28 @@ nunca sai do servidor.
 
 `production` num servidor. Em `test` o limite de tentativas fica desligado e a prova de
 trabalho cai para oito bits, para que uma suíte não gaste minutos provando uma
-aritmética que tem teste próprio.
+aritmética que tem teste próprio. Em `test` o botão que pergunta ao GitHub a última versão
+não pergunta nada e responde como um servidor sem internet responderia.
+
+### `COFRE_TAG`
+
+Lida pelo Compose, não pelo servidor: qual imagem publicada o `compose.yaml` roda. Sem ela é
+`2`, a linha da versão 2, então um pull traz o que a 2.x publica e nunca uma versão 3 que
+ninguém escolheu. Fixe uma versão inteira, `2.0.0`, para decidir cada atualização, e troque
+para uma versão maior nova só depois de ler as notas dela.
+
+### `COFRE_LOCAL_IMAGE`
+
+Lida pelo Compose quando o `compose.build.yaml` é somado para construir a imagem a partir
+desta pasta: o nome que essa construção recebe. `cofre-local` quando não vem, e nunca o nome
+da imagem publicada, para que uma construção daqui nunca seja confundida com uma versão.
+
+### `COFRE_IMAGE_SOURCE` e `COFRE_INSTALLED_WITH`
+
+Não são para você definir. A imagem diz onde foi construída, `ghcr` na que uma versão publica
+e `local` numa construída aqui, e o `compose.yaml` diz `compose`. Juntas elas dizem ao
+servidor como esta cópia foi instalada, que é o que decide os comandos de atualização que a
+tela Dados mostra. Sem nenhuma, o servidor está rodando a partir do código.
 
 ## O que o container repassa
 

@@ -38,7 +38,16 @@ puzzle nothing checks. Fill both, or empty both.
 A container built from an incomplete image. The runtime stage copies the `package.json`
 and the `src` of every package the server imports, and Node reads the TypeScript
 directly, so a missing one is not a build that fails but a container that starts and
-dies. Rebuild with `docker compose build --no-cache`.
+dies. Pull the published image again with `docker compose pull`, or, for an image built
+here, rebuild with `docker compose -f compose.yaml -f compose.build.yaml build --no-cache`.
+
+### `this database was migrated by a newer version of Cofre Ink`
+
+The server found migrations in its database that it does not know, which means a newer
+version already ran over it, and it refuses to start rather than write rows that version
+reads differently. Run the version that migrated it, or restore the copy taken before the
+update and run this one over that. Never run an older version over a database a newer one
+has migrated; the guide on [updating](deploy.md#updating) starts every way with that copy.
 
 ### SQLite is an experimental feature
 
@@ -147,6 +156,41 @@ The service worker serves what it kept. Every build has a new cache name and the
 one is deleted when the new worker takes over, so this resolves itself on the second
 load. To force it: open the page, clear site data, load again. Note that in browser mode
 this also deletes the database, so save a copy first.
+
+A tab left open while a new version was installed says so, with a button to reload: the
+screens it had not opened yet were part of the old version and are gone.
+
+## Updating a server
+
+### Every screen says the server is on a version earlier than 2.0.0
+
+The page is of 2.x and the server of 1.x, which happens when the page comes from another
+address or the server was not updated with it. Until the server is updated the page reads
+everything and writes nothing, because a write across a major version could lose fields one
+side does not know. Update the server; the page needs nothing.
+
+### Every screen says the page is from an earlier version than the server
+
+The other way round: reload the page, and it comes from the server's version.
+
+### `{"error": "serverOtherVersion"}`
+
+The same refusal, from the server, to a device of another major version that tried to
+exchange changes. Update the side that is behind.
+
+### The update check says GitHub refused, or could not be reached
+
+GitHub answers a limited number of questions an hour from one address without a token, and
+the server never sends one. Refused usually means that limit: try again later. Could not be
+reached usually means the server has no way out to the internet, which is a fine way to run
+it, and then the [changelog](../../CHANGELOG.md) is the place to look.
+
+### The update check shows no command
+
+The server's data is not on a named volume: inside the container, or in the unnamed volume a
+`docker run` with no volume makes, which recreating the container swaps for an empty one. An
+update recreates the container, so the screen says what to do first instead: save the manual
+copy of every space, move the data onto a named volume, and restore it.
 
 ## Importing a statement
 
