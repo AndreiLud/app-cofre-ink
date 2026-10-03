@@ -130,6 +130,18 @@ describe("the ways to pay", () => {
 		});
 	});
 
+	// Part 2, H.4.2 of the request for 2.0.0: a spend paid from the broker took money out of an
+	// investment account without any holding knowing, and "Você tem" lost it.
+	it("never offers an investment account, unless the record being corrected is on one", () => {
+		const accounts = [
+			account("checking", "checking", "Conta"),
+			account("broker", "investment", "Corretora"),
+		];
+		expect(waysToPay([], accounts, t).map((way) => way.accountId)).toEqual(["checking"]);
+		const kept = waysToPay([], accounts, t, { cardId: null, accountId: "broker" });
+		expect(kept.map((way) => way.accountId)).toEqual(["checking", "broker"]);
+	});
+
 	it("lists accounts with cards first, each under its heading", () => {
 		const options = accountOptions(
 			[account("checking", "checking", "Nubank"), account("credit", "credit", "Nubank")],

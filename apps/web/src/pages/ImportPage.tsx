@@ -327,7 +327,8 @@ export function ImportPage() {
 		// their own records is not offered one, which the model refuses them anyway.
 		if (isInvoice && seesOwnRowsOnly) return [];
 		if (!isInvoice) {
-			// A statement or a receipt in PDF is of an account that holds money.
+			// A statement or a receipt in PDF is of an account that holds money. No file goes into
+			// an investment account, which money enters and leaves only through a holding.
 			const holding =
 				read?.format === "pdf"
 					? usable.filter(
@@ -336,7 +337,7 @@ export function ImportPage() {
 								account.kind === "savings" ||
 								account.kind === "cash",
 						)
-					: usable;
+					: usable.filter((account) => account.kind !== "investment");
 			return accountOptions(holding, t).map((option) => ({
 				...option,
 				value: `:${option.value}`,
@@ -391,14 +392,15 @@ export function ImportPage() {
 				accountHint: read.accountHint,
 				kind: isInvoice ? "invoice" : (read.document?.kind ?? null),
 			},
-			(isInvoice ? reachable.filter((account) => account.kind === "credit") : usable).map(
-				(account) => ({
-					id: account.id,
-					name: account.name,
-					kind: account.kind,
-					institution: account.institution,
-				}),
-			),
+			(isInvoice
+				? reachable.filter((account) => account.kind === "credit")
+				: usable.filter((account) => account.kind !== "investment")
+			).map((account) => ({
+				id: account.id,
+				name: account.name,
+				kind: account.kind,
+				institution: account.institution,
+			})),
 			(cards.data ?? []).map((card) => ({
 				id: card.id,
 				name: card.name,

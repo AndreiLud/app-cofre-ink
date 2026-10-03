@@ -12,9 +12,9 @@ import {
 	type CalendarDate,
 	type CurrencyCode,
 	compareCalendarDates,
-	countsAsMoney,
 	invoiceDueDate,
 	invoiceMonthOf,
+	isSpendable,
 	MAX_INSTALLMENTS,
 	money,
 } from "@cofre/core";
@@ -280,10 +280,10 @@ export function TransactionForm({
 			if (chosenWay) setAccountId(chosenWay.accountId);
 			return;
 		}
-		if (chosen && countsAsMoney(chosen.kind)) return;
+		if (chosen && isSpendable(chosen.kind)) return;
 		const landing =
 			usable.find((account) => account.kind === "checking") ??
-			usable.find((account) => countsAsMoney(account.kind));
+			usable.find((account) => isSpendable(account.kind));
 		setAccountId(landing?.id ?? "");
 	}
 
@@ -518,11 +518,12 @@ export function TransactionForm({
 	 * Where money comes in, or where a move starts: an account that holds money. Never a
 	 * benefit card, which takes no income and lets nothing out, and never a credit card,
 	 * whose balance is a debt: a salary landed there whenever the form opened on the card.
-	 * The record's own account stays, so an income written on a card before 2.0.0 still
-	 * opens to be corrected.
+	 * Never an investment account either, which money enters only through a holding, on
+	 * Investments. The record's own account stays, so an income written on a card before 2.0.0
+	 * still opens to be corrected.
 	 */
 	const sourceOptions = accountOptions(
-		usable.filter((account) => countsAsMoney(account.kind) || account.id === editing?.accountId),
+		usable.filter((account) => isSpendable(account.kind) || account.id === editing?.accountId),
 		t,
 	);
 

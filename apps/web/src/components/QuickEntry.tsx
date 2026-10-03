@@ -47,8 +47,10 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 	const [problem, setProblem] = useState<string | null>(null);
 	const mayUndo = useWhatIMayDo(spaceId).mayCall("transactions.removeMany");
 
+	// Never an investment account, which money enters and leaves only through a holding.
 	const usable = useMemo(
-		() => accounts.filter((account) => account.archivedAt === null),
+		() =>
+			accounts.filter((account) => account.archivedAt === null && account.kind !== "investment"),
 		[accounts],
 	);
 

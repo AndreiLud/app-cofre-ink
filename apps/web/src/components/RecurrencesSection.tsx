@@ -7,6 +7,7 @@
 
 import {
 	type CalendarDate,
+	isSpendable,
 	nextOccurrence,
 	occurrencesBetween,
 	type RecurrenceSpec,
@@ -266,7 +267,14 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 						?.value ?? "")
 				: (first?.value ?? ""),
 		);
-		setAccountId(one?.accountId ?? usable[0]?.id ?? "");
+		setAccountId(
+			one?.accountId ??
+				(
+					usable.find((account) => account.kind === "checking") ??
+					usable.find((account) => isSpendable(account.kind))
+				)?.id ??
+				"",
+		);
 		setCounterAccountId(one?.counterAccountId ?? "");
 		setCategoryId(one?.categoryId ?? "");
 		setFrequency(one?.frequency ?? "monthly");
@@ -562,12 +570,17 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 								label={kind === "transfer" ? t("transactions.from") : t("transactions.landsIn")}
 								value={accountId}
 								onChange={(event) => setAccountId(event.target.value)}
-								// Money comes in to money: never to a card or a benefit card.
+								// Money comes in to money somebody can spend: never to a card, a benefit card
+								// or an investment account, which money reaches only through a holding. A
+								// series keeps the accounts it already has, to be corrected.
 								options={accountOptions(
 									kind === "transfer"
-										? usable
+										? usable.filter(
+												(account) =>
+													account.kind !== "investment" || account.id === editing?.accountId,
+											)
 										: usable.filter(
-												(account) => account.kind !== "voucher" && account.kind !== "credit",
+												(account) => isSpendable(account.kind) || account.id === editing?.accountId,
 											),
 									t,
 								)}
@@ -578,7 +591,11 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 									value={counterAccountId}
 									onChange={(event) => setCounterAccountId(event.target.value)}
 									options={accountOptions(
-										usable.filter((account) => account.id !== accountId),
+										usable.filter(
+											(account) =>
+												account.id !== accountId &&
+												(account.kind !== "investment" || account.id === editing?.counterAccountId),
+										),
 										t,
 									)}
 								/>

@@ -19,6 +19,7 @@ import {
 	type CurrencyCode,
 	dateInMonth,
 	invoiceMonthOf,
+	isSpendable,
 	limitsNearBreaking,
 	MONTH_PARTS,
 	type MonthPart,
@@ -259,9 +260,10 @@ export function MonthPage() {
 
 	const everyAccount = accounts.data ?? [];
 	// A benefit card is neither. It takes no income, because whoever gives it is what
-	// credits it, and the spending on it is not the household's money going out.
+	// credits it, and the spending on it is not the household's money going out. An
+	// investment account is neither too: money reaches one only through a holding.
 	const moneyAccounts = everyAccount.filter(
-		(one) => one.archivedAt === null && one.kind !== "credit" && one.kind !== "voucher",
+		(one) => one.archivedAt === null && isSpendable(one.kind),
 	);
 	const creditAccounts = everyAccount.filter((one) => one.kind === "credit");
 

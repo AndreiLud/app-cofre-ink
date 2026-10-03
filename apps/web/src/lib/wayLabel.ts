@@ -120,8 +120,12 @@ function everyWay(cards: readonly Card[], accounts: readonly Account[], t: Trans
 			lastFour: null,
 		}));
 
+	// Never an investment account: money reaches one only through a holding, on Investments.
 	const money = usable
-		.filter((account) => account.kind !== "credit" && account.kind !== "voucher")
+		.filter(
+			(account) =>
+				account.kind !== "credit" && account.kind !== "voucher" && account.kind !== "investment",
+		)
 		.map((account) => ({
 			value: `:${account.id}`,
 			label: account.name,
