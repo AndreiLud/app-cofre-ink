@@ -631,11 +631,21 @@ export function InvoicePage() {
 												}
 											>
 												<MenuItem
-													onSelect={() => moveOne.mutate({ id: row.id, towards: "earlier" })}
+													onSelect={() =>
+														withPaymentsInMind([shown, addMonthsToMonth(shown, -1)], () =>
+															moveOne.mutate({ id: row.id, towards: "earlier" }),
+														)
+													}
 												>
 													{t("invoice.moveEarlier")}
 												</MenuItem>
-												<MenuItem onSelect={() => moveOne.mutate({ id: row.id, towards: "later" })}>
+												<MenuItem
+													onSelect={() =>
+														withPaymentsInMind([shown, addMonthsToMonth(shown, 1)], () =>
+															moveOne.mutate({ id: row.id, towards: "later" }),
+														)
+													}
+												>
 													{t("invoice.moveLater")}
 												</MenuItem>
 											</Menu>

@@ -604,6 +604,46 @@ test.describe("the card invoice", () => {
 		await expect(page.getByRole("dialog")).toHaveCount(0);
 	});
 
+	// Part 1, A.9 of the request for 2.0.0: the two moves are on the menu of a card purchase
+	// in the records list as well, which item B.7.1 of 1.1.0 asked for and nobody built.
+	test("moves a card purchase to the next invoice from the records list", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Lançamentos");
+
+		await record(page, "Livraria").getByRole("button", { name: "Ações" }).click();
+		await expect(
+			page.getByRole("menuitem", { name: "Mover para a fatura anterior" }),
+		).toBeVisible();
+		await page.getByRole("menuitem", { name: "Mover para a próxima fatura" }).click();
+
+		await go(page, "Faturas");
+		await expect(record(page, "Livraria")).toHaveCount(0);
+		await page.getByRole("button", { name: "Próxima" }).click();
+		await expect(record(page, "Livraria")).toBeVisible();
+	});
+
+	test("asks before moving a purchase off an invoice that has a payment", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Faturas");
+
+		await page.getByRole("button", { name: "Pagar fatura" }).click();
+		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("10,00");
+		await page.getByRole("dialog").getByLabel("Dia").fill(dayField(0));
+		await page.getByRole("dialog").getByRole("button", { name: "Pagar fatura" }).click();
+		await expect(page.getByText("Paga em parte")).toBeVisible();
+
+		const row = page.getByRole("row").filter({ hasText: "Livraria" });
+		await row.getByRole("button", { name: "Ações do lançamento" }).click();
+		await page.getByRole("menuitem", { name: "Mover para a próxima fatura" }).click();
+		const asking = page.getByRole("dialog");
+		await expect(asking.getByText("Uma das faturas já tem pagamento")).toBeVisible();
+		await asking.getByRole("button", { name: "Mover mesmo assim" }).click();
+
+		await expect(record(page, "Livraria")).toHaveCount(0);
+		await page.getByRole("button", { name: "Próxima" }).click();
+		await expect(record(page, "Livraria")).toBeVisible();
+	});
+
 	test("moves a purchase the bank closed onto another invoice, and keeps it there", async ({
 		page,
 	}) => {

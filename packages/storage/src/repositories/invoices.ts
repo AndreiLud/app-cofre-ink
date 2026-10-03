@@ -538,8 +538,10 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 		 * the wrong invoice. Once moved it stays moved: correcting the closing day of the
 		 * account afterwards does not drag it back.
 		 *
-		 * Every part of a purchase in instalments moves with it, one invoice in the same
-		 * direction, because they are one purchase and the bank moved the whole of it.
+		 * The part chosen and every part after it move with it, one invoice in the same
+		 * direction, which is decision 7 of 2.0.0. It moved the whole plan, the parts behind
+		 * included, so moving the fourth part of ten rewrote three invoices already closed and
+		 * maybe paid. The parts before it stay where they were charged.
 		 */
 		async move(id: string, towards: "earlier" | "later"): Promise<number> {
 			const record = await needs.transactions.get(id);
@@ -553,10 +555,12 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 			}
 
 			const parts = record.installmentGroup
-				? await needs.transactions.list({
-						spaceId: record.spaceId,
-						installmentGroup: record.installmentGroup,
-					})
+				? (
+						await needs.transactions.list({
+							spaceId: record.spaceId,
+							installmentGroup: record.installmentGroup,
+						})
+					).filter((part) => (part.installmentNumber ?? 0) >= (record.installmentNumber ?? 0))
 				: [record];
 
 			// Every part of the plan or none of it, which is what makes this a correction

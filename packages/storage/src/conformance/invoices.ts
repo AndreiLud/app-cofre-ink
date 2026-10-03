@@ -751,6 +751,37 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Decision 7 of part 1 of 2.0.0: moving a part moves it and the parts after it, and the
+		// ones before stay on the invoices they were charged on. It moved the whole plan.
+		it("moves a part of a plan and the parts after it, and leaves the ones before", async () => {
+			const ready = await readyCard(adapter);
+			try {
+				const parts = await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 90_000,
+					happenedOn: "2026-09-10",
+					description: "Fone",
+					accountId: ready.card.id,
+					installments: 3,
+				});
+				expect(parts.map((one) => one.invoiceMonth)).toEqual(["2026-10", "2026-11", "2026-12"]);
+
+				const moved = await ready.fixture.asAna.invoices.move(parts[1]?.id ?? "", "later");
+				expect(moved).toBe(2);
+
+				const monthOf = async (id: string) =>
+					(await ready.fixture.asAna.transactions.get(id)).invoiceMonth;
+				expect(await Promise.all(parts.map((part) => monthOf(part.id)))).toEqual([
+					"2026-10",
+					"2026-12",
+					"2027-01",
+				]);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		it("says which day an invoice really closed on, and moves what falls between", async () => {
 			const ready = await readyCard(adapter);
 			try {

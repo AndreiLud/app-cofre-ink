@@ -2,7 +2,7 @@
 // people actually ask: what did I spend at that place, what is still to come, what
 // went through this card.
 
-import { addUpInBase, monthOf, todayIn } from "@cofre/core";
+import { addMonthsToMonth, addUpInBase, monthOf, todayIn } from "@cofre/core";
 import {
 	hasHappened,
 	type Transaction,
@@ -52,7 +52,14 @@ import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
 export function TransactionsPage() {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
+	/** An invoice by its month, with the year only when it is not this one. */
+	const invoiceMonthName = (month: string) =>
+		new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+			month: "long",
+			year: month.slice(0, 4) === today.slice(0, 4) ? undefined : "numeric",
+			timeZone: "UTC",
+		}).format(new Date(`${month}-01T00:00:00Z`));
 	const { session, currentSpace } = useCofre();
 	const queries = useQueryClient();
 	const navigate = useNavigate();
@@ -123,9 +130,11 @@ export function TransactionsPage() {
 	 * roles, which is how "Apagar o parcelamento inteiro" ended up offered to a Viewer
 	 * and doing nothing at all when it was pressed.
 	 */
-	const { mayCall } = useWhatIMayDo(spaceId);
+	const { mayCall, seesOwnRowsOnly } = useWhatIMayDo(spaceId);
 	const mayWrite = mayCall("transactions.create");
 	const mayUpdate = mayCall("transactions.update");
+	/** Moving between invoices reads the whole invoice, which closes to whoever sees only theirs. */
+	const mayMoveInvoice = mayUpdate && !seesOwnRowsOnly;
 	const mayDelete = mayCall("transactions.remove");
 	const mayTeach = mayCall("rules.create");
 	const mayShare = mayCall("sharing.split");
@@ -244,6 +253,49 @@ export function TransactionsPage() {
 		onSuccess: invalidate,
 		onError: complain,
 	});
+	/**
+	 * Moving a card purchase to the invoice before or after, which asks first when either of
+	 * the two invoices already has a payment: the payment stays where it is, so one ends with
+	 * credit and the other owes more.
+	 */
+	const [movingFirst, setMovingFirst] = useState<{
+		row: Transaction;
+		towards: "earlier" | "later";
+		month: string;
+		other: string;
+	} | null>(null);
+	const moveToInvoice = useMutation({
+		mutationFn: async (input: {
+			row: Transaction;
+			towards: "earlier" | "later";
+			asked?: boolean;
+		}) => {
+			if (!session || input.row.invoiceMonth === null) return;
+			const from = input.row.invoiceMonth;
+			const to = addMonthsToMonth(from, input.towards === "earlier" ? -1 : 1);
+			if (!input.asked) {
+				const states = await session.invoices.list(input.row.accountId, today);
+				const paid = [from, to].find((month) => {
+					const one = states.find((state) => state.month === month);
+					return one !== undefined && (one.paid > 0 || one.scheduled > 0);
+				});
+				if (paid !== undefined) {
+					setMovingFirst({
+						row: input.row,
+						towards: input.towards,
+						month: paid,
+						other: paid === from ? to : from,
+					});
+					return;
+				}
+			}
+			await session.invoices.move(input.row.id, input.towards);
+			invalidate();
+			void queries.invalidateQueries({ queryKey: ["invoices"] });
+		},
+		onError: complain,
+	});
+
 	const remove = useMutation({
 		mutationFn: async (id: string) => session?.transactions.remove(id),
 		onSuccess: invalidate,
@@ -706,6 +758,22 @@ export function TransactionsPage() {
 														{t("transactions.settle")}
 													</MenuItem>
 												) : null}
+												{/* A purchase on a card the bank closed onto another invoice, moved
+												    from where somebody finds it, and not only from the invoice. */}
+												{mayMoveInvoice && row.invoiceMonth !== null && row.kind !== "transfer" ? (
+													<>
+														<MenuItem
+															onSelect={() => moveToInvoice.mutate({ row, towards: "earlier" })}
+														>
+															{t("invoice.moveEarlier")}
+														</MenuItem>
+														<MenuItem
+															onSelect={() => moveToInvoice.mutate({ row, towards: "later" })}
+														>
+															{t("invoice.moveLater")}
+														</MenuItem>
+													</>
+												) : null}
 												{row.categoryId && mayTeach ? (
 													<MenuItem onSelect={() => teach.mutate(row)}>
 														{t("transactions.alwaysSortLikeThis")}
@@ -765,6 +833,44 @@ export function TransactionsPage() {
 					</p>
 				</Panel>
 			) : null}
+
+			<Dialog
+				open={movingFirst !== null}
+				onOpenChange={(next) => !next && setMovingFirst(null)}
+				title={t("invoice.alreadyPaidTitle")}
+				description={
+					movingFirst
+						? t("invoice.alreadyPaidBody", {
+								month: invoiceMonthName(movingFirst.month),
+								other: invoiceMonthName(movingFirst.other),
+							})
+						: ""
+				}
+				closeLabel={t("actions.close")}
+				footer={
+					<>
+						<Button variant="quiet" onClick={() => setMovingFirst(null)}>
+							{t("actions.cancel")}
+						</Button>
+						<Button
+							onClick={() => {
+								if (movingFirst) {
+									moveToInvoice.mutate({
+										row: movingFirst.row,
+										towards: movingFirst.towards,
+										asked: true,
+									});
+								}
+								setMovingFirst(null);
+							}}
+						>
+							{t("invoice.moveAnyway")}
+						</Button>
+					</>
+				}
+			>
+				{null}
+			</Dialog>
 
 			<SplitDialog
 				open={dividing !== null}
