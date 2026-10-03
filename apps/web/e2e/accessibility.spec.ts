@@ -33,6 +33,36 @@ test.describe("the keyboard and the screen reader", () => {
 		await expect(dialog.getByRole("alert")).toContainText(/descrição/i);
 	});
 
+	// Part 1, E.6.4 of the request for 2.0.0: a screen that is on no line of the navigation fell
+	// back to the first section, so importing, the month on paper and the spaces all said the
+	// page in front of somebody was the overview.
+	test("marks the section a screen belongs to, and not the overview by default", async ({
+		page,
+	}) => {
+		await openCofre(page);
+		const sections = page.getByRole("navigation", { name: "Seções do aplicativo" });
+		for (const [path, section] of [
+			["/importar", "Lançamentos"],
+			["/relatorio", "Relatórios"],
+			["/espacos", "Ajustes"],
+		] as const) {
+			await page.goto(path);
+			await expect(sections.getByRole("link", { name: section })).toHaveAttribute(
+				"aria-current",
+				"true",
+			);
+			await expect(sections.getByRole("link", { name: "Painel" })).not.toHaveAttribute(
+				"aria-current",
+			);
+		}
+		// The overview is the page it says it is when it is the page.
+		await page.goto("/");
+		await expect(sections.getByRole("link", { name: "Painel" })).toHaveAttribute(
+			"aria-current",
+			"page",
+		);
+	});
+
 	test("calls the tab after the screen, the space and the product", async ({ page }) => {
 		await openCofre(page);
 		await expect(page).toHaveTitle("Painel | Pessoal | Cofre Ink");

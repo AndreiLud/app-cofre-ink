@@ -78,6 +78,18 @@ function sectionsOf(t: (key: string) => string) {
 	];
 }
 
+/**
+ * Screens on no line of the navigation, and the section each is reached from. Importing is a
+ * door of the records, the month on paper of the reports and the spaces of the settings. They
+ * fell back to the first section, so all three said the page in front of somebody was the
+ * overview.
+ */
+const REACHED_FROM: Record<string, string> = {
+	[ROUTES.import]: ROUTES.transactions,
+	[ROUTES.paper]: ROUTES.reports,
+	[ROUTES.spaces]: ROUTES.categories,
+};
+
 /** The five sections and the one you are in, however wide the screen is. */
 function useWhereIAm() {
 	const { t } = useTranslation();
@@ -86,10 +98,26 @@ function useWhereIAm() {
 	const sections = sectionsOf(t);
 	const here =
 		sections.find(
-			(section) => section.to === path || section.children.some((child) => child.to === path),
-		) ?? sections[0];
+			(section) =>
+				section.to === path ||
+				section.children.some((child) => child.to === path) ||
+				REACHED_FROM[path] === section.to,
+		) ?? null;
 
 	return { sections, here, inside: here?.children ?? [], path };
+}
+
+/**
+ * What a section link says about the page: it is the page, or the page is inside it. Saying
+ * "page" for a section whose own screen is not the one open told a screen reader it was.
+ */
+function currentOf(
+	section: { to: string },
+	here: { to: string } | null,
+	path: string,
+): "page" | "true" | undefined {
+	if (section !== here) return undefined;
+	return section.to === path ? "page" : "true";
 }
 
 /**
@@ -100,7 +128,7 @@ function useWhereIAm() {
  */
 function Sections() {
 	const { t } = useTranslation();
-	const { sections, here } = useWhereIAm();
+	const { sections, here, path } = useWhereIAm();
 
 	return (
 		<nav aria-label={t("nav.label")} className="hidden md:block">
@@ -109,7 +137,7 @@ function Sections() {
 					<Link
 						key={section.label}
 						to={section.to}
-						aria-current={section === here ? "page" : undefined}
+						aria-current={currentOf(section, here, path)}
 						className={`whitespace-nowrap rounded-sm px-3 py-1.5 text-sm transition-colors ${
 							section === here
 								? "bg-accentSoft font-medium text-ink"
@@ -171,7 +199,7 @@ function Inside() {
  */
 function Bar() {
 	const { t } = useTranslation();
-	const { sections, here } = useWhereIAm();
+	const { sections, here, path } = useWhereIAm();
 
 	return (
 		<nav
@@ -184,7 +212,7 @@ function Bar() {
 					<Link
 						key={section.label}
 						to={section.to}
-						aria-current={section === here ? "page" : undefined}
+						aria-current={currentOf(section, here, path)}
 						className={`flex min-w-0 flex-1 flex-col items-center gap-1 pt-2 pb-2.5 text-[0.6875rem] leading-none transition-colors ${
 							section === here ? "font-medium text-ink" : "text-quiet"
 						}`}
