@@ -36,9 +36,11 @@ themselves and learn from a correction.
 
 **Repeating.** Series that write their own records, and a calendar of what falls due.
 
-**Planning.** Limits per category or per priority, a save first rule, goals with a date,
-and a projection of the next months built from three things kept apart: what is already
-written, what repeats, and what an ordinary month looks like.
+**Planning.** One section for the months gone and the months ahead. It opens on the
+reports, a month at a time or the last twelve, with the month on paper as a file. Then
+limits per category or per priority, a save first rule, goals with a date, the check up,
+a projection of the next months built from three things kept apart (what is already
+written, what repeats, and what an ordinary month looks like), and the investments.
 
 **Investments.** A holding is written down as the statement calls it, a caixinha, a CDB, a
 share, a fund, inside the investment account it lives in. A caixinha, the poupança, a CDB,
@@ -335,9 +337,11 @@ categorizam sozinhas e aprendem quando você corrige.
 **O que se repete.** Séries que escrevem os próprios lançamentos, e um calendário do que
 vence.
 
-**Planejamento.** Limites por categoria ou por prioridade, a regra de guardar primeiro,
-metas com data, e uma projeção dos próximos meses feita de três coisas separadas: o que
-já está escrito, o que se repete, e como é um mês comum.
+**Planejamento.** Uma seção para os meses que passaram e os que vêm. Ela abre nos
+relatórios, um mês por vez ou os últimos doze, com o mês no papel como arquivo. Depois,
+limites por categoria ou por prioridade, a regra de guardar primeiro, metas com data, o
+diagnóstico, uma projeção dos próximos meses feita de três coisas separadas (o que já está
+escrito, o que se repete, e como é um mês comum) e os investimentos.
 
 **Investimentos.** Uma aplicação é cadastrada como o extrato a chama, caixinha, CDB, ação,
 fundo, dentro da conta de investimento onde ela está. Caixinha, poupança, CDB, LCI, LCA e

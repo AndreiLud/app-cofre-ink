@@ -2,7 +2,15 @@
 // everything else. The space is named in the header at all times, which is the whole
 // defence against writing a personal expense into the family space.
 
-import { Button, Callout, Icon, Skeleton, type SpaceColour, SpaceRule } from "@cofre/ui";
+import {
+	Button,
+	Callout,
+	Icon,
+	type IconName,
+	Skeleton,
+	type SpaceColour,
+	SpaceRule,
+} from "@cofre/ui";
 import { Link, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
@@ -28,10 +36,34 @@ import { SpaceSwitcher } from "./SpaceSwitcher.tsx";
  * than by what the code calls them. The five are always there. The screens inside the
  * one you are in are on a second line under it, and the rest are out of the way until
  * you go there. Nothing is hidden behind a gesture and nothing needs a hover.
+ *
+ * Five again in 2.0.0. Accounts became a section of its own (registry 0045), which made six,
+ * and six on the bar of a telephone cut two of the names; reading the months gone and
+ * deciding the months ahead are one question, so Planning opens on Reports and holds both
+ * (registry 0070).
+ *
+ * `also` is the screens on no line of the navigation that a section is still where
+ * somebody is: the month on paper is a report, and importing and the spaces are reached
+ * from the settings. They fell back to the first section, so each said the page in front of
+ * somebody was the overview.
  */
-function sectionsOf(t: (key: string) => string) {
+type Section = {
+	to: string;
+	label: string;
+	icon: IconName;
+	children: { to: string; label: string }[];
+	also: string[];
+};
+
+function sectionsOf(t: (key: string) => string): Section[] {
 	return [
-		{ to: ROUTES.dashboard, label: t("nav.dashboard"), icon: "home" as const, children: [] },
+		{
+			to: ROUTES.dashboard,
+			label: t("nav.dashboard"),
+			icon: "home" as const,
+			children: [],
+			also: [],
+		},
 		{
 			to: ROUTES.transactions,
 			label: t("nav.transactions"),
@@ -45,19 +77,21 @@ function sectionsOf(t: (key: string) => string) {
 				{ to: ROUTES.invoices, label: t("nav.invoices") },
 				{ to: ROUTES.calendar, label: t("nav.calendar") },
 			],
+			also: [],
 		},
 		{
-			to: ROUTES.budget,
+			to: ROUTES.reports,
 			label: t("nav.planning"),
 			icon: "target" as const,
 			children: [
+				{ to: ROUTES.reports, label: t("nav.reports") },
 				{ to: ROUTES.budget, label: t("nav.budget") },
 				{ to: ROUTES.advisor, label: t("nav.advisor") },
 				{ to: ROUTES.projection, label: t("nav.projection") },
 				{ to: ROUTES.investments, label: t("nav.investments") },
 			],
+			also: [ROUTES.paper],
 		},
-		{ to: ROUTES.reports, label: t("nav.reports"), icon: "chart" as const, children: [] },
 		// Accounts and cards are money and not configuration, so they left the settings
 		// section and have one of their own. A card was not in the navigation at all: it
 		// was a panel at the foot of the accounts screen, which is where somebody looks for
@@ -67,6 +101,7 @@ function sectionsOf(t: (key: string) => string) {
 			label: t("nav.money"),
 			icon: "wallet" as const,
 			children: [],
+			also: [],
 		},
 		{
 			to: ROUTES.categories,
@@ -76,21 +111,10 @@ function sectionsOf(t: (key: string) => string) {
 				{ to: ROUTES.categories, label: t("nav.categories") },
 				{ to: ROUTES.data, label: t("nav.data") },
 			],
+			also: [ROUTES.import, ROUTES.spaces],
 		},
 	];
 }
-
-/**
- * Screens on no line of the navigation, and the section each is reached from. Importing is a
- * door of the records, the month on paper of the reports and the spaces of the settings. They
- * fell back to the first section, so all three said the page in front of somebody was the
- * overview.
- */
-const REACHED_FROM: Record<string, string> = {
-	[ROUTES.import]: ROUTES.transactions,
-	[ROUTES.paper]: ROUTES.reports,
-	[ROUTES.spaces]: ROUTES.categories,
-};
 
 /** The five sections and the one you are in, however wide the screen is. */
 function useWhereIAm() {
@@ -103,7 +127,7 @@ function useWhereIAm() {
 			(section) =>
 				section.to === path ||
 				section.children.some((child) => child.to === path) ||
-				REACHED_FROM[path] === section.to,
+				section.also.includes(path),
 		) ?? null;
 
 	return { sections, here, inside: here?.children ?? [], path };

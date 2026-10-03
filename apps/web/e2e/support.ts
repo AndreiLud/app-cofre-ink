@@ -196,6 +196,8 @@ const SECTION_OF: Record<string, string> = {
 	"O mês": "Lançamentos",
 	Faturas: "Lançamentos",
 	Calendário: "Lançamentos",
+	// Reports and Planning are one section since 2.0.0, which opens on Reports.
+	Relatórios: "Planejamento",
 	Orçamento: "Planejamento",
 	Diagnóstico: "Planejamento",
 	Projeção: "Planejamento",

@@ -28,7 +28,7 @@ new one.
 | [0019](0019_the_months_ahead.md) | projections, scenarios, compound interest and what is put aside | accepted, amended by 0069 |
 | [0020](0020_an_application_in_a_window.md) | installed on a telephone, wrapped for a desktop, served from anywhere | partly superseded by 0021 |
 | [0021](0021_a_web_application_that_tidies_itself.md) | no shell, and housekeeping that nobody is asked about | accepted, amended by 0068 |
-| [0022](0022_reading_the_figures_back.md) | findings over a household's own records, and five ways in | accepted |
+| [0022](0022_reading_the_figures_back.md) | findings over a household's own records, and five ways in | accepted, the sections amended by 0045 and 0070 |
 | [0023](0023_surfaces_weight_and_one_colour.md) | three surfaces, two weights of line, and one interactive colour | accepted |
 | [0024](0024_the_plastic_and_the_money.md) | cards, the accounts they reach, and which pot a voucher is | accepted |
 | [0025](0025_taking_the_data_away.md) | erasing a space, erasing everything, and what neither can reach | accepted |
@@ -51,8 +51,8 @@ new one.
 | [0042](0042_what_money_is_and_when_it_counts.md) | what money is, and the day it counts on | accepted |
 | [0043](0043_an_allowance_with_a_day_on_it.md) | an allowance with a day on it | accepted |
 | [0044](0044_four_figures_on_one_line.md) | four figures on one line | accepted |
-| [0045](0045_money_is_not_a_setting.md) | money is not a setting | accepted |
-| [0046](0046_a_month_in_a_file.md) | a month in a file, written by the browser | accepted |
+| [0045](0045_money_is_not_a_setting.md) | money is not a setting | accepted, amended by 0070 |
+| [0046](0046_a_month_in_a_file.md) | a month in a file, written by the browser | accepted, amended by 0070 |
 | [0047](0047_a_list_is_an_address.md) | a list is an address | accepted, amended by 0067 |
 | [0048](0048_the_day_a_test_runs_on.md) | the day a test runs on | accepted |
 | [0049](0049_reading_a_month_of_three_numbers_back.md) | reading a month of three numbers back | accepted |
@@ -75,3 +75,4 @@ new one.
 | [0067](0067_the_period_of_a_list.md) | the period of a list, and a filter that follows the calendar | accepted, the months ahead and the saved period wait for confirmation |
 | [0068](0068_what_repeats_is_a_chain.md) | what repeats has a screen, a chain and one writer | accepted, three choices wait for confirmation |
 | [0069](0069_a_holding_is_a_product.md) | a holding is a product, and the indices estimate it | accepted, six choices wait for confirmation |
+| [0070](0070_planning_and_reports_in_one_section.md) | planning and reports in one section | accepted |

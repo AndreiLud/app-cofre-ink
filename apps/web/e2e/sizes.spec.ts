@@ -129,13 +129,28 @@ test("the sections are reachable on a telephone without opening anything", async
 
 	// On a narrow screen the five sections are a bar along the bottom. All five are on
 	// screen at once, so getting to one is a tap, not a tap to open and a tap to choose.
-	await nav(page, "Relatórios").click();
-
+	// Planning opens on Reports, which is in it since 2.0.0.
+	await nav(page, "Planejamento").click();
 	await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 	await expect(page).toHaveURL(/relatorios/);
 
 	// And the second level is with the content, so it takes one more tap and no menu.
-	await nav(page, "Planejamento").click();
 	await inside(page, "Investimentos").click();
 	await expect(page).toHaveURL(/investimentos/);
+});
+
+// Part 1, E.7 and part 2, I.2 of 2.0.0: the bar of six cut "Lançamen..." and "Planejame...".
+test("the bar of a telephone writes every section in full", async ({ page }) => {
+	await page.setViewportSize({ width: 360, height: 720 });
+	await openCofre(page);
+
+	const bar = page.getByRole("navigation", { name: "Seções do aplicativo" });
+	await expect(bar.getByRole("link", { name: "Ajustes" })).toBeVisible();
+	const cut = await bar.evaluate((element) =>
+		[...element.querySelectorAll("a span:last-child")]
+			.filter((label) => label.scrollWidth > label.clientWidth)
+			.map((label) => label.textContent),
+	);
+	expect(cut).toEqual([]);
+	await expect(bar.getByRole("link")).toHaveCount(5);
 });
