@@ -27,6 +27,13 @@ describe("what to say about a failure", () => {
 		expect(console).toHaveBeenCalledWith(crashed);
 	});
 
+	// Part 1, G.8 of the request for 2.0.0: an address that answers with a page is named.
+	it("says an address answered, but not as this server", () => {
+		expect(sayWhy(new ServerError({ status: 200, error: "notACofreServer" }), asKey)).toBe(
+			"rules.notACofreServer",
+		);
+	});
+
 	it("says the rule a server refusal names, and leaves no trace for it", () => {
 		const console = vi.spyOn(globalThis.console, "error").mockImplementation(() => undefined);
 

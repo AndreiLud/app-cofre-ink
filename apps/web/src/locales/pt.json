@@ -625,7 +625,8 @@
 		"moveEndIsNotAllowed": "Essa conta não pode ser a outra ponta. O dinheiro sai de uma conta corrente, de uma poupança ou do dinheiro em espécie, e vai para uma delas, para um vale ou para a fatura de um cartão.",
 		"moveNeedsAMoneyAccount": "Só uma saída ou uma entrada numa conta corrente, numa poupança ou no dinheiro em espécie, ou um pagamento recebido no cartão, vira movimentação entre contas.",
 		"notTheOtherHalf": "Esse lançamento não é o mesmo dinheiro lançado na outra conta. Nada foi mudado.",
-		"cardNeedsACycle": "Um cartão de crédito precisa do dia de fechamento e do dia de vencimento. Sem eles ele não tem fatura nenhuma."
+		"cardNeedsACycle": "Um cartão de crédito precisa do dia de fechamento e do dia de vencimento. Sem eles ele não tem fatura nenhuma.",
+		"notACofreServer": "Esse endereço respondeu, mas não como um servidor do {{app}}. Confira o endereço do servidor."
 	},
 	"transactions": {
 		"title": "Lançamentos",

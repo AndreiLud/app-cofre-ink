@@ -144,17 +144,34 @@ async function call<T>(server: string, path: string, init: RequestInit = {}): Pr
 
 	if (response.status === 204) return undefined as T;
 
+	// The status before the body. A failure answered with a page instead of JSON, which is
+	// what a proxy in front of a server that is down sends, used to reach the screen as a
+	// SyntaxError from reading that page, and not as an error with a name.
 	const text = await response.text();
-	const body = text === "" ? {} : (JSON.parse(text) as Record<string, unknown>);
+	const body = readJson(text);
 
 	if (!response.ok) {
+		const said = body ?? {};
 		throw new ServerError({
 			status: response.status,
-			error: typeof body.error === "string" ? body.error : "unexpected",
-			message: typeof body.message === "string" ? body.message : undefined,
+			error: typeof said.error === "string" ? said.error : "unexpected",
+			message: typeof said.message === "string" ? said.message : undefined,
 		});
 	}
+	// An address that answers every path with a page, which is what a static host does, is
+	// somewhere, but it is not this server.
+	if (body === null) throw new ServerError({ status: response.status, error: "notACofreServer" });
 	return body as T;
+}
+
+/** The body as JSON, nothing for an empty one, and null for anything that is not JSON. */
+function readJson(text: string): Record<string, unknown> | null {
+	if (text === "") return {};
+	try {
+		return JSON.parse(text) as Record<string, unknown>;
+	} catch {
+		return null;
+	}
 }
 
 /**

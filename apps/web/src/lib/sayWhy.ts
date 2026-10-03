@@ -26,6 +26,7 @@ export type Translate = (key: string, values?: Record<string, unknown>) => strin
 const SERVER_CODE: Record<string, string> = {
 	notAllowed: "rules.notAllowedHere",
 	notFound: "rules.notThere",
+	notACofreServer: "rules.notACofreServer",
 };
 
 /**
