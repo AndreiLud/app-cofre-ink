@@ -1,5 +1,5 @@
 import { uuidV7 } from "@cofre/core";
-import { spaceMembers, spaces } from "@cofre/db";
+import { accounts, spaceMembers, spaces } from "@cofre/db";
 import { assertCan, readableSpaceIds } from "../actor.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { type Space, toSpace } from "../models.ts";
@@ -198,7 +198,9 @@ export function createSpacesRepository(context: RepositoryContext) {
 			 * case, right after the front door made one. Once there is money in it, changing
 			 * the unit is not a correction.
 			 */
-			if (input.baseCurrency !== undefined && input.baseCurrency !== before.baseCurrency) {
+			const changesCurrency =
+				input.baseCurrency !== undefined && input.baseCurrency !== before.baseCurrency;
+			if (changesCurrency) {
 				const written = await context.driver.all(
 					`SELECT 1 AS found FROM "transactions" WHERE "space_id" = ? AND "deleted_at" IS NULL
 					 UNION ALL
@@ -214,6 +216,24 @@ export function createSpacesRepository(context: RepositoryContext) {
 				}
 			}
 
+			/**
+			 * The accounts go with it.
+			 *
+			 * The front door makes a space in reais without asking, and the accounts written
+			 * down next were in reais too. Correcting the space left them there, so every record
+			 * after it was refused for want of a rate, on a form with no field for one. The space
+			 * has no records yet, so neither has any account, and an account in the old currency
+			 * was only ever in it because the space was. One written down in a third currency on
+			 * purpose stays in that one.
+			 */
+			const following = changesCurrency
+				? await context.driver.all(
+						`SELECT "id" FROM "accounts"
+						 WHERE "space_id" = ? AND "currency" = ? AND "deleted_at" IS NULL`,
+						[id, before.baseCurrency],
+					)
+				: [];
+
 			const values: Record<string, string> = {};
 			if (input.name !== undefined) values.name = input.name;
 			if (input.colour !== undefined) values.colour = input.colour;
@@ -221,7 +241,18 @@ export function createSpacesRepository(context: RepositoryContext) {
 			if (input.baseCurrency !== undefined) values.base_currency = input.baseCurrency;
 			if (input.timezone !== undefined) values.timezone = input.timezone;
 
-			await updateRow(context.write(), { table: spaces, spaceId: id, id, values });
+			await context.driver.transaction(async (tx) => {
+				const write = { ...context.write(), driver: tx };
+				await updateRow(write, { table: spaces, spaceId: id, id, values });
+				for (const account of following) {
+					await updateRow(write, {
+						table: accounts,
+						spaceId: id,
+						id: String(account.id),
+						values: { currency: input.baseCurrency ?? before.baseCurrency },
+					});
+				}
+			});
 			return readable(id);
 		},
 

@@ -649,6 +649,57 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 					await fixture.close();
 				}
 			});
+
+			// Part 1, G.4 of the request for 2.0.0: the front door makes a space in reais without
+			// asking, and the accounts written down next were in reais too. Changing the space to
+			// euros afterwards left them there, and every record after that was refused for want
+			// of a rate, on a form with no field for one. The accounts with no records follow the
+			// space; one written down in a third currency on purpose stays in it.
+			it("takes the accounts along when the currency of an empty space is corrected", async () => {
+				const fixture = await prepare(adapter);
+				try {
+					const space = await fixture.asAna.spaces.create({ name: "Casa" });
+					const checking = await fixture.asAna.accounts.create({
+						spaceId: space.id,
+						kind: "checking",
+						name: "Conta",
+						initialBalance: 250_000,
+					});
+					const card = await fixture.asAna.accounts.create({
+						spaceId: space.id,
+						kind: "credit",
+						name: "Cartao",
+						closingDay: 3,
+						dueDay: 10,
+						creditLimit: 300_000,
+					});
+					const dollars = await fixture.asAna.accounts.create({
+						spaceId: space.id,
+						kind: "checking",
+						name: "Conta em dolar",
+						currency: "USD",
+					});
+					expect(checking.currency).toBe("BRL");
+
+					await fixture.asAna.spaces.update(space.id, { baseCurrency: "EUR" });
+					expect((await fixture.asAna.accounts.get(checking.id)).currency).toBe("EUR");
+					expect((await fixture.asAna.accounts.get(card.id)).currency).toBe("EUR");
+					expect((await fixture.asAna.accounts.get(dollars.id)).currency).toBe("USD");
+
+					// The record that was refused for want of a rate.
+					const [written] = await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "expense",
+						amount: 5000,
+						happenedOn: "2026-09-10",
+						description: "Mercado",
+						accountId: checking.id,
+					});
+					expect(written).toMatchObject({ currency: "EUR", amountInBase: -5000 });
+				} finally {
+					await fixture.close();
+				}
+			});
 		});
 
 		describe("membership", () => {

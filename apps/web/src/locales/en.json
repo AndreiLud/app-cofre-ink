@@ -987,7 +987,7 @@
 		"edit": "Edit",
 		"editTitle": "Edit space",
 		"editDescription": "The name, the colour and the currency of this space.",
-		"currencyHint": "The currency the totals of this space are counted in. It can be changed while the space is empty: the first record decides it, because nothing is converted afterwards.",
+		"currencyHint": "The currency the totals of this space are counted in. It can be changed while the space has no records, and the accounts that were in the old currency move to the new one with it. After the first record it stays, because nothing is converted.",
 		"currencySettled": "This space has records in it, so its currency is settled. Nothing is converted: every balance and every division already written is a number in this one.",
 		"name": "Name of the space",
 		"namePlaceholder": "House",

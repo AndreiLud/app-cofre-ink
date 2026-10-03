@@ -987,7 +987,7 @@
 		"edit": "Editar",
 		"editTitle": "Editar espaço",
 		"editDescription": "Nome, cor e moeda deste espaço.",
-		"currencyHint": "A moeda em que os totais deste espaço são contados. Dá para trocar enquanto o espaço está vazio: o primeiro lançamento decide, porque nada é convertido depois.",
+		"currencyHint": "A moeda em que os totais deste espaço são contados. Dá para trocar enquanto o espaço não tem lançamentos, e as contas que estavam na moeda antiga passam para a nova junto. Depois do primeiro lançamento ela fica, porque nada é convertido.",
 		"currencySettled": "Este espaço já tem lançamentos, então a moeda dele está decidida. Nada é convertido: cada saldo e cada divisão já escrita é um número nesta moeda.",
 		"name": "Nome do espaço",
 		"namePlaceholder": "Casa",
