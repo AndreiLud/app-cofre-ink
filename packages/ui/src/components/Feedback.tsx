@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { cn } from "../lib/cn.ts";
 import { Icon, type IconName } from "./Icon.tsx";
 
@@ -44,6 +44,12 @@ export type CalloutProps = {
 	children: ReactNode;
 	action?: ReactNode;
 	className?: string;
+	/**
+	 * For a message the focus is handed to after the control that led to it went away, such
+	 * as a dialog that closed: it is focusable by the script and not a stop of the Tab key.
+	 */
+	ref?: Ref<HTMLDivElement>;
+	focusable?: boolean;
 };
 
 // A tint and an edge in the same family, so the three tell each other apart at a
@@ -62,9 +68,19 @@ const TONES: Record<CalloutTone, string> = {
  * had no role at all, so a save that was refused told only whoever was looking at the bottom
  * of the dialog.
  */
-export function Callout({ tone = "neutral", title, children, action, className }: CalloutProps) {
+export function Callout({
+	tone = "neutral",
+	title,
+	children,
+	action,
+	className,
+	ref,
+	focusable = false,
+}: CalloutProps) {
 	return (
 		<div
+			ref={ref}
+			tabIndex={focusable ? -1 : undefined}
 			role={tone === "problem" ? "alert" : "status"}
 			className={cn("rounded-md border px-4 py-3", TONES[tone], className)}
 		>

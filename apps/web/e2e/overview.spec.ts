@@ -260,6 +260,11 @@ test.describe("the overview", () => {
 			await asking.getByRole("button", { name: "Aconteceram todos" }).click();
 
 			await expect(page.getByText(/registros confirmados/)).toBeVisible();
+			// Part 1, E.6.2 of the request for 2.0.0: the dialog closed and the focus fell to the
+			// body of the page. It lands on what happened, which says itself as it changes.
+			await expect(
+				page.getByRole("status").filter({ hasText: /registros confirmados/ }),
+			).toBeFocused();
 			await expect(page.getByRole("button", { name: /^Confirmar os \d+$/ })).toHaveCount(0);
 		} finally {
 			await before.close();

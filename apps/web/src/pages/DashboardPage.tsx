@@ -54,7 +54,7 @@ import {
 } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Findings } from "../components/Findings.tsx";
 import { MoveDialog, type MoveStart, movesOutOf } from "../components/MoveDialog.tsx";
@@ -136,6 +136,10 @@ export function DashboardPage() {
 	// dialog is not decoration: it is the only stop between the button and the writes.
 	const [askingAll, setAskingAll] = useState(false);
 	const [confirmedAll, setConfirmedAll] = useState(0);
+	const confirmedMessage = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		if (confirmedAll > 0) confirmedMessage.current?.focus();
+	}, [confirmedAll]);
 	/** The record somebody said did not happen, waiting for the question before it goes. */
 	const [dropping, setDropping] = useState<Transaction | null>(null);
 	/**
@@ -993,8 +997,12 @@ export function DashboardPage() {
 				) : null}
 			</Panel>
 
+			{/* Where the focus goes when the dialog that confirmed them closes: it fell to the body
+			    of the page, and somebody on a keyboard started again from the top. */}
 			{confirmedAll > 0 ? (
-				<Callout tone="neutral">{t("dashboard.confirmedLate", { count: confirmedAll })}</Callout>
+				<Callout tone="neutral" ref={confirmedMessage} focusable={true}>
+					{t("dashboard.confirmedLate", { count: confirmedAll })}
+				</Callout>
 			) : null}
 
 			{/* Late first, because it is the only thing on this screen that is already wrong. */}
