@@ -369,7 +369,18 @@
 		"cardWithoutCycle": "No closing day and no due day. Fill them in under Accounts.",
 		"showEachCard": "Show each one",
 		"hideEachCard": "Hide",
-		"currenciesDiffer": "The spaces added up here count in different currencies ({{list}}). The totals of Everything put numbers of different currencies together, so they are not one amount: look at each space on its own."
+		"currenciesDiffer": "The spaces added up here count in different currencies ({{list}}). The totals of Everything put numbers of different currencies together, so they are not one amount: look at each space on its own.",
+		"usualOverBetter": "In a usual month {{usual}} is left over, so this month is doing better.",
+		"usualOverWorse": "In a usual month {{usual}} is left over, so this month is doing worse.",
+		"usualOverSame": "In a usual month {{usual}} is left over, and this month is about the same.",
+		"usualOverEarly": "In a usual month {{usual}} is left over. It is still early in the month to compare.",
+		"usualShortBetter": "In a usual month {{usual}} more goes out than comes in, so this month is doing better.",
+		"usualShortWorse": "In a usual month {{usual}} more goes out than comes in, so this month is doing worse.",
+		"usualShortSame": "In a usual month {{usual}} more goes out than comes in, and this month is about the same.",
+		"usualShortEarly": "In a usual month {{usual}} more goes out than comes in. It is still early in the month to compare.",
+		"weighedMost": "What weighed most",
+		"limitClose": "Close to the limit: {{name}}, {{spent}} of {{limit}}.",
+		"limitOver": "Past the limit: {{name}}, {{spent}} of {{limit}}."
 	},
 	"notice": {
 		"budgetOver": "{{name}} went over its limit by {{over}}.",

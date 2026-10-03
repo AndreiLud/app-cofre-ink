@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { progressOf } from "../budget/progress.ts";
 import {
 	againstAUsualMonth,
+	leftAgainstUsual,
 	limitsNearBreaking,
 	type MonthAmounts,
 	whatTookIt,
@@ -40,6 +41,33 @@ describe("this month against a usual one", () => {
 		// Four hundred thousand against the middle of June, July and August, which is four
 		// hundred thousand: the same month, and the word for that is not better or worse.
 		expect(closed?.verdict).toBe("same");
+	});
+
+	// Part 1, E.5 of the request for 2.0.0: the overview says what a usual month leaves over,
+	// and whether this one is doing better, which is what proposal 3 drew.
+	it("says what a usual month leaves over, and whether this one does better", () => {
+		const late = againstAUsualMonth({ month: "2026-10", today: "2026-10-28", months });
+		// 500,000 in and 400,000 out in the middle of June to September.
+		expect(late && leftAgainstUsual(late)).toEqual({
+			usualLeft: 100_000,
+			monthLeft: 470_000,
+			verdict: "better",
+		});
+		const early = againstAUsualMonth({ month: "2026-10", today: "2026-10-03", months });
+		expect(early && leftAgainstUsual(early).verdict).toBe("tooEarly");
+
+		const worse = againstAUsualMonth({
+			month: "2026-10",
+			today: "2026-10-28",
+			months: [{ month: "2026-10", income: 500_000, expense: 480_000 }, ...months.slice(1)],
+		});
+		expect(worse && leftAgainstUsual(worse).verdict).toBe("worse");
+		const same = againstAUsualMonth({
+			month: "2026-10",
+			today: "2026-10-28",
+			months: [{ month: "2026-10", income: 500_000, expense: 402_000 }, ...months.slice(1)],
+		});
+		expect(same && leftAgainstUsual(same).verdict).toBe("same");
 	});
 
 	it("has no usual month until three of them are closed", () => {

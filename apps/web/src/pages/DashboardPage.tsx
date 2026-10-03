@@ -15,7 +15,9 @@
 
 import {
 	addDays,
+	addMonthsToMonth,
 	addUpInBase,
+	againstAUsualMonth,
 	amountToPay,
 	type CalendarDate,
 	type CardsTogether,
@@ -26,6 +28,8 @@ import {
 	type InvoiceState,
 	isBenefit,
 	lastDayOfMonth,
+	leftAgainstUsual,
+	limitsNearBreaking,
 	moneyOnHand,
 	monthOf,
 	noticesFor,
@@ -33,6 +37,7 @@ import {
 	spendableThisMonth,
 	splitInvoicesFallingDue,
 	todayIn,
+	USUAL_WINDOW,
 } from "@cofre/core";
 import type { CardStanding, GoalProgress, Transaction } from "@cofre/storage";
 import { roleSeesOwnRowsOnly } from "@cofre/storage";
@@ -387,6 +392,26 @@ export function DashboardPage() {
 		queryFn: () => session?.categories.list(spaceId) ?? [],
 	});
 
+	// The rest of "O mês até agora" as proposal 3 drew it: the months a usual one is made
+	// of, read the way the month screen reads them, and what weighed most so far.
+	const monthsBefore = useQuery({
+		queryKey: ["reports", "byMonth", spaceId, month, today],
+		enabled: Boolean(session && currentSpace),
+		queryFn: () =>
+			session?.reports.byMonth({
+				spaceId,
+				from: dateInMonth(addMonthsToMonth(month, -USUAL_WINDOW), 1),
+				to: today,
+			}) ?? [],
+	});
+	const heaviest = useQuery({
+		queryKey: ["reports", spaceId, "byCategory", month, today],
+		enabled: Boolean(session && currentSpace),
+		queryFn: () =>
+			session?.reports.byCategory({ spaceId, from: `${month}-01` as CalendarDate, to: today }) ??
+			[],
+	});
+
 	const findings = useQuery({
 		queryKey: ["advice", spaceId, today],
 		enabled: Boolean(session && currentSpace) && balances.isSuccess,
@@ -725,6 +750,56 @@ export function DashboardPage() {
 			currency: inCurrency,
 		}).format(Number(value) / 100);
 	const money = (value: unknown) => moneyIn(value, currency);
+
+	/**
+	 * What a usual month leaves over against this one, the benefit counted as income as it is
+	 * everywhere income is read. Nothing until three months are closed: the middle of two is
+	 * not a usual month.
+	 */
+	const againstUsual = againstAUsualMonth({
+		month,
+		today,
+		months: (monthsBefore.data ?? []).map((one) => ({
+			month: one.month,
+			income: one.income + one.benefits,
+			expense: one.expense,
+		})),
+	});
+	const usualLeft = againstUsual ? leftAgainstUsual(againstUsual) : null;
+	/** The three categories that weighed most so far, money nobody sorted included. */
+	const weighedMost = (heaviest.data ?? [])
+		.map((one) => ({ ...one, total: Math.abs(one.total) }))
+		.filter((one) => one.total > 0)
+		.sort((one, other) => other.total - one.total)
+		.slice(0, 3);
+	/** The limits broken or close to it, the worst two. */
+	const nearLimits = limitsNearBreaking(
+		(budgets.data ?? []).map((one) => ({
+			budgetId: one.id,
+			limit: one.progress.limit,
+			spent: one.progress.spent,
+		})),
+	).slice(0, 2);
+	const limitNamed = (budgetId: string) => {
+		const found = (budgets.data ?? []).find((one) => one.id === budgetId);
+		return found ? nameOfLimit(found) : "";
+	};
+	const usualSentence = usualLeft
+		? usualLeft.usualLeft >= 0
+			? {
+					better: t("dashboard.usualOverBetter", { usual: money(usualLeft.usualLeft) }),
+					worse: t("dashboard.usualOverWorse", { usual: money(usualLeft.usualLeft) }),
+					same: t("dashboard.usualOverSame", { usual: money(usualLeft.usualLeft) }),
+					tooEarly: t("dashboard.usualOverEarly", { usual: money(usualLeft.usualLeft) }),
+				}[usualLeft.verdict]
+			: {
+					better: t("dashboard.usualShortBetter", { usual: money(-usualLeft.usualLeft) }),
+					worse: t("dashboard.usualShortWorse", { usual: money(-usualLeft.usualLeft) }),
+					same: t("dashboard.usualShortSame", { usual: money(-usualLeft.usualLeft) }),
+					tooEarly: t("dashboard.usualShortEarly", { usual: money(-usualLeft.usualLeft) }),
+				}[usualLeft.verdict]
+		: null;
+
 	const out = dues.filter((row) => row.kind !== "income");
 	const income = dues.filter((row) => row.kind === "income");
 
@@ -1152,6 +1227,34 @@ export function DashboardPage() {
 							/>
 						</div>
 					)}
+					{/* The three figures alone were a third of what proposal 3 drew: against a usual
+					    month, what weighed most, and the limits about to give. */}
+					{usualSentence ? <p className="mt-3 text-quiet text-sm">{usualSentence}</p> : null}
+					{weighedMost.length > 0 ? (
+						<div className="mt-4">
+							<p className="text-quiet text-sm">{t("dashboard.weighedMost")}</p>
+							<ul className="mt-1 divide-y divide-line border-line border-t">
+								{weighedMost.map((one) => (
+									<li
+										key={one.categoryId ?? "none"}
+										className="flex items-baseline justify-between gap-3 py-2"
+									>
+										<span className="min-w-0">{one.name ?? t("reports.noCategory")}</span>
+										<Value amount={one.total} currency={currency} />
+									</li>
+								))}
+							</ul>
+						</div>
+					) : null}
+					{nearLimits.map((risk) => (
+						<p key={risk.budgetId} className="mt-3 text-sm">
+							{t(risk.state === "over" ? "dashboard.limitOver" : "dashboard.limitClose", {
+								name: limitNamed(risk.budgetId),
+								spent: money(risk.spent),
+								limit: money(risk.limit),
+							})}
+						</p>
+					))}
 				</Panel>
 
 				<Panel title={t("dashboard.savingAndGoals")}>

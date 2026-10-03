@@ -193,6 +193,35 @@ export function whatTookIt(rows: readonly SpendingRow[]): WhatTookIt {
 	return { ranked, sorted, notItemised };
 }
 
+export type LeftVerdict = "better" | "worse" | "same" | "tooEarly";
+
+/**
+ * What a usual month leaves over, against what this one leaves so far.
+ *
+ * The overview says the month in one sentence: in a usual month this much is left over, so
+ * this one is doing better or worse. A usual month is the middle of what came in less the
+ * middle of what went out, the two figures the month screen already compares, so the two
+ * screens cannot disagree about what usual is. It waits like the comparison it comes from:
+ * before four fifths of the month have gone it gives the usual figure and no verdict.
+ */
+export function leftAgainstUsual(against: AgainstUsual): {
+	usualLeft: number;
+	monthLeft: number;
+	verdict: LeftVerdict;
+} {
+	const usualLeft = against.usualIn - against.usualOut;
+	const monthLeft = against.monthIn - against.monthOut;
+	const difference = monthLeft - usualLeft;
+	const verdict: LeftVerdict = !against.comparable
+		? "tooEarly"
+		: Math.abs(difference) < WORTH_SAYING
+			? "same"
+			: difference > 0
+				? "better"
+				: "worse";
+	return { usualLeft, monthLeft, verdict };
+}
+
 /** A limit this close to its figure is worth saying out loud. Four fifths of it. */
 export const LIMIT_CLOSE = 0.8;
 

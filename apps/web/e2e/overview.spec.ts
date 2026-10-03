@@ -8,6 +8,7 @@
 
 import { expect, test } from "@playwright/test";
 import {
+	cents,
 	dayField,
 	figure,
 	go,
@@ -263,6 +264,23 @@ test.describe("the overview", () => {
 		} finally {
 			await before.close();
 		}
+	});
+
+	// Part 1, E.5 of the request for 2.0.0: proposal 3, the one chosen, drew "O mês até agora"
+	// with a usual month beside it, what weighed most and the limits about to give. What was
+	// built had the three figures and nothing else.
+	test("says the month so far against a usual one, and what weighed most", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Painel");
+		const panel = page.locator("section").filter({ hasText: "O mês até agora" }).last();
+		await expect(panel.getByText(/^Num mês comum (sobra|sai) R\$/)).toBeVisible();
+		await expect(panel.getByText("O que mais pesou", { exact: true })).toBeVisible();
+		const weighed = panel.getByRole("listitem");
+		await expect(weighed).toHaveCount(3);
+		// Heaviest first.
+		const amounts = [];
+		for (const one of await weighed.all()) amounts.push(cents(await one.innerText()));
+		expect([...amounts].sort((a, b) => b - a)).toEqual(amounts);
 	});
 
 	// Part 1, E.4 of the request for 2.0.0: "Todos" read the holdings of the open space only, so
