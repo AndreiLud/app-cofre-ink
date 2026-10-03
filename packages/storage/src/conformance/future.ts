@@ -4,7 +4,7 @@
 // projection are gathered from the database without counting anything twice, and that
 // a portfolio keeps the prices it was given rather than only the last one.
 
-import { addMonthsToMonth, dateInMonth, monthOf, todayIn } from "@cofre/core";
+import { addDays, addMonthsToMonth, dateInMonth, monthOf, todayIn } from "@cofre/core";
 import { describe, expect, it } from "vitest";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { QUANTITY_SCALE } from "../repositories/investments.ts";
@@ -519,8 +519,72 @@ export function runFutureConformance(adapter: AdapterUnderTest): void {
 				expect(now.pricedOn).toBe("2026-09-30");
 				expect(now.value).toBe(12_000);
 
+				// The price it was written down with is the first of them, on the day it was.
 				const line = await fixture.asAna.investments.prices(holding.id);
-				expect(line.map((price) => price.unitPrice)).toEqual([11_000, 12_000]);
+				expect(line.map((price) => price.unitPrice)).toEqual([11_000, 12_000, 10_000]);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		// Part 1, F.1 of the request for 2.0.0: the month on paper for September, printed later,
+		// priced every holding at today's price, those written down after September included, so
+		// its money at the end of the month was the total of today.
+		it("reads what was owned on a day, at the last price up to that day", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "investment",
+					name: "Corretora",
+				});
+				const bought = await fixture.asAna.investments.create({
+					spaceId: space.id,
+					accountId: account.id,
+					name: "Tesouro",
+					kind: "fixedIncome",
+					quantity: QUANTITY_SCALE,
+					unitPrice: 150_000,
+					boughtOn: "2026-08-01",
+				});
+				await fixture.asAna.investments.price({
+					id: bought.id,
+					unitPrice: 120_000,
+					onDay: "2026-08-31",
+				});
+				await fixture.asAna.investments.price({
+					id: bought.id,
+					unitPrice: 130_000,
+					onDay: "2026-09-15",
+				});
+				// Written down today, with no day of purchase: it did not exist yesterday.
+				await fixture.asAna.investments.create({
+					spaceId: space.id,
+					accountId: account.id,
+					name: "Fundo novo",
+					kind: "fund",
+					quantity: QUANTITY_SCALE,
+					unitPrice: 50_000,
+				});
+
+				const onDay = async (day: string) =>
+					(await fixture.asAna.investments.list(space.id, { onDay: day })).map((one) => [
+						one.name,
+						one.value,
+					]);
+				expect(await onDay("2026-09-30")).toEqual([["Tesouro", 130_000]]);
+				expect(await onDay("2026-09-10")).toEqual([["Tesouro", 120_000]]);
+				// Before the first price on record, the first price on record.
+				expect(await onDay("2026-08-10")).toEqual([["Tesouro", 120_000]]);
+				expect(await onDay("2026-07-31")).toEqual([]);
+				const yesterday = addDays(todayIn("America/Sao_Paulo"), -1);
+				expect((await onDay(yesterday)).map(([name]) => name)).toEqual(["Tesouro"]);
+				// And the reading of today is every holding at its price now.
+				expect((await fixture.asAna.investments.list(space.id)).map((one) => one.name)).toEqual([
+					"Fundo novo",
+					"Tesouro",
+				]);
 			} finally {
 				await fixture.close();
 			}

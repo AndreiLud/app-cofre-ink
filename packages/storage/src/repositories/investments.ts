@@ -5,7 +5,7 @@
 // line is worth having, and a price corrected in place loses the month it was right
 // for. So every price is written down, and the current one is the newest of them.
 
-import { type CalendarDate, parseCalendarDate, uuidV7 } from "@cofre/core";
+import { type CalendarDate, parseCalendarDate, todayIn, uuidV7 } from "@cofre/core";
 import { holdingPrices, holdings } from "@cofre/db";
 import { assertCan } from "../actor.ts";
 import { asNumber, type SqlValue } from "../driver.ts";
@@ -118,14 +118,69 @@ export function createInvestmentsRepository(context: RepositoryContext) {
 		}
 	}
 
+	async function timezoneOf(spaceId: string): Promise<string> {
+		const rows = await context.driver.all(
+			`SELECT "timezone" FROM "spaces" WHERE "id" = ? AND "deleted_at" IS NULL`,
+			[spaceId],
+		);
+		return String(rows[0]?.timezone ?? "America/Sao_Paulo");
+	}
+
+	/**
+	 * What was owned on a day that has gone, each at the last price typed up to it.
+	 *
+	 * A holding was owned on the day it was bought, or without that day, on the day it was
+	 * written down. The price is the newest on or before the day; a holding with no price
+	 * that early takes the earliest it has, and its `pricedOn`, later than the day, is how a
+	 * reader tells. A holding from before 2.0.0 has no price on record at all, because the
+	 * first one was never kept, and it is read at the price it carries.
+	 */
+	async function onDay(spaceId: string, day: CalendarDate, all: Holding[]): Promise<Holding[]> {
+		const zone = await timezoneOf(spaceId);
+		const owned = all.filter((holding) =>
+			holding.boughtOn !== null
+				? holding.boughtOn <= day
+				: todayIn(zone, new Date(holding.createdAt)) <= day,
+		);
+		const rows = await context.driver.all(
+			`SELECT "holding_id", "on_day", "unit_price" FROM "holding_prices"
+			 WHERE "space_id" = ? AND "deleted_at" IS NULL
+			 ORDER BY "on_day", "created_at"`,
+			[spaceId],
+		);
+		const pricesOf = new Map<string, { onDay: string; unitPrice: number }[]>();
+		for (const row of rows) {
+			const id = String(row.holding_id);
+			pricesOf.set(id, [
+				...(pricesOf.get(id) ?? []),
+				{ onDay: String(row.on_day), unitPrice: asNumber(row.unit_price) },
+			]);
+		}
+		return owned.map((holding) => {
+			const line = pricesOf.get(holding.id) ?? [];
+			const price = line.filter((one) => one.onDay <= day).at(-1) ?? line[0];
+			if (!price) return holding;
+			return { ...holding, unitPrice: price.unitPrice, pricedOn: price.onDay };
+		});
+	}
+
 	return {
-		async list(spaceId: string): Promise<HoldingValue[]> {
+		/**
+		 * What is owned. Today, at the price it carries, or with `onDay` as it stood on a day
+		 * that has gone: the month on paper for September, printed in October, priced every
+		 * holding at the price of October, those written down in October included, so its money
+		 * at the end of the month was the total of today.
+		 */
+		async list(spaceId: string, options: { onDay?: CalendarDate } = {}): Promise<HoldingValue[]> {
 			assertCan(context.actor(), spaceId, "investment.read");
 			const rows = await context.driver.all(
 				`${SELECT} WHERE "space_id" = ? AND "deleted_at" IS NULL ORDER BY "name"`,
 				[spaceId],
 			);
-			return rows.map(toHolding).map(withValue);
+			const all = rows.map(toHolding);
+			if (options.onDay === undefined) return all.map(withValue);
+			parseCalendarDate(options.onDay);
+			return (await onDay(spaceId, options.onDay, all)).map(withValue);
 		},
 
 		async get(id: string): Promise<HoldingValue> {
@@ -160,24 +215,41 @@ export function createInvestmentsRepository(context: RepositoryContext) {
 			);
 			const spaceCurrency = String(rows[0]?.base_currency ?? "BRL");
 
-			const id = await insertRow(context.write(), {
-				table: holdings,
-				spaceId: input.spaceId,
-				values: {
-					account_id: input.accountId,
-					name: input.name.trim(),
-					kind: input.kind,
-					ticker: input.ticker ?? null,
-					quantity: input.quantity,
-					unit_price: input.unitPrice,
-					currency: input.currency ?? spaceCurrency,
-					// What it cost is what it is worth now, until somebody says otherwise.
-					cost: input.cost ?? value,
-					bought_on: input.boughtOn ?? null,
-					priced_on: today,
-					notes: input.notes ?? null,
-					created_by: context.actor().userId,
-				},
+			// The price it is written down with is the first of its line, kept like every other.
+			// It was only on the holding, so a holding priced once had no history at all, and a
+			// reading of a day before its next price had nothing to read.
+			const id = await context.driver.transaction(async (tx) => {
+				const write = { ...context.write(), driver: tx };
+				const made = await insertRow(write, {
+					table: holdings,
+					spaceId: input.spaceId,
+					values: {
+						account_id: input.accountId,
+						name: input.name.trim(),
+						kind: input.kind,
+						ticker: input.ticker ?? null,
+						quantity: input.quantity,
+						unit_price: input.unitPrice,
+						currency: input.currency ?? spaceCurrency,
+						// What it cost is what it is worth now, until somebody says otherwise.
+						cost: input.cost ?? value,
+						bought_on: input.boughtOn ?? null,
+						priced_on: today,
+						notes: input.notes ?? null,
+						created_by: context.actor().userId,
+					},
+				});
+				await insertRow(write, {
+					table: holdingPrices,
+					spaceId: input.spaceId,
+					values: {
+						holding_id: made,
+						on_day: today,
+						unit_price: input.unitPrice,
+						created_by: context.actor().userId,
+					},
+				});
+				return made;
 			});
 
 			return withValue(await reachable(id));

@@ -679,7 +679,10 @@ export function createRemoteSession(
 		},
 
 		investments: {
-			list: (spaceId: string) => get<HoldingValue[]>(`/api/spaces/${spaceId}/holdings`),
+			list: (spaceId: string, options: { onDay?: CalendarDate } = {}) =>
+				get<HoldingValue[]>(
+					`/api/spaces/${spaceId}/holdings${options.onDay ? `?onDay=${options.onDay}` : ""}`,
+				),
 			total: (spaceId: string) =>
 				get<{ value: number; cost: number; gain: number }>(`/api/spaces/${spaceId}/holdings/total`),
 			create: (input: CreateHoldingInput) => {

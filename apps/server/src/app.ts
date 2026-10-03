@@ -1542,9 +1542,18 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		return context.body(null, 204);
 	});
 
-	app.get("/api/spaces/:id/holdings", async (context) =>
-		context.json(await context.get("session").investments.list(context.req.param("id"))),
-	);
+	// With a day, what was owned on it at the price of that day, for the month on paper.
+	app.get("/api/spaces/:id/holdings", async (context) => {
+		const query = z.object({ onDay: calendarDate.optional() }).parse(context.req.query());
+		return context.json(
+			await context
+				.get("session")
+				.investments.list(
+					context.req.param("id"),
+					query.onDay === undefined ? {} : { onDay: query.onDay },
+				),
+		);
+	});
 
 	app.get("/api/spaces/:id/holdings/total", async (context) =>
 		context.json(await context.get("session").investments.total(context.req.param("id"))),

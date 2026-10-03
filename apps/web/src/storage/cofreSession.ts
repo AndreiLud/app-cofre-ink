@@ -374,7 +374,8 @@ export type CofreSession = {
 		remove: (id: string) => Promise<void>;
 	};
 	investments: {
-		list: (spaceId: string) => Promise<HoldingValue[]>;
+		/** With `onDay`, what was owned on that day at the last price up to it. */
+		list: (spaceId: string, options?: { onDay?: CalendarDate }) => Promise<HoldingValue[]>;
 		total: (spaceId: string) => Promise<{ value: number; cost: number; gain: number }>;
 		create: (input: CreateHoldingInput) => Promise<HoldingValue>;
 		update: (id: string, input: UpdateHoldingInput) => Promise<HoldingValue>;

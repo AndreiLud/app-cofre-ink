@@ -348,7 +348,11 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 			const [accounts, balances, holdings] = await Promise.all([
 				needs.accounts.list(input.spaceId),
 				needs.transactions.balances(input.spaceId, input.today),
-				narrowed ? Promise.resolve([]) : needs.investments.list(input.spaceId),
+				// What was owned on the day the projection starts from, at the price of that day:
+				// the months after a September that has gone open from the money of September.
+				narrowed
+					? Promise.resolve([])
+					: needs.investments.list(input.spaceId, { onDay: input.today }),
 			]);
 
 			// What the investment accounts are worth, by the prices somebody typed, which is

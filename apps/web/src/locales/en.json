@@ -1637,7 +1637,11 @@
 		"investments": "Investments",
 		"investmentsCaption": "What is invested",
 		"madeHere": "Made on this device by {{app}}. Nothing left it to produce this file.",
-		"noTotal": "no total"
+		"noTotal": "no total",
+		"worthOn": "Worth on {{day}}",
+		"noHoldingsThen": "No holding existed on {{day}}.",
+		"pricedLater": "No price written down by the end of the month: read at the price of {{day}}.",
+		"asItStoodButHoldings": "The figures are as they stood on {{day}}, the last day of the month, except the holdings marked at the end, which had no price written down by that day."
 	},
 	"move": {
 		"title": "Move between accounts",

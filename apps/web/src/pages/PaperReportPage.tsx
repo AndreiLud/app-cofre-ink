@@ -179,9 +179,19 @@ export function PaperReportPage() {
 		enabled: on,
 		queryFn: () => session?.transactions.balances(spaceId, asOf) ?? [],
 	});
+	// What was owned on the last day of a month that has gone, at the price of that day. They
+	// were read at today's price, those written down later included, so the money at the end
+	// of September printed in October was the total of October.
 	const holdings = useQuery({
-		queryKey: ["investments", spaceId],
+		queryKey: ["investments", spaceId, past ? asOf : "now"],
 		enabled: on,
+		queryFn: () => session?.investments.list(spaceId, past ? { onDay: asOf } : undefined) ?? [],
+	});
+	// Whether there is anything owned today, so a month before the first holding says so
+	// rather than leaving the part out as if there were none.
+	const holdingsNow = useQuery({
+		queryKey: ["investments", spaceId, "now"],
+		enabled: on && past,
 		queryFn: () => session?.investments.list(spaceId) ?? [],
 	});
 	const cards = useQuery({
@@ -245,6 +255,17 @@ export function PaperReportPage() {
 	}
 	const counted = { accounts: accounts.data ?? [], balances: balances.data ?? [], worth };
 
+	/**
+	 * A holding read at a price from after the last day of the month, because it has none
+	 * that early: one kept before 2.0.0, whose first price was never written down.
+	 *
+	 * The sentence at the top says every figure is as it stood on that day, and it may only
+	 * say so of the parts that are. So it names the exception, and the row says which price.
+	 */
+	const pricedLater = (holding: { pricedOn: string | null }) =>
+		past && holding.pricedOn !== null && holding.pricedOn > to;
+	const someLater = (mine.seesOwnRowsOnly ? [] : (holdings.data ?? [])).some(pricedLater);
+
 	const period = totals.data ?? { income: 0, expense: 0, benefits: 0, left: 0 };
 
 	return (
@@ -260,7 +281,9 @@ export function PaperReportPage() {
 				</h1>
 				<p className="text-quiet text-sm">
 					{t("paper.madeOn", { day: dayName(today) })}
-					{past ? ` ${t("paper.asItStood", { day: dayName(to) })}` : ""}
+					{past
+						? ` ${t(someLater ? "paper.asItStoodButHoldings" : "paper.asItStood", { day: dayName(to) })}`
+						: ""}
 				</p>
 				{mine.seesOwnRowsOnly ? <p className="text-quiet text-sm">{t("paper.yoursOnly")}</p> : null}
 			</header>
@@ -598,14 +621,25 @@ export function PaperReportPage() {
 						<TableHead>
 							<TableRow>
 								<TableHeader>{t("investments.name")}</TableHeader>
-								<TableHeader numeric={true}>{t("investments.value")}</TableHeader>
+								<TableHeader numeric={true}>
+									{past ? t("paper.worthOn", { day: dayName(to) }) : t("investments.value")}
+								</TableHeader>
 								<TableHeader numeric={true}>{t("investments.gain")}</TableHeader>
 							</TableRow>
 						</TableHead>
 						<TableBody>
 							{(holdings.data ?? []).map((one) => (
 								<TableRow key={one.id}>
-									<TableCell>{one.name}</TableCell>
+									<TableCell>
+										{one.name}
+										{/* Read at a price from after the day, which is the only one it has.
+										    Said on the row, because the sentence at the top no longer covers it. */}
+										{pricedLater(one) ? (
+											<span className="block text-quiet text-xs">
+												{t("paper.pricedLater", { day: dayName(one.pricedOn ?? to) })}
+											</span>
+										) : null}
+									</TableCell>
 									<TableCell numeric={true}>
 										<Value amount={one.value} currency={one.currency} />
 									</TableCell>
@@ -616,6 +650,10 @@ export function PaperReportPage() {
 							))}
 						</TableBody>
 					</Table>
+				</Part>
+			) : past && (holdingsNow.data ?? []).length > 0 ? (
+				<Part title={t("paper.investments")}>
+					<p className="text-sm">{t("paper.noHoldingsThen", { day: dayName(to) })}</p>
 				</Part>
 			) : null}
 
