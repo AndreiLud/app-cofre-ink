@@ -44,3 +44,4 @@ export * from "./rules/match.ts";
 export * from "./sharing/split.ts";
 export * from "./sync/hlc.ts";
 export * from "./time/calendar.ts";
+export * from "./version.ts";
