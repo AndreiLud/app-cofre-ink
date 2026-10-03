@@ -273,10 +273,14 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
-		it("marks every invoice up to a month as paid in one go", async () => {
+		// The screen sends the month it shows, and the button and the dialog count the invoices
+		// before it. Release 1.2.1 paid the one on screen as well, so the open invoice, with its
+		// purchases, came back paid, and one more invoice was marked than the button announced.
+		it("marks every invoice before the one on screen as paid, and leaves that one open", async () => {
 			const ready = await readyCard(adapter);
 			try {
-				for (const day of ["2026-06-10", "2026-07-10", "2026-08-10"]) {
+				// The invoices of July, August and September, and October still taking purchases.
+				for (const day of ["2026-06-10", "2026-07-10", "2026-08-10", "2026-09-10"]) {
 					await ready.fixture.asAna.transactions.create({
 						spaceId: ready.spaceId,
 						kind: "expense",
@@ -287,17 +291,27 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 					});
 				}
 
+				const before = await ready.fixture.asAna.invoices.list(ready.card.id, TODAY);
+				const announced = before.filter((one) => one.month < "2026-10" && one.left > 0).length;
+				expect(announced).toBe(3);
+
 				const paid = await ready.fixture.asAna.invoices.markPaidUntil({
 					accountId: ready.card.id,
-					month: "2026-09",
+					month: "2026-10",
 					fromAccountId: ready.checking.id,
 					today: TODAY,
 					description: "Pagamento da fatura {{month}}",
 				});
-				expect(paid).toBe(3);
+				expect(paid).toBe(announced);
 
 				const invoices = await ready.fixture.asAna.invoices.list(ready.card.id, TODAY);
-				expect(invoices.every((one) => one.standing === "paid")).toBe(true);
+				expect(invoices.map((one) => [one.month, one.standing])).toEqual([
+					["2026-07", "paid"],
+					["2026-08", "paid"],
+					["2026-09", "paid"],
+					["2026-10", "open"],
+				]);
+				expect(invoices.at(-1)?.left).toBe(20_000);
 			} finally {
 				await ready.fixture.close();
 			}

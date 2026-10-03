@@ -393,13 +393,17 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 		},
 
 		/**
-		 * Marking every invoice up to a month as paid, in one action.
+		 * Marking every invoice before a month as paid, in one action.
 		 *
 		 * Somebody who has been using this since before invoices had a state has every
 		 * invoice they ever had sitting open, and asking them to pay each one by hand to
 		 * say so would be asking them to write down money that already moved years ago. So
 		 * this writes one payment per open invoice, dated on the day that invoice fell due,
 		 * out of the account they name.
+		 *
+		 * Strictly before the month given, which is the invoice on screen. The button and the
+		 * dialog count the ones before it, and this paid the one on screen as well, which
+		 * always had something on it, because that was the only time the button showed.
 		 */
 		async markPaidUntil(input: {
 			accountId: string;
@@ -421,7 +425,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 
 			const states = await statesOf(input.accountId, input.today);
 			// What a payment already waiting for its day covers is not paid again.
-			const owing = states.filter((state) => state.month <= input.month && amountToPay(state) > 0);
+			const owing = states.filter((state) => state.month < input.month && amountToPay(state) > 0);
 
 			for (const state of owing) {
 				await needs.transactions.create({

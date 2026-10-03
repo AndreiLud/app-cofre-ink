@@ -516,6 +516,71 @@ test.describe("the card invoice", () => {
 		await expect(total(page)).toHaveText("R$ 3.000,00");
 	});
 
+	// Part 1, A.3 of the request for 2.0.0. The button counted the invoices before the one on
+	// screen and paid that one as well, and it showed only beside a payment of the invoice on
+	// screen, so an open invoice with nothing on it hid every invoice still owed.
+	test("marks the invoices before the one on screen as paid, and only those", async ({ page }) => {
+		await openCofre(page, { demo: false });
+
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		await page.getByLabel("Nome").fill("Banco");
+		await page.getByLabel("Saldo de abertura").fill("5.000,00");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Banco", exact: true })).toBeVisible();
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		const card = page.getByRole("dialog");
+		await card.getByLabel("Nome").fill("Nubank");
+		await card.getByLabel("Tipo").selectOption("credit");
+		await card.getByLabel("Dia do fechamento").selectOption("3");
+		await card.getByLabel("Dia do vencimento").selectOption("10");
+		await card.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Nubank", exact: true })).toBeVisible();
+
+		const buy = async (description: string, amount: string, day: string) => {
+			await go(page, "Lançamentos");
+			await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+			const form = page.getByRole("dialog");
+			await form.getByLabel("Pago com").selectOption({ label: "Nubank" });
+			await form.getByLabel("Valor", { exact: true }).fill(amount);
+			await form.getByLabel("Descrição").fill(description);
+			await form.getByLabel("Dia").fill(day);
+			await page.getByRole("button", { name: "Salvar" }).click();
+			await expect(page.getByRole("dialog")).toHaveCount(0);
+		};
+
+		// The invoices of September and of October, both closed and owed on the twenty eighth.
+		await buy("Pneu", "300,00", "2026-08-19");
+		await buy("Farmácia", "120,00", "2026-09-15");
+
+		// The open invoice, November's, has nothing on it yet, and the button is there anyway.
+		await go(page, "Faturas");
+		await expect(
+			page.getByRole("button", { name: "Marcar as 2 faturas anteriores como pagas" }),
+		).toBeVisible();
+
+		// And with a purchase on it, which is what makes it the case that was paid by mistake.
+		await buy("Mercado", "80,00", "2026-10-20");
+		await go(page, "Faturas");
+		await page.getByRole("button", { name: "Marcar as 2 faturas anteriores como pagas" }).click();
+		await page.getByRole("dialog").getByRole("button", { name: "Marcar como pagas" }).click();
+		await expect(page.getByRole("dialog")).toHaveCount(0);
+
+		await expect(page.getByRole("heading", { level: 1 })).toContainText("novembro");
+		await expect(page.getByRole("heading", { level: 1 })).not.toContainText("está paga");
+		await expect(page.getByText("Em aberto")).toBeVisible();
+		await expect(page.getByRole("button", { name: "Pagar fatura" })).toBeVisible();
+		await expect(
+			page.getByRole("button", { name: /faturas? anteriores? como pagas?/ }),
+		).toHaveCount(0);
+
+		// The two it announced, and no more.
+		await page.getByRole("button", { name: "Fatura anterior" }).click();
+		await expect(page.getByRole("heading", { level: 1 })).toContainText("outubro está paga");
+		await page.getByRole("button", { name: "Fatura anterior" }).click();
+		await expect(page.getByRole("heading", { level: 1 })).toContainText("setembro está paga");
+	});
+
 	test("moves a purchase the bank closed onto another invoice, and keeps it there", async ({
 		page,
 	}) => {

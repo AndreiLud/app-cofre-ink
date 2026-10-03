@@ -323,8 +323,12 @@ export function InvoicePage() {
 		(one) => invoiceAccount !== null && one.creditAccountId === invoiceAccount.id,
 	);
 
-	/** Every invoice before this one that still owes something, which is what one action clears. */
-	const owingBefore = (older.data ?? []).filter((one) => one.month < shown && one.left > 0);
+	/**
+	 * Every invoice before this one that still owes something, which is what one action
+	 * clears: the same filter the repository applies, so the number on the button is the
+	 * number of invoices it marks.
+	 */
+	const owingBefore = (older.data ?? []).filter((one) => one.month < shown && amountToPay(one) > 0);
 
 	/**
 	 * How much of the limit is left, from the same function the overview reads, so the two
@@ -514,9 +518,14 @@ export function InvoicePage() {
 					</p>
 				) : null}
 
-				{mayPay && state && amountToPay(state) > 0 ? (
+				{/* The two do not depend on each other. The earlier invoices used to be offered only
+				    beside a payment of this one, so an open invoice with nothing on it, which is
+				    what somebody who has just updated sees first, hid every invoice they owe. */}
+				{mayPay && ((state && amountToPay(state) > 0) || owingBefore.length > 0) ? (
 					<div className="flex flex-wrap gap-2 pt-2">
-						<Button onClick={() => openPayment(state)}>{t("invoice.pay")}</Button>
+						{state && amountToPay(state) > 0 ? (
+							<Button onClick={() => openPayment(state)}>{t("invoice.pay")}</Button>
+						) : null}
 						{owingBefore.length > 0 ? (
 							<Button variant="secondary" onClick={() => setClearingOld(true)}>
 								{t("invoice.payOld", { count: owingBefore.length })}
