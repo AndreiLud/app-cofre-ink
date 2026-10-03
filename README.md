@@ -40,6 +40,14 @@ themselves and learn from a correction.
 and a projection of the next months built from three things kept apart: what is already
 written, what repeats, and what an ordinary month looks like.
 
+**Investments.** A holding is written down as the statement calls it, a caixinha, a CDB, a
+share, a fund, inside the investment account it lives in. A caixinha, the poupança, a CDB,
+an LCI, an LCA and the Tesouro Selic grow by the public indices of the Banco Central,
+fetched only when you press the button, and say up to which day; the rest by the price you
+type. Every value is gross, and the products taxed by how long the money stayed also say
+what is left if it were taken out today. Money put into a holding leaves the account it
+came from in the same write, so what you have does not change.
+
 **Sharing.** A space has members with roles. An expense splits evenly, by share or by
 amount, and a settle up says who owes whom, once.
 
@@ -330,6 +338,14 @@ vence.
 **Planejamento.** Limites por categoria ou por prioridade, a regra de guardar primeiro,
 metas com data, e uma projeção dos próximos meses feita de três coisas separadas: o que
 já está escrito, o que se repete, e como é um mês comum.
+
+**Investimentos.** Uma aplicação é cadastrada como o extrato a chama, caixinha, CDB, ação,
+fundo, dentro da conta de investimento onde ela está. Caixinha, poupança, CDB, LCI, LCA e
+Tesouro Selic crescem pelos índices públicos do Banco Central, buscados só quando você toca
+no botão, e dizem até que dia foram calculados; o resto, pelo preço que você digita. Todo
+valor é bruto, e os produtos com imposto pelo tempo que o dinheiro ficou dizem também quanto
+sobra se resgatar hoje. O dinheiro que entra numa aplicação sai da conta de origem na mesma
+gravação, então o que você tem não muda.
 
 **Divisão.** Um espaço tem membros com papéis. Uma despesa se divide igual, por cota ou
 por valor, e o acerto de contas diz quem deve para quem, uma vez só.

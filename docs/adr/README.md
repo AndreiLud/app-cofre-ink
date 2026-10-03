@@ -25,7 +25,7 @@ new one.
 | [0016](0016_reading_a_document.md) | reading a card invoice and a receipt out of a PDF | accepted, amended by 0065 |
 | [0017](0017_where_a_copy_lives.md) | where a copy of a space can live, and what each place costs | accepted, the file dropped by 0036 |
 | [0018](0018_making_the_history_smaller.md) | folding the change log up to a watermark, and packing what travels | accepted |
-| [0019](0019_the_months_ahead.md) | projections, scenarios, compound interest and what is put aside | accepted |
+| [0019](0019_the_months_ahead.md) | projections, scenarios, compound interest and what is put aside | accepted, amended by 0069 |
 | [0020](0020_an_application_in_a_window.md) | installed on a telephone, wrapped for a desktop, served from anywhere | partly superseded by 0021 |
 | [0021](0021_a_web_application_that_tidies_itself.md) | no shell, and housekeeping that nobody is asked about | accepted, amended by 0068 |
 | [0022](0022_reading_the_figures_back.md) | findings over a household's own records, and five ways in | accepted |
@@ -74,3 +74,4 @@ new one.
 | [0066](0066_what_an_import_writes.md) | what an import writes | accepted, the owner's suggestions wait for confirmation |
 | [0067](0067_the_period_of_a_list.md) | the period of a list, and a filter that follows the calendar | accepted, the months ahead and the saved period wait for confirmation |
 | [0068](0068_what_repeats_is_a_chain.md) | what repeats has a screen, a chain and one writer | accepted, three choices wait for confirmation |
+| [0069](0069_a_holding_is_a_product.md) | a holding is a product, and the indices estimate it | accepted, six choices wait for confirmation |

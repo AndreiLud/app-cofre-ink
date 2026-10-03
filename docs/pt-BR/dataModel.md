@@ -52,9 +52,11 @@ Toda tabela e toda coluna é snake_case em inglês: `spaces`, `transactions`, `s
 
 | tabela | o que guarda |
 | --- | --- |
-| `holdings` | o que alguém tem, com a quantidade escalada por dez à oitava, para que um fundo possa ter frações de cota |
-| `holding_prices` | o preço de uma posição num dia. Digitado à mão, de propósito: sem cotação automática, sem contar a ninguém de fora o que a pessoa tem |
+| `holdings` | o que alguém tem, como um produto do catálogo de `packages/core` (caixinha, CDB, ação), dentro de uma conta de investimento. A quantidade, escalada por dez à oitava para que um fundo possa ter frações de cota, e o custo são a abertura; os campos próprios do produto (emissor, vencimento, indexador, taxa, liquidez, dia do aniversário) são colunas opcionais |
+| `holding_moves` | dinheiro que entrou numa aplicação, saiu dela ou foi pago por ela, num dia, com as unidades quando há unidades e o lançamento que levou o dinheiro de uma conta ou para ela, gravado junto |
+| `holding_prices` | um preço ou um valor digitado para uma aplicação num dia. Digitado à mão, de propósito: sem cotação automática, sem contar a ninguém de fora o que a pessoa tem. O valor digitado sempre vence a estimativa |
 | `index_rates` | CDI, Selic e IPCA por mês, buscados na API pública do Banco Central e guardados para funcionar sem internet |
+| `index_days` | o CDI e a Selic diários e o rendimento mensal da poupança, da mesma API, que estimam o valor de caixinha, poupança, CDB, LCI, LCA e Tesouro Selic. Como `index_rates`, não tem `space_id`, não é replicada e não vai para o backup |
 | `scenarios` | um conjunto salvo de ajustes sobre uma projeção |
 
 ### Trabalho

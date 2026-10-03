@@ -52,9 +52,11 @@ Every table and column is snake_case English: `spaces`, `transactions`, `space_i
 
 | table | what it holds |
 | --- | --- |
-| `holdings` | what somebody owns, with a quantity scaled by ten to the eighth so a fund can have fractions of a unit |
-| `holding_prices` | the price of a holding on a day. Typed in by hand, on purpose: no price feed, no third party told what somebody owns |
+| `holdings` | what somebody owns, as a product of the catalog in `packages/core` (a caixinha, a CDB, a share), inside an investment account. The quantity, scaled by ten to the eighth so a fund can have fractions of a unit, and the cost are what it was opened with; the product's own fields (issuer, maturity, indexer, rate, liquidity, anniversary day) are optional columns |
+| `holding_moves` | money put into a holding, taken out of it or paid by it, on a day, with the units when there are units and the record that moved the money from or to an account, written in the same write |
+| `holding_prices` | a price or a value typed for a holding on a day. Typed in by hand, on purpose: no price feed, no third party told what somebody owns. A value typed always wins over an estimate |
 | `index_rates` | CDI, Selic and IPCA per month, fetched from the public API of the Banco Central and cached so they work offline |
+| `index_days` | the daily CDI and Selic and the monthly rate of the poupança, from the same API, which estimate the value of a caixinha, a poupança, a CDB, an LCI, an LCA and the Tesouro Selic. Like `index_rates`, it has no `space_id`, does not replicate and is not in a backup |
 | `scenarios` | a saved set of adjustments to a projection |
 
 ### Working
