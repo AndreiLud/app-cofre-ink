@@ -18,7 +18,10 @@ import {
 	addUpInBase,
 	amountToPay,
 	type CalendarDate,
+	type CardsTogether,
 	canSpendThisMonth,
+	cardsByUrgency,
+	cardsTogether,
 	dateInMonth,
 	type InvoiceState,
 	isBenefit,
@@ -35,6 +38,7 @@ import type { CardStanding, GoalProgress } from "@cofre/storage";
 import { roleSeesOwnRowsOnly } from "@cofre/storage";
 import {
 	Button,
+	buttonClasses,
 	Callout,
 	Dialog,
 	EmptyState,
@@ -130,14 +134,14 @@ export function DashboardPage() {
 	 * or into the account of a goal. In the space it belongs to, which in "Todos" is the space
 	 * of the card and not the one that happens to be open.
 	 */
+	/** Whether the cards folded into one line in "Onde o dinheiro está" are opened. */
+	const [cardsOpen, setCardsOpen] = useState(false);
 	const [moving, setMoving] = useState<{ spaceId: string; start: MoveStart } | null>(null);
 
 	const mine = useWhatIMayDo(spaceId);
 	const mayUpdate = mine.mayCall("transactions.settle");
 	const mayDrop = mine.mayCall("transactions.remove");
 	const mayMakeAnAccount = mine.mayCall("accounts.create");
-	// Paying an invoice writes a transfer, so it is the permission a record needs.
-	const mayPay = mine.mayCall("invoices.pay");
 	const ready = mine.ready;
 
 	const accounts = useQuery({
@@ -464,7 +468,24 @@ export function DashboardPage() {
 	const rest = (consolidated ? (restEverywhere.data ?? []) : (restOfMonth.data ?? [])).filter(
 		(row) => !onABenefitCard(row.accountId),
 	);
-	const shownCards = consolidated ? (cardsEverywhere.data ?? []) : (cards.data ?? []);
+	/**
+	 * The cards, the one to deal with first at the top: late, then closed and owed, then
+	 * something on the open invoice, then nothing. They came in the order the database sorted
+	 * names, which put a late card below one with nothing on it.
+	 */
+	const shownCards = cardsByUrgency(
+		(consolidated ? (cardsEverywhere.data ?? []) : (cards.data ?? [])).map((card) => ({
+			...card,
+			name: card.account.name,
+			// An invoice is summed in the currency of its space, so that is the one that says
+			// whether two cards can be added together.
+			currency: spaces.find((space) => space.id === card.account.spaceId)?.baseCurrency ?? currency,
+		})),
+		today,
+		i18n.resolvedLanguage,
+	);
+	/** Every card added up, for the single line three cards or more become. */
+	const together = cardsTogether(shownCards, today);
 
 	// In the currency of the space, from the figure worked out at the rate of the day, and
 	// not from the amount as it was typed. These two sums were written with the amount while
@@ -553,6 +574,8 @@ export function DashboardPage() {
 				// money leaves, and offers payment only for what that payment does not cover.
 				scheduledOn: state.scheduled > 0 ? state.scheduledOn : null,
 				payable: amountToPay(state) > 0,
+				cardAccountId: card.account.id,
+				cardSpaceId: card.account.spaceId,
 			})),
 	);
 
@@ -643,6 +666,18 @@ export function DashboardPage() {
 				amount: Math.abs(row.amount),
 				happenedOn: row.happenedOn,
 			})),
+		// Every card about to close, which was never handed over, so the notice was written and
+		// never shown.
+		invoicesClosing: shownCards
+			.filter((card) => !card.cycleMissing)
+			.map((card) => ({
+				name: card.account.name,
+				closesOn: card.open.closesOn,
+				month: new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+					month: "long",
+					timeZone: "UTC",
+				}).format(new Date(`${card.open.month}-01T00:00:00Z`)),
+			})),
 		savings: savings.data ?? null,
 		goals: (goals.data ?? []).map((goal) => ({
 			name: goal.name,
@@ -654,11 +689,12 @@ export function DashboardPage() {
 
 	const found = findings.data ?? [];
 
-	const money = (value: unknown) =>
+	const moneyIn = (value: unknown, inCurrency: string) =>
 		new Intl.NumberFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
 			style: "currency",
-			currency,
+			currency: inCurrency,
 		}).format(Number(value) / 100);
+	const money = (value: unknown) => moneyIn(value, currency);
 	const out = dues.filter((row) => row.kind !== "income");
 	const income = dues.filter((row) => row.kind === "income");
 
@@ -757,69 +793,84 @@ export function DashboardPage() {
 				)}
 
 				{/* What is owed and what is allowed, each on a line of its own, because
-				    neither of them is the money somebody has. */}
+				    neither of them is the money somebody has. Three cards or more are one line, the
+				    open invoices, the closed ones and the late ones added up, because a band of four
+				    card lines pushed the answer to "what can I spend" off a telephone screen; the
+				    list of them is further down. The same for three benefit cards or more. */}
 				{shownCards.length > 0 || vouchers.length > 0 ? (
 					<div className="mt-4 divide-y divide-line border-line border-t">
-						{shownCards.map((card) => (
-							<div
-								key={card.account.id}
-								className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2"
-							>
-								<div className="min-w-0">
-									<p className="truncate">{card.account.name}</p>
-									<p className="text-quiet text-sm">
-										<Value amount={card.open.charged} currency={currency} />{" "}
-										{t("dashboard.onTheInvoiceDue", { day: dayAndMonth(card.open.dueOn) })}
-										{card.later > 0 ? (
-											<>
-												{", "}
-												<Value amount={card.later} currency={currency} />{" "}
-												{t("dashboard.inPartsAfter")}
-											</>
-										) : null}
-									</p>
-									{/* What closed and is still owed, said on the card's own line, because it
-									    is the one thing about a card somebody has to act on and the line
-									    above it is about the one still open. Every one of them, summed:
-									    answering with the newest hid the older debt while the headroom of
-									    the card went on counting it. */}
-									{/* Late only once the due day has gone. Between the closing day and
-									    the due day an invoice is closed and owed and nothing is wrong
-									    yet, and it was drawn in red as overdue every month in that week. */}
-									<OwedLines owing={card.owing} currency={currency} />
+						{shownCards.length >= 3 ? (
+							<CardsTogetherLine together={together} currency={currency} />
+						) : (
+							shownCards.map((card) => (
+								<div
+									key={card.account.id}
+									className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2"
+								>
+									<div className="min-w-0">
+										<p className="truncate">{card.account.name}</p>
+										{card.cycleMissing ? (
+											<p className="text-ochre text-sm">{t("dashboard.cardWithoutCycle")}</p>
+										) : (
+											<p className="text-quiet text-sm">
+												<Value amount={card.open.charged} currency={card.currency} />{" "}
+												{t("dashboard.onTheInvoiceDue", { day: dayAndMonth(card.open.dueOn) })}
+												{card.later > 0 ? (
+													<>
+														{", "}
+														<Value amount={card.later} currency={card.currency} />{" "}
+														{t("dashboard.inPartsAfter")}
+													</>
+												) : null}
+											</p>
+										)}
+										{/* What closed and is still owed, said on the card's own line, because it
+										    is the one thing about a card somebody has to act on and the line
+										    above it is about the one still open. Every one of them, summed:
+										    answering with the newest hid the older debt while the headroom of
+										    the card went on counting it. Late only once the due day has gone. */}
+										<OwedLines owing={card.owing} currency={card.currency} />
+									</div>
+									{card.cycleMissing ? null : (
+										<InvoiceLink
+											spaceId={card.account.spaceId}
+											accountId={card.account.id}
+											month={firstToPay(card).month}
+											owed={amountToPay(firstToPay(card)) > 0}
+										/>
+									)}
 								</div>
-								<Link to={ROUTES.invoices}>
-									<Button size="small" variant="secondary">
-										{card.open.left > 0 ? t("invoice.pay") : t("invoice.see")}
-									</Button>
-								</Link>
-							</div>
-						))}
-						{vouchers.map((voucher) => (
-							<VoucherLine
-								key={voucher.id}
-								accountId={voucher.id}
-								spaceId={voucher.spaceId}
-								name={voucher.name}
-								currency={voucher.currency}
-								today={today}
-								onTopUp={
-									shownAccounts.some(
-										(account) => account.spaceId === voucher.spaceId && movesOutOf(account),
-									)
-										? () =>
-												setMoving({
-													spaceId: voucher.spaceId,
-													start: {
-														toId: voucher.id,
-														title: t("move.topUpTitle", { name: voucher.name }),
-														description: t("move.topUpDescription"),
-													},
-												})
-										: undefined
-								}
-							/>
-						))}
+							))
+						)}
+						{vouchers.length >= 3 ? (
+							<VouchersTogetherLine vouchers={vouchers} today={today} currency={currency} />
+						) : (
+							vouchers.map((voucher) => (
+								<VoucherLine
+									key={voucher.id}
+									accountId={voucher.id}
+									spaceId={voucher.spaceId}
+									name={voucher.name}
+									currency={voucher.currency}
+									today={today}
+									onTopUp={
+										shownAccounts.some(
+											(account) => account.spaceId === voucher.spaceId && movesOutOf(account),
+										)
+											? () =>
+													setMoving({
+														spaceId: voucher.spaceId,
+														start: {
+															toId: voucher.id,
+															title: t("move.topUpTitle", { name: voucher.name }),
+															description: t("move.topUpDescription"),
+														},
+													})
+											: undefined
+									}
+								/>
+							))
+						)}
 					</div>
 				) : null}
 			</Panel>
@@ -855,13 +906,12 @@ export function DashboardPage() {
 									</span>
 									<span className="flex items-center gap-2">
 										<Value amount={row.amount} currency={row.currency} tone="auto" />
-										{mayPay ? (
-											<Link to={ROUTES.invoices} search={{ cartao: row.accountId }}>
-												<Button size="small" variant="secondary">
-													{t("invoice.pay")}
-												</Button>
-											</Link>
-										) : null}
+										<InvoiceLink
+											spaceId={row.cardSpaceId}
+											accountId={row.accountId}
+											month={row.month}
+											owed={row.payable}
+										/>
 									</span>
 								</li>
 							))}
@@ -1005,18 +1055,22 @@ export function DashboardPage() {
 			    owed, and how much of the limit is left. Every one of these figures was
 			    already worked out by the model and reached no screen. */}
 			{shownCards.length > 0 ? (
-				<Panel title={t("dashboard.cardsTitle")}>
-					<div className="grid gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
+				<Panel title={t("dashboard.cardsTitle")} id="cartoes">
+					<ul className="divide-y divide-line border-line border-t">
 						{shownCards.map((card) => (
-							<CardStandingBlock
-								key={card.account.id}
-								card={card}
-								mayPay={mayPay}
-								today={today}
-								currency={currency}
-							/>
+							<CardRow key={card.account.id} card={card} />
 						))}
-					</div>
+					</ul>
+					{/* What every card holds together, open and owed. Never the limits added up:
+					    a limit is a card's and two of them are not one bigger card. */}
+					{shownCards.length >= 2 && together.currency !== null ? (
+						<p className="border-line border-t pt-2 text-sm">
+							{t("dashboard.cardsTotal", {
+								open: moneyIn(together.open, together.currency),
+								owed: moneyIn(together.closed + together.overdue, together.currency),
+							})}
+						</p>
+					) : null}
 				</Panel>
 			) : null}
 
@@ -1136,50 +1190,87 @@ export function DashboardPage() {
 				) : null}
 
 				{GROUPS.map((group) => {
-					const rows = shownAccounts.filter((account) => group.kinds.includes(account.kind));
-					if (rows.length === 0) return null;
+					const found = shownAccounts.filter((account) => group.kinds.includes(account.kind));
+					if (found.length === 0) return null;
+					// Cards in the order somebody has to deal with them, and three or more of them as
+					// one line with what they owe together, which a button opens into a line each.
+					const cardOrder = shownCards.map((card) => card.account.id);
+					const rows =
+						group.key === "cards"
+							? [...found].sort(
+									(left, right) =>
+										(cardOrder.indexOf(left.id) + 1 || cardOrder.length + 1) -
+										(cardOrder.indexOf(right.id) + 1 || cardOrder.length + 1),
+								)
+							: found;
+					const folded = group.key === "cards" && rows.length >= 3;
+					const owedTogether = rows.reduce(
+						(total, account) =>
+							total + (visible.find((one) => one.accountId === account.id)?.settled ?? 0),
+						0,
+					);
 					return (
 						<div key={group.key} className="mb-4 last:mb-0">
 							<p className="text-quiet text-sm">{t(`dashboard.group.${group.key}`)}</p>
-							<ul className="mt-1 divide-y divide-line border-line border-t">
-								{rows.map((account) => {
-									const balance = visible.find((one) => one.accountId === account.id);
-									const amount =
-										account.kind === "investment" && worth[account.id] !== undefined
-											? (worth[account.id] ?? 0)
-											: (balance?.settled ?? account.initialBalance);
-									return (
-										<li key={account.id}>
-											{/* Every account opens the records charged to it, which is the
+							{folded ? (
+								<div className="mt-1 flex items-baseline justify-between gap-4 border-line border-t py-2">
+									<span className="min-w-0">
+										{t("dashboard.cardsCount", { count: rows.length })}
+									</span>
+									<span className="flex items-baseline gap-3">
+										<Value amount={owedTogether} currency={currency} tone="auto" />
+										<Button
+											size="small"
+											variant="quiet"
+											aria-expanded={cardsOpen}
+											onClick={() => setCardsOpen(!cardsOpen)}
+										>
+											{cardsOpen ? t("dashboard.hideEachCard") : t("dashboard.showEachCard")}
+										</Button>
+									</span>
+								</div>
+							) : null}
+							{folded && !cardsOpen ? null : (
+								<ul className="mt-1 divide-y divide-line border-line border-t">
+									{rows.map((account) => {
+										const balance = visible.find((one) => one.accountId === account.id);
+										const amount =
+											account.kind === "investment" && worth[account.id] !== undefined
+												? (worth[account.id] ?? 0)
+												: (balance?.settled ?? account.initialBalance);
+										return (
+											<li key={account.id}>
+												{/* Every account opens the records charged to it, which is the
 											    question somebody has when a number surprises them. The name
 											    is the one the address uses, which it did not until now: this
 											    link carried accountId and the screen read nothing at all. */}
-											<Link
-												to={ROUTES.transactions}
-												search={{ conta: account.id, mes: EVERY_MONTH }}
-												className="flex items-baseline justify-between gap-4 py-2 hover:underline"
-											>
-												<span className="min-w-0 truncate">{account.name}</span>
-												{/* What is on a benefit card is worked out and never read off a
+												<Link
+													to={ROUTES.transactions}
+													search={{ conta: account.id, mes: EVERY_MONTH }}
+													className="flex items-baseline justify-between gap-4 py-2 hover:underline"
+												>
+													<span className="min-w-0 truncate">{account.name}</span>
+													{/* What is on a benefit card is worked out and never read off a
 												    balance, which is registry 0043. This row read the balance,
 												    and since nothing is written when an allowance lands that is
 												    roughly the negative of what has been eaten, so one card
 												    showed two unrelated numbers on one screen. */}
-												{account.kind === "voucher" ? (
-													<VoucherAmount
-														accountId={account.id}
-														currency={account.currency}
-														today={today}
-														known={narrowedIn(account.spaceId) === false}
-													/>
-												) : (
-													<Value amount={amount} currency={account.currency} tone="auto" />
-												)}
-											</Link>
-										</li>
-									);
-								})}
-							</ul>
+													{account.kind === "voucher" ? (
+														<VoucherAmount
+															accountId={account.id}
+															currency={account.currency}
+															today={today}
+															known={narrowedIn(account.spaceId) === false}
+														/>
+													) : (
+														<Value amount={amount} currency={account.currency} tone="auto" />
+													)}
+												</Link>
+											</li>
+										);
+									})}
+								</ul>
+							)}
 						</div>
 					);
 				})}
@@ -1259,132 +1350,11 @@ type Due = {
 	scheduledOn?: string | null;
 	/** On an invoice: whether anything is left that no payment covers yet. */
 	payable?: boolean;
+	/** On an invoice: the card, its space and the invoice, for the way to it. */
+	cardAccountId?: string;
+	cardSpaceId?: string;
+	month?: string;
 };
-
-/**
- * Where one card stands, in the four sentences somebody asks for in that order.
- *
- * What it will charge, when it closes and when that is, whether the one before it is still
- * owed, and how much of the limit is left. Every figure comes from the model: `closesOn`,
- * `daysToClose` and `dueOn` from `invoiceStateOf`, and `available` from the invoices
- * repository, which is the limit less what is owed and less what the instalments will
- * charge later. None of them reached a screen before this.
- */
-function CardStandingBlock({
-	card,
-	mayPay,
-	today,
-	/** Of the space, because every figure about an invoice is summed in it. */
-	currency,
-}: {
-	card: CardStanding;
-	mayPay: boolean;
-	today: CalendarDate;
-	currency: string;
-}) {
-	const { t } = useTranslation();
-
-	/** When the open invoice closes, said as a day and as a count of days. */
-	const closing =
-		card.open.daysToClose <= 0
-			? t("dashboard.closesToday")
-			: t("dashboard.closesIn", {
-					day: dayAndMonth(card.open.closesOn),
-					count: card.open.daysToClose,
-				});
-
-	return (
-		<div className="min-w-0 border-line border-t pt-3">
-			<p className="truncate font-medium text-ink">{card.account.name}</p>
-
-			<p className="mt-1 text-xl">
-				<Value amount={-card.open.charged} currency={currency} face="serif" tone="auto" />
-			</p>
-			<p className="text-quiet text-sm">{closing}</p>
-			<p className="text-quiet text-sm">
-				{t("dashboard.dueOnDay", { day: dayAndMonth(card.open.dueOn) })}
-			</p>
-
-			{/* The one before it, when it closed and was not paid. It is the only thing about
-			    a card that is already wrong rather than merely coming, so it is the one line
-			    here drawn in the colour of a problem. When there is more than one, the line
-			    says how many and sums them, because a household two invoices behind used to
-			    be shown the newer one and left to wonder about the figure above. */}
-			{card.unpaid && card.unpaid.left > 0 ? (
-				<p className={`mt-1 text-sm ${card.unpaid.late ? "text-seal" : "text-quiet"}`}>
-					{card.unpaid.late
-						? t("dashboard.oneBefore", {
-								state: t(`invoice.standing.${card.unpaid.standing}`),
-								day: dayAndMonth(card.unpaid.dueOn),
-							})
-						: t("dashboard.oneBeforeDue", { day: dayAndMonth(card.unpaid.dueOn) })}{" "}
-					<Value amount={card.unpaid.left} currency={currency} />
-					{card.owing.length > 1 ? (
-						// The older ones fell due before this one did, so they are late even while
-						// this one is not.
-						<span className="text-seal">
-							{". "}
-							{t("dashboard.andOlderOnes", {
-								count: card.owing.length - 1,
-							})}{" "}
-							<Value
-								amount={card.owing.slice(0, -1).reduce((total, state) => total + state.left, 0)}
-								currency={currency}
-							/>
-						</span>
-					) : null}
-				</p>
-			) : null}
-
-			{card.later > 0 ? (
-				<p className="text-quiet text-sm">
-					<Value amount={card.later} currency={currency} /> {t("dashboard.inPartsAfter")}
-				</p>
-			) : null}
-
-			{/* A bill with no honest total says so rather than printing one that leaves a
-			    purchase out, and it is in no figure on this screen while it says it. */}
-			{card.open.withoutRate > 0 ? (
-				<p className="mt-1 text-seal text-sm">{t("dashboard.invoiceWithoutRate")}</p>
-			) : null}
-
-			{/* The headroom, and only where the bank's limit was written down. Guessing at one
-			    would be inventing the one figure somebody checks before paying at a till. */}
-			<p className="mt-1 text-quiet text-sm">
-				{card.limitInAnotherCurrency ? (
-					t("dashboard.limitInAnotherCurrency")
-				) : card.available === null ? (
-					t("dashboard.noLimitYet")
-				) : (
-					<>
-						{t("dashboard.limitLeft")} <Value amount={card.available} currency={currency} />
-					</>
-				)}
-			</p>
-
-			<div className="mt-2 flex flex-wrap gap-2">
-				{mayPay && (card.open.left > 0 || card.owing.length > 0) ? (
-					<Link to={ROUTES.invoices} search={{ cartao: card.account.id }}>
-						<Button size="small" variant="secondary">
-							{t("invoice.pay")}
-						</Button>
-					</Link>
-				) : null}
-				<Link to={ROUTES.invoices} search={{ cartao: card.account.id }}>
-					<Button size="small" variant="quiet">
-						{t("invoice.see")}
-					</Button>
-				</Link>
-			</div>
-
-			{/* Said out loud once per card, because a day that has gone is the thing somebody
-			    scanning this block would otherwise have to work out from a date. */}
-			{card.open.late ? (
-				<p className="sr-only">{t("dashboard.invoiceLate", { day: dayAndMonth(today) })}</p>
-			) : null}
-		</div>
-	);
-}
 
 /**
  * What a card still owes on invoices that have closed, on its line at the top.
@@ -1421,6 +1391,203 @@ function OwedLines({ owing, currency }: { owing: readonly InvoiceState[]; curren
 	);
 }
 
+/** The invoice a card's button opens: the oldest one still owed, or the open one. */
+function firstToPay(card: { open: InvoiceState; owing: readonly InvoiceState[] }): InvoiceState {
+	return card.owing.find((state) => amountToPay(state) > 0) ?? card.open;
+}
+
+/**
+ * Three cards or more as one line at the top: how many, what the open invoices hold, what
+ * has closed and falls due, and what is late, each in its own tone, and the way to the list.
+ * In more than one currency, which happens in "Todos", the sums are not said.
+ */
+function CardsTogetherLine({ together, currency }: { together: CardsTogether; currency: string }) {
+	const { t } = useTranslation();
+	const shown = together.currency ?? currency;
+	return (
+		<div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
+			<div className="min-w-0">
+				<p>
+					{t("dashboard.cardsCount", { count: together.count })}
+					{together.currency === null ? (
+						<span className="text-quiet text-sm"> {t("dashboard.cardsInCurrencies")}</span>
+					) : (
+						<>
+							{": "}
+							<Value amount={together.open} currency={shown} /> {t("dashboard.onOpenInvoices")}
+						</>
+					)}
+				</p>
+				{together.currency !== null && together.closed > 0 && together.closedDueOn ? (
+					<p className="text-quiet text-sm">
+						<Value amount={together.closed} currency={shown} />{" "}
+						{t("dashboard.closedTogether", { day: dayAndMonth(together.closedDueOn) })}
+					</p>
+				) : null}
+				{together.currency !== null && together.overdue > 0 ? (
+					<p className="text-sm text-seal">
+						<Value amount={together.overdue} currency={shown} /> {t("dashboard.overdueTogether")}
+					</p>
+				) : null}
+			</div>
+			<a href="#cartoes" className={buttonClasses({ variant: "secondary", size: "small" })}>
+				{t("dashboard.seeCards")}
+			</a>
+		</div>
+	);
+}
+
+/**
+ * Three benefit cards or more as one line: how many, and what is left on them together, in
+ * the one currency they share.
+ */
+function VouchersTogetherLine({
+	vouchers,
+	today,
+	currency,
+}: {
+	vouchers: readonly { id: string; currency: string }[];
+	today: CalendarDate;
+	currency: string;
+}) {
+	const { t } = useTranslation();
+	const { session } = useCofre();
+	const left = useQuery({
+		queryKey: ["benefit", "together", vouchers.map((one) => one.id).join(","), today],
+		enabled: Boolean(session),
+		queryFn: async () => {
+			if (!session) return null;
+			const states = await Promise.all(
+				vouchers.map((one) => session.accounts.benefitLeft(one.id, today)),
+			);
+			return states.reduce((total, state) => total + (state?.left ?? 0), 0);
+		},
+	});
+	const one = new Set(vouchers.map((voucher) => voucher.currency)).size === 1;
+	return (
+		<div className="py-2">
+			<p>
+				{t("dashboard.vouchersCount", { count: vouchers.length })}
+				{one && left.data !== undefined && left.data !== null ? (
+					<>
+						{": "}
+						<Value amount={left.data} currency={vouchers[0]?.currency ?? currency} />{" "}
+						{t("dashboard.leftOnVouchers")}
+					</>
+				) : null}
+			</p>
+		</div>
+	);
+}
+
+/**
+ * One card on one line of the list: what the open invoice holds, when it closes and falls
+ * due, what has closed and is still owed, how much of the limit is left, and the way to it.
+ * On a telephone the line breaks in two without cutting a figure. Rules between lines and no
+ * boxes, which is registry 0023.
+ */
+function CardRow({ card }: { card: CardStanding & { currency: string } }) {
+	const { t } = useTranslation();
+	const currency = card.currency;
+	return (
+		<li className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
+			<div className="min-w-0">
+				<p className="font-medium text-ink">
+					{card.account.name}
+					{card.account.archivedAt !== null ? (
+						<span className="text-quiet text-sm"> ({t("invoice.archivedMark")})</span>
+					) : null}
+				</p>
+				{card.cycleMissing ? (
+					<p className="text-ochre text-sm">
+						{t("dashboard.cardWithoutCycle")}{" "}
+						<Link to={ROUTES.accounts} className="underline">
+							{t("invoice.goToAccounts")}
+						</Link>
+					</p>
+				) : (
+					<>
+						<p className="text-sm">
+							<Value amount={card.open.charged} currency={currency} />{" "}
+							<span className="text-quiet">
+								{t("dashboard.closesAndDue", {
+									closes: dayAndMonth(card.open.closesOn),
+									due: dayAndMonth(card.open.dueOn),
+								})}
+							</span>
+						</p>
+						<OwedLines owing={card.owing} currency={currency} />
+						{card.later > 0 ? (
+							<p className="text-quiet text-sm">
+								<Value amount={card.later} currency={currency} /> {t("dashboard.inPartsAfter")}
+							</p>
+						) : null}
+						{card.open.withoutRate > 0 ? (
+							<p className="text-seal text-sm">{t("dashboard.invoiceWithoutRate")}</p>
+						) : null}
+						<p className="text-quiet text-sm">
+							{card.limitInAnotherCurrency ? (
+								t("dashboard.limitInAnotherCurrency")
+							) : card.available === null ? (
+								t("dashboard.noLimitYet")
+							) : (
+								<>
+									{t("dashboard.limitLeft")} <Value amount={card.available} currency={currency} />
+								</>
+							)}
+						</p>
+					</>
+				)}
+			</div>
+			{card.cycleMissing ? null : (
+				<InvoiceLink
+					spaceId={card.account.spaceId}
+					accountId={card.account.id}
+					month={firstToPay(card).month}
+					owed={amountToPay(firstToPay(card)) > 0}
+				/>
+			)}
+		</li>
+	);
+}
+
+/**
+ * The way to one invoice of one card, from anywhere on this screen.
+ *
+ * It led to the invoice screen with no card named, or with the card and not the month, so
+ * with two cards the button of the second opened the first, and the line of an invoice that
+ * had closed opened the one still open. It says "Pagar fatura" only to somebody who may pay
+ * in the space the card belongs to, which in "Todos" is not always the space that is open;
+ * everybody else is offered the invoice to look at. An anchor dressed as a button, because a
+ * button inside a link is two stops for one action.
+ */
+function InvoiceLink({
+	spaceId,
+	accountId,
+	month,
+	owed,
+	variant = "secondary",
+}: {
+	spaceId: string;
+	accountId: string;
+	month: string;
+	/** Whether anything on it is left to pay, without which there is nothing to pay. */
+	owed: boolean;
+	variant?: "secondary" | "quiet";
+}) {
+	const { t } = useTranslation();
+	const pays = useWhatIMayDo(spaceId).mayCall("invoices.pay") && owed;
+	return (
+		<Link
+			to={ROUTES.invoices}
+			search={{ cartao: accountId, mes: month }}
+			className={buttonClasses({ variant, size: "small" })}
+		>
+			{pays ? t("invoice.pay") : t("invoice.see")}
+		</Link>
+	);
+}
+
 function DueRow({
 	row,
 	mayUpdate,
@@ -1454,12 +1621,13 @@ function DueRow({
 						{label}
 					</Button>
 				) : null}
-				{row.invoice && row.payable !== false ? (
-					<Link to={ROUTES.invoices}>
-						<Button size="small" variant="secondary">
-							{t("invoice.pay")}
-						</Button>
-					</Link>
+				{row.invoice && row.cardAccountId && row.cardSpaceId && row.month ? (
+					<InvoiceLink
+						spaceId={row.cardSpaceId}
+						accountId={row.cardAccountId}
+						month={row.month}
+						owed={row.payable !== false}
+					/>
 				) : null}
 			</span>
 		</li>

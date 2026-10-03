@@ -296,10 +296,13 @@ test.describe("the overview", () => {
 		await page.clock.setFixedTime(new Date("2026-11-05T12:00:00-03:00"));
 		await page.reload();
 
-		await expect(page.getByText("da fatura que fechou, vence em 10/11")).toBeVisible({
+		// On the card's line at the top, and on its line in the list of cards.
+		await expect(page.getByText("da fatura que fechou, vence em 10/11").first()).toBeVisible({
 			timeout: 45_000,
 		});
-		await expect(page.getByText("A fatura anterior fechou e vence em 10/11")).toBeVisible();
+		await expect(
+			page.locator("#cartoes").getByText("da fatura que fechou, vence em 10/11"),
+		).toBeVisible();
 		await expect(page.getByText(/venceu em 10\/11/)).toHaveCount(0);
 		await expect(page.getByText(/já venceram/)).toHaveCount(0);
 	});

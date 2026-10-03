@@ -283,8 +283,11 @@ test.describe("accounts", () => {
 		await dialog.getByRole("button", { name: "Salvar" }).click();
 
 		await go(page, "Faturas");
-		// Two invoices exist now, so the screen asks which one before it can show it.
-		await page.getByLabel("Cartão", { exact: true }).selectOption({ label: "Cartão novo" });
+		// Two invoices exist now, side by side on a wide screen, so the one is chosen there.
+		await page
+			.getByRole("group", { name: "Cartão" })
+			.getByText("Cartão novo", { exact: true })
+			.click();
 		await expect(page.getByText("Cartão novo (Final 7788)")).toBeVisible();
 		await expect(page.getByRole("cell", { name: "Compra com o cartão novo" })).toBeVisible();
 	});

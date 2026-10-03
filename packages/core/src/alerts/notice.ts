@@ -45,8 +45,11 @@ export type NoticeInput = {
 	today: CalendarDate;
 	budgets?: readonly BudgetState[];
 	bills?: readonly UpcomingBill[];
-	/** The closing day of each card that has one, as a calendar date. */
-	invoicesClosing?: readonly { name: string; closesOn: CalendarDate }[];
+	/**
+	 * The closing day of each card that has one, as a calendar date, with the month of the
+	 * invoice that closes as the sentence should name it.
+	 */
+	invoicesClosing?: readonly { name: string; closesOn: CalendarDate; month?: string }[];
 	savings?: { expected: number; put: number } | null;
 	goals?: readonly { name: string; saved: number; target: number; achievedAt: number | null }[];
 };
@@ -104,7 +107,8 @@ export function noticesFor(input: NoticeInput): Notice[] {
 			notices.push({
 				kind: "invoiceClosing",
 				level: "calm",
-				values: { name: invoice.name, days },
+				// The count is what picks the sentence, so tomorrow is not "in 1 days".
+				values: { name: invoice.name, month: invoice.month ?? "", days, count: days },
 				weight: 40,
 			});
 		}

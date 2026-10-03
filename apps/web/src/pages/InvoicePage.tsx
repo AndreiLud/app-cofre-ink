@@ -17,11 +17,13 @@ import {
 	type CalendarDate,
 	type CalendarMonth,
 	type CardCycle,
+	cardsByUrgency,
 	type InvoiceState,
 	invoiceMonthOf,
 	limitLeftOf,
 	todayIn,
 } from "@cofre/core";
+import type { Account } from "@cofre/storage";
 import {
 	Button,
 	Callout,
@@ -34,6 +36,7 @@ import {
 	Menu,
 	MenuItem,
 	Panel,
+	Segmented,
 	Select,
 	Skeleton,
 	Table,
@@ -44,14 +47,14 @@ import {
 	TableRow,
 } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useSearch } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
 import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { fillAmount, readAmount } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
-import { accountOptions } from "../lib/wayLabel.ts";
+import { accountOptions, cardOptions } from "../lib/wayLabel.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
@@ -70,20 +73,27 @@ function dayAndMonth(date: string): string {
 function headline(
 	t: (key: string, values?: Record<string, unknown>) => string,
 	month: string,
+	card: string,
 	state: InvoiceState | undefined,
 ): string {
-	if (!state) return t("invoice.openHeadline", { month, count: 0 });
-	if (state.standing === "paid") return t("invoice.paidHeadline", { month });
-	if (state.standing === "inCredit") return t("invoice.inCreditHeadline", { month });
-	if (state.daysToClose > 0) return t("invoice.openHeadline", { month, count: state.daysToClose });
-	if (state.daysToDue > 0) return t("invoice.closedHeadline", { month, count: state.daysToDue });
-	if (state.daysToDue === 0) return t("invoice.dueTodayHeadline", { month });
-	return t("invoice.pastHeadline", { month, count: Math.abs(state.daysToDue) });
+	// The card first and then the sentence, which reads right whatever the card is called:
+	// "da fatura do Caixa" is wrong in Portuguese, and "Caixa: a fatura" never is.
+	if (!state) return t("invoice.openHeadline", { month, card, count: 0 });
+	if (state.standing === "paid") return t("invoice.paidHeadline", { month, card });
+	if (state.standing === "inCredit") return t("invoice.inCreditHeadline", { month, card });
+	if (state.daysToClose > 0) {
+		return t("invoice.openHeadline", { month, card, count: state.daysToClose });
+	}
+	if (state.daysToDue > 0) {
+		return t("invoice.closedHeadline", { month, card, count: state.daysToDue });
+	}
+	if (state.daysToDue === 0) return t("invoice.dueTodayHeadline", { month, card });
+	return t("invoice.pastHeadline", { month, card, count: Math.abs(state.daysToDue) });
 }
 
 export function InvoicePage() {
 	const { t, i18n } = useTranslation();
-	const { session, currentSpace } = useCofre();
+	const { session, currentSpace, spaces, selectSpace } = useCofre();
 	const queries = useQueryClient();
 
 	const spaceId = currentSpace?.id ?? "";
@@ -94,17 +104,18 @@ export function InvoicePage() {
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
 
 	/**
-	 * Which card and which invoice the address asked for.
+	 * Which card and which invoice, from the address and from nowhere else.
 	 *
-	 * The overview leads here with a card named, because it draws a block per card and
-	 * every button on one of them means "that one". Read once as the starting point rather
-	 * than held as the truth, so the pickers on this screen still work: somebody who
-	 * arrived by a link and then chose another card is choosing another card.
+	 * The overview leads here with a card named, because every button on a card means "that
+	 * one". It was read once, when the screen opened, so a second link followed with the
+	 * screen already open stayed on the first card, and choosing another card did not reach
+	 * the address, so going back did not go back. Choosing writes the address now, and the
+	 * address is what the screen shows.
 	 */
 	const asked = useSearch({ from: ROUTES.invoices });
-
-	const [invoiceAccountId, setInvoiceAccountId] = useState(asked.cartao ?? "");
-	const [month, setMonth] = useState(asked.mes ?? "");
+	const navigate = useNavigate();
+	const goTo = (next: { cartao?: string; mes?: string }) =>
+		void navigate({ to: ROUTES.invoices, search: { cartao: next.cartao, mes: next.mes } });
 	const [problem, setProblem] = useState<string | null>(null);
 
 	const [paying, setPaying] = useState<InvoiceState | null>(null);
@@ -118,15 +129,82 @@ export function InvoicePage() {
 	const mayPay = mine.mayCall("invoices.pay");
 	const mayMove = mine.mayCall("transactions.update");
 
+	// The archived ones too, because a card put away with its last invoice still owed is a
+	// card somebody still has to pay.
 	const accounts = useQuery({
-		queryKey: ["accounts", spaceId],
+		queryKey: ["accounts", spaceId, "includingArchived"],
 		enabled: Boolean(session && currentSpace),
-		queryFn: () => session?.accounts.list(spaceId) ?? [],
+		queryFn: () => session?.accounts.list(spaceId, { includeArchived: true }) ?? [],
 	});
 
-	const invoiceAccounts = (accounts.data ?? []).filter((one) => one.kind === "credit");
+	/** Where every card stands, which is what puts them in the order they have to be dealt with. */
+	const standing = useQuery({
+		queryKey: ["invoices", "standing", spaceId, today],
+		enabled: Boolean(session && currentSpace),
+		queryFn: () => session?.invoices.standing(spaceId, today) ?? [],
+	});
+
+	/**
+	 * The cards, the most urgent first: late, then closed and owed, then something on the open
+	 * invoice, then nothing, and the name in the language of the screen for a tie. The screen
+	 * opened on the first card the database sorted by name, which was not the same card in the
+	 * two modes and was rarely the one that was late. An archived card is here while it owes.
+	 */
+	const order = cardsByUrgency(
+		(standing.data ?? []).map((one) => ({
+			...one,
+			name: one.account.name,
+			currency: one.account.currency,
+		})),
+		today,
+		i18n.resolvedLanguage,
+	).map((one) => one.account.id);
+	const stillOwing = new Set((standing.data ?? []).map((one) => one.account.id));
+	const lateOnes = new Set(
+		(standing.data ?? [])
+			.filter((one) => one.owing.some((state) => state.late))
+			.map((one) => one.account.id),
+	);
+	const placeOf = (id: string) => {
+		const at = order.indexOf(id);
+		return at < 0 ? order.length : at;
+	};
+	const invoiceAccounts = (accounts.data ?? [])
+		.filter((one) => one.kind === "credit" && (one.archivedAt === null || stillOwing.has(one.id)))
+		.sort(
+			(left, right) =>
+				placeOf(left.id) - placeOf(right.id) ||
+				left.name.localeCompare(right.name, i18n.resolvedLanguage),
+		);
 	const invoiceAccount =
-		invoiceAccounts.find((one) => one.id === invoiceAccountId) ?? invoiceAccounts[0] ?? null;
+		invoiceAccounts.find((one) => one.id === asked.cartao) ?? invoiceAccounts[0] ?? null;
+
+	/** A card as the switch names it, with what somebody has to know before choosing it. */
+	const cardLabel = (one: Account) => {
+		const marks = [
+			lateOnes.has(one.id) ? t("invoice.lateMark") : null,
+			one.archivedAt !== null ? t("invoice.archivedMark") : null,
+		].filter((mark): mark is string => mark !== null);
+		return marks.length === 0 ? one.name : `${one.name} (${marks.join(", ")})`;
+	};
+
+	/**
+	 * A card from another space, which "Todos" on the overview links to. This screen reads the
+	 * space that is open, and it showed another card with nothing said.
+	 */
+	const elsewhere = useQuery({
+		queryKey: ["accountsEverywhere", "includingArchived"],
+		enabled: Boolean(
+			session && asked.cartao && !accounts.isPending && invoiceAccount?.id !== asked.cartao,
+		),
+		queryFn: () => session?.accounts.listEverywhere({ includeArchived: true }) ?? [],
+	});
+	const cardElsewhere = (elsewhere.data ?? []).find(
+		(one) => one.id === asked.cartao && one.spaceId !== spaceId,
+	);
+	const spaceOfCard = cardElsewhere
+		? spaces.find((space) => space.id === cardElsewhere.spaceId)
+		: undefined;
 	const cycle: CardCycle | null =
 		invoiceAccount && invoiceAccount.closingDay !== null && invoiceAccount.dueDay !== null
 			? { closingDay: invoiceAccount.closingDay, dueDay: invoiceAccount.dueDay }
@@ -134,14 +212,15 @@ export function InvoicePage() {
 
 	// The invoice the purchases of today land on, which is the one to open on.
 	const openMonth = cycle ? invoiceMonthOf(today, cycle) : "";
-	const shown = month === "" ? openMonth : month;
+	const shown = asked.mes ?? openMonth;
 
 	// Which pieces of plastic charge this invoice. Two is normal: the holder and the
 	// extra card somebody else in the house carries.
+	// The archived ones too, for the name of a purchase made with a card since put away.
 	const cards = useQuery({
-		queryKey: ["cards", spaceId],
+		queryKey: ["cards", spaceId, "includingArchived"],
 		enabled: Boolean(session && currentSpace),
-		queryFn: () => session?.cards.list(spaceId) ?? [],
+		queryFn: () => session?.cards.list(spaceId, { includeArchived: true }) ?? [],
 	});
 
 	const records = useQuery({
@@ -367,8 +446,18 @@ export function InvoicePage() {
 	const period = state ? { from: state.from, to: state.to } : null;
 	const dueOn = state?.dueOn ?? null;
 
-	const onThisInvoice = (cards.data ?? []).filter(
+	const everyPlastic = (cards.data ?? []).filter(
 		(one) => invoiceAccount !== null && one.creditAccountId === invoiceAccount.id,
+	);
+	const onThisInvoice = everyPlastic.filter((one) => one.archivedAt === null);
+	/**
+	 * Which plastic made each purchase, when more than one charges this invoice: the holder's
+	 * card and the extra one somebody else in the house carries are one bill and two people.
+	 * The last four digits only where two plastics share a name.
+	 */
+	const severalPlastics = everyPlastic.length > 1;
+	const plasticNames = new Map(
+		cardOptions(everyPlastic, t).map((option) => [option.value, option.label]),
 	);
 
 	/**
@@ -428,26 +517,36 @@ export function InvoicePage() {
 							: undefined
 					}
 				>
-					{headline(t, monthName, state)}
+					{headline(t, monthName, invoiceAccount?.name ?? "", state)}
 				</InsightTitle>
 
-				<div className="flex items-end gap-3">
-					{invoiceAccounts.length > 1 ? (
-						<Select
+				<div className="flex flex-wrap items-end gap-3">
+					{/* The cards side by side on a wide screen while there are few enough of them to
+					    read at a glance, the late one marked; a list on a telephone or with more. */}
+					{invoiceAccounts.length > 1 && invoiceAccounts.length <= 4 ? (
+						<Segmented
+							className="hidden md:flex"
 							label={t("invoice.card")}
 							value={invoiceAccount?.id ?? ""}
-							onChange={(event) => {
-								setInvoiceAccountId(event.target.value);
-								setMonth("");
-							}}
-							options={accountOptions(invoiceAccounts, t)}
+							onChange={(id) => goTo({ cartao: id })}
+							options={invoiceAccounts.map((one) => ({ value: one.id, label: cardLabel(one) }))}
 						/>
+					) : null}
+					{invoiceAccounts.length > 1 ? (
+						<div className={invoiceAccounts.length <= 4 ? "md:hidden" : undefined}>
+							<Select
+								label={t("invoice.card")}
+								value={invoiceAccount?.id ?? ""}
+								onChange={(event) => goTo({ cartao: event.target.value })}
+								options={invoiceAccounts.map((one) => ({ value: one.id, label: cardLabel(one) }))}
+							/>
+						</div>
 					) : null}
 					<div className="flex items-center gap-1">
 						<Button
 							size="small"
 							variant="secondary"
-							onClick={() => setMonth(addMonthsToMonth(shown, -1))}
+							onClick={() => goTo({ cartao: invoiceAccount?.id, mes: addMonthsToMonth(shown, -1) })}
 							aria-label={t("invoice.previous")}
 						>
 							{t("invoice.previousShort")}
@@ -455,7 +554,7 @@ export function InvoicePage() {
 						<Button
 							size="small"
 							variant="secondary"
-							onClick={() => setMonth(addMonthsToMonth(shown, 1))}
+							onClick={() => goTo({ cartao: invoiceAccount?.id, mes: addMonthsToMonth(shown, 1) })}
 							aria-label={t("invoice.next")}
 						>
 							{t("invoice.nextShort")}
@@ -463,6 +562,17 @@ export function InvoicePage() {
 					</div>
 				</div>
 			</div>
+
+			{/* A card of another space, linked from "Todos" on the overview. The space is not
+			    changed behind somebody's back: the screen says whose card it is and offers it. */}
+			{cardElsewhere && spaceOfCard ? (
+				<Callout tone="attention">
+					{t("invoice.cardOfAnotherSpace", { space: spaceOfCard.name })}{" "}
+					<Button size="small" variant="secondary" onClick={() => selectSpace(spaceOfCard.id)}>
+						{t("invoice.openInSpace", { space: spaceOfCard.name })}
+					</Button>
+				</Callout>
+			) : null}
 
 			{cycle === null ? (
 				<Callout tone="attention" title={t("invoice.noCycleTitle")}>
@@ -618,6 +728,7 @@ export function InvoicePage() {
 							<TableRow>
 								<TableHeader>{t("transactions.day")}</TableHeader>
 								<TableHeader>{t("transactions.description")}</TableHeader>
+								{severalPlastics ? <TableHeader>{t("invoice.card")}</TableHeader> : null}
 								<TableHeader numeric={true}>{t("transactions.amount")}</TableHeader>
 								<TableHeader>
 									<span className="sr-only">{t("transactions.actions")}</span>
@@ -631,6 +742,11 @@ export function InvoicePage() {
 										{dayAndMonth(row.happenedOn)}
 									</TableCell>
 									<TableCell>{row.description}</TableCell>
+									{severalPlastics ? (
+										<TableCell className="text-quiet">
+											{plasticNames.get(row.cardId ?? "") ?? t("invoice.noCard")}
+										</TableCell>
+									) : null}
 									<TableCell numeric={true}>
 										<Value amount={row.amount} currency={row.currency} tone="auto" />
 									</TableCell>

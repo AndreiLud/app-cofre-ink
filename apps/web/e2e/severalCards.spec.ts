@@ -1,9 +1,195 @@
 // More than one card, in every list that offers one and on every screen that adds them up.
 
 import { expect, test } from "@playwright/test";
-import { dayField, go, openCofre, record } from "./support.ts";
+import { dayField, figure, fourCards, go, openCofre, openSetting, record } from "./support.ts";
 
 test.describe("more than one card", () => {
+	// Part 2, B.3.1, B.3.2 and B.3.7 of the request for 2.0.0: the invoices opened on the
+	// first card the database sorted by name, and choosing another card did not reach the
+	// address, so going back did not go back.
+	test("opens the invoices on the late card, and going back goes back to it", async ({ page }) => {
+		await fourCards(page);
+		await go(page, "Faturas");
+		// On the card, and on the invoice still taking purchases, which is today's.
+		const heading = page.getByRole("heading", { level: 1 });
+		await expect(heading).toContainText("Nubank: a fatura de novembro fecha");
+
+		await page.getByRole("group", { name: "Cartão" }).getByText("C6", { exact: true }).click();
+		await expect(heading).toContainText("C6: a fatura de novembro fecha");
+		await page.goBack();
+		await expect(heading).toContainText("Nubank: a fatura de novembro fecha");
+	});
+
+	// Part 2, B.3.5 and B.3.7: in "Todos" the overview links to a card of another space, and the
+	// invoices, which read the space that is open, showed another card with nothing said.
+	test("says a card of another space is that space's, and opens it there", async ({ page }) => {
+		await openCofre(page);
+		await openSetting(page, "Gerenciar espaços");
+		await page.getByRole("button", { name: "Entrar" }).click();
+		await expect(page.getByRole("banner")).toContainText("Casa");
+
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		const card = page.getByRole("dialog");
+		await card.getByLabel("Nome").fill("Cartão da casa");
+		await card.getByLabel("Tipo").selectOption("credit");
+		await card.getByLabel("Dia do fechamento").selectOption("3");
+		await card.getByLabel("Dia do vencimento").selectOption("10");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Cartão da casa", exact: true })).toBeVisible();
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = page.getByRole("dialog");
+		await form.getByLabel("Pago com").selectOption({ label: "Cartão da casa" });
+		await form.getByLabel("Valor", { exact: true }).fill("100,00");
+		await form.getByLabel("Descrição").fill("Mercado da casa");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(form).toHaveCount(0);
+
+		await openSetting(page, "Gerenciar espaços");
+		await page.getByRole("button", { name: "Entrar" }).click();
+		await expect(page.getByRole("banner")).toContainText("Pessoal");
+		await go(page, "Painel");
+		await page.getByText("Todos", { exact: true }).click();
+		await page
+			.locator("div.flex-wrap")
+			.filter({ has: page.getByText("Cartão da casa", { exact: true }) })
+			.filter({ has: page.getByRole("link", { name: "Pagar fatura" }) })
+			.last()
+			.getByRole("link", { name: "Pagar fatura" })
+			.click();
+
+		await expect(page.getByText("Este cartão é do espaço Casa.")).toBeVisible();
+		await page.getByRole("button", { name: "Abrir no espaço Casa" }).click();
+		await expect(page.getByRole("heading", { level: 1 })).toContainText("Cartão da casa:");
+	});
+
+	// Part 2, B.7.3 and B.7.5: a card archived with 640 on an invoice that falls due this month
+	// vanished from every screen, and what was left to spend rose by the 640 still owed.
+	test("asks before archiving a card that owes, and goes on counting what it owes", async ({
+		page,
+	}) => {
+		await openCofre(page, { demo: false });
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		await page.getByLabel("Nome").fill("Banco");
+		await page.getByLabel("Saldo de abertura").fill("5.000,00");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Banco", exact: true })).toBeVisible();
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		const card = page.getByRole("dialog");
+		await card.getByLabel("Nome").fill("Nubank");
+		await card.getByLabel("Tipo").selectOption("credit");
+		await card.getByLabel("Dia do fechamento").selectOption("25");
+		await card.getByLabel("Dia do vencimento").selectOption("30");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Nubank", exact: true })).toBeVisible();
+
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = page.getByRole("dialog");
+		await form.getByLabel("Pago com").selectOption({ label: "Nubank" });
+		await form.getByLabel("Valor", { exact: true }).fill("640,00");
+		await form.getByLabel("Descrição").fill("Óculos");
+		await form.getByLabel("Dia").fill("2026-10-10");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(form).toHaveCount(0);
+
+		await go(page, "Painel");
+		await expect(figure(page, "Ainda dá para gastar")).toHaveText("R$ 4.360,00");
+
+		await go(page, "Contas");
+		await page
+			.getByRole("row")
+			.filter({ has: page.getByRole("cell", { name: "Nubank", exact: true }) })
+			.getByRole("button", { name: "Ações da conta" })
+			.click();
+		await page.getByRole("menuitem", { name: "Arquivar" }).click();
+		const asking = page.getByRole("dialog");
+		await expect(asking).toContainText("Ele ainda deve R$ 640,00");
+		await page.getByRole("button", { name: "Arquivar mesmo assim" }).click();
+		await expect(asking).toHaveCount(0);
+
+		await page.reload();
+		await go(page, "Painel");
+		await expect(figure(page, "Ainda dá para gastar")).toHaveText("R$ 4.360,00", {
+			timeout: 45_000,
+		});
+		await expect(page.getByText("Nubank", { exact: true }).first()).toBeVisible();
+	});
+
+	// Part 2, B.4.2, B.4.3, B.4.4 and B.4.8: four cards and a meal card on the twenty eighth.
+	test("adds four cards into one line at the top and lists them by urgency", async ({ page }) => {
+		await fourCards(page);
+		await go(page, "Painel");
+		await expect(page.getByText("4 cartões: R$ 1.850,00 nas faturas abertas")).toBeVisible();
+		await expect(page.getByText("R$ 900,00 de fatura fechada, vence em 05/11")).toBeVisible();
+		await expect(page.getByText("R$ 300,00 vencidos")).toBeVisible();
+
+		const list = page.locator("#cartoes");
+		await expect(list.getByRole("listitem").locator("p.font-medium")).toHaveText([
+			"Nubank",
+			"Itaú",
+			"C6",
+			"Inter",
+		]);
+		await expect(list).toContainText("Ao todo: R$ 1.850,00 abertos e R$ 1.200,00 devidos.");
+	});
+
+	// Part 2, B.4.6 and B.4.8, with part 1, E.1: with two cards, every "Pagar fatura" of the
+	// second opened the first, and the line of an invoice that had closed opened the open one.
+	test("opens the card and the month of the invoice a button belongs to", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		const card = page.getByRole("dialog");
+		await card.getByLabel("Nome").fill("Nubank");
+		await card.getByLabel("Tipo").selectOption("credit");
+		await card.getByLabel("Dia do fechamento").selectOption("15");
+		await card.getByLabel("Dia do vencimento").selectOption("22");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Nubank", exact: true })).toBeVisible();
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = page.getByRole("dialog");
+		await form.getByLabel("Pago com").selectOption({ label: "Nubank" });
+		await form.getByLabel("Valor", { exact: true }).fill("300,00");
+		await form.getByLabel("Descrição").fill("Farmácia");
+		await form.getByLabel("Dia").fill("2026-09-20");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(form).toHaveCount(0);
+
+		const heading = page.getByRole("heading", { level: 1 });
+		// The sample card, second in the order behind the late one: its line at the top.
+		await go(page, "Painel");
+		const top = page
+			.locator("div.flex-wrap")
+			.filter({ has: page.getByText("Cartão de crédito", { exact: true }) })
+			.filter({ has: page.getByRole("link", { name: "Pagar fatura" }) })
+			.last();
+		await top.getByRole("link", { name: "Pagar fatura" }).click();
+		await expect(heading).toContainText("Cartão de crédito: a fatura de novembro");
+
+		// Its row in what falls due in the next days.
+		await go(page, "Painel");
+		await page
+			.getByRole("listitem")
+			.filter({ hasText: "Fatura do cartão Cartão de crédito" })
+			.getByRole("link", { name: "Pagar fatura" })
+			.click();
+		await expect(heading).toContainText("Cartão de crédito: a fatura de novembro");
+
+		// And the late one, from the block of what is late.
+		await go(page, "Painel");
+		await page
+			.getByRole("listitem")
+			.filter({ hasText: "Fatura do cartão Nubank" })
+			.filter({ hasText: "fatura vencida" })
+			.getByRole("link", { name: "Pagar fatura" })
+			.click();
+		await expect(heading).toContainText("Nubank: a fatura de outubro venceu");
+	});
+
 	// Part 2, B.1.1 and B.1.4 of the request for 2.0.0: the form that writes a card down gives
 	// the plastic the name of its account, so the current account "Nubank" and the card "Nubank"
 	// were two lines that read the same in "Pago com".

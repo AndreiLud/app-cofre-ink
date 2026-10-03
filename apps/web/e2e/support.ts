@@ -226,6 +226,68 @@ export function record(page: Page, description: string) {
 }
 
 /**
+ * The four cards of part 2, B.2.3 of the request for 2.0.0, and a meal card, in an empty
+ * browser, on the fixed day of the suite, the twenty eighth of October.
+ *
+ * Nubank (closes on the 15th, due on the 22nd) is late by 300 and holds 1,200 on the open
+ * invoice; Itaú (closes on the 25th, due on the 5th) closed at 900, due on the fifth of
+ * November, and holds 150; C6 (closes on the 3rd, due on the 10th) holds 500; Inter has
+ * nothing. Written through the screens, the way a person writes them.
+ */
+export async function fourCards(page: Page): Promise<void> {
+	await openCofre(page, { demo: false });
+	await go(page, "Contas");
+
+	const account = async (
+		name: string,
+		fill: (dialog: ReturnType<Page["getByRole"]>) => Promise<void>,
+	) => {
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByLabel("Nome").fill(name);
+		await fill(dialog);
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name, exact: true })).toBeVisible();
+	};
+	await account("Banco", (dialog) => dialog.getByLabel("Saldo de abertura").fill("10.000,00"));
+	for (const [name, closes, due] of [
+		["Nubank", "15", "22"],
+		["Itaú", "25", "5"],
+		["C6", "3", "10"],
+		["Inter", "10", "17"],
+	] as const) {
+		await account(name, async (dialog) => {
+			await dialog.getByLabel("Tipo").selectOption("credit");
+			await dialog.getByLabel("Dia do fechamento").selectOption(closes);
+			await dialog.getByLabel("Dia do vencimento").selectOption(due);
+		});
+	}
+	await account("VR", async (dialog) => {
+		await dialog.getByLabel("Tipo").selectOption("voucher");
+		await dialog.getByLabel("Valor por mês").fill("900,00");
+		await dialog.getByLabel("Dia do crédito").selectOption("5");
+	});
+
+	await go(page, "Lançamentos");
+	for (const [card, amount, day, description] of [
+		["Nubank", "300,00", "2026-09-20", "Farmácia"],
+		["Nubank", "1.200,00", "2026-10-20", "Passagem"],
+		["Itaú", "900,00", "2026-10-10", "Mercado grande"],
+		["Itaú", "150,00", "2026-10-26", "Livro"],
+		["C6", "500,00", "2026-10-15", "Presente"],
+	] as const) {
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = page.getByRole("dialog");
+		await form.getByLabel("Pago com").selectOption({ label: card });
+		await form.getByLabel("Valor", { exact: true }).fill(amount);
+		await form.getByLabel("Descrição").fill(description);
+		await form.getByLabel("Dia").fill(day);
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(form).toHaveCount(0);
+	}
+}
+
+/**
  * Money moved between two accounts, through Move between accounts on the accounts screen,
  * which is where a move is written since the form for a record kept only money out and
  * money in.

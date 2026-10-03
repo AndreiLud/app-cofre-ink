@@ -108,6 +108,27 @@ export function AccountsPage() {
 		queryFn: () => session?.investments.list(spaceId) ?? [],
 	});
 
+	/** What each card still owes, which archiving one asks about first. */
+	const invoicesStanding = useQuery({
+		queryKey: ["invoices", "standing", spaceId, today],
+		enabled: Boolean(session && currentSpace),
+		queryFn: () => session?.invoices.standing(spaceId, today) ?? [],
+	});
+	/** Everything a card still has to pay: the open invoice, the ones behind it and the parts ahead. */
+	const owedOn = (accountId: string): number => {
+		const card = invoicesStanding.data?.find((one) => one.account.id === accountId);
+		if (!card) return 0;
+		return (
+			[card.open, ...card.owing].reduce((total, state) => total + Math.max(0, state.left), 0) +
+			card.later
+		);
+	};
+	const owedText = (accountId: string) =>
+		new Intl.NumberFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+			style: "currency",
+			currency: currentSpace?.baseCurrency ?? "BRL",
+		}).format(owedOn(accountId) / 100);
+
 	// Read here rather than inside the list below, because the menu of each account row
 	// needs to offer the cards that reach it, and that is where a card is looked after.
 	const cards = useQuery({
@@ -133,6 +154,8 @@ export function AccountsPage() {
 
 	/** The account about to be deleted, and how many records go nowhere with it. */
 	const [erasing, setErasing] = useState<Account | null>(null);
+	/** A card that still owes, about to be archived, which is asked about first. */
+	const [archivingCard, setArchivingCard] = useState<Account | null>(null);
 	const inside = useQuery({
 		queryKey: ["accountRecords", erasing?.id],
 		enabled: Boolean(session && erasing),
@@ -620,7 +643,13 @@ export function AccountsPage() {
 															{t("accounts.unarchive")}
 														</MenuItem>
 													) : (
-														<MenuItem onSelect={() => archive.mutate(account.id)}>
+														<MenuItem
+															onSelect={() =>
+																owedOn(account.id) > 0
+																	? setArchivingCard(account)
+																	: archive.mutate(account.id)
+															}
+														>
 															{t("accounts.archive")}
 														</MenuItem>
 													)
@@ -812,6 +841,37 @@ export function AccountsPage() {
 						: t("accounts.deleteHolds", { count: inside.data ?? 0 })}
 				</p>
 				<p className="mt-2 text-quiet text-sm">{t("accounts.deleteInstead")}</p>
+			</Dialog>
+
+			{/* Archiving a card that still owes is allowed, because the plastic may be gone while
+			    the bill is not, and it says so first: the card leaves the ways to pay, and its
+			    invoices stay where somebody pays them until they are paid. */}
+			<Dialog
+				open={archivingCard !== null}
+				onOpenChange={(next) => !next && setArchivingCard(null)}
+				title={t("accounts.archiveOwingTitle", { name: archivingCard?.name ?? "" })}
+				description={t("accounts.archiveOwingBody", {
+					amount: archivingCard ? owedText(archivingCard.id) : "",
+				})}
+				closeLabel={t("actions.close")}
+				footer={
+					<>
+						<Button variant="quiet" onClick={() => setArchivingCard(null)}>
+							{t("actions.cancel")}
+						</Button>
+						<Button
+							disabled={archive.isPending}
+							onClick={() => {
+								if (archivingCard) archive.mutate(archivingCard.id);
+								setArchivingCard(null);
+							}}
+						>
+							{t("accounts.archiveAnyway")}
+						</Button>
+					</>
+				}
+			>
+				<p className="text-quiet text-sm">{t("accounts.archiveOwingStays")}</p>
 			</Dialog>
 
 			<CardDialog card={cardTarget} accounts={rows} onClose={() => setCardTarget(null)} />

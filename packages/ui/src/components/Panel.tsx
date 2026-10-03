@@ -22,11 +22,14 @@ export type PanelProps = {
 	className?: string;
 	/** Removes the padding, for a panel whose child is a table that reaches the edges. */
 	flush?: boolean;
+	/** For a link elsewhere on the screen that leads to this section. */
+	id?: string;
 };
 
-export function Panel({ title, description, action, children, className, flush }: PanelProps) {
+export function Panel({ title, description, action, children, className, flush, id }: PanelProps) {
 	return (
 		<section
+			id={id}
 			className={cn(
 				"rounded-md border border-line bg-panel",
 				flush ? "overflow-hidden" : "p-4 sm:p-5",
