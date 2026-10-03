@@ -3,6 +3,7 @@ import { accounts, cards } from "@cofre/db";
 import { assertCan, readableSpaceIds, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
+import { happenedBy } from "../happened.ts";
 import { type Account, type AccountKind, type BenefitKind, toAccount } from "../models.ts";
 import { marks } from "../sql.ts";
 import { insertRow, softDeleteRow, updateRow } from "../writer.ts";
@@ -126,13 +127,13 @@ export function createAccountsRepository(context: RepositoryContext) {
 	async function spentBetween(
 		accountId: string,
 		from: CalendarDate,
-		to: CalendarDate,
+		today: CalendarDate,
 	): Promise<number> {
 		const rows = await context.driver.all(
 			`SELECT COALESCE(SUM(-"amount"), 0) AS spent FROM "transactions"
-			 WHERE "account_id" = ? AND "deleted_at" IS NULL AND "status" = 'settled'
-			   AND "kind" = 'expense' AND "happened_on" >= ? AND "happened_on" <= ?`,
-			[accountId, from, to],
+			 WHERE "account_id" = ? AND "deleted_at" IS NULL AND ${happenedBy(null)}
+			   AND "kind" = 'expense' AND "happened_on" >= ?`,
+			[accountId, today, from],
 		);
 		return asNumber(rows[0]?.spent ?? 0);
 	}

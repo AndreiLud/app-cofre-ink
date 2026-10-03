@@ -32,7 +32,12 @@ import {
 	USUAL_WINDOW,
 	whatTookIt,
 } from "@cofre/core";
-import type { Account, Transaction, TransactionStatus } from "@cofre/storage";
+import {
+	type Account,
+	hasHappened,
+	type Transaction,
+	type TransactionStatus,
+} from "@cofre/storage";
 import {
 	Button,
 	Callout,
@@ -801,11 +806,11 @@ export function MonthPage() {
 										<TableRow key={part}>
 											<TableCell>
 												{row.description}
-												{row.status === "planned" ? (
+												{hasHappened(row, today) ? null : (
 													<span className="ml-2 text-xs text-quiet">
 														{t("transactionStatus.planned")}
 													</span>
-												) : null}
+												)}
 											</TableCell>
 											<TableCell className="whitespace-nowrap font-mono text-quiet">
 												{dayAndMonth(row.happenedOn)}

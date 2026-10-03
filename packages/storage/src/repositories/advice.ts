@@ -26,6 +26,7 @@ import {
 import { assertCan, seesOwnRowsOnly } from "../actor.ts";
 import type { SqlValue } from "../driver.ts";
 import { asNumber } from "../driver.ts";
+import { happenedBy, stillToComeOn } from "../happened.ts";
 import { marks } from "../sql.ts";
 import type { AccountsRepository } from "./accounts.ts";
 import type { BudgetsRepository } from "./budgets.ts";
@@ -115,18 +116,18 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 		return { clause: `AND ${column} = ?`, params: [context.actor().userId] };
 	}
 
-	async function monthlyTotals(spaceId: string, from: string, to: string) {
+	async function monthlyTotals(spaceId: string, from: string, today: CalendarDate) {
 		const rows = await context.driver.all(
 			`SELECT SUBSTR("happened_on", 1, 7) AS month,
 			   COALESCE(SUM(CASE WHEN "kind" = 'income' THEN "amount_in_base" ELSE 0 END), 0) AS income,
 			   COALESCE(SUM(CASE WHEN "kind" = 'expense' THEN "amount_in_base" ELSE 0 END), 0) AS expense
 			 FROM "transactions"
-			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "status" = 'settled'
-			   AND "happened_on" >= ? AND "happened_on" <= ?
+			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND ${happenedBy(null)}
+			   AND "happened_on" >= ?
 			   ${mine(spaceId).clause}
 			 GROUP BY SUBSTR("happened_on", 1, 7)
 			 ORDER BY month DESC`,
-			[spaceId, from, to, ...mine(spaceId).params],
+			[spaceId, today, from, ...mine(spaceId).params],
 		);
 
 		return rows.map((row) => ({
@@ -144,17 +145,17 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 	 * salary written three ways is three. Rules tidy descriptions, so the household
 	 * that cares about this has the means to fix it.
 	 */
-	async function incomeBySource(spaceId: string, from: string, to: string) {
+	async function incomeBySource(spaceId: string, from: string, today: CalendarDate) {
 		const rows = await context.driver.all(
 			`SELECT LOWER(TRIM("description")) AS name, SUBSTR("happened_on", 1, 7) AS month,
 			   COALESCE(SUM("amount_in_base"), 0) AS total
 			 FROM "transactions"
-			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "status" = 'settled'
-			   AND "kind" = 'income' AND "happened_on" >= ? AND "happened_on" <= ?
+			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND ${happenedBy(null)}
+			   AND "kind" = 'income' AND "happened_on" >= ?
 			   AND "description" <> ''
 			   ${mine(spaceId).clause}
 			 GROUP BY LOWER(TRIM("description")), SUBSTR("happened_on", 1, 7)`,
-			[spaceId, from, to, ...mine(spaceId).params],
+			[spaceId, today, from, ...mine(spaceId).params],
 		);
 
 		return rows.map((row) => ({
@@ -182,18 +183,18 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 		return { percent: Math.round((factor - 1) * 10_000), months: rows.length };
 	}
 
-	async function spendingByCategory(spaceId: string, from: string, to: string) {
+	async function spendingByCategory(spaceId: string, from: string, today: CalendarDate) {
 		const rows = await context.driver.all(
 			`SELECT t."category_id" AS category_id, c."name" AS name,
 			   SUBSTR(t."happened_on", 1, 7) AS month,
 			   COALESCE(SUM(t."amount_in_base"), 0) AS total
 			 FROM "transactions" t
 			 JOIN "categories" c ON c."id" = t."category_id"
-			 WHERE t."space_id" = ? AND t."deleted_at" IS NULL AND t."status" = 'settled'
-			   AND t."kind" = 'expense' AND t."happened_on" >= ? AND t."happened_on" <= ?
+			 WHERE t."space_id" = ? AND t."deleted_at" IS NULL AND ${happenedBy("t")}
+			   AND t."kind" = 'expense' AND t."happened_on" >= ?
 			   ${mine(spaceId, "t").clause}
 			 GROUP BY t."category_id", c."name", SUBSTR(t."happened_on", 1, 7)`,
-			[spaceId, from, to, ...mine(spaceId, "t").params],
+			[spaceId, today, from, ...mine(spaceId, "t").params],
 		);
 
 		return rows.map((row) => ({
@@ -214,17 +215,17 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 	async function repeatingCharges(
 		spaceId: string,
 		from: string,
-		to: string,
+		today: CalendarDate,
 	): Promise<RepeatingCharge[]> {
 		const rows = await context.driver.all(
 			`SELECT LOWER(TRIM("description")) AS label, "happened_on" AS day, "amount_in_base" AS amount
 			 FROM "transactions"
-			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "status" = 'settled'
-			   AND "kind" = 'expense' AND "happened_on" >= ? AND "happened_on" <= ?
+			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND ${happenedBy(null)}
+			   AND "kind" = 'expense' AND "happened_on" >= ?
 			   AND "description" <> ''
 			   ${mine(spaceId).clause}
 			 ORDER BY "happened_on"`,
-			[spaceId, from, to, ...mine(spaceId).params],
+			[spaceId, today, from, ...mine(spaceId).params],
 		);
 
 		const byLabel = new Map<string, { months: Set<string>; amounts: number[]; shown: string }>();
@@ -266,11 +267,11 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			   a."kind" AS account_kind
 			 FROM "transactions" t
 			 LEFT JOIN "accounts" a ON a."id" = t."account_id"
-			 WHERE t."space_id" = ? AND t."deleted_at" IS NULL AND t."status" = 'planned'
+			 WHERE t."space_id" = ? AND t."deleted_at" IS NULL AND ${stillToComeOn("t")}
 			   AND t."kind" = 'expense' AND t."happened_on" >= ? AND t."happened_on" <= ?
 			   ${mine(spaceId, "t").clause}
 			 ORDER BY t."happened_on"`,
-			[spaceId, today, until, ...mine(spaceId, "t").params],
+			[spaceId, today, today, until, ...mine(spaceId, "t").params],
 		);
 
 		return rows.map((row) => ({
@@ -344,7 +345,7 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 		spaceId: string,
 		spendable: readonly string[],
 		from: string,
-		to: string,
+		today: CalendarDate,
 	): Promise<{ month: string; net: number }[]> {
 		if (spendable.length === 0) return [];
 
@@ -354,15 +355,15 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			   SELECT SUBSTR("happened_on", 1, 7) AS "month",
 			     SUM(CASE WHEN "kind" = 'transfer' THEN -"amount" ELSE "amount" END) AS "moved"
 			   FROM "transactions"
-			   WHERE "space_id" = ? AND "deleted_at" IS NULL AND "status" = 'settled'
-			     AND "happened_on" >= ? AND "happened_on" <= ? AND "account_id" IN (${inside})
+			   WHERE "space_id" = ? AND "deleted_at" IS NULL AND ${happenedBy(null)}
+			     AND "happened_on" >= ? AND "account_id" IN (${inside})
 			     ${mine(spaceId).clause}
 			   GROUP BY SUBSTR("happened_on", 1, 7)
 			   UNION ALL
 			   SELECT SUBSTR("happened_on", 1, 7) AS "month", SUM("amount") AS "moved"
 			   FROM "transactions"
-			   WHERE "space_id" = ? AND "deleted_at" IS NULL AND "status" = 'settled'
-			     AND "happened_on" >= ? AND "happened_on" <= ?
+			   WHERE "space_id" = ? AND "deleted_at" IS NULL AND ${happenedBy(null)}
+			     AND "happened_on" >= ?
 			     AND "counter_account_id" IN (${inside})
 			     ${mine(spaceId).clause}
 			   GROUP BY SUBSTR("happened_on", 1, 7)
@@ -371,13 +372,13 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			 ORDER BY "month" DESC`,
 			[
 				spaceId,
+				today,
 				from,
-				to,
 				...spendable,
 				...mine(spaceId).params,
 				spaceId,
+				today,
 				from,
-				to,
 				...spendable,
 				...mine(spaceId).params,
 			],
@@ -489,7 +490,9 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			const thisMonth = monthOf(input.today);
 			const firstMonth = addMonthsToMonth(thisMonth, -WINDOW);
 			const from = `${firstMonth}-01`;
-			const to = `${thisMonth}-31`;
+			// What has happened, which ends today and not on the last day of the month: a
+			// record dated later this month is written as a fact and waits for its day.
+			const to = input.today;
 			const until = addDays(input.today, SOON);
 			// One read of the totals covers both windows: the six the medians are made of
 			// are the first six of the eighteen the year ahead needs.

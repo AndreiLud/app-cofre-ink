@@ -1,4 +1,5 @@
-import { expect, type Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+import { type Browser, type BrowserContext, expect, type Page } from "@playwright/test";
 
 /**
  * The day every flow runs on.
@@ -60,6 +61,74 @@ export async function openCofre(page: Page, options: { demo?: boolean } = {}): P
 	await expect(page.getByRole("navigation", { name: "Seções do aplicativo" })).toBeVisible({
 		timeout: 45_000,
 	});
+}
+
+/**
+ * A browser holding promises nobody answered, which only a release before 1.1.0 wrote.
+ *
+ * Nothing written since is a promise: a record dated ahead is a fact its day holds back.
+ * So the one way to have a promise is the way a person has one, a backup from before
+ * brought back. This writes a series in one browser, takes the backup, marks the
+ * occurrences whose day has gone as promises, which is what 1.0 wrote for them, and
+ * brings the file back in a second browser that holds nothing else.
+ */
+export async function promisesFromBefore(
+	browser: Browser,
+	series: { description: string; amount: string; weekly?: boolean; from: number },
+): Promise<{ page: Page; close: () => Promise<void> }> {
+	const contexts: BrowserContext[] = [];
+	const first = await browser.newContext({ acceptDownloads: true });
+	contexts.push(first);
+	const one = await first.newPage();
+	await openCofre(one);
+
+	await go(one, "Calendário");
+	await one.getByRole("button", { name: "Nova recorrência" }).click();
+	const dialog = one.getByRole("dialog");
+	await dialog.getByLabel("Descrição").fill(series.description);
+	await dialog.getByLabel("Valor", { exact: true }).fill(series.amount);
+	if (series.weekly) await dialog.getByLabel("Repete").selectOption("weekly");
+	await dialog.getByLabel("A partir de").fill(dayField(series.from));
+	await one.getByRole("button", { name: "Salvar" }).click();
+	await expect(one.getByText(series.description).first()).toBeVisible();
+
+	await go(one, "Dados");
+	const download = one.waitForEvent("download");
+	await one.getByRole("button", { name: "Baixar", exact: true }).first().click();
+	const backup = JSON.parse(await readFile(await (await download).path(), "utf8")) as {
+		spaces: { tables: Record<string, Record<string, unknown>[]> }[];
+	};
+
+	let marked = 0;
+	for (const space of backup.spaces) {
+		for (const row of space.tables.transactions ?? []) {
+			if (row.description === series.description && String(row.happened_on) < TODAY) {
+				row.status = "planned";
+				marked += 1;
+			}
+		}
+	}
+	expect(marked).toBeGreaterThan(0);
+
+	const second = await browser.newContext({ acceptDownloads: true });
+	contexts.push(second);
+	const page = await second.newPage();
+	await openCofre(page, { demo: false });
+	await go(page, "Dados");
+	await page.getByLabel("Escolher arquivo").setInputFiles({
+		name: "cofre_backup_da_versao_1.json",
+		mimeType: "application/json",
+		buffer: Buffer.from(JSON.stringify(backup)),
+	});
+	await page.getByRole("dialog").getByRole("button", { name: "Trazer de volta" }).click();
+	await expect(page.getByText("Restaurado", { exact: true })).toBeVisible({ timeout: 20_000 });
+
+	return {
+		page,
+		close: async () => {
+			for (const context of contexts) await context.close();
+		},
+	};
 }
 
 /**

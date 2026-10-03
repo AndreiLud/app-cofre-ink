@@ -889,6 +889,10 @@ export function createApp({ config, database, auth }: AppDependencies) {
 				cardId: query.cardId,
 				kind: query.kind as "income" | "expense" | "transfer" | undefined,
 				status: query.status as "planned" | "settled" | undefined,
+				// What has happened and what is still to come, each by a day. Dropped here, the
+				// overview of somebody on a server would list what already happened as coming.
+				happenedBy: query.happenedBy,
+				stillToComeOn: query.stillToComeOn,
 				from: query.from,
 				to: query.to,
 				invoiceMonth: query.invoiceMonth,

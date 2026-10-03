@@ -8,11 +8,12 @@
 // The savings rule is the promise to do that before anything else. There is one per
 // space, and it is compared against what actually went in this month.
 
-import { parseCalendarDate } from "@cofre/core";
+import { parseCalendarDate, todayIn } from "@cofre/core";
 import { goals, savingsRules } from "@cofre/db";
 import { assertCan, readableSpaceIds, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber, type SqlValue } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
+import { happenedBy } from "../happened.ts";
 import { type Goal, type SavingsMode, type SavingsRule, toGoal, toSavingsRule } from "../models.ts";
 import { marks } from "../sql.ts";
 import { insertRow, softDeleteRow, updateRow } from "../writer.ts";
@@ -83,6 +84,14 @@ export function createGoalsRepository(context: RepositoryContext) {
 		if (rows.length === 0) throw new NotFoundError("account", accountId);
 	}
 
+	async function timezoneOf(spaceId: string): Promise<string> {
+		const rows = await context.driver.all(
+			`SELECT "timezone" FROM "spaces" WHERE "id" = ? AND "deleted_at" IS NULL`,
+			[spaceId],
+		);
+		return String(rows[0]?.timezone ?? "America/Sao_Paulo");
+	}
+
 	/**
 	 * Whether this reading is narrowed to one person's own records.
 	 *
@@ -105,22 +114,25 @@ export function createGoalsRepository(context: RepositoryContext) {
 	 * a logger reads their own part of a goal rather than the household's, which is the
 	 * same rule the spending against a limit has always followed.
 	 */
-	async function balanceOf(accountId: string, spaceId: string): Promise<number> {
+	async function balanceOf(accountId: string, spaceId: string, today: string): Promise<number> {
 		const onlyMine = seesOwnRowsOnly(context.actor(), spaceId);
 		const only = onlyMine ? `AND t."created_by" = ?` : "";
 		const who = onlyMine ? [context.actor().userId] : [];
 
+		// What has happened by today, which is the rule every balance in the application
+		// follows. This one counted every fact whatever its day, so a transfer to the savings
+		// account dated next week was already inside a goal this week.
 		const rows = await context.driver.all(
 			`SELECT ${onlyMine ? "0" : `a."initial_balance"`} AS initial,
 			  COALESCE((SELECT SUM(CASE WHEN t."kind" = 'transfer' THEN -t."amount" ELSE t."amount" END)
 			            FROM "transactions" t
 			            WHERE t."account_id" = a."id" AND t."deleted_at" IS NULL
-			              AND t."status" = 'settled' ${only}), 0) AS out_settled,
+			              ${only} AND ${happenedBy("t")}), 0) AS out_settled,
 			  COALESCE((SELECT SUM(t."amount") FROM "transactions" t
 			            WHERE t."counter_account_id" = a."id" AND t."deleted_at" IS NULL
-			              AND t."status" = 'settled' ${only}), 0) AS in_settled
+			              ${only} AND ${happenedBy("t")}), 0) AS in_settled
 			 FROM "accounts" a WHERE a."id" = ?`,
-			[...who, ...who, accountId],
+			[...who, today, ...who, today, accountId],
 		);
 		const row = rows[0];
 		if (!row) return 0;
@@ -250,7 +262,7 @@ export function createGoalsRepository(context: RepositoryContext) {
 
 			const found: GoalProgress[] = [];
 			for (const row of rows.map(toGoal)) {
-				const saved = Math.max(0, await balanceOf(row.accountId, input.spaceId));
+				const saved = Math.max(0, await balanceOf(row.accountId, input.spaceId, input.today));
 				const left = Math.max(0, row.targetAmount - saved);
 				found.push({
 					...row,
@@ -352,12 +364,15 @@ export function createGoalsRepository(context: RepositoryContext) {
 			// Narrowed for somebody who only sees their own records, so what they read is
 			// what they themselves earned and put aside rather than the household's.
 			const only = mine(input.spaceId);
+			// The salary dated for the end of this month has not been earned on the tenth, and
+			// a transfer to the savings account dated for next week has not been put aside.
+			const today = todayIn(await timezoneOf(input.spaceId));
 			const earnedRows = await context.driver.all(
 				`SELECT COALESCE(SUM("amount"), 0) AS total FROM "transactions"
 				 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "kind" = 'income'
-				   AND "status" = 'settled' AND "happened_on" >= ? AND "happened_on" <= ?
+				   AND ${happenedBy(null)} AND "happened_on" >= ? AND "happened_on" <= ?
 				   ${only.clause}`,
-				[input.spaceId, from, to, ...only.params],
+				[input.spaceId, today, from, to, ...only.params],
 			);
 			const earned = asNumber(earnedRows[0]?.total ?? 0);
 
@@ -365,10 +380,10 @@ export function createGoalsRepository(context: RepositoryContext) {
 			if (rule?.accountId) {
 				const intoRows = await context.driver.all(
 					`SELECT COALESCE(SUM("amount"), 0) AS total FROM "transactions"
-					 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "status" = 'settled'
+					 WHERE "space_id" = ? AND "deleted_at" IS NULL AND ${happenedBy(null)}
 					   AND "counter_account_id" = ? AND "happened_on" >= ? AND "happened_on" <= ?
 					   ${only.clause}`,
-					[input.spaceId, rule.accountId, from, to, ...only.params],
+					[input.spaceId, today, rule.accountId, from, to, ...only.params],
 				);
 				put = asNumber(intoRows[0]?.total ?? 0);
 			}

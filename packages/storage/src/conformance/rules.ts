@@ -315,7 +315,10 @@ export function runRuleConformance(adapter: AdapterUnderTest): void {
 	});
 
 	describe("things that happen again", () => {
-		it("writes the days it owes, as promises and not as facts", async () => {
+		// Release 1.2.1 wrote every occurrence as a promise, and nothing turned a promise into
+		// a fact: the rent stayed out of the balance on its day and was called late the day
+		// after, unless somebody said it had happened. The day holds an occurrence back now.
+		it("writes the days it owes as facts, each held back until its own day", async () => {
 			const ready = await readySpace();
 			try {
 				const today = todayIn("America/Sao_Paulo");
@@ -336,14 +339,39 @@ export function runRuleConformance(adapter: AdapterUnderTest): void {
 				expect(written).toBeGreaterThanOrEqual(2);
 
 				const rows = await ready.fixture.asAna.transactions.list({ spaceId: ready.spaceId });
-				expect(rows.every((row) => row.status === "planned")).toBe(true);
+				expect(rows.every((row) => row.status === "settled")).toBe(true);
 				expect(rows.every((row) => row.amount === -145_000)).toBe(true);
 				expect(rows.every((row) => row.recurrenceId !== null)).toBe(true);
 				expect(rows.every((row) => row.categoryId === ready.market.id)).toBe(true);
 
-				// The settled balance is untouched, because none of this has happened.
-				const balances = await ready.fixture.asAna.transactions.balances(ready.spaceId, LATER);
-				expect(balances.find((one) => one.accountId === ready.account.id)?.settled).toBe(500_000);
+				// Nobody says any of them happened. The one dated today counts today, and the
+				// one dated next month counts on its day and not the day before.
+				const days = rows.map((row) => row.happenedOn).sort();
+				const first = days[0] ?? today;
+				const second = days[1] ?? today;
+				const settledOn = async (day: string) =>
+					(await ready.fixture.asAna.transactions.balances(ready.spaceId, day)).find(
+						(one) => one.accountId === ready.account.id,
+					)?.settled;
+
+				expect(first).toBe(today);
+				expect(await settledOn(first)).toBe(355_000);
+				expect(await settledOn(addDays(second, -1))).toBe(355_000);
+				expect(await settledOn(second)).toBe(210_000);
+
+				// And none of them is waiting for an answer, so none can ever be late.
+				expect(
+					await ready.fixture.asAna.transactions.list({
+						spaceId: ready.spaceId,
+						status: "planned",
+					}),
+				).toEqual([]);
+				const toCome = await ready.fixture.asAna.transactions.list({
+					spaceId: ready.spaceId,
+					stillToComeOn: today,
+				});
+				expect(toCome.map((row) => row.happenedOn)).not.toContain(today);
+				expect(toCome.length).toBe(rows.length - 1);
 			} finally {
 				await ready.fixture.close();
 			}

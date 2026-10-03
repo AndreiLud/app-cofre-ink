@@ -196,7 +196,9 @@ export function DashboardPage() {
 		queryFn: () =>
 			session?.transactions.list({
 				spaceId,
-				status: "planned",
+				// Still to come, and not the status alone: a record dated ahead is written as a
+				// fact now and its day holds it back.
+				stillToComeOn: today,
 				from: today,
 				to: addDays(today, AHEAD),
 				order: "oldestFirst",
@@ -230,7 +232,7 @@ export function DashboardPage() {
 		queryFn: () =>
 			session?.transactions.list({
 				spaceId,
-				status: "planned",
+				stillToComeOn: today,
 				from: today,
 				to: endOfMonth,
 				order: "oldestFirst",
@@ -263,7 +265,7 @@ export function DashboardPage() {
 				spaces.map((space) =>
 					session.transactions.list({
 						spaceId: space.id,
-						status: "planned",
+						stillToComeOn: todayIn(space.timezone),
 						from: todayIn(space.timezone),
 						to: lastDayOf(monthOf(todayIn(space.timezone))),
 						order: "oldestFirst",
@@ -322,12 +324,17 @@ export function DashboardPage() {
 		queryFn: () => session?.goals.progress({ spaceId, today }) ?? [],
 	});
 
+	/**
+	 * The month so far, which is up to today and not up to the last day of the month.
+	 *
+	 * A record dated ahead is a fact held back by its day, so a total to the end of the month
+	 * counted the rent of the twenty fifth on the second.
+	 */
 	const thisMonth = useQuery({
-		queryKey: ["reports", spaceId, "totals", month],
+		queryKey: ["reports", spaceId, "totals", month, today],
 		enabled: Boolean(session && currentSpace),
 		queryFn: () =>
-			session?.reports.totals({ spaceId, from: `${month}-01` as CalendarDate, to: endOfMonth }) ??
-			null,
+			session?.reports.totals({ spaceId, from: `${month}-01` as CalendarDate, to: today }) ?? null,
 	});
 
 	const categories = useQuery({

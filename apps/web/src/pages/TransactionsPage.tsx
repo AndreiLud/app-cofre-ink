@@ -3,7 +3,12 @@
 // went through this card.
 
 import { addUpInBase, monthOf, todayIn } from "@cofre/core";
-import type { Transaction, TransactionKind, TransactionStatus } from "@cofre/storage";
+import {
+	hasHappened,
+	type Transaction,
+	type TransactionKind,
+	type TransactionStatus,
+} from "@cofre/storage";
 import {
 	Button,
 	Callout,
@@ -211,6 +216,16 @@ export function TransactionsPage() {
 			accountId?: string;
 			categoryId?: string;
 		}) => session?.transactions.updateMany(picked, patch),
+		onSuccess: afterBulk,
+		onError: complain,
+	});
+
+	// Paid, said of several records, is the button on one record pressed for each: a day
+	// still to come moves to today, which is when somebody is saying it. Writing only the
+	// status did nothing to a record dated ahead, which is a fact already and waits for
+	// its day, so the button pressed and nothing on the screen changed.
+	const settlePicked = useMutation({
+		mutationFn: async () => session?.transactions.settleMany(picked, today),
 		onSuccess: afterBulk,
 		onError: complain,
 	});
@@ -507,8 +522,8 @@ export function TransactionsPage() {
 							<Button
 								size="small"
 								variant="secondary"
-								onClick={() => changeMany.mutate({ status: "settled" })}
-								disabled={changeMany.isPending}
+								onClick={() => settlePicked.mutate()}
+								disabled={settlePicked.isPending}
 							>
 								{t("transactions.settle")}
 							</Button>
@@ -631,7 +646,7 @@ export function TransactionsPage() {
 										{row.happenedOn.slice(8)}/{row.happenedOn.slice(5, 7)}
 									</TableCell>
 									<TableCell>
-										<span className={row.status === "planned" ? "text-quiet" : ""}>
+										<span className={hasHappened(row, today) ? "" : "text-quiet"}>
 											{row.description}
 										</span>
 										{row.categoryId ? (
@@ -639,11 +654,11 @@ export function TransactionsPage() {
 												{nameOfCategory(row.categoryId)}
 											</span>
 										) : null}
-										{row.status === "planned" ? (
+										{hasHappened(row, today) ? null : (
 											<span className="ml-2 text-xs text-ochre">
 												{t("transactionStatus.planned")}
 											</span>
-										) : null}
+										)}
 										{row.reconciledAt !== null ? (
 											<span className="ml-2 text-xs text-cedar">
 												{t("transactions.reconciled")}

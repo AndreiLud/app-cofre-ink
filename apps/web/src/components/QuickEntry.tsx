@@ -6,7 +6,7 @@
 // loud, and what it did find can be undone in one click.
 
 import { type QuickEntryReading, readQuickEntry } from "@cofre/core";
-import type { Account, Transaction } from "@cofre/storage";
+import { type Account, hasHappened, type Transaction } from "@cofre/storage";
 import { Button, Callout, Field } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useMemo, useState } from "react";
@@ -181,9 +181,10 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 					{reading.installments > 1 ? (
 						<span>{t("transactions.timesOf", { count: reading.installments })}</span>
 					) : null}
-					{reading.status === "planned" ? (
+					{/* A day ahead waits for its day, and the line says so before it is written. */}
+					{hasHappened(reading, today) ? null : (
 						<span className="text-ochre">{t("transactionStatus.planned")}</span>
-					) : null}
+					)}
 				</p>
 			) : null}
 

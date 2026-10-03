@@ -437,6 +437,48 @@ describe("the api", () => {
 		expect(byMark.map((one) => one.externalId)).toEqual(["mes:2026-09:income"]);
 	});
 
+	// The overview lists what is still to come by the day, and a record dated ahead is
+	// written as a fact. The route dropped both filters, so on a server the overview listed
+	// what had already happened under "coming" and the late list stayed whole.
+	it("hands the day rule to the list, both ways", async () => {
+		const ana = createClient(app);
+		await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+		const space = await ana.json<{ id: string }>("/api/spaces", {
+			method: "POST",
+			body: JSON.stringify({ name: "Casa" }),
+		});
+		const account = await ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+			method: "POST",
+			body: JSON.stringify({ kind: "checking", name: "Conta" }),
+		});
+		for (const [description, happenedOn] of [
+			["Padaria", "2026-09-20"],
+			["Aluguel", "2026-09-23"],
+		]) {
+			await ana.json(`/api/spaces/${space.id}/transactions`, {
+				method: "POST",
+				body: JSON.stringify({
+					kind: "expense",
+					amount: 10_000,
+					happenedOn,
+					description,
+					accountId: account.id,
+				}),
+			});
+		}
+
+		const toCome = await ana.json<Array<{ description: string; status: string }>>(
+			`/api/spaces/${space.id}/transactions?stillToComeOn=2026-09-20`,
+		);
+		expect(toCome.map((one) => one.description)).toEqual(["Aluguel"]);
+		expect(toCome[0]?.status).toBe("settled");
+
+		const happened = await ana.json<Array<{ description: string }>>(
+			`/api/spaces/${space.id}/transactions?happenedBy=2026-09-20`,
+		);
+		expect(happened.map((one) => one.description)).toEqual(["Padaria"]);
+	});
+
 	describe("several records at once", () => {
 		/** A space, an account and three planned bills in it. */
 		async function threeBills(client: Client) {

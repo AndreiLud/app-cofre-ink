@@ -78,11 +78,20 @@ describe("the day", () => {
 		expect(read("ipva 900 10/02").happenedOn).toBe("2026-02-10");
 	});
 
-	it("calls a day that has not arrived planned", () => {
-		expect(read("aluguel 1450 amanha").status).toBe("planned");
+	// Release 1.2.1 wrote a day ahead as a promise, and nothing ever turned a promise into
+	// a fact, so the rent written for tomorrow stayed out of the balance on its day and
+	// was called late the day after. The day holds a record back now, and only the day.
+	it("writes a day that has not arrived as a fact, which its day holds back", () => {
+		expect(read("aluguel 1450 amanha").status).toBe("settled");
+		expect(read("aluguel 1450 amanha").happenedOn).toBe("2026-09-22");
 		expect(read("aluguel 1450 ontem").status).toBe("settled");
 		expect(read("aluguel 1450 hoje").status).toBe("settled");
-		expect(read("aluguel 1450 vence dia 30").status).toBe("planned");
+
+		const due = read("aluguel 1450 vence dia 30");
+		expect(due.status).toBe("settled");
+		expect(due.happenedOn).toBe("2026-09-30");
+		// The word that used to ask for a promise is still read, so it stays out of the name.
+		expect(due.description).toBe("aluguel");
 	});
 });
 

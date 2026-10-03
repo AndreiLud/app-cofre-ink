@@ -21,6 +21,7 @@ import { transactions } from "@cofre/db";
 import { assertCan, readableSpaceIds, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber, type Row, type SqlValue } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
+import { happenedBy, stillToComeOn } from "../happened.ts";
 import {
 	type Account,
 	type AccountBalance,
@@ -104,6 +105,16 @@ export type TransactionFilter = {
 	cardId?: string;
 	kind?: TransactionKind;
 	status?: TransactionStatus;
+	/**
+	 * Only what has happened by this day: a fact whose day has come.
+	 *
+	 * Not the same as asking for facts. A record dated ahead is written as a fact and its
+	 * day holds it back, so asking for the status alone counts the rent of the twenty fifth
+	 * on the second.
+	 */
+	happenedBy?: CalendarDate;
+	/** Only what is still to come on this day: a promise from before 1.1.0, or a day ahead. */
+	stillToComeOn?: CalendarDate;
 	from?: CalendarDate;
 	to?: CalendarDate;
 	invoiceMonth?: string;
@@ -586,6 +597,14 @@ export function createTransactionsRepository(context: RepositoryContext) {
 				where.push(`"status" = ?`);
 				params.push(filter.status);
 			}
+			if (filter.happenedBy) {
+				where.push(happenedBy(null));
+				params.push(filter.happenedBy);
+			}
+			if (filter.stillToComeOn) {
+				where.push(stillToComeOn(null));
+				params.push(filter.stillToComeOn);
+			}
 			if (filter.from) {
 				where.push(`"happened_on" >= ?`);
 				params.push(filter.from);
@@ -1022,10 +1041,10 @@ export function createTransactionsRepository(context: RepositoryContext) {
 				  COALESCE((SELECT SUM(CASE WHEN t."kind" = 'transfer' THEN -t."amount" ELSE t."amount" END)
 				            FROM "transactions" t
 				            WHERE t."account_id" = a."id" AND t."deleted_at" IS NULL
-				              AND t."status" = 'settled' ${only} AND t."happened_on" <= ?), 0) AS out_settled,
+				              ${only} AND ${happenedBy("t")}), 0) AS out_settled,
 				  COALESCE((SELECT SUM(t."amount") FROM "transactions" t
 				            WHERE t."counter_account_id" = a."id" AND t."deleted_at" IS NULL
-				              AND t."status" = 'settled' ${only} AND t."happened_on" <= ?), 0) AS in_settled,
+				              ${only} AND ${happenedBy("t")}), 0) AS in_settled,
 				  COALESCE((SELECT SUM(CASE WHEN t."kind" = 'transfer' THEN -t."amount" ELSE t."amount" END)
 				            FROM "transactions" t
 				            WHERE t."account_id" = a."id" AND t."deleted_at" IS NULL ${only}), 0) AS out_all,

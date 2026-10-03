@@ -20,6 +20,7 @@ import {
 } from "@cofre/core";
 import { assertCan, readableSpaceIds, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber, type SqlValue } from "../driver.ts";
+import { happenedBy } from "../happened.ts";
 import type { SpendingPriority } from "../models.ts";
 import { marks } from "../sql.ts";
 import type { RepositoryContext } from "./context.ts";
@@ -29,7 +30,10 @@ export type ReportRange = {
 	spaceId?: string;
 	from: CalendarDate;
 	to: CalendarDate;
-	/** Planned records are left out by default: a report is about what happened. */
+	/**
+	 * What has not happened yet is left out by default, because a report is about what
+	 * happened: a promise from before 1.1.0, and a fact whose day has not come.
+	 */
 	includePlanned?: boolean;
 };
 
@@ -65,7 +69,7 @@ export type PeriodTotals = {
 
 export function createReportsRepository(context: RepositoryContext) {
 	/** The spaces a report may read, and the filter that keeps a logger to their own. */
-	function scope(range: ReportRange): { where: string[]; params: SqlValue[] } {
+	async function scope(range: ReportRange): Promise<{ where: string[]; params: SqlValue[] }> {
 		const actor = context.actor();
 		const spaceIds = range.spaceId
 			? [range.spaceId]
@@ -83,7 +87,32 @@ export function createReportsRepository(context: RepositoryContext) {
 		const params: SqlValue[] = [...spaceIds, range.from, range.to];
 
 		if (range.includePlanned !== true) {
-			where.push(`t."status" = 'settled'`);
+			// What has happened, which is a fact whose day has come. A record dated for the
+			// end of this month is written as a fact today and waits for its day, so a
+			// report of the month in hand reads up to today. Today is a day in the timezone
+			// of each space, and two spaces may disagree about which day it is.
+			const zones = await context.driver.all(
+				`SELECT "id", "timezone" FROM "spaces" WHERE "id" IN (${marks(spaceIds.length)})`,
+				spaceIds,
+			);
+			const byDay = new Map<CalendarDate, string[]>();
+			for (const row of zones) {
+				const day = todayIn(String(row.timezone ?? "America/Sao_Paulo"));
+				byDay.set(day, [...(byDay.get(day) ?? []), String(row.id)]);
+			}
+			const days = [...byDay];
+			const only = days[0];
+			if (days.length === 1 && only) {
+				where.push(happenedBy("t"));
+				params.push(only[0]);
+			} else {
+				where.push(
+					`(${days
+						.map(([, ids]) => `(t."space_id" IN (${marks(ids.length)}) AND ${happenedBy("t")})`)
+						.join(" OR ")})`,
+				);
+				for (const [day, ids] of days) params.push(...ids, day);
+			}
 		}
 
 		const hidden = spaceIds.filter((id) => seesOwnRowsOnly(actor, id));
@@ -172,7 +201,7 @@ export function createReportsRepository(context: RepositoryContext) {
 	return {
 		/** What came in, what went out, and what was left over. */
 		async totals(range: ReportRange): Promise<PeriodTotals> {
-			const { where, params } = scope(range);
+			const { where, params } = await scope(range);
 			if (where.length === 0) return { income: 0, expense: 0, benefits: 0, left: 0 };
 
 			const rows = await context.driver.all(
@@ -206,7 +235,7 @@ export function createReportsRepository(context: RepositoryContext) {
 		 * sorted is exactly the money worth looking at.
 		 */
 		async byCategory(range: ReportRange): Promise<CategoryTotal[]> {
-			const { where, params } = scope(range);
+			const { where, params } = await scope(range);
 			if (where.length === 0) return [];
 
 			const rows = await context.driver.all(
@@ -237,7 +266,7 @@ export function createReportsRepository(context: RepositoryContext) {
 		 * its category, which is the whole reason a record may carry its own.
 		 */
 		async byPriority(range: ReportRange): Promise<PriorityTotal[]> {
-			const { where, params } = scope(range);
+			const { where, params } = await scope(range);
 			if (where.length === 0) return [];
 
 			const rows = await context.driver.all(
@@ -259,7 +288,7 @@ export function createReportsRepository(context: RepositoryContext) {
 
 		/** Month by month, so a year reads as a shape rather than as a table. */
 		async byMonth(range: ReportRange): Promise<MonthTotal[]> {
-			const { where, params } = scope(range);
+			const { where, params } = await scope(range);
 			if (where.length === 0) return [];
 
 			// Both engines cut the first seven characters the same way, which is the one
@@ -284,7 +313,7 @@ export function createReportsRepository(context: RepositoryContext) {
 
 		/** Day by day, for the map that shows which days money leaves. */
 		async byDay(range: ReportRange): Promise<DayTotal[]> {
-			const { where, params } = scope(range);
+			const { where, params } = await scope(range);
 			if (where.length === 0) return [];
 
 			const rows = await context.driver.all(
@@ -304,7 +333,7 @@ export function createReportsRepository(context: RepositoryContext) {
 
 		/** Where money came from, one line per category of income. */
 		async incomeByCategory(range: ReportRange): Promise<CategoryTotal[]> {
-			const { where, params } = scope(range);
+			const { where, params } = await scope(range);
 			if (where.length === 0) return [];
 
 			const rows = await context.driver.all(

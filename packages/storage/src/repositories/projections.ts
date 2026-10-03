@@ -25,6 +25,7 @@ import {
 import { assertCan, seesOwnRowsOnly } from "../actor.ts";
 import type { SqlValue } from "../driver.ts";
 import { asNumber } from "../driver.ts";
+import { stillToComeOn } from "../happened.ts";
 import { toRecurrence } from "../models.ts";
 import type { AccountsRepository } from "./accounts.ts";
 import type { RepositoryContext } from "./context.ts";
@@ -122,7 +123,7 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 			options.notCountedYet === undefined
 				? { clause: "", params: [] as SqlValue[] }
 				: {
-						clause: `AND (t."happened_on" > ? OR t."status" = 'planned')`,
+						clause: `AND ${stillToComeOn("t")}`,
 						params: [options.notCountedYet] as SqlValue[],
 					};
 

@@ -7,7 +7,7 @@
 // for a day already gone simply vanishing.
 
 import { expect, test } from "@playwright/test";
-import { dayField, go, onTheDay, openCofre, total } from "./support.ts";
+import { dayField, go, onTheDay, openCofre, promisesFromBefore, total } from "./support.ts";
 
 test.describe("the overview", () => {
 	test("answers the four questions the product promises, in one line", async ({ page }) => {
@@ -76,56 +76,75 @@ test.describe("the overview", () => {
 		await expect(page).toHaveURL(/lancamentos/);
 	});
 
-	test("puts what was promised for a day already gone at the top, to be answered", async ({
+	test("counts the days a series has already passed, with nothing left to answer", async ({
 		page,
 	}) => {
 		await openCofre(page);
 
-		// A series that started before today writes a promise for every day it has already
-		// passed, and nobody has said those happened. They used to leave the screen
-		// entirely, because the list of what falls due looked forward from today, while
-		// going on being counted as money still to go.
+		// A series that started before today writes a record for every day it has already
+		// passed. Release 1.2.1 wrote each one as a promise and listed them all as late, for
+		// somebody to say they happened. They are facts now, and their days have come.
 		await go(page, "Calendário");
 		await page.getByRole("button", { name: "Nova recorrência" }).click();
 		await page.getByRole("dialog").getByLabel("Descrição").fill("Academia");
 		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("149,00");
-		// A few days behind the day the suite runs on, so the series owes promises nobody has
-		// answered. A series never writes a record for a month before the one it was written
-		// down in, which is why the day the suite runs on is fixed rather than real.
+		// A series never writes a record for a month before the one it was written down in,
+		// which is why the day the suite runs on is fixed rather than real.
 		await page.getByRole("dialog").getByLabel("A partir de").fill(dayField(-6));
 		await page.getByRole("button", { name: "Salvar" }).click();
 		await expect(page.getByText("Academia").first()).toBeVisible();
 
 		await go(page, "Painel");
-		const late = page.locator("section,div").filter({ hasText: "Atrasado" }).first();
-		await expect(late).toBeVisible();
-		await expect(page.getByRole("button", { name: "Aconteceu" }).first()).toBeVisible();
-		await expect(page.getByRole("button", { name: "Não aconteceu" }).first()).toBeVisible();
+		await expect(page.getByText("Atrasado", { exact: true })).toHaveCount(0);
+		await expect(page.getByRole("button", { name: "Não aconteceu" })).toHaveCount(0);
 	});
 
-	test("answers a week of late promises in one go", async ({ page }) => {
-		// A series that has already passed three times, which is what coming back from a week
-		// away looks like. Answering them was one press each, each its own write.
-		await openCofre(page);
+	test("puts a promise from before 1.1.0 whose day is gone at the top, to be answered", async ({
+		browser,
+	}) => {
+		// A promise written by release 1.0 for a day that has passed. Nobody has said it
+		// happened, so it is the one thing still called late.
+		const before = await promisesFromBefore(browser, {
+			description: "Academia",
+			amount: "149,00",
+			from: -6,
+		});
+		const page = before.page;
+		try {
+			await go(page, "Painel");
+			const late = page.locator("section,div").filter({ hasText: "Atrasado" }).first();
+			await expect(late).toBeVisible();
+			await expect(page.getByRole("button", { name: "Aconteceu" }).first()).toBeVisible();
+			await expect(page.getByRole("button", { name: "Não aconteceu" }).first()).toBeVisible();
+		} finally {
+			await before.close();
+		}
+	});
 
-		await go(page, "Calendário");
-		await page.getByRole("button", { name: "Nova recorrência" }).click();
-		await page.getByRole("dialog").getByLabel("Descrição").fill("Van da escola");
-		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("30,00");
-		await page.getByRole("dialog").getByLabel("Repete").selectOption("weekly");
-		await page.getByRole("dialog").getByLabel("A partir de").fill(dayField(-27));
-		await page.getByRole("button", { name: "Salvar" }).click();
+	test("answers a week of late promises in one go", async ({ browser }) => {
+		// Promises from before 1.1.0 that have passed three times, which is what coming back
+		// from a week away looked like. Answering them was one press each.
+		const before = await promisesFromBefore(browser, {
+			description: "Van da escola",
+			amount: "30,00",
+			weekly: true,
+			from: -27,
+		});
+		const page = before.page;
+		try {
+			await go(page, "Painel");
+			await page.getByRole("button", { name: /^Confirmar os \d+$/ }).click();
 
-		await go(page, "Painel");
-		await page.getByRole("button", { name: /^Confirmar os \d+$/ }).click();
+			// The dialog says what moves and that the days do not, before anything moves.
+			const asking = page.getByRole("dialog");
+			await expect(asking.getByText("fica no dia para o qual foi prometido")).toBeVisible();
+			await asking.getByRole("button", { name: "Aconteceram todos" }).click();
 
-		// The dialog says what moves and that the days do not, before anything moves.
-		const asking = page.getByRole("dialog");
-		await expect(asking.getByText("fica no dia para o qual foi prometido")).toBeVisible();
-		await asking.getByRole("button", { name: "Aconteceram todos" }).click();
-
-		await expect(page.getByText(/registros confirmados/)).toBeVisible();
-		await expect(page.getByRole("button", { name: /^Confirmar os \d+$/ })).toHaveCount(0);
+			await expect(page.getByText(/registros confirmados/)).toBeVisible();
+			await expect(page.getByRole("button", { name: /^Confirmar os \d+$/ })).toHaveCount(0);
+		} finally {
+			await before.close();
+		}
 	});
 
 	test("puts a card invoice whose due day has gone with the things to answer", async ({ page }) => {

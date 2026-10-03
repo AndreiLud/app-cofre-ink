@@ -296,9 +296,11 @@ export function TransactionForm({
 				description,
 				accountId,
 				counterAccountId: kind === "transfer" ? counterAccountId : null,
-				// The day decides. A day that has not arrived has not happened, whatever
-				// anybody ticks, and the one line reader has read it this way all along.
-				status: compareCalendarDates(happenedOn as CalendarDate, today) > 0 ? "planned" : "settled",
+				// Written as having happened, whatever the day. A day that has not arrived holds
+				// it back from the balance until it arrives, and then it counts by itself: this
+				// wrote a promise for a day ahead, nothing ever kept it, and on its day the record
+				// stayed out of the balance and the next morning came back as late.
+				status: "settled",
 				notes: notes.trim() === "" ? null : notes.trim(),
 				installments: canSplit ? Number(installments) : 1,
 				...sorting,
@@ -506,7 +508,10 @@ export function TransactionForm({
 				    field that had already been given the day. Two answers to one question,
 				    and the tickbox won. The day decides now, and this says what the day
 				    chosen above means, which is the only part of it worth reading. */}
-				{editing === null && compareCalendarDates(happenedOn as CalendarDate, today) > 0 ? (
+				{/* Said when editing too, since a record dated ahead is kept as a fact that waits
+				    for its day, and the promise below is only what release 1.0 wrote. */}
+				{editing?.status !== "planned" &&
+				compareCalendarDates(happenedOn as CalendarDate, today) > 0 ? (
 					<p className="text-quiet text-sm">{t("transactions.aheadOfToday")}</p>
 				) : null}
 				{editing?.status === "planned" ? (

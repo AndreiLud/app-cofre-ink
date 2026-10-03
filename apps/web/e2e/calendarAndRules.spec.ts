@@ -1,7 +1,7 @@
 // What happens again, and what gets sorted without anybody being asked.
 
 import { expect, test } from "@playwright/test";
-import { go, openCofre, record } from "./support.ts";
+import { dayField, go, openCofre, record } from "./support.ts";
 
 test.describe("the calendar", () => {
 	test("shows the month with what is already in it", async ({ page }) => {
@@ -27,11 +27,14 @@ test.describe("the calendar", () => {
 			"Todo mês",
 		);
 
-		// And the calendar itself now carries it, as something that has not happened.
+		// And the calendar itself now carries it.
 		await expect(page.getByText("Aluguel do mês").first()).toBeVisible();
 
-		// The list of records shows it as planned, not as money that moved.
+		// It starts today, so today's is money that moved and nobody had to say so. Next
+		// month's is a fact that waits for its day, and the list says it is still to come.
 		await go(page, "Lançamentos");
+		await expect(record(page, "Aluguel do mês")).not.toContainText("Previsto");
+		await page.getByLabel("Mês", { exact: true }).fill(dayField(31).slice(0, 7));
 		await expect(record(page, "Aluguel do mês")).toContainText("Previsto");
 	});
 

@@ -1,7 +1,7 @@
 // Writing money down, which is the thing the product exists to make fast.
 
 import { expect, test } from "@playwright/test";
-import { dayField, go, openCofre, record, total } from "./support.ts";
+import { dayField, go, onTheDay, openCofre, record, total } from "./support.ts";
 
 /**
  * A day ahead of the day the suite runs on, as the date field wants it.
@@ -69,7 +69,59 @@ test.describe("records", () => {
 		await expect(page.getByRole("cell", { name: "-R$ 411,52" })).toBeVisible();
 	});
 
-	test("keeps what is planned out of the balance until it is paid", async ({ page }) => {
+	// Release 1.2.1 wrote a day ahead as a promise, and nothing ever made a promise a fact:
+	// on its day it stayed out of the balance, and the day after it was called late. The
+	// case from the request for 2.0.0, part 1, A.1.3: a record from the form and an
+	// occurrence of a series, three days out, with the clock moved to their day.
+	test("counts a record and a series dated three days ahead on their day, untouched", async ({
+		page,
+	}) => {
+		await openCofre(page, { demo: false });
+
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		await page.getByLabel("Nome").fill("Banco");
+		await page.getByLabel("Saldo de abertura").fill("1.000,00");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Banco", exact: true })).toBeVisible();
+
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = page.getByRole("dialog");
+		await form.getByLabel("Valor", { exact: true }).fill("75,00");
+		await form.getByLabel("Descrição").fill("Seguro do carro");
+		await form.getByLabel("Dia").fill(dayField(3));
+		await expect(form).toContainText("passa a contar no saldo sozinho nesse dia");
+		await page.getByRole("button", { name: "Salvar" }).click();
+
+		await go(page, "Calendário");
+		await page.getByRole("button", { name: "Nova recorrência" }).click();
+		await page.getByRole("dialog").getByLabel("Descrição").fill("Academia");
+		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("149,00");
+		await page.getByRole("dialog").getByLabel("A partir de").fill(dayField(3));
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByText("Academia").first()).toBeVisible();
+
+		await go(page, "Painel");
+		await expect(total(page)).toHaveText("R$ 1.000,00");
+
+		// Their day, and the page opened again the way somebody opens it in the morning.
+		await page.clock.setFixedTime(onTheDay(3));
+		await page.reload();
+		await expect(total(page)).toHaveText("R$ 776,00", { timeout: 45_000 });
+		await expect(page.getByText("Atrasado", { exact: true })).toHaveCount(0);
+
+		// And the day after, which is the day 1.2.1 called both of them late.
+		await page.clock.setFixedTime(onTheDay(4));
+		await page.reload();
+		await expect(total(page)).toHaveText("R$ 776,00", { timeout: 45_000 });
+		await expect(page.getByText("Atrasado", { exact: true })).toHaveCount(0);
+		await expect(page.getByRole("button", { name: /^Confirmar os/ })).toHaveCount(0);
+	});
+
+	test("keeps a record dated ahead out of the balance until its day, or until it is paid", async ({
+		page,
+	}) => {
 		await openCofre(page);
 
 		await go(page, "Lançamentos");
@@ -236,9 +288,15 @@ test.describe("records", () => {
 
 		await page.getByRole("button", { name: "Marcar como pago" }).first().click();
 
+		// Paid now, so the two leave the day they were due on for today, the way one record
+		// paid from its own menu does. Writing only the status left both on their day, where
+		// a fact dated ahead still waits, and nothing on the screen changed.
 		await expect(page.getByText("2 selecionados")).toHaveCount(0);
+		await expect(record(page, "Conta de luz")).toHaveCount(0);
+		await page.getByLabel("Mês", { exact: true }).fill(monthOfDay(inDays(0)));
 		await expect(record(page, "Conta de luz")).not.toContainText("Previsto");
 		await expect(record(page, "Conta de água")).not.toContainText("Previsto");
+		await expect(record(page, "Conta de luz")).toContainText(inDays(0).slice(8));
 	});
 
 	test("keeps a filter and brings it back by name", async ({ page }) => {

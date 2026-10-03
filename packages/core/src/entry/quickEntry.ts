@@ -229,7 +229,6 @@ export function readQuickEntry(text: string, options: QuickEntryOptions): QuickE
 	const roles: Role[] = tokens.map(() => "word");
 
 	let kind: QuickEntryKind = "expense";
-	let status: QuickEntryStatus | null = null;
 	let amount: number | null = null;
 	let happenedOn: CalendarDate | null = null;
 	let installments = 1;
@@ -279,7 +278,6 @@ export function readQuickEntry(text: string, options: QuickEntryOptions): QuickE
 			continue;
 		}
 		if (PLANNED_WORDS.includes(token)) {
-			status = "planned";
 			roles[index] = "status";
 			continue;
 		}
@@ -364,8 +362,11 @@ export function readQuickEntry(text: string, options: QuickEntryOptions): QuickE
 
 	return {
 		kind,
-		// A day that has not arrived yet has not happened yet, whatever the words say.
-		status: status ?? (daysBetween(options.today, day) > 0 ? "planned" : "settled"),
+		// Always a fact. A day that has not arrived holds it back from the balance until it
+		// arrives, and then it counts by itself; a promise is what release 1.0 wrote, and
+		// nothing new is one. The words that used to ask for one are still read, so they do
+		// not end up in the description, and they change nothing.
+		status: "settled",
 		amount,
 		currency,
 		happenedOn: day,

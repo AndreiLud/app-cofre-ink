@@ -26,6 +26,7 @@ import { runCardConformance } from "./cards.ts";
 import { runCategoryConformance } from "./categories.ts";
 import { runErasureConformance } from "./erasure.ts";
 import { runFutureConformance } from "./future.ts";
+import { runHappenedConformance } from "./happened.ts";
 import { runInvoiceConformance } from "./invoices.ts";
 import { runPlanConformance } from "./plan.ts";
 import { runPortabilityConformance } from "./portability.ts";
@@ -835,6 +836,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 		});
 
 		runTransactionConformance(adapter);
+		runHappenedConformance(adapter);
 		runCardConformance(adapter);
 		runInvoiceConformance(adapter);
 		runCategoryConformance(adapter);

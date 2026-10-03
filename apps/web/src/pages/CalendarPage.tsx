@@ -2,11 +2,11 @@
 //
 // A list answers "what did I spend". A calendar answers a different question: where the
 // heavy days are, and whether the week the rent falls due is the week the card closes.
-// Every record is here, what happened and what is still only planned, and the planned
-// ones are set apart because they are promises and not facts.
+// Every record is here, what happened and what is still to come, and the ones still to
+// come are set apart because their day has not arrived.
 
 import { addMonthsToMonth, addUpInBase, monthOf, todayIn } from "@cofre/core";
-import type { Transaction } from "@cofre/storage";
+import { hasHappened, type Transaction } from "@cofre/storage";
 import { Button, InsightTitle, Panel, Skeleton } from "@cofre/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -95,7 +95,9 @@ export function CalendarPage() {
 	// went into the month as though its minor units were the space's own.
 	const spent = addUpInBase(rows.filter((row) => row.kind === "expense"));
 	const earned = addUpInBase(rows.filter((row) => row.kind === "income"));
-	const stillPlanned = addUpInBase(rows.filter((row) => row.status === "planned"));
+	// Still to come is whatever has not happened by today, by the same rule every balance
+	// follows: a record dated ahead is written as a fact and waits for its day.
+	const stillPlanned = addUpInBase(rows.filter((row) => !hasHappened(row, today)));
 
 	const monthName = new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
 		month: "long",
@@ -203,7 +205,7 @@ export function CalendarPage() {
 										<p
 											key={row.id}
 											className={`truncate text-xs ${
-												row.status === "planned" ? "text-ochre" : "text-ink"
+												hasHappened(row, today) ? "text-ink" : "text-ochre"
 											}`}
 											title={row.description}
 										>
