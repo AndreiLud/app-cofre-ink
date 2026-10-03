@@ -599,7 +599,7 @@
 		"limitIsForCards": "Only a credit card has a limit.",
 		"notOnAnInvoice": "Only a record that is on an invoice can be moved to another one.",
 		"benefitIsNotIncome": "A benefit card only spends. What lands on it is the monthly allowance of the card, and {{app}} counts that on its own.",
-		"benefitDoesNotLeave": "Money on a benefit card is spent on the card and does not leave it. A top up by Pix goes in as a transfer into the card, because that one is real.",
+		"benefitDoesNotLeave": "Money on a benefit card is spent on the card and does not leave it. To put money on it, use Top up, on the card's line on the overview or under Accounts.",
 		"closingDayTooFar": "That day is too far from the expected closing. A bank moves a closing by a few days, for a weekend or a holiday; check the day, and the year.",
 		"quotaNeedsADay": "The allowance lands on a day of the month. Pick the day it lands on.",
 		"knownAmountIsForCarryingVouchers": "How much is on the card today is only for a benefit that carries. On one that resets, the monthly allowance already says what is on it.",
@@ -1597,6 +1597,9 @@
 		"notHere": "Credit cards and investment accounts are not here. A card's invoice is paid under Invoices, with Pay the invoice, which says which invoice was paid; an investment account is worth the holdings inside it.",
 		"description": "Moved between accounts",
 		"repeats": "Repeats every month, on this day",
-		"fromHere": "Move money from here"
+		"fromHere": "Move money from here",
+		"topUp": "Top up",
+		"topUpTitle": "Top up {{name}}",
+		"topUpDescription": "Top up"
 	}
 }

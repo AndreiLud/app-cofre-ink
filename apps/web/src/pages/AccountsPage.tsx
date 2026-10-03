@@ -584,6 +584,23 @@ export function AccountsPage() {
 														<MenuSeparator />
 													</>
 												) : null}
+												{/* A top up by Pix, which a card like Caju or Flash takes. */}
+												{mayMove && account.kind === "voucher" && movesInto(account) ? (
+													<>
+														<MenuItem
+															onSelect={() =>
+																setMoving({
+																	toId: account.id,
+																	title: t("move.topUpTitle", { name: account.name }),
+																	description: t("move.topUpDescription"),
+																})
+															}
+														>
+															{t("move.topUp")}
+														</MenuItem>
+														<MenuSeparator />
+													</>
+												) : null}
 												{/* Only the cards that already reach this account. Adding one is
 												    "Nova conta", where a card is one of the things you can add,
 												    and a second door onto the same form is a second door to keep

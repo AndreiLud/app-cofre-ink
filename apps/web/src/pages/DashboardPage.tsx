@@ -31,7 +31,7 @@ import {
 	splitInvoicesFallingDue,
 	todayIn,
 } from "@cofre/core";
-import type { CardStanding } from "@cofre/storage";
+import type { Account, CardStanding } from "@cofre/storage";
 import { roleSeesOwnRowsOnly } from "@cofre/storage";
 import {
 	Button,
@@ -48,6 +48,7 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Findings } from "../components/Findings.tsx";
+import { MoveDialog, movesOutOf } from "../components/MoveDialog.tsx";
 import { Value } from "../components/Value.tsx";
 import { VoucherAmount } from "../components/VoucherAmount.tsx";
 import { EVERY_MONTH } from "../lib/recordFilters.ts";
@@ -123,6 +124,8 @@ export function DashboardPage() {
 	// dialog is not decoration: it is the only stop between the button and the writes.
 	const [askingAll, setAskingAll] = useState(false);
 	const [confirmedAll, setConfirmedAll] = useState(0);
+	/** The benefit card money is being put on, by Pix from one of the accounts. */
+	const [toppingUp, setToppingUp] = useState<Account | null>(null);
 
 	const mine = useWhatIMayDo(spaceId);
 	const mayUpdate = mine.mayCall("transactions.settle");
@@ -781,9 +784,17 @@ export function DashboardPage() {
 							<VoucherLine
 								key={voucher.id}
 								accountId={voucher.id}
+								spaceId={voucher.spaceId}
 								name={voucher.name}
 								currency={voucher.currency}
 								today={today}
+								onTopUp={
+									shownAccounts.some(
+										(account) => account.spaceId === voucher.spaceId && movesOutOf(account),
+									)
+										? () => setToppingUp(voucher)
+										: undefined
+								}
 							/>
 						))}
 					</div>
@@ -1158,6 +1169,23 @@ export function DashboardPage() {
 				<p className="mt-2 text-quiet text-sm">{t("dashboard.confirmAllKeepsTheDay")}</p>
 				<p className="mt-2 text-quiet text-sm">{t("dashboard.confirmAllIsFinal")}</p>
 			</Dialog>
+
+			<MoveDialog
+				open={toppingUp !== null}
+				onOpenChange={(next) => !next && setToppingUp(null)}
+				spaceId={toppingUp?.spaceId ?? spaceId}
+				accounts={shownAccounts.filter((account) => account.spaceId === toppingUp?.spaceId)}
+				today={today}
+				start={
+					toppingUp
+						? {
+								toId: toppingUp.id,
+								title: t("move.topUpTitle", { name: toppingUp.name }),
+								description: t("move.topUpDescription"),
+							}
+						: undefined
+				}
+			/>
 		</div>
 	);
 }
@@ -1399,18 +1427,25 @@ function DueRow({
 /** What is left on one benefit card, which is worked out rather than stored. */
 function VoucherLine({
 	accountId,
+	spaceId,
 	name,
 	currency,
 	today,
+	onTopUp,
 }: {
 	accountId: string;
+	/** The space of the card, whose role decides whether money may be put on it. */
+	spaceId: string;
 	name: string;
 	/** The currency of the card, which is the one every other line in this panel uses. */
 	currency: string;
 	today: CalendarDate;
+	/** Putting money on the card by Pix, when there is an account it can come from. */
+	onTopUp?: () => void;
 }) {
 	const { t } = useTranslation();
 	const { session } = useCofre();
+	const mayTopUp = useWhatIMayDo(spaceId).mayCall("transactions.create");
 	const state = useQuery({
 		queryKey: ["benefit", accountId, today],
 		enabled: Boolean(session),
@@ -1448,6 +1483,13 @@ function VoucherLine({
 					</p>
 				) : null}
 			</div>
+			{/* The way money is put on a card that takes a top up. It was written as a transfer
+			    on the form, which the application told people to do and then never read. */}
+			{onTopUp && mayTopUp ? (
+				<Button size="small" variant="secondary" onClick={onTopUp}>
+					{t("move.topUp")}
+				</Button>
+			) : null}
 		</div>
 	);
 }

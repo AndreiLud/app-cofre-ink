@@ -31,6 +31,8 @@ export type MoveStart = {
 	amount?: string;
 	happenedOn?: string;
 	description?: string;
+	/** What the dialog is called when it was opened for one thing, a top up for one. */
+	title?: string;
 };
 
 export type MoveDialogProps = {
@@ -174,7 +176,7 @@ export function MoveDialog({
 		<Dialog
 			open={open}
 			onOpenChange={onOpenChange}
-			title={t("move.title")}
+			title={start?.title ?? t("move.title")}
 			description={t("move.explain")}
 			closeLabel={t("actions.close")}
 			footer={

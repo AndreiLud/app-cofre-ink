@@ -599,7 +599,7 @@
 		"limitIsForCards": "Só um cartão de crédito tem limite.",
 		"notOnAnInvoice": "Só um lançamento que está numa fatura pode ser movido para outra.",
 		"benefitIsNotIncome": "Um cartão de benefício só gasta. O valor que cai nele é o valor mensal do cartão, e o {{app}} conta esse valor sozinho.",
-		"benefitDoesNotLeave": "O dinheiro de um cartão de benefício é gasto no próprio cartão e não sai dele. Recarregar por Pix você lança como transferência para o cartão, que isso existe.",
+		"benefitDoesNotLeave": "O dinheiro de um cartão de benefício é gasto no próprio cartão e não sai dele. Para pôr dinheiro nele, use Recarregar, na linha do cartão no Painel ou em Contas.",
 		"closingDayTooFar": "Esse dia está longe demais do fechamento previsto. Um banco muda o fechamento em poucos dias, por fim de semana ou feriado; confira o dia, e o ano.",
 		"quotaNeedsADay": "O valor do benefício cai num dia do mês. Escolha o dia em que ele cai.",
 		"knownAmountIsForCarryingVouchers": "Quanto tem no cartão hoje só vale para um benefício que acumula. Num que zera, o valor do mês já diz o que tem.",
@@ -1597,6 +1597,9 @@
 		"notHere": "Cartão de crédito e conta de investimento não entram aqui. A fatura de um cartão se paga em Faturas, com Pagar fatura, que diz qual fatura foi paga; uma conta de investimento vale pelas aplicações dentro dela.",
 		"description": "Movimentação entre contas",
 		"repeats": "Repete todo mês, neste dia",
-		"fromHere": "Mover dinheiro daqui"
+		"fromHere": "Mover dinheiro daqui",
+		"topUp": "Recarregar",
+		"topUpTitle": "Recarregar {{name}}",
+		"topUpDescription": "Recarga"
 	}
 }

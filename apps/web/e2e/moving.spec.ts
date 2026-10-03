@@ -17,6 +17,37 @@ async function balanceOf(page: Page, name: string): Promise<number> {
 }
 
 test.describe("moving money between accounts", () => {
+	// Part 2, A.8.3 of the request for 2.0.0: a top up by Pix is money moved onto the card,
+	// which raises what is left on it and is neither spending nor money coming in.
+	test("tops up a benefit card from its line, and the reports stay as they were", async ({
+		page,
+	}) => {
+		await openCofre(page);
+		await go(page, "Relatórios");
+		const october = page.getByRole("row").filter({ hasText: /^outubro/ });
+		const before = await october.innerText();
+
+		await go(page, "Painel");
+		// The sample's meal card: 900 a month, and a lunch of 56 on it.
+		await expect(page.getByText("R$ 844,00").first()).toBeVisible();
+		await page.getByRole("button", { name: "Recarregar" }).click();
+		const dialog = page.getByRole("dialog");
+		await expect(dialog.getByRole("heading", { name: "Recarregar Vale refeição" })).toBeVisible();
+		await expect(dialog.getByLabel("Para", { exact: true }).locator("option:checked")).toHaveText(
+			"Vale refeição",
+		);
+		await dialog.getByLabel("Valor", { exact: true }).fill("100,00");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(dialog).toHaveCount(0);
+
+		await page.reload();
+		await expect(page.getByText("R$ 944,00").first()).toBeVisible({ timeout: 45_000 });
+
+		await go(page, "Relatórios");
+		const flat = (text: string) => text.replace(/\s+/g, "");
+		await expect.poll(async () => flat(await october.innerText())).toBe(flat(before));
+	});
+
 	// Part 2, A.8.1 of the request for 2.0.0, and decision 1: the form for a record has money
 	// out and money in, a spend that was really money put aside opens Move between accounts
 	// with what was typed, and the move of the sample opens with both of its ends.
