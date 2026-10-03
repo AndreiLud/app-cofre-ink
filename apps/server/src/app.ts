@@ -757,6 +757,76 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		});
 	});
 
+	// Paying an invoice with another card, splitting one, and undoing either: part 2, C of
+	// 2.0.0. The parts are whole numbers from one; the most there may be is the repository's to
+	// say, which answers 409 tooManyInstallments past it. The general route for records takes no
+	// invoice of origin, so these are the only way to write one.
+	const parts = z.number().int().min(1);
+	const positive = z.number().int().positive();
+	const label = z.string().trim().min(1).max(200);
+
+	app.post("/api/accounts/:id/invoices/payWithCard", async (context) => {
+		const input = z
+			.object({
+				month: existingMonth,
+				cardAccountId: z.string().min(1),
+				amount: positive,
+				charged: positive,
+				eachPart: z.boolean(),
+				parts,
+				happenedOn: calendarDate,
+				today: calendarDate,
+				categoryId: z.string().min(1).nullable().optional(),
+				description: label,
+				costDescription: label,
+			})
+			.parse(await context.req.json());
+		return context.json(
+			await context
+				.get("session")
+				.invoices.payWithCard({ accountId: context.req.param("id"), ...input }),
+			201,
+		);
+	});
+
+	app.post("/api/accounts/:id/invoices/split", async (context) => {
+		const input = z
+			.object({
+				month: existingMonth,
+				entry: z.number().int().nonnegative(),
+				entryFromAccountId: z.string().min(1).nullable().optional(),
+				useAsEntry: z.string().min(1).nullable().optional(),
+				parts,
+				amount: positive,
+				eachPart: z.boolean(),
+				firstMonth: existingMonth.nullable().optional(),
+				agreedOn: calendarDate.nullable().optional(),
+				today: calendarDate,
+				categoryId: z.string().min(1).nullable().optional(),
+				tax: z.number().int().nonnegative().optional(),
+				description: label,
+				costDescription: label,
+				entryDescription: label,
+				taxDescription: label,
+			})
+			.parse(await context.req.json());
+		return context.json(
+			await context.get("session").invoices.split({ accountId: context.req.param("id"), ...input }),
+			201,
+		);
+	});
+
+	app.post("/api/accounts/:id/invoices/undoPlan", async (context) => {
+		const input = z
+			.object({ month: existingMonth, today: calendarDate })
+			.parse(await context.req.json());
+		return context.json({
+			removed: await context
+				.get("session")
+				.invoices.undoPlan({ accountId: context.req.param("id"), ...input }),
+		});
+	});
+
 	app.post("/api/accounts/:id/invoices/closedOn", async (context) => {
 		const input = z
 			.object({ month: existingMonth, day: calendarDate })

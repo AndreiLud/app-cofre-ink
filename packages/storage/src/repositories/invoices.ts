@@ -1276,3 +1276,8 @@ function shiftMonth(month: CalendarMonth, step: number): CalendarMonth {
 }
 
 export type InvoicesRepository = ReturnType<typeof createInvoicesRepository>;
+
+/** What paying an invoice with another card is asked for. */
+export type PayWithCardInput = Parameters<InvoicesRepository["payWithCard"]>[0];
+/** What splitting an invoice into parts is asked for. */
+export type SplitInvoiceInput = Parameters<InvoicesRepository["split"]>[0];

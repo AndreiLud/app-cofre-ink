@@ -477,6 +477,85 @@ describe("the api", () => {
 		expect((await payment("2026-13")).status).toBe(400);
 	});
 
+	// Part 2, C.12 and C.14.5 of the request for 2.0.0: splitting an invoice and paying one with
+	// another card on a server, a month that does not exist and an amount that is not whole
+	// refused where they come in, forty nine parts refused by the repository, and the rest
+	// written.
+	it("splits an invoice and pays one with another card, and refuses what is wrong", async () => {
+		const ana = createClient(app);
+		await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+		const space = await ana.json<{ id: string }>("/api/spaces", {
+			method: "POST",
+			body: JSON.stringify({ name: "Casa" }),
+		});
+		const card = (name: string) =>
+			ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+				method: "POST",
+				body: JSON.stringify({ kind: "credit", name, closingDay: 3, dueDay: 10 }),
+			});
+		const a = await card("Nubank");
+		const b = await card("Itau");
+		const post = (path: string, body: Record<string, unknown>) =>
+			ana.request(path, { method: "POST", body: JSON.stringify(body) });
+		for (const [accountId, amount] of [
+			[a.id, 300_000],
+			[b.id, 100_000],
+		] as const) {
+			await post(`/api/spaces/${space.id}/transactions`, {
+				kind: "expense",
+				amount,
+				happenedOn: "2025-09-20",
+				description: "Compras",
+				accountId,
+			});
+		}
+
+		const split = {
+			month: "2025-10",
+			entry: 0,
+			parts: 6,
+			amount: 50_000,
+			eachPart: true,
+			agreedOn: "2025-10-10",
+			today: "2025-10-10",
+			description: "Parcelamento",
+			costDescription: "Juros",
+			entryDescription: "Entrada",
+			taxDescription: "IOF",
+		};
+		const route = `/api/accounts/${a.id}/invoices/split`;
+		expect((await post(route, { ...split, month: "2025-13" })).status).toBe(400);
+		expect((await post(route, { ...split, amount: 50_000.5 })).status).toBe(400);
+		const tooMany = await post(route, { ...split, parts: 49 });
+		expect(tooMany.status).toBe(409);
+		expect(((await tooMany.json()) as { error: string }).error).toBe("tooManyInstallments");
+		expect((await post(route, split)).status).toBe(201);
+
+		const paid = await post(`/api/accounts/${b.id}/invoices/payWithCard`, {
+			month: "2025-10",
+			cardAccountId: a.id,
+			amount: 100_000,
+			charged: 105_000,
+			eachPart: false,
+			parts: 3,
+			happenedOn: "2025-10-05",
+			today: "2025-10-05",
+			description: "Pagamento com Nubank",
+			costDescription: "Custo",
+		});
+		expect(paid.status).toBe(201);
+		const states = await ana.json<Array<{ month: string; standing: string }>>(
+			`/api/accounts/${a.id}/invoices?today=2025-10-10`,
+		);
+		expect(states.find((one) => one.month === "2025-10")?.standing).toBe("inParts");
+
+		const undone = await post(`/api/accounts/${a.id}/invoices/undoPlan`, {
+			month: "2025-10",
+			today: "2025-10-10",
+		});
+		expect(((await undone.json()) as { removed: number }).removed).toBe(6);
+	});
+
 	// Part 1, G.6 of the request for 2.0.0: the route that pays an invoice took "2026-13",
 	// wrote the payment, and from then on every reading of an invoice in the space answered
 	// five hundred. A month or a day that does not exist is refused where it comes in.

@@ -45,6 +45,7 @@ import type {
 	IndexSeries,
 	KnownRecord,
 	MonthTotal,
+	PayWithCardInput,
 	PeriodTotals,
 	PersonBalance,
 	PriorityTotal,
@@ -66,6 +67,7 @@ import type {
 	SpaceKind,
 	SpaceMember,
 	SplitInput,
+	SplitInvoiceInput,
 	Transaction,
 	TransactionFilter,
 	TransactionKind,
@@ -213,6 +215,12 @@ export type CofreSession = {
 		}) => Promise<number>;
 		move: (id: string, towards: "earlier" | "later") => Promise<number>;
 		closedOn: (input: { accountId: string; month: string; day: CalendarDate }) => Promise<number>;
+		/** Paying an invoice with another card, in parts. */
+		payWithCard: (input: PayWithCardInput) => Promise<{ parts: number; cost: number }>;
+		/** Splitting an invoice into parts the card itself charges. */
+		split: (input: SplitInvoiceInput) => Promise<{ parts: number; cost: number }>;
+		/** Taking either back, all of it or none. */
+		undoPlan: (input: { accountId: string; month: string; today: CalendarDate }) => Promise<number>;
 	};
 	/**
 	 * The only door that deletes rather than hides. It is separate from everything else

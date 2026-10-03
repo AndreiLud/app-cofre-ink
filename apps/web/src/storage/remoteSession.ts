@@ -51,6 +51,7 @@ import type {
 	Invitation,
 	KnownRecord,
 	MonthTotal,
+	PayWithCardInput,
 	PeriodTotals,
 	PersonBalance,
 	PriorityTotal,
@@ -70,6 +71,7 @@ import type {
 	Space,
 	SpaceMember,
 	SplitInput,
+	SplitInvoiceInput,
 	Transaction,
 	TransactionFilter,
 	TransactionKind,
@@ -489,6 +491,33 @@ export function createRemoteSession(
 						rest,
 					)
 				).moved,
+			payWithCard: ({ accountId, ...rest }: PayWithCardInput) =>
+				send<{ parts: number; cost: number }>(
+					`/api/accounts/${accountId}/invoices/payWithCard`,
+					"POST",
+					rest,
+				),
+			split: ({ accountId, ...rest }: SplitInvoiceInput) =>
+				send<{ parts: number; cost: number }>(
+					`/api/accounts/${accountId}/invoices/split`,
+					"POST",
+					rest,
+				),
+			undoPlan: async ({
+				accountId,
+				...rest
+			}: {
+				accountId: string;
+				month: string;
+				today: CalendarDate;
+			}) =>
+				(
+					await send<{ removed: number }>(
+						`/api/accounts/${accountId}/invoices/undoPlan`,
+						"POST",
+						rest,
+					)
+				).removed,
 		},
 
 		rules: {
