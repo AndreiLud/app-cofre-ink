@@ -237,19 +237,27 @@ export function DashboardPage() {
 
 	/** What falls due in the next days, soonest first, cut at the near end and not the far one. */
 	const upcoming = useQuery({
-		queryKey: ["transactions", spaceId, "upcoming", today],
+		queryKey: ["transactions", spaceId, "upcoming", today, consolidated],
 		enabled: Boolean(session && currentSpace),
-		queryFn: () =>
-			session?.transactions.list({
-				spaceId,
-				// Still to come, and not the status alone: a record dated ahead is written as a
-				// fact now and its day holds it back.
-				stillToComeOn: today,
-				from: today,
-				to: addDays(today, AHEAD),
-				order: "oldestFirst",
-				limit: 50,
-			}) ?? [],
+		queryFn: async () => {
+			if (!session) return [];
+			const of = (id: string) =>
+				session.transactions.list({
+					spaceId: id,
+					// Still to come, and not the status alone: a record dated ahead is written as a
+					// fact now and its day holds it back.
+					stillToComeOn: today,
+					from: today,
+					to: addDays(today, AHEAD),
+					order: "oldestFirst",
+					limit: 50,
+				});
+			// "Todos" reads every space, as its figures do: the rent of a space nobody opened
+			// today falls due all the same (part 2, J.8.3 of 2.0.0).
+			if (!consolidated) return of(spaceId);
+			const lists = await Promise.all(spaces.map((space) => of(space.id)));
+			return lists.flat().sort((one, other) => (one.happenedOn < other.happenedOn ? -1 : 1));
+		},
 	});
 
 	/**
