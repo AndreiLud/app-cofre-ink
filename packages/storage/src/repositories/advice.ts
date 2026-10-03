@@ -422,18 +422,30 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 		from: string,
 		thisMonth: string,
 	): Promise<{ month: string; amount: number }[]> {
+		// What each invoice charged, by the rule of which invoice a record touches (`touchesOn`
+		// in the core): a purchase or a refund on the invoice it names, and a transfer out of a
+		// card on the invoice of its origin. It read purchases only, so an invoice holding the
+		// part of a split read as the cost of that part alone, a sixth of what it charged.
+		const month = `(CASE WHEN "kind" = 'transfer'
+		     THEN COALESCE("origin_invoice_month", "invoice_month") ELSE "invoice_month" END)`;
 		const rows = await context.driver.all(
-			`SELECT "invoice_month" AS month, COALESCE(SUM("amount_in_base"), 0) AS total
+			`SELECT ${month} AS month,
+			   COALESCE(SUM(CASE WHEN "kind" = 'transfer' THEN "amount_in_base"
+			     ELSE -"amount_in_base" END), 0) AS total
 			 FROM "transactions"
-			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "kind" = 'expense'
-			   AND "invoice_month" IS NOT NULL AND "invoice_month" >= ? AND "invoice_month" < ?
+			 WHERE "space_id" = ? AND "deleted_at" IS NULL
+			   AND "account_id" IN (SELECT "id" FROM "accounts" WHERE "space_id" = ? AND "kind" = 'credit')
+			   AND ${month} >= ? AND ${month} < ?
 			   ${mine(spaceId).clause}
-			 GROUP BY "invoice_month"
+			 GROUP BY ${month}
 			 ORDER BY month DESC`,
-			[spaceId, from, thisMonth, ...mine(spaceId).params],
+			[spaceId, spaceId, from, thisMonth, ...mine(spaceId).params],
 		);
 
-		return rows.map((row) => ({ month: String(row.month), amount: Math.abs(asNumber(row.total)) }));
+		return rows.map((row) => ({
+			month: String(row.month),
+			amount: Math.max(0, asNumber(row.total)),
+		}));
 	}
 
 	/**
@@ -449,16 +461,34 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 		spaceId: string,
 		after: CalendarDate,
 	): Promise<{ month: string; amount: number }[]> {
+		// And each part of a split invoice, or of one paid with another card, in the month of the
+		// invoice it lands on: those parts are transfers written on the day of the agreement, so
+		// their day says nothing about when the money leaves.
 		const rows = await context.driver.all(
-			`SELECT SUBSTR("happened_on", 1, 7) AS month, COALESCE(SUM("amount_in_base"), 0) AS total
-			 FROM "transactions"
-			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "kind" = 'expense'
-			   AND "installment_number" IS NOT NULL AND "happened_on" > ?
-			   ${mine(spaceId).clause}
-			 GROUP BY SUBSTR("happened_on", 1, 7)
+			`SELECT month, COALESCE(SUM(total), 0) AS total FROM (
+			   SELECT SUBSTR("happened_on", 1, 7) AS month, -"amount_in_base" AS total
+			   FROM "transactions"
+			   WHERE "space_id" = ? AND "deleted_at" IS NULL AND "kind" = 'expense'
+			     AND "installment_number" IS NOT NULL AND "happened_on" > ?
+			     ${mine(spaceId).clause}
+			   UNION ALL
+			   SELECT "origin_invoice_month" AS month, "amount_in_base" AS total
+			   FROM "transactions"
+			   WHERE "space_id" = ? AND "deleted_at" IS NULL AND "kind" = 'transfer'
+			     AND "origin_invoice_month" IS NOT NULL AND "origin_invoice_month" > ?
+			     ${mine(spaceId).clause}
+			 ) AS ahead
+			 GROUP BY month
 			 ORDER BY month
 			 LIMIT ${AHEAD}`,
-			[spaceId, after, ...mine(spaceId).params],
+			[
+				spaceId,
+				after,
+				...mine(spaceId).params,
+				spaceId,
+				after.slice(0, 7),
+				...mine(spaceId).params,
+			],
 		);
 
 		return rows.map((row) => ({ month: String(row.month), amount: Math.abs(asNumber(row.total)) }));

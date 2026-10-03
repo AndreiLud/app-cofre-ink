@@ -118,6 +118,35 @@ export function runArrangementConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 2, C.7 and C.14.6: the check up read only purchases, so the invoice holding a part
+		// read as its cost alone. With the clock on the fifteenth of December, November's invoice
+		// reads R$ 480,00, and the parts ahead each in the month of its invoice.
+		it("is read by the check up as the parts it charges", async () => {
+			const ready = await twoCards(adapter);
+			try {
+				const { on, a } = ready;
+				await ready.buy(a.id, 300_000, "2025-09-20");
+				await on.invoices.split({
+					accountId: a.id,
+					month: "2025-10",
+					entry: 50_000,
+					entryFromAccountId: ready.checking.id,
+					parts: 6,
+					amount: 48_000,
+					eachPart: true,
+					agreedOn: "2025-10-10",
+					today: "2025-10-10",
+					...words,
+				});
+				const snapshot = await on.advice.snapshot({ spaceId: ready.spaceId, today: "2025-12-15" });
+				expect(snapshot.invoices.find((one) => one.month === "2025-11")?.amount).toBe(48_000);
+				// January holds the part on the invoice of January and the cost written on its tenth.
+				expect(snapshot.instalments.find((one) => one.month === "2026-01")?.amount).toBe(48_000);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		it("changes nothing before the day of an agreement still to come", async () => {
 			const ready = await twoCards(adapter);
 			try {
