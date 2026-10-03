@@ -5,7 +5,7 @@
 // the situations that make that hard, which are two people writing at once, a deletion
 // crossing an edit, and an entry that tries to grant itself a role.
 
-import { stampAt, uuidV7 } from "@cofre/core";
+import { addMonthsToMonth, stampAt, uuidV7 } from "@cofre/core";
 import { describe, expect, it } from "vitest";
 import { keepMine, keepTheirs, runBackup } from "../backupRun.ts";
 import type { Driver } from "../driver.ts";
@@ -1228,6 +1228,121 @@ export function runSyncConformance(adapter: AdapterUnderTest): void {
 				const since = await changesToPush(one.driver, space.id, mark);
 				expect(since.every((change) => change.entity === "accounts")).toBe(true);
 				expect(since.length).toBe(1);
+			} finally {
+				await one.close();
+			}
+		});
+	});
+
+	/**
+	 * Part 1, G.2 of the request for 2.0.0: migration 0015 gave a series on a card its invoice
+	 * where the rows lie, and the change log still held them with none, so a restore, the
+	 * exchange between devices and "keep theirs" wrote the empty invoice back. Release 1.0.5
+	 * wrote a streaming subscription of 50 on a card that closes on the third, on the tenth of
+	 * each month, with no invoice: each belongs to the invoice of the month after.
+	 */
+	describe("a repair that travels", () => {
+		async function aSeriesWithoutItsInvoice(fixture: Awaited<ReturnType<typeof prepare>>) {
+			const space = await fixture.asAna.spaces.create({ name: "Casa" });
+			const card = await fixture.asAna.accounts.create({
+				spaceId: space.id,
+				kind: "credit",
+				name: "Cartao",
+				closingDay: 3,
+				dueDay: 10,
+			});
+			const series = await fixture.asAna.recurrences.create({
+				spaceId: space.id,
+				kind: "expense",
+				amount: 5_000,
+				description: "Streaming",
+				accountId: card.id,
+				frequency: "monthly",
+				startsOn: "2026-09-10",
+				dayOfMonth: 10,
+			});
+			await fixture.asAna.recurrences.materialize({ spaceId: space.id });
+			const written = (await fixture.asAna.transactions.list({ spaceId: space.id })).filter(
+				(one) => one.recurrenceId === series.id,
+			);
+			expect(written.length).toBeGreaterThan(0);
+			// As release 1.0.5 left them: no invoice, in the rows and in the log.
+			for (const one of written) {
+				await fixture.asAna.transactions.update(one.id, { invoiceMonth: null });
+			}
+			// The tenth is after the third, so each is on the invoice of the month after.
+			const stamped = written
+				.map((one) => [one.happenedOn, addMonthsToMonth(one.happenedOn.slice(0, 7), 1)])
+				.sort();
+			return { spaceId: space.id, stamped };
+		}
+
+		async function invoicesOf(session: Session, spaceId: string) {
+			return (await session.transactions.list({ spaceId }))
+				.filter((one) => one.recurrenceId !== null)
+				.map((one) => [one.happenedOn, one.invoiceMonth])
+				.sort();
+		}
+
+		it("puts the repair in the log, so a device that replays it gets the invoices", async () => {
+			const one = await prepare(adapter);
+			const two = await otherDevice(one.ana, "deviceTwo");
+			try {
+				const { spaceId, stamped } = await aSeriesWithoutItsInvoice(one);
+				expect((await one.asAna.repairs.run(spaceId)).seriesGivenTheirInvoice).toBe(stamped.length);
+				expect(await invoicesOf(one.asAna, spaceId)).toEqual(stamped);
+
+				// The other device replays the log, and reads what it folded.
+				await carry(one.driver, two.driver, spaceId);
+				const folded = await two.driver.all(
+					`SELECT "happened_on", "invoice_month" FROM "transactions"
+					 WHERE "space_id" = ? AND "recurrence_id" IS NOT NULL AND "deleted_at" IS NULL`,
+					[spaceId],
+				);
+				expect(
+					folded.map((row) => [String(row.happened_on), String(row.invoice_month)]).sort(),
+				).toEqual(stamped);
+			} finally {
+				await one.close();
+				await two.close();
+			}
+		});
+
+		it("gives a restored file from 1.0.5 the invoices of its series", async () => {
+			const one = await prepare(adapter);
+			const two = await otherDevice(one.ana, "deviceTwo");
+			try {
+				const { spaceId, stamped } = await aSeriesWithoutItsInvoice(one);
+				const file = await one.asAna.backup.exportSpace(spaceId);
+
+				const restored = await two.session.backup.restore(file);
+				const landed = restored.spaces[0]?.spaceId ?? "";
+				expect(await invoicesOf(two.session, landed)).toEqual(stamped);
+			} finally {
+				await one.close();
+				await two.close();
+			}
+		});
+
+		it("gives the series their invoices again after the rows of another log arrive", async () => {
+			const one = await prepare(adapter);
+			try {
+				const { spaceId, stamped } = await aSeriesWithoutItsInvoice(one);
+				// The log of a copy kept elsewhere, taken before this device repaired anything.
+				const theirs = await changesToPush(one.driver, spaceId, null);
+				await one.asAna.repairs.run(spaceId);
+
+				// "Keep theirs": the rows here are emptied and the other log written in their
+				// place, which brings the series back with no invoice.
+				await one.asAna.erasure.emptySpace(spaceId);
+				await applyChanges(one.driver, theirs, { spaceId });
+				expect(
+					(await invoicesOf(one.asAna, spaceId)).every(([, invoice]) => invoice === null),
+				).toBe(true);
+
+				const again = await one.asAna.repairs.afterArrival([spaceId]);
+				expect(again.map((done) => done.seriesGivenTheirInvoice)).toEqual([stamped.length]);
+				expect(await invoicesOf(one.asAna, spaceId)).toEqual(stamped);
 			} finally {
 				await one.close();
 			}

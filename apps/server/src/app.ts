@@ -1446,6 +1446,10 @@ export function createApp({ config, database, auth }: AppDependencies) {
 			await session.refresh();
 		}
 
+		// A device that has not been updated sends rows as they were before any repair, so
+		// the repairs are asked again, and what they write goes back with the answer.
+		if (written.applied > 0) await session.repairs.afterArrival([spaceId]);
+
 		const changes = await changesToPush(database.driver, spaceId, input.since ?? null);
 		const people = await peopleInSpace(database.driver, spaceId);
 

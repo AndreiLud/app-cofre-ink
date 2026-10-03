@@ -5,7 +5,8 @@ Date: 3 October 2026
 ## Status
 
 Accepted. Follows registry 0050, which made a record dated ahead a fact that waits for its
-day. Part 1, item G.2 of the request for 2.0.0 will add the second repair to the same place.
+day. Registry 0059 adds the invoice of a series to the same place, and asks the repairs
+again after a restore, an exchange or "keep theirs" writes rows from somewhere else.
 
 ## Context
 

@@ -166,6 +166,10 @@ export function AutomaticBackup() {
 			for (const outcome of done.outcomes) {
 				if (outcome.did !== "asked") markMet(outcome.spaceId, where);
 			}
+			// What came back holds the rows as they were before any repair made here.
+			await session?.repairs.afterArrival(
+				done.outcomes.filter((one) => one.received > 0).map((one) => one.spaceId),
+			);
 			setBackupState({ at: done.at, waiting: done.waiting });
 			return done.at;
 		},
@@ -223,6 +227,8 @@ export function AutomaticBackup() {
 				);
 				await keepTheirs(driver, store, (id) => session.erasure.emptySpace(id), { spaceId });
 			}
+			// What came back holds the rows as they were before any repair made here.
+			if (choice !== "mine") await session?.repairs.afterArrival([spaceId]);
 
 			markMet(spaceId, where);
 			return spaceId;

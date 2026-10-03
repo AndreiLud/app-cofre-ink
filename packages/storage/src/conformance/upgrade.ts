@@ -126,8 +126,8 @@ async function fillAsOf105(driver: Driver, userId: string): Promise<void> {
 			],
 		);
 
-	// What 1.0.5 wrote: a series on a card with no invoice on it at all, which is the bug
-	// 0015 repairs, and an ordinary purchase on the same card that did reach one.
+	// What 1.0.5 wrote: a series on a card with no invoice on it at all, which is the bug the
+	// repairs put right, and an ordinary purchase on the same card that did reach one.
 	await record(IDS.subscription, IDS.card, -3990, "2026-09-10", "Streaming", IDS.series, null);
 	await record(IDS.shopping, IDS.card, -12_000, "2026-09-12", "Mercado", null, "2026-09");
 	await record(IDS.lunch, IDS.voucher, -2500, "2026-09-11", "Almoço", null, null);
@@ -159,6 +159,11 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 				expect(await migrate(driver)).toEqual([]);
 
 				const session = await openSession({ driver, userId: ana.id, deviceId: "deviceAna" });
+				// What the application does when it opens, before the first screen reads anything.
+				// The subscription 1.0.5 wrote with no invoice is given one here, through the change
+				// log, and not by the migration where the rows lie, which a restore undid.
+				const repaired = await session.repairs.runEverywhere();
+				expect(repaired.map((done) => done.seriesGivenTheirInvoice)).toEqual([1]);
 
 				// Every account is still there, and the two new answers about a voucher are
 				// empty rather than invented.
@@ -303,12 +308,14 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 
 				const session = await openSession({ driver, userId: ana.id, deviceId: "deviceAna" });
 				const done = await session.repairs.runEverywhere();
+				// The three promises, and the subscription 1.0.5 wrote with no invoice.
 				expect(done).toEqual([
 					{
 						spaceId: IDS.space,
 						promisesMadeFacts: 3,
 						paymentsGivenTheirInvoice: 0,
 						impossibleMonthsCleared: 0,
+						seriesGivenTheirInvoice: 1,
 					},
 				]);
 
@@ -329,6 +336,7 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 					"promiseOfForm",
 					"promiseOfPayment",
 					"promiseOfSeries",
+					IDS.subscription,
 				]);
 
 				// The September invoice is paid on the fifth of October, by itself.
@@ -356,6 +364,7 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 						promisesMadeFacts: 0,
 						paymentsGivenTheirInvoice: 0,
 						impossibleMonthsCleared: 0,
+						seriesGivenTheirInvoice: 0,
 					},
 				]);
 			} finally {
@@ -405,6 +414,9 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 
 				await migrate(driver);
 				const session = await openSession({ driver, userId: ana.id, deviceId: "deviceAna" });
+				// What the application does when it opens, which gives the subscription 1.0.5
+				// wrote its invoice.
+				await session.repairs.runEverywhere();
 
 				// The debt is the invoice that had closed on the day the card was written down,
 				// August's, and the payment by hand settled it. September's purchase is still owed.
@@ -464,12 +476,14 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 				});
 				await migrate(driver);
 
+				// The promise of the form, and the subscription 1.0.5 wrote with no invoice.
 				expect(await repairEverySpace(driver)).toEqual([
 					{
 						spaceId: IDS.space,
 						promisesMadeFacts: 1,
 						paymentsGivenTheirInvoice: 0,
 						impossibleMonthsCleared: 0,
+						seriesGivenTheirInvoice: 1,
 					},
 				]);
 				const logged = await driver.all(
@@ -482,6 +496,7 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 						promisesMadeFacts: 0,
 						paymentsGivenTheirInvoice: 0,
 						impossibleMonthsCleared: 0,
+						seriesGivenTheirInvoice: 0,
 					},
 				]);
 			} finally {

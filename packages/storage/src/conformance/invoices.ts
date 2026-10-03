@@ -6,7 +6,6 @@
 // pays, so nothing here reaches past the repository to look at a row.
 
 import { amountToPay, canSpendThisMonth } from "@cofre/core";
-import { STAMP_SERIES_WITH_THEIR_INVOICE } from "@cofre/db";
 import { describe, expect, it } from "vitest";
 import { RuleError } from "../errors.ts";
 import { type AdapterUnderTest, prepare } from "./setup.ts";
@@ -1222,7 +1221,7 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 					`UPDATE "transactions" SET "invoice_month" = NULL WHERE "recurrence_id" = ?`,
 					[series.id],
 				);
-				await ready.fixture.driver.run(STAMP_SERIES_WITH_THEIR_INVOICE);
+				await ready.fixture.asAna.repairs.run(ready.spaceId);
 
 				const all = await ready.fixture.asAna.transactions.list({ spaceId: ready.spaceId });
 				const written = all.filter((one) => one.recurrenceId === series.id);

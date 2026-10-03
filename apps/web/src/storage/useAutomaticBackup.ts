@@ -83,6 +83,10 @@ export function useAutomaticBackup(): void {
 				for (const outcome of done.outcomes) {
 					if (outcome.did !== "asked") markMet(outcome.spaceId, settings.kind ?? "");
 				}
+				// What came back holds the rows as they were before any repair made here.
+				await latest.current.session?.repairs.afterArrival(
+					done.outcomes.filter((one) => one.received > 0).map((one) => one.spaceId),
+				);
 
 				setBackupState({
 					busy: false,

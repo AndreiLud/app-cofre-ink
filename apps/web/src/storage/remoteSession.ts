@@ -766,6 +766,11 @@ export function createRemoteSession(
 				),
 		},
 
+		// The server asks them itself, after a restore and after a push.
+		repairs: {
+			afterArrival: async () => [],
+		},
+
 		refresh: async () => {
 			await get<{ user: User }>("/api/me");
 		},

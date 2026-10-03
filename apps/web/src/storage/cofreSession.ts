@@ -421,6 +421,13 @@ export type CofreSession = {
 	changes: {
 		list: (input: { spaceId: string; after?: string }) => Promise<Change[]>;
 	};
+	/**
+	 * The repairs that travel, asked again after a copy kept elsewhere wrote rows here: it
+	 * sends them as they were, before any repair. On a server it is the server that asks.
+	 */
+	repairs: {
+		afterArrival: (spaceIds: string[]) => Promise<unknown>;
+	};
 	refresh: () => Promise<void>;
 };
 

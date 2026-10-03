@@ -19,6 +19,7 @@ import { rowsFromChanges } from "../sync.ts";
 import type { SyncBundle } from "../syncStore.ts";
 import { insertRow } from "../writer.ts";
 import type { RepositoryContext } from "./context.ts";
+import { repairAfterArrival } from "./repairs.ts";
 
 export const BACKUP_FORMAT = "cofre.backup";
 /**
@@ -678,6 +679,13 @@ export function createBackupRepository(context: RepositoryContext) {
 					}),
 				});
 			}
+
+			// The file holds the rows as the release that wrote it left them, and they were
+			// just written now, so they are newer than any repair made here before.
+			await repairAfterArrival(
+				context,
+				outcomes.map((outcome) => outcome.spaceId),
+			);
 
 			return { spaces: outcomes };
 		},

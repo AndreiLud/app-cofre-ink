@@ -34,6 +34,8 @@ export type RepairOutcome = {
 	paymentsGivenTheirInvoice: number;
 	/** Records naming the invoice of a month that does not exist, such as "2026-13". */
 	impossibleMonthsCleared: number;
+	/** Occurrences of a series on a card that releases before 1.1.0 wrote with no invoice. */
+	seriesGivenTheirInvoice: number;
 };
 
 async function appliedAt(context: RepositoryContext, id: string): Promise<number | null> {
@@ -129,6 +131,49 @@ async function paymentsWithoutTheirInvoice(
 }
 
 /**
+ * A series charged to a card, written with no invoice.
+ *
+ * Releases before 1.1.0 never worked out which invoice an occurrence of a series belonged
+ * to, so a subscription on a credit card was on no invoice and the card showed less than it
+ * would charge. Migration 0015 put that right where the rows lie, and it did not last: the
+ * change log still held each of those rows with no invoice, so a restore, the exchange
+ * between devices and "keep theirs" wrote the empty invoice back. Written here, the stamp
+ * is a change like any other, newer than the row it repairs.
+ *
+ * The rule is the one every other writer of the column uses, the closing day of the card
+ * the record is charged to.
+ */
+async function seriesWithoutTheirInvoice(
+	context: RepositoryContext,
+	spaceId: string,
+): Promise<number> {
+	const rows = await context.driver.all(
+		`SELECT t."id" AS id, t."happened_on" AS day, a."closing_day" AS closing_day,
+		        a."due_day" AS due_day
+		 FROM "transactions" t
+		 JOIN "accounts" a ON a."id" = t."account_id"
+		 WHERE t."space_id" = ? AND t."deleted_at" IS NULL AND t."invoice_month" IS NULL
+		   AND t."recurrence_id" IS NOT NULL AND a."kind" = 'credit'
+		   AND a."closing_day" IS NOT NULL AND a."due_day" IS NOT NULL`,
+		[spaceId],
+	);
+	for (const row of rows) {
+		await updateRow(context.write(), {
+			table: transactions,
+			spaceId,
+			id: String(row.id),
+			values: {
+				invoice_month: invoiceMonthOf(String(row.day), {
+					closingDay: asNumber(row.closing_day),
+					dueDay: asNumber(row.due_day),
+				}),
+			},
+		});
+	}
+	return rows.length;
+}
+
+/**
  * Invoices named after a month that does not exist.
  *
  * The route that pays an invoice took "2026-13" and wrote it, and from then on every reading
@@ -183,7 +228,29 @@ async function repairSpace(context: RepositoryContext, spaceId: string): Promise
 		promisesMadeFacts: await promisesOfOneOneToOneTwo(context, spaceId),
 		paymentsGivenTheirInvoice: await paymentsWithoutTheirInvoice(context, spaceId),
 		impossibleMonthsCleared: await monthsThatDoNotExist(context, spaceId),
+		seriesGivenTheirInvoice: await seriesWithoutTheirInvoice(context, spaceId),
 	};
+}
+
+/**
+ * The repairs, after something wrote rows from somewhere else.
+ *
+ * A restore writes every row of the file at the moment of the restore, and the exchange
+ * between devices and "keep theirs" write the rows of another log, so what a repair put right
+ * can arrive again as it was before. Whoever just did that may change the space or they could
+ * not have done it, and the repairs are asked again of each space it touched. A space this
+ * person only reads is left for somebody who may change it.
+ */
+export async function repairAfterArrival(
+	context: RepositoryContext,
+	spaceIds: readonly string[],
+): Promise<RepairOutcome[]> {
+	const done: RepairOutcome[] = [];
+	for (const spaceId of spaceIds) {
+		if (!context.can(spaceId, "space.update")) continue;
+		done.push(await repairSpace(context, spaceId));
+	}
+	return done;
 }
 
 export function createRepairsRepository(context: RepositoryContext) {
@@ -200,6 +267,15 @@ export function createRepairsRepository(context: RepositoryContext) {
 		 * What the application calls when it opens. A space this person only reads is left
 		 * for somebody who may change it, which on a server is the server itself.
 		 */
+		/**
+		 * Every repair again, in the spaces rows just arrived in from somewhere else, which
+		 * this person may change. What a copy kept elsewhere sends back is the rows as they
+		 * were, so the repairs are asked again after it.
+		 */
+		async afterArrival(spaceIds: readonly string[]): Promise<RepairOutcome[]> {
+			return repairAfterArrival(context, spaceIds);
+		},
+
 		async runEverywhere(): Promise<RepairOutcome[]> {
 			const done: RepairOutcome[] = [];
 			for (const membership of context.actor().memberships) {
