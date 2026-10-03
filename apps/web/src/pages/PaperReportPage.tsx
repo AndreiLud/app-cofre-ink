@@ -237,8 +237,10 @@ export function PaperReportPage() {
 			currency,
 		}).format(Number(value) / 100);
 
+	// The holdings are the household's, so not for somebody who sees only their own records:
+	// beside balances made of their own rows they made a number that was nobody's.
 	const worth: Record<string, number> = {};
-	for (const holding of holdings.data ?? []) {
+	for (const holding of mine.seesOwnRowsOnly ? [] : (holdings.data ?? [])) {
 		worth[holding.accountId] = (worth[holding.accountId] ?? 0) + holding.value;
 	}
 	const counted = { accounts: accounts.data ?? [], balances: balances.data ?? [], worth };

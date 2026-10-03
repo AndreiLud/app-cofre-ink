@@ -12,6 +12,64 @@ import { type AdapterUnderTest, prepare } from "./setup.ts";
 
 export function runFutureConformance(adapter: AdapterUnderTest): void {
 	describe("the months ahead", () => {
+		// Part 1, E.3 of the request for 2.0.0: for somebody who sees only their own records the
+		// balances are made of their own rows, and the investment account was swapped for what
+		// all the household's holdings are worth, 15,000 beside an aporte of 500 of their own.
+		it("opens the months of a logger on their own rows, without the household's holdings", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Casa" });
+				await fixture.asAna.members.invite({
+					spaceId: space.id,
+					userId: fixture.joao.id,
+					role: "logger",
+				});
+				await fixture.asJoao.members.accept(space.id);
+				const checking = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+				});
+				const broker = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "investment",
+					name: "Corretora",
+				});
+				await fixture.asAna.investments.create({
+					spaceId: space.id,
+					accountId: broker.id,
+					name: "Fundo",
+					kind: "fund",
+					quantity: QUANTITY_SCALE,
+					unitPrice: 1_500_000,
+				});
+				const today = todayIn("America/Sao_Paulo");
+				await fixture.asJoao.transactions.create({
+					spaceId: space.id,
+					kind: "transfer",
+					amount: 50_000,
+					happenedOn: today,
+					description: "Aporte",
+					accountId: checking.id,
+					counterAccountId: broker.id,
+				});
+				const ahead = (session: typeof fixture.asAna) =>
+					session.projections.monthsAhead({
+						spaceId: space.id,
+						from: monthOf(today),
+						months: 1,
+						today,
+					});
+
+				// The household's figure is what the holdings are worth.
+				expect((await ahead(fixture.asAna)).opening).toBe(-50_000 + 1_500_000);
+				// The logger's is their own rows: out of the account, into the broker.
+				expect((await ahead(fixture.asJoao)).opening).toBe(-50_000 + 50_000);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		it("adds up what is written, what repeats and what is usual", async () => {
 			const fixture = await prepare(adapter);
 			try {

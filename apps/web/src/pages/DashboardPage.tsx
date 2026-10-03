@@ -432,9 +432,18 @@ export function DashboardPage() {
 	const open = new Set(shownAccounts.map((account) => account.id));
 	const visible = shownBalances.filter((balance) => open.has(balance.accountId));
 
-	/** What each investment account is worth, by the prices somebody typed. */
+	/**
+	 * What each investment account is worth, by the prices somebody typed.
+	 *
+	 * Not in a space where this person sees only their own records: their balance there is
+	 * made of their own rows and the holdings are the household's, so the two together were
+	 * neither their number nor the household's. Their investment account counts what they
+	 * themselves moved into it.
+	 */
+	const spaceOfAccount = new Map(shownAccounts.map((account) => [account.id, account.spaceId]));
 	const worth: Record<string, number> = {};
 	for (const holding of holdings.data ?? []) {
+		if (narrowedIn(spaceOfAccount.get(holding.accountId) ?? spaceId)) continue;
 		worth[holding.accountId] = (worth[holding.accountId] ?? 0) + holding.value;
 	}
 

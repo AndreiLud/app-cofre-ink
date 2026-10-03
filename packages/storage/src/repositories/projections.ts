@@ -339,10 +339,15 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 			// here would take it off twice. A benefit card is an allowance that buys lunch
 			// and will not pay the rent, so a month that started with it in would be a
 			// month that thinks it has more than it has. Both are what `moneyOnHand` means.
+			// Not for somebody who sees only their own records: their balances are made of their
+			// own rows and the holdings are the household's, so the two together were neither
+			// their number nor the household's. Without them their investment account counts
+			// what they themselves moved into it.
+			const narrowed = seesOwnRowsOnly(context.actor(), input.spaceId);
 			const [accounts, balances, holdings] = await Promise.all([
 				needs.accounts.list(input.spaceId),
 				needs.transactions.balances(input.spaceId, input.today),
-				needs.investments.list(input.spaceId),
+				narrowed ? Promise.resolve([]) : needs.investments.list(input.spaceId),
 			]);
 
 			// What the investment accounts are worth, by the prices somebody typed, which is
