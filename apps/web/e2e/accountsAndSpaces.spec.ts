@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { go, openCofre, openSetting, record, total } from "./support.ts";
+import { go, openCofre, openSetting, record, restoredWith, total } from "./support.ts";
 
 test.describe("accounts", () => {
 	test("creates one and shows it with the amount that was typed", async ({ page }) => {
@@ -170,6 +170,38 @@ test.describe("accounts", () => {
 		const dialog = page.getByRole("dialog");
 		await expect(dialog).toContainText("As que já estão numa fatura ficam onde estão");
 		await expect(dialog).toContainText("Esta fatura fechou em outro dia");
+	});
+
+	// Part 1, H.2.2 of the request for 2.0.0: the notes of 1.1.0 say a card written down with a
+	// balance by an earlier release can still have that number corrected, and no screen asked
+	// for it. Written down owing 500, it is corrected to 450, and the invoice it opens with says
+	// so.
+	test("corrects the debt an old card was written down with", async ({ browser }) => {
+		const old = await restoredWith(browser, (tables) => {
+			for (const account of tables.accounts ?? []) {
+				if (account.name === "Cartão de crédito") account.initial_balance = -50_000;
+			}
+		});
+		try {
+			const page = old.page;
+			await go(page, "Contas");
+			const row = page.getByRole("row").filter({ hasText: "Cartão de crédito" }).first();
+			await row.getByRole("button", { name: "Ações da conta" }).click();
+			await page.getByRole("menuitem", { name: "Editar conta" }).click();
+			const debt = page.getByRole("dialog").getByLabel("Dívida de quando foi cadastrado");
+			await expect(debt).toHaveValue("500,00");
+			await debt.fill("450,00");
+			await page.getByRole("button", { name: "Salvar" }).click();
+			await expect(page.getByRole("dialog")).toHaveCount(0);
+
+			await row.getByRole("button", { name: "Ações da conta" }).click();
+			await page.getByRole("menuitem", { name: "Editar conta" }).click();
+			await expect(
+				page.getByRole("dialog").getByLabel("Dívida de quando foi cadastrado"),
+			).toHaveValue("450,00");
+		} finally {
+			await old.close();
+		}
 	});
 
 	test("makes the card of a credit account without asking twice", async ({ page }) => {

@@ -132,6 +132,43 @@ export async function promisesFromBefore(
 }
 
 /**
+ * The sample data as an older release would have left it, brought back in a second browser.
+ *
+ * The backup of the sample is taken, `change` edits its rows the way a release before this one
+ * wrote them, and the file is restored where nothing else is. For what no screen can write any
+ * more, such as a card written down with a balance.
+ */
+export async function restoredWith(
+	browser: Browser,
+	change: (tables: Record<string, Record<string, unknown>[]>) => void,
+): Promise<{ page: Page; close: () => Promise<void> }> {
+	const first = await browser.newContext({ acceptDownloads: true });
+	const one = await first.newPage();
+	await openCofre(one);
+	await go(one, "Dados");
+	const download = one.waitForEvent("download");
+	await one.getByRole("button", { name: "Baixar", exact: true }).first().click();
+	const backup = JSON.parse(await readFile(await (await download).path(), "utf8")) as {
+		spaces: { tables: Record<string, Record<string, unknown>[]> }[];
+	};
+	for (const space of backup.spaces) change(space.tables);
+	await first.close();
+
+	const second = await browser.newContext({ acceptDownloads: true });
+	const page = await second.newPage();
+	await openCofre(page, { demo: false });
+	await go(page, "Dados");
+	await page.getByLabel("Escolher arquivo").setInputFiles({
+		name: "cofre_backup_de_antes.json",
+		mimeType: "application/json",
+		buffer: Buffer.from(JSON.stringify(backup)),
+	});
+	await page.getByRole("dialog").getByRole("button", { name: "Trazer de volta" }).click();
+	await expect(page.getByText("Restaurado", { exact: true })).toBeVisible({ timeout: 20_000 });
+	return { page, close: () => second.close() };
+}
+
+/**
  * One of the five sections, in the row at the top on a wide screen or in the bar at the
  * bottom on a telephone. Only one of the two is rendered at a time. Several screens also
  * link to the same places in their own words, so the tests say which one they mean.

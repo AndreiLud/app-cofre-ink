@@ -340,7 +340,9 @@ which is the wrong question for both: what is on a credit card is its invoice, a
 a benefit card is the allowance less what was eaten. The field is gone from both, and the
 model refuses a number there rather than trusting the screen. A card written down by an
 earlier release keeps what it has, and that number can still be corrected, which is how it
-keeps counting.
+keeps counting. (Corrected in 2.0.0: the model allowed it and no screen asked for it on a
+credit card. Since 2.0.0 the edit of such a card has the field "Dívida de quando foi
+cadastrado".)
 
 **An account can be corrected**: its name, where it is, its opening balance, the closing day,
 the due day and the limit of a credit card, and the allowance of a benefit card. Deleting one says how many records are charged to it first.

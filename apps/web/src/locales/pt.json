@@ -546,7 +546,9 @@
 		"closedSoFar": "Fatura fechada, que vence em {{day}}",
 		"closedSoFarHint": "Opcional. A fatura de {{month}} já fechou e ainda não venceu. O que falta pagar dela entra nessa fatura, no último dia de compras dela, e não na aberta.",
 		"closedSoFarRecord": "Fatura fechada quando o cartão foi cadastrado",
-		"cycleChangeHint": "Os dias novos valem para as compras lançadas daqui em diante. As que já estão numa fatura ficam onde estão: para mudar o dia em que uma fatura fechou, abra a fatura e use “Esta fatura fechou em outro dia”."
+		"cycleChangeHint": "Os dias novos valem para as compras lançadas daqui em diante. As que já estão numa fatura ficam onde estão: para mudar o dia em que uma fatura fechou, abra a fatura e use “Esta fatura fechou em outro dia”.",
+		"openingDebt": "Dívida de quando foi cadastrado",
+		"openingDebtHint": "Um cartão cadastrado antes da versão 1.1.0 trazia o que devia como saldo, e esse valor é a primeira fatura dele. Corrija aqui se estiver errado, ou deixe em branco se não devia nada."
 	},
 	"rules": {
 		"notABackup": "Esse arquivo não é um backup do {{app}}. Um backup sai daqui mesmo, no botão Baixar cópia, e a cópia que esta tela guarda antes de trocar uma também. Extrato do banco entra por Importar extrato.",

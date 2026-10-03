@@ -546,7 +546,9 @@
 		"closedSoFar": "Invoice already closed, due on {{day}}",
 		"closedSoFarHint": "Optional. The {{month}} invoice has closed and is not due yet. What is still to pay on it goes on that invoice, on its last day of purchases, and not on the open one.",
 		"closedSoFarRecord": "Invoice closed when the card was written down",
-		"cycleChangeHint": "The new days apply to purchases written from now on. Those already on an invoice stay where they are: to change the day an invoice closed, open the invoice and use “This invoice closed on another day”."
+		"cycleChangeHint": "The new days apply to purchases written from now on. Those already on an invoice stay where they are: to change the day an invoice closed, open the invoice and use “This invoice closed on another day”.",
+		"openingDebt": "Debt it was written down with",
+		"openingDebtHint": "A card written down before version 1.1.0 brought what it owed as its balance, and that amount is its first invoice. Correct it here if it is wrong, or leave it empty if nothing was owed."
 	},
 	"rules": {
 		"notABackup": "That file is not a {{app}} backup. A backup comes from here, from the Download a copy button, and so does the copy this screen saves before it replaces one. A statement from the bank goes in through Import a statement.",

@@ -176,6 +176,8 @@ export function AccountsPage() {
 	const [editClosingDay, setEditClosingDay] = useState("");
 	const [editDueDay, setEditDueDay] = useState("");
 	const [editLimit, setEditLimit] = useState("");
+	/** The debt a card from before 1.1.0 was written down with, positive, or empty. */
+	const [editOpeningDebt, setEditOpeningDebt] = useState("");
 
 	/** The account about to be deleted, and how many records go nowhere with it. */
 	const [erasing, setErasing] = useState<Account | null>(null);
@@ -218,6 +220,16 @@ export function AccountsPage() {
 		})),
 	];
 
+	/**
+	 * A card a release before 1.1.0 wrote down owing something, as its balance.
+	 *
+	 * That number is the first invoice of the card, and the notes of 1.1.0 said it could still
+	 * be corrected, which the model allows and no screen asked for. A card written down since
+	 * starts empty and has no such number to correct.
+	 */
+	const oldCardDebt = (account: Account) =>
+		account.kind === "credit" && account.initialBalance < 0 && account.balanceKnownOn === null;
+
 	function openEdit(account: Account) {
 		setProblem(null);
 		setEditing(account);
@@ -244,6 +256,11 @@ export function AccountsPage() {
 			account.creditLimit === null
 				? ""
 				: fillAmount(account.creditLimit, i18n.resolvedLanguage, account.currency),
+		);
+		setEditOpeningDebt(
+			oldCardDebt(account)
+				? fillAmount(-account.initialBalance, i18n.resolvedLanguage, account.currency)
+				: "",
 		);
 	}
 
@@ -284,6 +301,16 @@ export function AccountsPage() {
 							// Empty means the bank never said, and the invoice screen then says
 							// nothing about a limit rather than guessing at one.
 							creditLimit: editLimit.trim() === "" ? null : readAmount(editLimit, editing.currency),
+							// The debt an old card came with, as the balance it is kept as. Empty
+							// says it owed nothing then.
+							...(oldCardDebt(editing)
+								? {
+										initialBalance:
+											editOpeningDebt.trim() === ""
+												? 0
+												: -readAmount(editOpeningDebt, editing.currency),
+									}
+								: {}),
 						}
 					: {}),
 			});
@@ -837,6 +864,17 @@ export function AccountsPage() {
 							</div>
 							<p className="text-quiet text-sm">{t("accounts.cycleChangeHint")}</p>
 						</div>
+					) : null}
+					{editing && oldCardDebt(editing) ? (
+						<Field
+							label={t("accounts.openingDebt")}
+							hint={t("accounts.openingDebtHint")}
+							value={editOpeningDebt}
+							onChange={(event) => setEditOpeningDebt(event.target.value)}
+							numeric={true}
+							inputMode="decimal"
+							placeholder={t("fields.amountPlaceholder")}
+						/>
 					) : null}
 					{/* What the bank allows on the card, which the invoice screen takes the
 					    headroom from. Empty means the bank never said, and then that screen
