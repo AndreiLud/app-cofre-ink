@@ -24,7 +24,8 @@ export type WorkerRequest =
 
 export type WorkerResponse =
 	| { id: number; ok: true; rows?: unknown[]; outcome?: OpenOutcome }
-	| { id: number; ok: false; error: string };
+	/** The name of the error as well, so a failure with one is still that failure on the page. */
+	| { id: number; ok: false; error: string; name?: string };
 
 let driver: Driver | null = null;
 let outcome: OpenOutcome = "memory";
@@ -104,6 +105,7 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 			id: request.id,
 			ok: false,
 			error: error instanceof Error ? error.message : String(error),
+			name: error instanceof Error ? error.name : undefined,
 		});
 	}
 };

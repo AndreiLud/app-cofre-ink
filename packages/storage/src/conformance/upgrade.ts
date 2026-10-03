@@ -20,7 +20,7 @@ import {
 } from "@cofre/db";
 import { describe, expect, it } from "vitest";
 import type { Driver } from "../driver.ts";
-import { migrate } from "../migrate.ts";
+import { migrate, NewerDatabaseError } from "../migrate.ts";
 import { repairEverySpace } from "../repairEverySpace.ts";
 import { createUser } from "../repositories/users.ts";
 import { openSession } from "../session.ts";
@@ -167,6 +167,32 @@ async function fillAsOf105(driver: Driver, userId: string): Promise<void> {
 }
 
 export function runUpgradeConformance(adapter: AdapterUnderTest): void {
+	// Part 2, K.6.3 and K.8.3 of the request for 2.0.0: an older server started over a database
+	// a newer one had migrated skipped what it did not know and ran on.
+	describe("a database a newer version migrated", () => {
+		it("is refused by name, and nothing is migrated", async () => {
+			const driver = await adapter.open();
+			try {
+				await migrate(driver);
+				await driver.run(`INSERT INTO "${MIGRATIONS_TABLE}" ("id", "applied_at") VALUES (?, ?)`, [
+					"9999_from_a_later_version",
+					WHEN,
+				]);
+				const count = async () =>
+					Number(
+						(await driver.all(`SELECT COUNT(*) AS "count" FROM "${MIGRATIONS_TABLE}"`))[0]?.count ??
+							0,
+					);
+				const before = await count();
+				await expect(migrate(driver)).rejects.toBeInstanceOf(NewerDatabaseError);
+				await expect(migrate(driver)).rejects.toThrow(/9999_from_a_later_version/);
+				expect(await count()).toBe(before);
+			} finally {
+				await driver.close();
+			}
+		});
+	});
+
 	describe("a database written by the release before", () => {
 		it("carries its rows across the upgrade and reads them all back", async () => {
 			const driver = await adapter.open();

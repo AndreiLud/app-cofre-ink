@@ -37,12 +37,34 @@ export type MigrateOptions = {
 	stopAfter?: string;
 };
 
+/**
+ * A database a newer version has already migrated.
+ *
+ * Migrations this version does not know were skipped in silence, so an older server started
+ * over a newer database ran against tables it did not understand, and wrote what it understood
+ * over what it did not. It refuses to start instead, and says what to do.
+ */
+export class NewerDatabaseError extends Error {
+	readonly unknown: string[];
+
+	constructor(unknown: string[]) {
+		super(
+			`this database was migrated by a newer version of Cofre Ink (${unknown.join(", ")}). Run the version that migrated it, or restore the copy taken before the update.`,
+		);
+		this.name = "NewerDatabaseError";
+		this.unknown = unknown;
+	}
+}
+
 export async function migrate(driver: Driver, options: MigrateOptions = {}): Promise<string[]> {
 	await driver.run(createMigrationsTableSql(driver.dialect));
 
 	const applied = new Set(
 		(await driver.all(`SELECT "id" FROM "${MIGRATIONS_TABLE}"`)).map((row) => String(row.id)),
 	);
+	const known = new Set(MIGRATIONS.map((migration) => migration.id));
+	const unknown = [...applied].filter((id) => !known.has(id)).sort();
+	if (unknown.length > 0) throw new NewerDatabaseError(unknown);
 
 	const ran: string[] = [];
 	for (const migration of MIGRATIONS) {

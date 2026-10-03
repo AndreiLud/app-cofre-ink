@@ -4,6 +4,7 @@
 // expect, so nothing above it knows that the database is on another thread.
 
 import type { Driver, Row, SqlValue } from "@cofre/storage";
+import { NewerDatabaseError } from "@cofre/storage";
 import type { OpenOutcome, WorkerRequest, WorkerResponse } from "./databaseWorker.ts";
 
 type Pending = {
@@ -56,7 +57,12 @@ export async function openBrowserDatabase(): Promise<BrowserDatabase> {
 
 	async function send(request: RequestBody): Promise<WorkerResponse> {
 		const response = await ask(request);
-		if (!response.ok) throw new Error(response.error);
+		if (!response.ok) {
+			// A database a newer version migrated is refused by the same runner as on a server,
+			// and it reaches the page as that refusal, so it is said in words (part 2, K.6.3).
+			if (response.name === "NewerDatabaseError") throw new NewerDatabaseError([]);
+			throw new Error(response.error);
+		}
 		return response;
 	}
 

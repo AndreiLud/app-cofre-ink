@@ -318,6 +318,43 @@ export function runPortabilityConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 2, K.6.4 and K.8.3 of the request for 2.0.0: the version of a backup rose to 2 once
+		// in this release. A file of 1.2.1, version 1, still restores; one a later version wrote
+		// is refused by name rather than read with what it carries lost in silence.
+		it("restores a backup of 1.2.1, and refuses one written by a later version", async () => {
+			const fixture = await prepare(adapter);
+			const other = await elsewhere([fixture.ana], fixture.ana, "restoreVersions");
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Casa" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta da casa",
+					initialBalance: 100_000,
+				});
+				await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 4290,
+					happenedOn: "2026-09-10",
+					description: "Mercado do bairro",
+					accountId: account.id,
+				});
+				const backup = await fixture.asAna.backup.exportSpace(space.id);
+
+				await expect(other.session.backup.restore({ ...backup, version: 3 })).rejects.toMatchObject(
+					{ rule: "backupIsNewer" },
+				);
+				const restored = await other.session.backup.restore({ ...backup, version: 1 });
+				expect(restored.spaces[0]?.created).toBe(true);
+				await other.session.refresh();
+				expect(await other.session.transactions.list({ spaceId: space.id })).toHaveLength(1);
+			} finally {
+				await other.close();
+				await fixture.close();
+			}
+		});
+
 		it("changes nothing the second time the same file is opened", async () => {
 			const fixture = await prepare(adapter);
 			const other = await elsewhere([fixture.ana], fixture.ana, "restoreTwice");
