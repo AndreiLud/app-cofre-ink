@@ -207,6 +207,13 @@ export function figure(page: Page, label: string) {
 		.first();
 }
 
+/** An amount as the screen writes it in Portuguese, "-R$ 1.960,96", in cents. */
+export function cents(text: string): number {
+	const digits = text.replace(/[^\d,]/g, "").replace(",", ".");
+	const value = Math.round(Number(digits) * 100);
+	return /^\s*[-−]/.test(text) ? -value : value;
+}
+
 /**
  * Spaces and members are settings, so they live in the menu of the space instead of in
  * the navigation. Both screens are reached the same way.

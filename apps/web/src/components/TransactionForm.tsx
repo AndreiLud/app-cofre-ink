@@ -99,7 +99,9 @@ export function TransactionForm({
 		[accounts],
 	);
 	const chosen = usable.find((account) => account.id === accountId);
-	const canSplit = kind === "expense" && chosen?.kind === "credit";
+	// Any money out, which is decision 6 of 1.1.0: a carnê on the current account is a plan
+	// as much as a purchase on the card. Not on a benefit card, which is spent as it goes.
+	const canSplit = kind === "expense" && chosen !== undefined && chosen.kind !== "voucher";
 
 	/**
 	 * Every way to pay, as one list.
@@ -453,7 +455,12 @@ export function TransactionForm({
 									label={t("transactions.installments")}
 									value={installments}
 									onChange={(event) => setInstallments(event.target.value)}
-									hint={t("transactions.installmentsHint")}
+									// The invoice is only something to speak of on a card.
+									hint={
+										chosen?.kind === "credit"
+											? t("transactions.installmentsHint")
+											: t("transactions.installmentsHintMonth")
+									}
 									options={Array.from({ length: 24 }, (_unused, index) => ({
 										value: String(index + 1),
 										label:

@@ -1,7 +1,7 @@
 // Writing money down, which is the thing the product exists to make fast.
 
 import { expect, test } from "@playwright/test";
-import { dayField, figure, go, onTheDay, openCofre, record, total } from "./support.ts";
+import { cents, dayField, figure, go, onTheDay, openCofre, record, total } from "./support.ts";
 
 /**
  * A day ahead of the day the suite runs on, as the date field wants it.
@@ -67,6 +67,46 @@ test.describe("records", () => {
 		await page.getByLabel("Mês", { exact: true }).fill("2026-11");
 		await expect(record(page, "Geladeira 3/3")).toBeVisible();
 		await expect(page.getByRole("cell", { name: "-R$ 411,52" })).toBeVisible();
+	});
+
+	// Part 1, D.4 of the request for 2.0.0: instalments on any account, which is decision 6
+	// of 1.1.0. The form offered them only on a credit card, so a carnê of 300 in three on the
+	// current account could not be written as one.
+	test("splits a purchase on the current account into parts, each in its own month", async ({
+		page,
+	}) => {
+		await openCofre(page);
+		await go(page, "Painel");
+		const spentBefore = cents(await figure(page, "Saiu").innerText());
+
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByLabel("Pago com").selectOption({ label: "Conta corrente" });
+		await dialog.getByLabel("Valor", { exact: true }).fill("300,00");
+		await dialog.getByLabel("Descrição").fill("Carnê da loja");
+		await dialog.getByLabel("Dia").fill("2026-10-28");
+		await dialog.getByLabel("Parcelas").selectOption("3");
+		// No invoice to speak of on a current account.
+		await expect(dialog.getByText("Cada parcela conta no mês dela.")).toBeVisible();
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(dialog).toHaveCount(0);
+
+		for (const [month, part] of [
+			["2026-10", "1/3"],
+			["2026-11", "2/3"],
+			["2026-12", "3/3"],
+		] as const) {
+			await page.getByLabel("Mês", { exact: true }).fill(month);
+			await expect(record(page, `Carnê da loja ${part}`)).toContainText("-R$ 100,00");
+		}
+
+		// October counts its own part, and not the whole carnê.
+		await page.reload();
+		await go(page, "Painel");
+		await expect
+			.poll(async () => cents(await figure(page, "Saiu").innerText()))
+			.toBe(spentBefore - 10_000);
 	});
 
 	// Release 1.2.1 wrote a day ahead as a promise, and nothing ever made a promise a fact:

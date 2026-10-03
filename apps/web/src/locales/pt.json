@@ -713,7 +713,8 @@
 		"refundOf": "Estorno: {{description}}",
 		"wasAMove": "Foi para uma conta sua, como a poupança ou o vale? Isso não é gasto:",
 		"useMove": "use Mover entre contas.",
-		"kindMoves": "Pagamentos de fatura e movimentações"
+		"kindMoves": "Pagamentos de fatura e movimentações",
+		"installmentsHintMonth": "Cada parcela conta no mês dela."
 	},
 	"rulesSection": {
 		"title": "Regras que categorizam sozinhas",
