@@ -724,6 +724,37 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 1, D.9 of the request for 2.0.0 (D.1.4 of 1.1.0): ticking a record off against the
+		// bank wrote only the moment of the check, so a promise of 1.0 for 80 on the fifth stayed
+		// a promise, out of the balance and called late, while it said it matched the bank.
+		it("makes a promise a fact when it is ticked off against the bank", async () => {
+			const ready = await readySpace(adapter);
+			try {
+				const on = ready.fixture.asAna;
+				const [promise] = await on.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 8_000,
+					happenedOn: "2026-09-05",
+					description: "Farmacia",
+					accountId: ready.checking.id,
+					status: "planned",
+				});
+				const id = promise?.id ?? "";
+
+				const ticked = await on.transactions.reconcile(id, true);
+				expect(ticked.status).toBe("settled");
+				expect(ticked.reconciledAt).not.toBeNull();
+				const balances = await on.transactions.balances(ready.spaceId, "2026-09-30");
+				expect(balanceOf(balances, ready.checking.id).settled).toBe(100_000 - 8_000);
+
+				// Taking the tick off leaves it a fact: the bank still has the line.
+				expect((await on.transactions.reconcile(id, false)).status).toBe("settled");
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		it("refuses to write into an archived account", async () => {
 			const ready = await readySpace(adapter);
 			try {

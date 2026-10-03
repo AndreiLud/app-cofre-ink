@@ -1281,7 +1281,14 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			return planned.length;
 		},
 
-		/** Ties the record to a line on a bank statement, and freezes it. */
+		/**
+		 * Ties the record to a line on a bank statement, and freezes it.
+		 *
+		 * A line on the statement is money that moved, so a promise ticked off against it is a
+		 * fact as well. It only wrote the moment of the check, and a promise from before 1.1.0
+		 * stayed a promise, called late, while it said it matched the bank. Taking the tick off
+		 * again leaves it a fact: the bank still has the line.
+		 */
 		async reconcile(id: string, reconciled: boolean): Promise<Transaction> {
 			const found = await reachable(id);
 			assertCan(context.actor(), found.spaceId, "transaction.reconcile");
@@ -1289,7 +1296,9 @@ export function createTransactionsRepository(context: RepositoryContext) {
 				table: transactions,
 				spaceId: found.spaceId,
 				id,
-				values: { reconciled_at: reconciled ? context.now() : null },
+				values: reconciled
+					? { reconciled_at: context.now(), status: "settled" }
+					: { reconciled_at: null },
 			});
 			return reachable(id);
 		},
