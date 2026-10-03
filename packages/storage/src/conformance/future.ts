@@ -579,8 +579,9 @@ export function runFutureConformance(adapter: AdapterUnderTest): void {
 					]);
 				expect(await onDay("2026-09-30")).toEqual([["Tesouro", 130_000]]);
 				expect(await onDay("2026-09-10")).toEqual([["Tesouro", 120_000]]);
-				// Before the first price on record, the first price on record.
-				expect(await onDay("2026-08-10")).toEqual([["Tesouro", 120_000]]);
+				// Between the purchase and the next price, the price it was bought at, which is the
+				// first of its line and dated the day of the purchase.
+				expect(await onDay("2026-08-10")).toEqual([["Tesouro", 150_000]]);
 				expect(await onDay("2026-07-31")).toEqual([]);
 				const yesterday = addDays(todayIn("America/Sao_Paulo"), -1);
 				expect((await onDay(yesterday)).map(([name]) => name)).toEqual(["Tesouro"]);

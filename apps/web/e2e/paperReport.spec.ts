@@ -215,6 +215,36 @@ test.describe("the month on paper", () => {
 		await expect(page.getByRole("heading", { name: "Dia a dia", exact: true })).toBeVisible();
 	});
 
+	// Part 1, F.8 of the request for 2.0.0, which waited for a holding with a day of its own: a
+	// share bought in August is in the file of September at the price it was bought at, and the
+	// sentence at the top covers it, because that price is from before the end of the month.
+	test("reads a share bought in August in the file of September", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Investimentos");
+		await page.getByRole("button", { name: "Novo investimento" }).click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByRole("button", { name: "Ação", exact: true }).click();
+		await dialog.getByLabel("Código").fill("ITSA4");
+		await dialog.getByLabel("Quantidade").fill("10");
+		await dialog.getByLabel("Preço médio").fill("30,00");
+		await dialog.getByLabel("Quando colocou").fill("2026-08-10");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("dialog")).toHaveCount(0);
+
+		await page.goto("/relatorio?mes=2026-09");
+		const holdings = page.locator("section").filter({ hasText: "Investimentos" }).last();
+		await expect(holdings.getByRole("row").filter({ hasText: "ITSA4" })).toContainText("R$ 300,00");
+		await expect(holdings.getByText("Valia em 30 de setembro de 2026")).toBeVisible();
+		await expect(page.getByText(/Sem preço anotado até o fim do mês/)).toHaveCount(0);
+		await expect(
+			page.getByText(/como estavam em 30 de setembro de 2026, o último dia do mês\./),
+		).toBeVisible();
+		// The broker is worth the share on that day, beside the R$ 15.525,30 of the accounts.
+		await expect(page.getByRole("row").filter({ hasText: "Dinheiro no fim do mês" })).toContainText(
+			"R$ 15.825,30",
+		);
+	});
+
 	// Part 1, F.7 of the request for 2.0.0: a limit took its name from the spending of the month,
 	// so one on a category with nothing spent in it printed an empty first cell.
 	test("names a limit on a category with nothing spent in the month", async ({ page }) => {

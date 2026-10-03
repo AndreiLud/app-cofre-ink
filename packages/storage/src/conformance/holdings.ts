@@ -436,6 +436,40 @@ export function runHoldingsConformance(adapter: AdapterUnderTest): void {
 		});
 	});
 
+	describe("a holding with the day it was bought", () => {
+		// The first price was dated the day it was written down, so a share bought in August read
+		// the month of September at the price of the day somebody typed it, in October.
+		it("keeps the price it was written down with on the day it was bought", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const on = fixture.asAna;
+				const space = await on.spaces.create({ name: "Casa" });
+				const broker = await on.accounts.create({
+					spaceId: space.id,
+					kind: "investment",
+					name: "Corretora",
+				});
+				const share = await on.investments.create({
+					spaceId: space.id,
+					accountId: broker.id,
+					name: "ITSA4",
+					product: "stock",
+					ticker: "ITSA4",
+					quantity: 10 * SCALE,
+					unitPrice: 3_000,
+					boughtOn: "2026-08-10",
+				});
+				expect((await on.investments.prices(share.id)).map((one) => one.onDay)).toEqual([
+					"2026-08-10",
+				]);
+				const [then] = await on.investments.list(space.id, { onDay: "2026-09-30" });
+				expect(then).toMatchObject({ value: 30_000, pricedOn: "2026-08-10" });
+			} finally {
+				await fixture.close();
+			}
+		});
+	});
+
 	describe("against the CDI, and in a backup", () => {
 		it("puts the same deposits at the CDI from their own days, and leaves out a holding with none", async () => {
 			const fixture = await prepare(adapter);
@@ -589,9 +623,10 @@ export function runHoldingsConformance(adapter: AdapterUnderTest): void {
 				});
 				expect(after.unitPrice).toBe(12_000);
 				expect(after.pricedOn).toBe("2026-09-30");
+				// The price it was written down with is dated the day it was bought.
 				expect((await on.investments.prices(share.id)).map((one) => one.onDay)).toEqual([
+					"2026-08-01",
 					"2026-08-31",
-					"2026-09-01",
 					"2026-09-30",
 				]);
 			} finally {

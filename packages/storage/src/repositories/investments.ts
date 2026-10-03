@@ -776,13 +776,16 @@ export function createInvestmentsRepository(context: RepositoryContext) {
 						});
 					}
 				} else if (!deposited) {
-					// The price it is written down with is the first of its line, kept like every other.
+					// The price it is written down with is the first of its line, kept like every other,
+					// on the day it was bought when that is known: the average price of a share bought
+					// in August is its price in August, and dated today it read the month of September
+					// at a price from October.
 					await insertRow(write, {
 						table: holdingPrices,
 						spaceId: input.spaceId,
 						values: {
 							holding_id: made,
-							on_day: today,
+							on_day: input.boughtOn ?? today,
 							unit_price: input.unitPrice,
 							created_by: context.actor().userId,
 						},
