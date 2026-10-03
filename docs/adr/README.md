@@ -64,3 +64,4 @@ new one.
 | [0055](0055_a_purchase_taken_back.md) | a refund on a benefit card is a purchase taken back | accepted |
 | [0056](0056_the_benefit_is_income_wherever_income_is_read.md) | the benefit is income wherever income is read | accepted |
 | [0057](0057_moving_money_is_not_a_kind_of_record.md) | moving money is not a kind of record | accepted |
+| [0058](0058_several_cards_in_the_order_they_are_dealt_with.md) | several cards, in the order they are dealt with | accepted |
