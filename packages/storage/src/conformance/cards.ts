@@ -56,6 +56,57 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 1, B.9 of the request for 2.0.0. An allowance was accepted with no day, the form
+		// wrote the first of the month under an example showing the fifth when the field was
+		// left empty, and the edit wrote no day at all, so the overview said there was none.
+		it("refuses an allowance with no day, written or edited", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				await expect(
+					fixture.asAna.accounts.create({
+						spaceId: space.id,
+						kind: "voucher",
+						name: "Vale sem dia",
+						benefit: "meal",
+						quotaAmount: 90_000,
+					}),
+				).rejects.toMatchObject({ rule: "quotaNeedsADay" });
+
+				const voucher = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "voucher",
+					name: "Vale",
+					benefit: "meal",
+					quotaAmount: 90_000,
+					quotaDay: 5,
+				});
+				// The edit that sent the amount and an empty day.
+				await expect(
+					fixture.asAna.accounts.update(voucher.id, { quotaAmount: 100_000, quotaDay: null }),
+				).rejects.toMatchObject({ rule: "quotaNeedsADay" });
+				expect((await fixture.asAna.accounts.get(voucher.id)).quotaDay).toBe(5);
+
+				// And a voucher from before 2.0.0 with an amount and no day takes one on its next edit.
+				const old = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "voucher",
+					name: "Vale antigo",
+					benefit: "meal",
+				});
+				await expect(
+					fixture.asAna.accounts.update(old.id, { quotaAmount: 50_000 }),
+				).rejects.toMatchObject({ rule: "quotaNeedsADay" });
+				const fixed = await fixture.asAna.accounts.update(old.id, {
+					quotaAmount: 50_000,
+					quotaDay: 10,
+				});
+				expect([fixed.quotaAmount, fixed.quotaDay]).toEqual([50_000, 10]);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		it("says nothing for a voucher with no allowance on it, which every old one is", async () => {
 			const fixture = await prepare(adapter);
 			try {

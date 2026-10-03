@@ -55,6 +55,14 @@ export function AccountsPage() {
 	// when the money arrives, so this is the only place the figure can come from.
 	const [quota, setQuota] = useState("");
 	const [quotaDay, setQuotaDay] = useState("");
+	/** The days an allowance can land on, with nothing chosen first rather than an example. */
+	const quotaDays = [
+		{ value: "", label: t("accounts.quotaDayPick") },
+		...Array.from({ length: 31 }, (_unused, index) => ({
+			value: String(index + 1),
+			label: String(index + 1),
+		})),
+	];
 	/** What is already charged to the invoice that is open today, on a card that is not new. */
 	const [invoiceSoFar, setInvoiceSoFar] = useState("");
 	// The card that comes with the account, for the two kinds that are a card.
@@ -271,7 +279,9 @@ export function AccountsPage() {
 				...(kind === "voucher" && quota.trim() !== ""
 					? {
 							quotaAmount: parseMoney(quota, { currency: currentSpace?.baseCurrency }).amount,
-							quotaDay: quotaDay.trim() === "" ? 1 : Number(quotaDay),
+							// No day of its own when none was chosen. The first of the month used to be
+							// written here, under an example that showed the fifth.
+							quotaDay: quotaDay === "" ? null : Number(quotaDay),
 							quotaCarries: carriesByDefault(benefit),
 						}
 					: {}),
@@ -639,12 +649,11 @@ export function AccountsPage() {
 								numeric={true}
 								inputMode="decimal"
 							/>
-							<Field
+							<Select
 								label={t("accounts.quotaDay")}
 								value={editQuotaDay}
 								onChange={(event) => setEditQuotaDay(event.target.value)}
-								numeric={true}
-								inputMode="numeric"
+								options={quotaDays}
 							/>
 							<Segmented
 								label={t("accounts.quotaLeftover")}
@@ -842,13 +851,11 @@ export function AccountsPage() {
 								inputMode="decimal"
 								placeholder={t("fields.amountPlaceholder")}
 							/>
-							<Field
+							<Select
 								label={t("accounts.quotaDay")}
 								value={quotaDay}
 								onChange={(event) => setQuotaDay(event.target.value)}
-								numeric={true}
-								inputMode="numeric"
-								placeholder="5"
+								options={quotaDays}
 							/>
 						</div>
 					) : null}

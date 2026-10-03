@@ -55,13 +55,38 @@ test.describe("accounts", () => {
 		await page.getByRole("menuitem", { name: "Editar conta" }).click();
 
 		await page.getByRole("dialog").getByLabel("Valor por mês").fill("900,00");
-		await page.getByRole("dialog").getByLabel("Dia do crédito").fill("5");
+		await page.getByRole("dialog").getByLabel("Dia do crédito").selectOption("5");
 		await page.getByRole("button", { name: "Salvar" }).click();
 
 		// Nothing is written when an allowance lands, so what is left is worked out from
 		// the allowance and the spending. Before this the card simply said its balance.
 		await go(page, "Painel");
 		await expect(page.getByText("de R$ 900,00")).toBeVisible();
+	});
+
+	// Part 1, B.9 of the request for 2.0.0: the day of an allowance is chosen from a list that
+	// starts empty, and an allowance with no day is refused with the reason, where the form
+	// used to write the first of the month under an example showing the fifth.
+	test("asks for the day an allowance lands, and writes none it was not given", async ({
+		page,
+	}) => {
+		await openCofre(page, { demo: false });
+		await go(page, "Contas");
+
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByLabel("Nome").fill("VR");
+		await dialog.getByLabel("Tipo").selectOption("voucher");
+		await dialog.getByLabel("Valor por mês").fill("900,00");
+		const day = dialog.getByLabel("Dia do crédito");
+		await expect(day).toHaveValue("");
+		await expect(day.locator("option").first()).toHaveText("Escolha o dia");
+		await page.getByRole("button", { name: "Salvar" }).click();
+
+		await expect(dialog.getByText("Escolha o dia em que ele cai")).toBeVisible();
+		await day.selectOption("5");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "VR", exact: true })).toBeVisible();
 	});
 
 	test("says what goes nowhere before deleting an account", async ({ page }) => {

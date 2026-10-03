@@ -510,7 +510,8 @@
 		"deleteHolds_one": "Tem 1 lançamento nesta conta. Ele fica onde está, apontando para uma conta que não existe mais, e o dinheiro dele deixa de ser contado em qualquer lugar.",
 		"deleteHolds_zero": "Não tem nenhum lançamento nesta conta. Apagar não deixa nada apontando para o vazio.",
 		"deleteHolds_other": "Tem {{count}} lançamentos nesta conta. Eles ficam onde estão, apontando para uma conta que não existe mais, e o dinheiro deles deixa de ser contado em qualquer lugar.",
-		"deleteInstead": "Se a conta só saiu de uso, arquivar tira ela da frente e mantém tudo somando."
+		"deleteInstead": "Se a conta só saiu de uso, arquivar tira ela da frente e mantém tudo somando.",
+		"quotaDayPick": "Escolha o dia"
 	},
 	"rules": {
 		"notABackup": "Esse arquivo não é um backup do {{app}}. Um backup sai daqui mesmo, no botão Baixar cópia, e a cópia que esta tela guarda antes de trocar uma também. Extrato do banco entra por Importar extrato.",
@@ -597,7 +598,8 @@
 		"notOnAnInvoice": "Só um lançamento que está numa fatura pode ser movido para outra.",
 		"benefitIsNotIncome": "Um cartão de benefício só gasta. O valor que cai nele é o valor mensal do cartão, e o {{app}} conta esse valor sozinho.",
 		"benefitDoesNotLeave": "O dinheiro de um cartão de benefício é gasto no próprio cartão e não sai dele. Recarregar por Pix você lança como transferência para o cartão, que isso existe.",
-		"closingDayTooFar": "Esse dia está longe demais do fechamento previsto. Um banco muda o fechamento em poucos dias, por fim de semana ou feriado; confira o dia, e o ano."
+		"closingDayTooFar": "Esse dia está longe demais do fechamento previsto. Um banco muda o fechamento em poucos dias, por fim de semana ou feriado; confira o dia, e o ano.",
+		"quotaNeedsADay": "O valor do benefício cai num dia do mês. Escolha o dia em que ele cai."
 	},
 	"transactions": {
 		"title": "Lançamentos",

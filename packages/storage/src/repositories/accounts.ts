@@ -108,6 +108,18 @@ function assertQuota(
 	}
 }
 
+/**
+ * An allowance with no day is not an allowance: nothing can say when it lands, so every
+ * screen said there was none. The form wrote one anyway, the first of the month under an
+ * example that showed the fifth when the field was left empty, and the edit wrote no day at
+ * all, so somebody correcting the amount made the card lose its allowance.
+ */
+function assertQuotaHasADay(amount: number | null | undefined, day: number | null | undefined) {
+	if (amount != null && day == null) {
+		throw new RuleError("quotaNeedsADay", "an allowance lands on a day, so it needs the day");
+	}
+}
+
 export function createAccountsRepository(context: RepositoryContext) {
 	/** The timezone of a space, for turning the instant a row was written into a day. */
 	async function timezoneOf(spaceId: string): Promise<string> {
@@ -203,6 +215,7 @@ export function createAccountsRepository(context: RepositoryContext) {
 				);
 			}
 			assertQuota(input, input.kind);
+			assertQuotaHasADay(input.quotaAmount, input.quotaDay);
 
 			// The currency of the space, and not the currency of Brazil.
 			//
@@ -296,6 +309,10 @@ export function createAccountsRepository(context: RepositoryContext) {
 				values.benefit = input.benefit;
 			}
 			assertQuota(input, account.kind);
+			assertQuotaHasADay(
+				input.quotaAmount !== undefined ? input.quotaAmount : account.quotaAmount,
+				input.quotaDay !== undefined ? input.quotaDay : account.quotaDay,
+			);
 			if (input.quotaAmount !== undefined) values.quota_amount = input.quotaAmount;
 			if (input.quotaDay !== undefined) values.quota_day = input.quotaDay;
 			if (input.quotaCarries !== undefined) {
