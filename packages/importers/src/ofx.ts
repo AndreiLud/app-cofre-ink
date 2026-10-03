@@ -10,7 +10,7 @@
 // the same transaction twice sends the same identifier twice, which is what lets an
 // import of overlapping statements not produce two of everything.
 
-import type { CalendarDate } from "@cofre/core";
+import { type CalendarDate, parseMoney } from "@cofre/core";
 import { readDate, tidy } from "./text.ts";
 
 export type OfxEntry = {
@@ -26,6 +26,8 @@ export type OfxEntry = {
 };
 
 export type OfxStatement = {
+	/** A card's statement, which is an invoice, or a bank account's. */
+	kind: "invoice" | "statement";
 	/** The account the file is about, as the bank names it. */
 	accountId: string | null;
 	bankId: string | null;
@@ -57,21 +59,29 @@ function readOfxDate(value: string): CalendarDate | null {
 	return readDate(digits.slice(0, 8), "yearFirst");
 }
 
+/**
+ * An OFX amount in minor units, read as text the way every other amount is, and never through a
+ * floating point number: 1.005 times a hundred is 100.49999 in one.
+ */
 function readOfxAmount(value: string): number | null {
 	const text = value.trim().replace(/\s/g, "");
 	if (text === "") return null;
 
 	// OFX says a period for the decimals, and some banks send a comma anyway.
-	const normalised = text.includes(",") && !text.includes(".") ? text.replace(",", ".") : text;
-	const amount = Number(normalised);
-	if (!Number.isFinite(amount)) return null;
-	return Math.round(amount * 100);
+	const separator = text.includes(",") && !text.includes(".") ? "," : ".";
+	try {
+		return parseMoney(text, { decimalSeparator: separator }).amount;
+	} catch {
+		return null;
+	}
 }
 
 export function readOfx(text: string): OfxStatement {
 	const tags = readTags(text);
 
 	const statement: OfxStatement = {
+		// The block a card's statement opens with, where a bank account's opens with BANKACCTFROM.
+		kind: /<CCACCTFROM>/i.test(text) ? "invoice" : "statement",
 		accountId: null,
 		bankId: null,
 		currency: null,

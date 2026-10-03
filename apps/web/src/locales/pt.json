@@ -1434,7 +1434,25 @@
 		"invoiceOfHint": "Tudo o que está nesta fatura vai para ela, qualquer que seja o dia de cada compra.",
 		"putAwayTitle": "O cartão final {{digits}} está arquivado",
 		"putAwayBody": "{{name}} foi arquivado e não deve nada. Para importar uma fatura dele, traga o cartão de volta em Contas.",
-		"toAccounts": "Ir para Contas"
+		"toAccounts": "Ir para Contas",
+		"invertAll": "Inverter todos os sinais",
+		"signChargesPositive": "Gastos positivos, pagamentos negativos",
+		"signGuessedChargesPositive": "As compras deste arquivo são positivas, e o pagamento e os estornos são negativos. Li assim.",
+		"natureOf": "O que é {{description}}",
+		"directionOf": "Sentido de {{description}}",
+		"cardOf": "Cartão de {{description}}",
+		"cardOfFile": "O cartão do arquivo",
+		"newPlan": "Plano novo: grava as parcelas {{from}} a {{to}}, de {{first}} a {{last}}.",
+		"offerPart": "Gravar como parcela {{number}} de {{count}}",
+		"nature": {
+			"purchase": "Compra",
+			"fee": "Tarifa ou juros",
+			"credit": "Estorno",
+			"installment": "Parcela",
+			"payment": "Pagamento da fatura",
+			"cardPayment": "Pagamento de cartão"
+		},
+		"howToWrite": "Como gravar"
 	},
 	"demo": {
 		"notice": "Dados fictícios, só para demonstração."

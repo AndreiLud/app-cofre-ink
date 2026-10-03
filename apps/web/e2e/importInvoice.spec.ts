@@ -79,6 +79,57 @@ test.describe("reading a card invoice in", () => {
 		await expect(card.locator("option:checked")).toHaveText("Itaú");
 	});
 
+	// E.8: a PDF had no control over its signs, and a sign remembered for the shape of a file
+	// beat what the file itself showed.
+	test("lets every sign and each line be turned round, and reads a file before its memory", async ({
+		page,
+	}) => {
+		await twoCards(page);
+		await importPdf(page, SEPTEMBER);
+		await expect(page.getByRole("cell", { name: "-R$ 50,00" })).toBeVisible();
+		await page.getByRole("button", { name: "Inverter todos os sinais" }).click();
+		await expect(page.getByRole("cell", { name: "R$ 50,00", exact: true })).toBeVisible();
+		await page.getByLabel("Sentido de Padaria").selectOption({ label: "Saída" });
+		await expect(page.getByRole("cell", { name: "-R$ 50,00" })).toBeVisible();
+		await expect(page.getByLabel("O que é Padaria")).toHaveValue("purchase");
+
+		// A file of purchases, all positive, written to the Itaú: its shape remembers purchases.
+		const csv = (rows: string[]) => ({
+			name: "fatura.csv",
+			mimeType: "text/plain",
+			buffer: Buffer.from(["date,title,amount", ...rows].join("\n"), "utf8"),
+		});
+		await go(page, "Dados");
+		await page.getByRole("button", { name: "Abrir a importação" }).click();
+		await page
+			.getByLabel("Arquivo do banco")
+			.setInputFiles(
+				csv(["2026-08-03,Padaria,18.50", "2026-08-05,Mercado,249.90", "2026-08-08,Spotify,21.90"]),
+			);
+		await page.getByLabel("Cartão", { exact: true }).selectOption({ label: "Itaú" });
+		await page.getByRole("button", { name: "Gravar 3 lançamentos" }).click();
+		await expect(page.getByText("3 lançamentos gravados")).toBeVisible();
+
+		// The same shape with a payment and a refund written negative: the file says how.
+		await page
+			.getByLabel("Arquivo do banco")
+			.setInputFiles(
+				csv([
+					"2026-09-03,Padaria,18.50",
+					"2026-09-05,Mercado,249.90",
+					"2026-09-08,Spotify,21.90",
+					"2026-09-10,Pagamento recebido,-1500.00",
+					"2026-09-12,Estorno Loja,-50.00",
+				]),
+			);
+		await expect(
+			page.getByRole("radio", { name: "Gastos positivos, pagamentos negativos" }),
+		).toBeChecked();
+		await expect(page.getByRole("cell", { name: "R$ 1.500,00", exact: true })).toBeVisible();
+		await expect(page.getByLabel("O que é Pagamento recebido")).toHaveValue("payment");
+		await expect(page.getByLabel("O que é Estorno Loja")).toHaveValue("credit");
+	});
+
 	// E.7.3: the invoices of a card open the import on that card and that month.
 	test("opens the import from an invoice on its card and its month", async ({ page }) => {
 		await twoCards(page);

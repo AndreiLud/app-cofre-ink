@@ -92,6 +92,11 @@ export type ReadFileResult = {
 	currency: string | null;
 	/** What a recognised document turned out to be, for the screen to show. */
 	document: RecognisedDocument | null;
+	/**
+	 * Whether the file is a card's invoice or an account's statement, whatever its format: a
+	 * table of purchases written as positive numbers is an invoice, and so is the OFX of a card.
+	 */
+	kind: "statement" | "invoice" | "receipt" | null;
 };
 
 /** What kind of file this is, by looking at it rather than at its name. */
@@ -151,6 +156,7 @@ export function readFile(bytes: Uint8Array, options: ReadOptions = {}): ReadFile
 			accountHint: null,
 			currency: null,
 			document: null,
+			kind: null,
 		};
 	}
 }
@@ -175,6 +181,7 @@ function fromPdf(bytes: Uint8Array, options: ReadOptions): ReadFileResult {
 			accountHint: null,
 			currency: null,
 			document: null,
+			kind: null,
 		};
 	}
 
@@ -216,6 +223,7 @@ function fromPdf(bytes: Uint8Array, options: ReadOptions): ReadFileResult {
 		accountHint: document.cards.length > 0 ? document.cards.join(" ") : null,
 		currency: document.currency,
 		document,
+		kind: document.kind === "unknown" ? null : document.kind,
 	};
 }
 
@@ -260,9 +268,13 @@ function fromRows(
 			externalId: read.externalId,
 			category: read.category,
 			// A file whose positive numbers are purchases is an invoice.
-			nature: natureOf(description, mapping.positiveMeans === "expense" ? "invoice" : "statement", {
-				installment: installment?.sure === true,
-			}),
+			nature: natureOf(
+				description,
+				mapping.positiveMeans === "asWritten" ? "statement" : "invoice",
+				{
+					installment: installment?.sure === true,
+				},
+			),
 			installment,
 			cardDigits: null,
 			line,
@@ -281,6 +293,7 @@ function fromRows(
 		accountHint: null,
 		currency: null,
 		document: null,
+		kind: mapping.positiveMeans === "asWritten" ? "statement" : "invoice",
 	};
 }
 
@@ -298,7 +311,7 @@ function fromOfx(text: string): ReadFileResult {
 			notes: entry.checkNumber === null ? null : `Documento ${entry.checkNumber}`,
 			externalId: entry.externalId,
 			category: null,
-			nature: natureOf(description, "statement", { installment: installment?.sure === true }),
+			nature: natureOf(description, statement.kind, { installment: installment?.sure === true }),
 			installment,
 			cardDigits: null,
 			line: index + 1,
@@ -308,6 +321,7 @@ function fromOfx(text: string): ReadFileResult {
 	});
 
 	return {
+		kind: statement.kind,
 		format: "ofx",
 		records,
 		skipped,
@@ -347,6 +361,7 @@ function fromQif(text: string): ReadFileResult {
 		accountHint: null,
 		currency: null,
 		document: null,
+		kind: "statement",
 	};
 }
 
@@ -400,6 +415,7 @@ function fromJson(text: string): ReadFileResult {
 		accountHint: null,
 		currency: null,
 		document: null,
+		kind: null,
 	};
 }
 

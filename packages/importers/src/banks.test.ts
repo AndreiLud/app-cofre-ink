@@ -94,6 +94,53 @@ describe("a Nubank card invoice", () => {
 	});
 });
 
+// Part 2, E.8 of the request for 2.0.0: an invoice of positive purchases with its payment and
+// a refund written as negative numbers was read as written, or every line as a purchase.
+describe("an invoice whose payment and refund are negative", () => {
+	const invoice = [
+		"date,title,amount",
+		"2026-09-03,Padaria Sao Jorge,18.50",
+		"2026-09-05,Mercado Livre,249.90",
+		"2026-09-08,Spotify,21.90",
+		"2026-09-10,Pagamento recebido,-1500.00",
+		"2026-09-12,Estorno Loja,-50.00",
+	].join("\n");
+
+	it("reads the purchases as money out, and the payment and the refund as money back", () => {
+		const read = readFile(utf8(invoice), { fileName: "nubank.csv" });
+		expect(read.mapping?.positiveMeans).toBe("chargesPositive");
+		expect(read.kind).toBe("invoice");
+		expect(read.records.map((record) => [record.amount, record.nature])).toEqual([
+			[-1850, "purchase"],
+			[-24_990, "purchase"],
+			[-2190, "purchase"],
+			[150_000, "payment"],
+			[5000, "credit"],
+		]);
+	});
+});
+
+describe("the OFX of a card", () => {
+	const ofx = [
+		"OFXHEADER:100",
+		"DATA:OFXSGML",
+		"",
+		"<OFX><CREDITCARDMSGSRSV1><CCSTMTTRNRS><CCSTMTRS>",
+		"<CURDEF>BRL",
+		"<CCACCTFROM><ACCTID>4111********1234</CCACCTFROM>",
+		"<BANKTRANLIST>",
+		"<STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20260912<TRNAMT>-1.005<FITID>c1<MEMO>Padaria</STMTTRN>",
+		"</BANKTRANLIST></CCSTMTRS></CCSTMTTRNRS></CREDITCARDMSGSRSV1></OFX>",
+	].join("\r\n");
+
+	it("is an invoice, and its amounts are read as text and not as a fraction", () => {
+		const read = readFile(utf8(ofx), { fileName: "cartao.ofx" });
+		expect(read.kind).toBe("invoice");
+		// A floating point hundred times 1.005 is 100.49999, which rounds to a hundred cents.
+		expect(read.records[0]?.amount).toBe(-101);
+	});
+});
+
 describe("a Nubank account statement", () => {
 	const statement = [
 		"Data,Valor,Identificador,Descrição",

@@ -5,6 +5,7 @@
 // and whatever it decides is shown to the person before anything is written, because a
 // column read as the wrong thing is money in the wrong place.
 
+import { natureOf } from "./nature.ts";
 import { type DateOrder, guessDateOrder, readAmountValue, readDate } from "./text.ts";
 
 export type FieldName =
@@ -27,7 +28,15 @@ export type FieldName =
  * for eighteen reais spent. Read as written, importing an invoice turns fifty purchases
  * into fifty salaries, which is the single most expensive mistake this reader can make.
  */
-export type SignMeaning = "asWritten" | "expense";
+export type SignMeaning =
+	| "asWritten"
+	| "expense"
+	/**
+	 * An invoice that writes a purchase as a positive number and a payment or a refund as a
+	 * negative one. Read as "expense" both became purchases; read as written, every purchase
+	 * became income.
+	 */
+	| "chargesPositive";
 
 export type ColumnMapping = {
 	/** One entry per column of the file, in order. */
@@ -152,12 +161,30 @@ function guessSign(fields: readonly FieldName[], rows: readonly string[][]): Sig
 	if (column < 0) return "asWritten";
 	if (fields.includes("debit") || fields.includes("credit")) return "asWritten";
 
-	const amounts = rows
-		.map((row) => readAmountValue(row[column] ?? ""))
-		.filter((amount): amount is number => amount !== null && amount !== 0);
+	const described = fields.indexOf("description");
+	const lines = rows
+		.map((row) => ({
+			amount: readAmountValue(row[column] ?? ""),
+			words: described < 0 ? "" : (row[described] ?? ""),
+		}))
+		.filter(
+			(line): line is { amount: number; words: string } =>
+				line.amount !== null && line.amount !== 0,
+		);
 
-	if (amounts.length < 3) return "asWritten";
-	return amounts.every((amount) => amount > 0) ? "expense" : "asWritten";
+	if (lines.length < 3) return "asWritten";
+	if (lines.every((line) => line.amount > 0)) return "expense";
+
+	// Most lines positive and every negative one a payment or a refund: an invoice whose
+	// purchases are positive. A statement has money going out that is neither.
+	const negative = lines.filter((line) => line.amount < 0);
+	const backToTheCard = negative.every((line) => {
+		const nature = natureOf(line.words, "invoice");
+		return nature === "payment" || nature === "credit";
+	});
+	return negative.length < lines.length - negative.length && backToTheCard
+		? "chargesPositive"
+		: "asWritten";
 }
 
 export type MappedRow = {
@@ -186,9 +213,11 @@ export function applyMapping(row: readonly string[], mapping: ColumnMapping): Ma
 			? -Math.abs(debit)
 			: credit !== null && credit !== 0
 				? Math.abs(credit)
-				: plain === null || mapping.positiveMeans !== "expense"
+				: plain === null || mapping.positiveMeans === "asWritten"
 					? plain
-					: -Math.abs(plain);
+					: mapping.positiveMeans === "chargesPositive"
+						? -plain
+						: -Math.abs(plain);
 
 	return {
 		happenedOn: readDate(value("happenedOn"), mapping.dateOrder),

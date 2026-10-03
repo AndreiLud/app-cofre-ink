@@ -1434,7 +1434,25 @@
 		"invoiceOfHint": "Everything on this invoice goes to it, whatever the day of each purchase.",
 		"putAwayTitle": "The card ending {{digits}} is archived",
 		"putAwayBody": "{{name}} was archived and owes nothing. To import an invoice of it, bring the card back under Accounts.",
-		"toAccounts": "Go to Accounts"
+		"toAccounts": "Go to Accounts",
+		"invertAll": "Turn every sign round",
+		"signChargesPositive": "Spending positive, payments negative",
+		"signGuessedChargesPositive": "The purchases in this file are positive, and the payment and the refunds negative. That is how it was read.",
+		"natureOf": "What {{description}} is",
+		"directionOf": "Which way {{description}} went",
+		"cardOf": "Card of {{description}}",
+		"cardOfFile": "The card of the file",
+		"newPlan": "New plan: writes parts {{from}} to {{to}}, from {{first}} to {{last}}.",
+		"offerPart": "Write it as part {{number}} of {{count}}",
+		"nature": {
+			"purchase": "Purchase",
+			"fee": "Fee or interest",
+			"credit": "Refund",
+			"installment": "Part of a plan",
+			"payment": "Payment of the invoice",
+			"cardPayment": "Payment of a card"
+		},
+		"howToWrite": "How to write it"
 	},
 	"demo": {
 		"notice": "Made up data, for demonstration only."

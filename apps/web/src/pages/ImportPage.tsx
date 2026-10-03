@@ -18,7 +18,9 @@ import type {
 	AccountGuess,
 	DraftRecord,
 	FieldName,
+	InvoiceConvention,
 	MarkedRecord,
+	Nature,
 	RecognisedDocument,
 	SignMeaning,
 } from "@cofre/importers";
@@ -72,6 +74,9 @@ const FIELDS: FieldName[] = [
 	"category",
 	"ignore",
 ];
+
+/** What a line can be said to be, in the order the list offers them. */
+const NATURES: Nature[] = ["purchase", "fee", "credit", "installment", "payment", "cardPayment"];
 
 type Picked = {
 	name: string;
@@ -130,6 +135,18 @@ export function ImportPage() {
 	const [sign, setSign] = useState<SignMeaning | null>(null);
 	/** What the person said a document is, when the reader got it wrong. */
 	const [documentKind, setDocumentKind] = useState<"statement" | "invoice" | null>(null);
+	/** How the person said an invoice in a PDF writes a purchase, after turning it round. */
+	const [convention, setConvention] = useState<InvoiceConvention | null>(null);
+	/** Every sign of a file with no convention, turned round. */
+	const [flipped, setFlipped] = useState(false);
+	/** Lines the person turned round, by their place in the file: money out or money in. */
+	const [turned, setTurned] = useState<Map<number, 1 | -1>>(new Map());
+	/** What the person said a line is, when the reader got it wrong. */
+	const [natures, setNatures] = useState<Map<number, Nature>>(new Map());
+	/** The card the person said a line is on, when an invoice has more than one. */
+	const [lineCards, setLineCards] = useState<Map<number, string>>(new Map());
+	/** Lines with a loose "2/10" the person said are a part of a plan. */
+	const [asParts, setAsParts] = useState<Set<number>>(new Set());
 	/** The way the person chose, as the value of its line in the list, or nothing yet. */
 	const [wayChosen, setWayChosen] = useState<string | null>(null);
 	/** The invoice the person said the file is, when the one worked out was not it. */
@@ -170,13 +187,23 @@ export function ImportPage() {
 	// come from this screen or from the last time a file of this shape was read.
 	const read = useMemo(() => {
 		if (!picked) return null;
-		const said = documentKind === null ? {} : { kind: documentKind };
+		const said = {
+			...(documentKind === null ? {} : { kind: documentKind }),
+			...(convention === null ? {} : { convention }),
+		};
 		const first = readFile(picked.bytes, { fileName: picked.name, today, ...said });
 		if (!first.mapping) return first;
 
 		const shape = shapeOf(first.header);
 		const corrected = fields ?? recallColumns(spaceId, shape);
-		const chosenSign = sign ?? recallSign(spaceId, shape);
+		// The file beats what was remembered: a sign remembered for the shape is used only when
+		// the file could not say, which is a file with no negative number and too few lines. An
+		// invoice whose payment and refund are negative was read as all purchases because the
+		// last file of that shape had none.
+		const fileSays =
+			first.mapping.positiveMeans !== "asWritten" ||
+			first.records.some((record) => record.amount < 0);
+		const chosenSign = sign ?? (fileSays ? null : recallSign(spaceId, shape));
 		if (!corrected && !chosenSign) return first;
 
 		return readFile(picked.bytes, {
@@ -189,7 +216,7 @@ export function ImportPage() {
 				positiveMeans: chosenSign ?? first.mapping.positiveMeans,
 			},
 		});
-	}, [picked, fields, sign, today, spaceId, documentKind]);
+	}, [picked, fields, sign, today, spaceId, documentKind, convention]);
 
 	const usable = (accounts.data ?? []).filter((account) => account.archivedAt === null);
 
@@ -211,11 +238,8 @@ export function ImportPage() {
 		[standing.data],
 	);
 
-	/** Whether the file is a card invoice: what the document says, or a file of purchases. */
-	const isInvoice =
-		read?.document !== null && read?.document !== undefined
-			? read.document.kind === "invoice"
-			: read?.mapping?.positiveMeans === "expense";
+	/** Whether the file is a card invoice, whatever its format. */
+	const isInvoice = read?.kind === "invoice";
 
 	/**
 	 * Where the file can go. An invoice goes on a card: each plastic by its credit side, a credit
@@ -409,10 +433,28 @@ export function ImportPage() {
 			}) ?? [],
 	});
 
-	const marked: MarkedRecord[] = useMemo(() => {
-		if (!read) return [];
-		return markDuplicates(read.records, existing.data ?? []);
-	}, [read, existing.data]);
+	/**
+	 * The lines as the person left them: every sign turned round, a line turned round on its
+	 * own, and what a line is when the person said otherwise. A PDF had no way to say any of it.
+	 */
+	const lines: DraftRecord[] = useMemo(
+		() =>
+			(read?.records ?? []).map((record, index) => {
+				const written = Math.sign(record.amount) as 1 | -1;
+				const direction = turned.get(index) ?? (flipped ? (-written as 1 | -1) : written);
+				return {
+					...record,
+					amount: direction * Math.abs(record.amount),
+					nature: natures.get(index) ?? record.nature,
+				};
+			}),
+		[read, turned, flipped, natures],
+	);
+
+	const marked: MarkedRecord[] = useMemo(
+		() => markDuplicates(lines, existing.data ?? []),
+		[lines, existing.data],
+	);
 
 	// The rules of the space run at the moment of writing, so what they will do is
 	// worked out here with the same function and shown before anything is written.
@@ -445,9 +487,52 @@ export function ImportPage() {
 
 	const willBeSorted = sortedInto.filter((name) => name !== null).length;
 
-	const keeping = marked.filter(
-		(record, index) => !left.has(index) && !(record.certain && record.duplicateOf !== null),
+	/** The lines that will be written, with their place in the file. */
+	const kept = marked
+		.map((record, index) => ({ record, index }))
+		.filter(
+			({ record, index }) => !left.has(index) && !(record.certain && record.duplicateOf !== null),
+		);
+	const keeping = kept.map(({ record }) => record);
+
+	/** Whether the invoice lists more than one card, so each line says which. */
+	const severalCards = (read?.document?.cards.length ?? 0) > 1;
+	/** The cards a line of this account can be on. */
+	const cardsHere = (cards.data ?? []).filter(
+		(card) => chosen && (card.creditAccountId === chosen.id || card.debitAccountId === chosen.id),
 	);
+
+	/** Turns every sign round: the convention of an invoice in a PDF, or the lines of any other. */
+	function invertAll() {
+		if (read?.document?.kind === "invoice") {
+			setConvention(
+				(read.document.convention ?? "chargesPositive") === "chargesPositive"
+					? "chargesNegative"
+					: "chargesPositive",
+			);
+		} else {
+			setFlipped((current) => !current);
+		}
+		setTurned(new Map());
+	}
+
+	/** The months of a plan a line starts, from its invoice, for the line to say. */
+	const planSaid = (record: DraftRecord): string | null => {
+		const mark = record.installment;
+		if (!mark) return null;
+		const start = invoiceMonth ?? monthOf(record.happenedOn);
+		const name = (month: string) =>
+			new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+				month: "long",
+				timeZone: "UTC",
+			}).format(new Date(`${month}-01T00:00:00Z`));
+		return t("importing.newPlan", {
+			from: mark.number,
+			to: mark.count,
+			first: name(start),
+			last: name(addMonthsToMonth(start, mark.count - mark.number)),
+		});
+	};
 
 	async function pick(event: ChangeEvent<HTMLInputElement>) {
 		const file = event.target.files?.[0];
@@ -459,6 +544,12 @@ export function ImportPage() {
 		setDocumentKind(null);
 		setWayChosen(null);
 		setMonthChosen(null);
+		setConvention(null);
+		setFlipped(false);
+		setTurned(new Map());
+		setNatures(new Map());
+		setLineCards(new Map());
+		setAsParts(new Set());
 
 		try {
 			setPicked({ name: file.name, bytes: await readPickedFile(file) });
@@ -483,8 +574,8 @@ export function ImportPage() {
 	const save = useMutation({
 		mutationFn: async () => {
 			if (!session || !chosen) throw new Error("no session");
-			const records: ImportedRecord[] = keeping.map((record) => {
-				const card = cardOfLine(record);
+			const records: ImportedRecord[] = kept.map(({ record, index }) => {
+				const card = lineCards.get(index) ?? cardOfLine(record);
 				return {
 					happenedOn: record.happenedOn,
 					amount: record.amount,
@@ -740,17 +831,28 @@ export function ImportPage() {
 										onChange={setSign}
 										options={[
 											{ value: "expense", label: t("importing.signExpense") },
+											{ value: "chargesPositive", label: t("importing.signChargesPositive") },
 											{ value: "asWritten", label: t("importing.signAsWritten") },
 										]}
 									/>
 									<p className="pt-1 text-xs text-quiet">
 										{read.mapping.positiveMeans === "expense"
 											? t("importing.signGuessedExpense")
-											: t("importing.signHint")}
+											: read.mapping.positiveMeans === "chargesPositive"
+												? t("importing.signGuessedChargesPositive")
+												: t("importing.signHint")}
 									</p>
 								</div>
 							) : null}
 						</section>
+					) : null}
+
+					{read.records.length > 0 ? (
+						<div>
+							<Button size="small" variant="secondary" onClick={invertAll}>
+								{t("importing.invertAll")}
+							</Button>
+						</div>
 					) : null}
 
 					{duplicates > 0 ? (
@@ -794,6 +896,7 @@ export function ImportPage() {
 									<TableHeader>{t("table.date")}</TableHeader>
 									<TableHeader>{t("table.description")}</TableHeader>
 									<TableHeader numeric={true}>{t("table.amount")}</TableHeader>
+									<TableHeader>{t("importing.howToWrite")}</TableHeader>
 									{/* These two columns would take half the width of a phone to say
 									    nothing on most rows, so there they sit under the description. */}
 									<TableHeader className="hidden sm:table-cell">{t("table.category")}</TableHeader>
@@ -850,6 +953,91 @@ export function ImportPage() {
 													currency={chosen?.currency ?? "BRL"}
 													tone={record.amount < 0 ? "negative" : "positive"}
 												/>
+											</TableCell>
+											<TableCell>
+												<span className="flex flex-wrap gap-2">
+													{/* Money out or money in, line by line: a bank that writes a refund
+												    the way it writes a purchase is corrected here. */}
+													<select
+														aria-label={t("importing.directionOf", {
+															description: record.description,
+														})}
+														value={record.amount < 0 ? "out" : "in"}
+														onChange={(event) =>
+															setTurned((current) =>
+																new Map(current).set(index, event.target.value === "out" ? -1 : 1),
+															)
+														}
+														className="rounded-sm border border-line bg-sunken px-1 py-0.5 text-xs text-ink"
+													>
+														<option value="out">{t("transactionKind.expense")}</option>
+														<option value="in">{t("transactionKind.income")}</option>
+													</select>
+													<select
+														aria-label={t("importing.natureOf", {
+															description: record.description,
+														})}
+														value={record.nature}
+														onChange={(event) =>
+															setNatures((current) =>
+																new Map(current).set(index, event.target.value as Nature),
+															)
+														}
+														className="rounded-sm border border-line bg-sunken px-1 py-0.5 text-xs text-ink"
+													>
+														{NATURES.map((nature) => (
+															<option key={nature} value={nature}>
+																{t(`importing.nature.${nature}`)}
+															</option>
+														))}
+													</select>
+													{severalCards && cardsHere.length > 1 ? (
+														<select
+															aria-label={t("importing.cardOf", {
+																description: record.description,
+															})}
+															value={lineCards.get(index) ?? cardOfLine(record) ?? ""}
+															onChange={(event) =>
+																setLineCards((current) =>
+																	new Map(current).set(index, event.target.value),
+																)
+															}
+															className="rounded-sm border border-line bg-sunken px-1 py-0.5 text-xs text-ink"
+														>
+															<option value="">{t("importing.cardOfFile")}</option>
+															{cardsHere.map((card) => (
+																<option key={card.id} value={card.id}>
+																	{card.lastFour ? `${card.name} ${card.lastFour}` : card.name}
+																</option>
+															))}
+														</select>
+													) : null}
+												</span>
+												{/* A part of a plan says what will be written. A loose "2/10" may be
+												    the day printed again, so it is offered and not taken. */}
+												{record.installment?.sure ? (
+													<span className="block text-xs text-quiet">{planSaid(record)}</span>
+												) : record.installment ? (
+													<label className="flex items-center gap-2 text-xs text-quiet">
+														<input
+															type="checkbox"
+															checked={asParts.has(index)}
+															onChange={() =>
+																setAsParts((current) => {
+																	const next = new Set(current);
+																	if (next.has(index)) next.delete(index);
+																	else next.add(index);
+																	return next;
+																})
+															}
+															className="size-4 accent-[var(--ink)]"
+														/>
+														{t("importing.offerPart", {
+															number: record.installment.number,
+															count: record.installment.count,
+														})}
+													</label>
+												) : null}
 											</TableCell>
 											<TableCell className="hidden text-xs text-quiet sm:table-cell">
 												{sortedInto[index] ?? ""}
