@@ -10,6 +10,7 @@ export * from "./advice/season.ts";
 export * from "./advice/trend.ts";
 export * from "./alerts/notice.ts";
 export * from "./budget/progress.ts";
+export * from "./cards/cardsInOrder.ts";
 export * from "./cards/installments.ts";
 export * from "./cards/invoice.ts";
 export * from "./cards/invoiceState.ts";
