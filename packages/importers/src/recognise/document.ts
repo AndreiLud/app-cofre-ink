@@ -37,6 +37,8 @@ export type RecognisedDocument = {
 	dueOn: CalendarDate | null;
 	/** What the document says it adds up to, in minor units and always positive. */
 	total: number | null;
+	/** How an invoice writes a purchase. Nothing on any other document. */
+	convention: InvoiceConvention | null;
 	entries: RecognisedEntry[];
 	/** Lines that looked like they held money and could not be read. */
 	unread: { line: number; text: string }[];
@@ -96,41 +98,75 @@ const INSTITUTIONS = [
 	"N26",
 ];
 
-/** Words that mean money came in, whatever the rest of the document is about. */
-const MONEY_IN = [
-	"pagamento recebido",
-	"pagamento efetuado",
-	"estorno",
-	"credito",
-	"devolucao",
-	"reembolso",
+/**
+ * Words that say which way the money went, one list for each kind of document, matched as
+ * whole words. One list for both, matched inside words, read "cartao de credito" as money
+ * coming in. They decide only a line that carries no sign of its own.
+ */
+const STATEMENT_IN = [
+	"pix recebido",
+	"transferencia recebida",
+	"ted recebida",
+	"doc recebido",
+	"credito em conta",
 	"recebido",
+	"recebida",
 	"deposito",
 	"salario",
 	"rendimento",
-	"transferencia recebida",
-	"pix recebido",
+	"rendimentos",
+	"estorno",
+	"devolucao",
+	"reembolso",
 	"refund",
-	"payment received",
 	"deposit",
-	"credit",
+	"received",
+	"salary",
 ];
 
-const MONEY_OUT = [
-	"compra",
-	"debito",
-	"saque",
-	"pagamento de",
-	"transferencia enviada",
+const STATEMENT_OUT = [
 	"pix enviado",
+	"transferencia enviada",
+	"ted enviada",
+	"compra",
+	"saque",
+	"pagamento",
+	"pagto",
+	"pgto",
 	"tarifa",
 	"anuidade",
 	"juros",
 	"iof",
+	"debito",
 	"withdrawal",
 	"purchase",
+	"payment",
 	"fee",
 ];
+
+/** On a card invoice, what gives money back to the card: a refund, or the bill being paid. */
+const INVOICE_BACK = [
+	"estorno",
+	"estornada",
+	"estornado",
+	"devolucao",
+	"reembolso",
+	"cashback",
+	"ajuste a credito",
+	"pagamento",
+	"pagto",
+	"pgto",
+	"pag fatura",
+	"debito automatico",
+	"refund",
+	"payment",
+];
+
+/** Whether a phrase is in a text as whole words. Both are folded first. */
+export function saysWord(folded: string, phrase: string): boolean {
+	const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/ /g, "\\s+");
+	return new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`).test(folded);
+}
 
 /**
  * Lines that are furniture: a heading, a total, a page number.
@@ -335,12 +371,61 @@ export function isFurniture(line: string): boolean {
 	return FURNITURE_AT_START.some((word) => afterTheDate.startsWith(word) || afterTheDate === word);
 }
 
-/** What the description says about the direction, when it says anything. */
-export function directionOf(description: string): 1 | -1 | 0 {
+/**
+ * What the description says about the direction, when it says anything, in the words of
+ * the kind of document it is on. On an invoice a line says only that money came back.
+ */
+export function directionOf(description: string, kind: DocumentKind = "statement"): 1 | -1 | 0 {
 	const folded = fold(description);
-	if (MONEY_IN.some((word) => folded.includes(word))) return 1;
-	if (MONEY_OUT.some((word) => folded.includes(word))) return -1;
+	if (kind === "invoice") return INVOICE_BACK.some((word) => saysWord(folded, word)) ? 1 : 0;
+	if (STATEMENT_IN.some((word) => saysWord(folded, word))) return 1;
+	if (STATEMENT_OUT.some((word) => saysWord(folded, word))) return -1;
 	return 0;
+}
+
+/**
+ * How a card invoice writes a purchase. Most write it as a positive number and a refund or a
+ * payment as a negative one; some the other way round. A statement has no convention: there
+ * a negative number is money leaving.
+ */
+export type InvoiceConvention = "chargesPositive" | "chargesNegative";
+
+/** A sign that turns the convention round: a minus, parentheses, a minus after the number. */
+const INVERTING: readonly WrittenSign[] = ["minus", "parentheses", "trailingMinus"];
+
+/**
+ * The convention of an invoice, by its lines when nothing surer decides it: the way most of
+ * them are written is the way a purchase is written, and a tie is the common case.
+ */
+export function conventionOf(amounts: readonly FoundAmount[]): InvoiceConvention {
+	const inverted = amounts.filter((amount) => INVERTING.includes(amount.sign)).length;
+	return inverted > amounts.length - inverted ? "chargesNegative" : "chargesPositive";
+}
+
+/**
+ * One line of an invoice under a convention: its direction and how sure that is.
+ *
+ * A D or a C says it outright. A minus, parentheses or a minus at the end turn the line
+ * round from what the convention says a written number is. A plus is not trusted, because
+ * banks disagree about what it means. A line with no sign is a purchase under a convention
+ * of positive charges, unless its words say money came back.
+ */
+export function invoiceDirection(
+	amount: FoundAmount,
+	convention: InvoiceConvention,
+	said: 1 | -1 | 0,
+): { direction: 1 | -1; confidence: number } {
+	if (amount.sign === "letter") return { direction: amount.value < 0 ? -1 : 1, confidence: 0.9 };
+	const plain = convention === "chargesPositive" ? -1 : 1;
+	if (INVERTING.includes(amount.sign)) {
+		return { direction: plain === -1 ? 1 : -1, confidence: 0.9 };
+	}
+	if (amount.sign === "plus" || amount.sign === "spacedMinus") {
+		const direction = amount.sign === "plus" ? plain : plain === -1 ? 1 : -1;
+		return { direction, confidence: 0.6 };
+	}
+	if (said === 1) return { direction: 1, confidence: 0.8 };
+	return { direction: plain, confidence: 0.75 };
 }
 
 const IDENTIFIER_LABEL = /(?:\bid\b|\be2e\b|\bnsu\b|autentica|documento|\bdoc\b|\bref\b|c[oó]digo)/;
@@ -367,6 +452,8 @@ export type RecogniseOptions = {
 	today?: CalendarDate;
 	/** Given when the person has said which way round the days go. */
 	order?: "dayFirst" | "monthFirst" | "yearFirst";
+	/** Given when the person turned the signs of an invoice round on the screen. */
+	convention?: InvoiceConvention;
 };
 
 /**
@@ -390,9 +477,18 @@ export function recogniseStatement(
 
 	const entries: RecognisedEntry[] = [];
 	const unread: { line: number; text: string }[] = [];
+	/** The lines of an invoice, kept until its convention is known. */
+	const charges: {
+		index: number;
+		line: string;
+		day: CalendarDate;
+		sure: boolean;
+		chosen: FoundAmount;
+		description: string;
+	}[] = [];
 
 	// A running balance in the last column is the surest thing in a statement: the
-	// direction of an entry is the direction the balance moved.
+	// direction of an entry is the direction the balance moved. An invoice has none.
 	let previousBalance: number | null = null;
 
 	lines.forEach((text, index) => {
@@ -424,6 +520,20 @@ export function recogniseStatement(
 		let balance: FoundAmount | null = null;
 		let fromBalance = false;
 
+		if (kind === "invoice") {
+			if (!chosen) return;
+			const start = Math.max(date.at + date.text.length, 0);
+			charges.push({
+				index,
+				line,
+				day: date.day,
+				sure: date.sure,
+				chosen,
+				description: tidy(line.slice(start, chosen.at).replace(/^[\s|:;.-]+/, "")),
+			});
+			return;
+		}
+
 		if (amounts.length >= 2) {
 			const last = amounts[amounts.length - 1];
 			const before = amounts[amounts.length - 2];
@@ -446,7 +556,7 @@ export function recogniseStatement(
 
 		const start = Math.max(date.at + date.text.length, 0);
 		const description = tidy(line.slice(start, chosen.at).replace(/^[\s|:;.-]+/, ""));
-		const said = directionOf(description === "" ? line : description);
+		const said = directionOf(description === "" ? line : description, "statement");
 
 		let amount = chosen.value;
 		let confidence = 0.55;
@@ -463,10 +573,6 @@ export function recogniseStatement(
 		} else if (said !== 0) {
 			amount = said * Math.abs(chosen.value);
 			confidence = 0.8;
-		} else if (kind === "invoice") {
-			// Every line of a card invoice is a charge unless it says otherwise.
-			amount = -Math.abs(chosen.value);
-			confidence = 0.75;
 		} else {
 			amount = -Math.abs(chosen.value);
 			confidence = 0.5;
@@ -492,6 +598,38 @@ export function recogniseStatement(
 			source: line,
 		});
 	});
+
+	// The sign written on an invoice means what its convention says it means, so the lines wait
+	// for it. It was read the same way on every document: a refund written as a negative number
+	// on an invoice that writes purchases as positive ones became a purchase.
+	const convention =
+		kind === "invoice"
+			? (options.convention ?? conventionOf(charges.map((charge) => charge.chosen)))
+			: null;
+	for (const charge of charges) {
+		if (charge.chosen.value === 0) {
+			unread.push({ line: charge.index + 1, text: charge.line });
+			continue;
+		}
+		const said = directionOf(
+			charge.description === "" ? charge.line : charge.description,
+			"invoice",
+		);
+		const read = invoiceDirection(charge.chosen, convention ?? "chargesPositive", said);
+		let confidence = read.confidence;
+		if (charge.sure) confidence += 0.03;
+		if (charge.description.length >= 4) confidence += 0.02;
+		entries.push({
+			happenedOn: charge.day,
+			amount: read.direction * Math.abs(charge.chosen.value),
+			description: charge.description === "" ? charge.line : charge.description,
+			confidence: Math.min(0.99, confidence),
+			externalId: findIdentifier(charge.line),
+			line: charge.index + 1,
+			source: charge.line,
+		});
+	}
+	entries.sort((left, right) => left.line - right.line);
 
 	const due = labelled(lines, /vencimento|vence em|pagar ate|due date|payment due/);
 	const dueOn = due ? (findDate(due.line, order, year)?.day ?? null) : null;
@@ -529,6 +667,7 @@ export function recogniseStatement(
 		period,
 		dueOn,
 		total,
+		convention,
 		entries,
 		unread,
 		confidence: Math.max(0, average - penalty),

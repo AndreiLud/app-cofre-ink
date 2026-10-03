@@ -192,6 +192,38 @@ describe("an amount read once", () => {
 	});
 });
 
+// Part 2, E.2: the sign written on a line meant the same on every document, so on an invoice
+// that writes purchases as positive numbers, the refund and the payment became purchases.
+describe("the sign by the kind of document", () => {
+	const invoice = [
+		"Fatura do cartao de credito",
+		"Vencimento 10/10/2026",
+		"Total desta fatura R$ 130,00",
+		"12/09/2026 Padaria 18,40",
+		"13/09/2026 Mercado 131,60",
+		"13/09/2026 Farmacia 30,00",
+		"14/09/2026 Estorno Loja X -50,00",
+		"15/09/2026 Pagamento recebido -1.000,00",
+	];
+
+	it("reads an invoice by the way it writes a purchase", () => {
+		const read = recogniseStatement(invoice, { today });
+		expect(read.convention).toBe("chargesPositive");
+		expect(read.entries.map((entry) => entry.amount)).toEqual([
+			-1840, -13_160, -3000, 5000, 100_000,
+		]);
+	});
+
+	it("reads the words of a statement as whole words", () => {
+		const read = recogniseStatement(["Extrato", "10/09/2026 Parcela credito pessoal 300,00"], {
+			today,
+		});
+		// "credito" in the name of a loan is not money coming in.
+		expect(read.kind).toBe("statement");
+		expect(read.entries[0]?.amount).toBe(-30_000);
+	});
+});
+
 describe("whatever the lines hold", () => {
 	it("never throws, and never invents a record", () => {
 		fc.assert(

@@ -130,6 +130,7 @@ export function recogniseReceipt(
 		period: null,
 		dueOn: null,
 		total: chosen ? Math.abs(chosen.value) : null,
+		convention: null,
 		entries,
 		unread,
 		confidence: entries[0]?.confidence ?? 0,
