@@ -3,6 +3,7 @@
 // These are the rules that decide whether the numbers on the screen are true, so they
 // are checked against every engine, not just the one that happens to be convenient.
 
+import { todayIn } from "@cofre/core";
 import { describe, expect, it } from "vitest";
 import { NotFoundError, RuleError } from "../errors.ts";
 import type { Account } from "../models.ts";
@@ -1514,6 +1515,116 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 						(row) => row.description,
 					),
 				).toEqual(["Restaurado 1/3"]);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		// Part 1, D.5 of the request for 2.0.0 (D.3.3 of 1.1.0): a refund of 120 written as money
+		// out could not be turned into money in. It could only be removed and written again.
+		it("turns money out written by mistake into money in, on a record that stands alone", async () => {
+			const ready = await readySpace(adapter);
+			try {
+				const on = ready.fixture.asAna;
+				const category = await on.categories.create({
+					spaceId: ready.spaceId,
+					name: "Mercado",
+					kind: "expense",
+				});
+				const [wrong] = await on.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 12_000,
+					happenedOn: "2026-09-10",
+					description: "Reembolso da loja",
+					accountId: ready.checking.id,
+					categoryId: category.id,
+					priority: "important",
+				});
+				const id = wrong?.id ?? "";
+				const before = await on.transactions.balances(ready.spaceId, "2026-09-30");
+
+				const turned = await on.transactions.update(id, { kind: "income" });
+				expect(turned).toMatchObject({
+					kind: "income",
+					amount: 12_000,
+					amountInBase: 12_000,
+					categoryId: null,
+					priority: null,
+				});
+				const after = await on.transactions.balances(ready.spaceId, "2026-09-30");
+				expect(balanceOf(after, ready.checking.id).settled).toBe(
+					balanceOf(before, ready.checking.id).settled + 24_000,
+				);
+
+				// And back, with the amount corrected in the same change.
+				const back = await on.transactions.update(id, { kind: "expense", amount: 11_000 });
+				expect(back).toMatchObject({ kind: "expense", amount: -11_000, amountInBase: -11_000 });
+
+				// What it may not do: a part of a plan, an occurrence of a series, a move, a record
+				// ticked off against the bank, and money in on a benefit card.
+				const [part] = await on.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 30_000,
+					happenedOn: "2026-09-10",
+					description: "Geladeira",
+					accountId: ready.checking.id,
+					installments: 3,
+				});
+				await expect(
+					on.transactions.update(part?.id ?? "", { kind: "income" }),
+				).rejects.toMatchObject({ rule: "partKeepsItsKind" });
+				const series = await on.recurrences.create({
+					spaceId: ready.spaceId,
+					description: "Aluguel",
+					kind: "expense",
+					amount: 150_000,
+					accountId: ready.checking.id,
+					frequency: "monthly",
+					startsOn: todayIn("America/Sao_Paulo"),
+					endsOn: todayIn("America/Sao_Paulo"),
+				});
+				await on.recurrences.materialize({ spaceId: ready.spaceId });
+				const occurrence = (await on.transactions.list({ spaceId: ready.spaceId })).find(
+					(one) => one.recurrenceId === series.id,
+				);
+				await expect(
+					on.transactions.update(occurrence?.id ?? "", { kind: "income" }),
+				).rejects.toMatchObject({ rule: "occurrenceKeepsItsKind" });
+				const [move] = await on.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "transfer",
+					amount: 5_000,
+					happenedOn: "2026-09-10",
+					description: "Para a poupanca",
+					accountId: ready.checking.id,
+					counterAccountId: ready.savings.id,
+				});
+				await expect(
+					on.transactions.update(move?.id ?? "", { kind: "expense" }),
+				).rejects.toMatchObject({ rule: "kindOfAMove" });
+				await on.transactions.reconcile(id, true);
+				await expect(on.transactions.update(id, { kind: "income" })).rejects.toMatchObject({
+					rule: "reconciledIsFrozen",
+				});
+				const voucher = await on.accounts.create({
+					spaceId: ready.spaceId,
+					kind: "voucher",
+					name: "Vale",
+					benefit: "meal",
+				});
+				const [lunch] = await on.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 4_500,
+					happenedOn: "2026-09-10",
+					description: "Almoco",
+					accountId: voucher.id,
+				});
+				await expect(
+					on.transactions.update(lunch?.id ?? "", { kind: "income" }),
+				).rejects.toMatchObject({ rule: "benefitIsNotIncome" });
 			} finally {
 				await ready.fixture.close();
 			}

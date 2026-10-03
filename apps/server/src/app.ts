@@ -254,6 +254,8 @@ const transactionInput = z.object({
 });
 
 const transactionPatch = z.object({
+	// Money out turned into money in, or back. A move is changed by its own path.
+	kind: z.enum(["income", "expense"]).optional(),
 	amount: z.number().int().positive().optional(),
 	happenedOn: calendarDate.optional(),
 	description: z.string().trim().min(1).max(200).optional(),

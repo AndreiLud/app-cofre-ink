@@ -90,6 +90,8 @@ export type CreateTransactionInput = {
 };
 
 export type UpdateTransactionInput = {
+	/** Money out written as money in, or the other way round, on a record that stands alone. */
+	kind?: "income" | "expense";
 	amount?: number;
 	happenedOn?: CalendarDate;
 	description?: string;
@@ -448,13 +450,39 @@ export function createTransactionsRepository(context: RepositoryContext) {
 	): Promise<Record<string, SqlValue>> {
 		const values: Record<string, SqlValue> = {};
 
-		if (input.amount !== undefined) {
+		/**
+		 * Money out written as money in, or the other way round, corrected in place.
+		 *
+		 * Only on a record that stands alone. A part of a plan shares its kind with the other
+		 * parts, an occurrence with its series, which would write the next one as it was, and a
+		 * move between accounts is turned into one, or out of one, by its own path. A record
+		 * ticked off against the bank is refused before it gets here.
+		 */
+		const kind = input.kind ?? found.kind;
+		const kindChanged = kind !== found.kind;
+		if (kindChanged) {
+			if (kind === "transfer" || found.kind === "transfer") {
+				throw new RuleError(
+					"kindOfAMove",
+					"a move between accounts is not money out or money in, and is changed by its own path",
+				);
+			}
+			if (found.installmentGroup !== null) {
+				throw new RuleError("partKeepsItsKind", "a part of a plan has the kind of the plan");
+			}
+			if (found.recurrenceId !== null) {
+				throw new RuleError("occurrenceKeepsItsKind", "an occurrence has the kind of its series");
+			}
+			assertAccountRules(kind, await accountIn(found.spaceId, input.accountId ?? found.accountId));
+			values.kind = kind;
+		}
+
+		if (input.amount !== undefined || kindChanged) {
 			// A refund on a benefit card is a purchase the other way round, and correcting how
 			// much was refunded keeps it one rather than turning it into a second purchase.
-			const refund = found.kind === "expense" && found.amount > 0;
-			const amount = refund
-				? -signFor(found.kind, input.amount)
-				: signFor(found.kind, input.amount);
+			const refund = !kindChanged && found.kind === "expense" && found.amount > 0;
+			const typed = input.amount ?? Math.abs(found.amount);
+			const amount = refund ? -signFor(kind, typed) : signFor(kind, typed);
 			values.amount = amount;
 			values.amount_in_base = baseAmount(
 				amount,
@@ -477,7 +505,7 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			const moved = await accountIn(found.spaceId, input.accountId);
 			// Onto a benefit card only what a benefit card can hold. A record already there,
 			// an income written on one before 2.0.0, stays editable where it is.
-			if (input.accountId !== found.accountId) assertAccountRules(found.kind, moved);
+			if (input.accountId !== found.accountId) assertAccountRules(kind, moved);
 			values.account_id = input.accountId;
 		}
 
@@ -520,6 +548,14 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			// the balance to the invoice keeps the card. Anything else loses it.
 			const card = await cardRow(found.spaceId, found.cardId);
 			if (!card || !reaches(card, input.accountId)) values.card_id = null;
+		}
+		if (kindChanged) {
+			// Only a spend is paid with a card.
+			if (kind !== "expense") values.card_id = null;
+			// A category is for one side, so the one of the other side goes, unless one was
+			// given with the change; the priority of a spend means nothing on money in.
+			if (input.categoryId === undefined) values.category_id = null;
+			if (kind === "income") values.priority = null;
 		}
 
 		return values;

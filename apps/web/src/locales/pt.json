@@ -626,7 +626,10 @@
 		"moveNeedsAMoneyAccount": "Só uma saída ou uma entrada numa conta corrente, numa poupança ou no dinheiro em espécie, ou um pagamento recebido no cartão, vira movimentação entre contas.",
 		"notTheOtherHalf": "Esse lançamento não é o mesmo dinheiro lançado na outra conta. Nada foi mudado.",
 		"cardNeedsACycle": "Um cartão de crédito precisa do dia de fechamento e do dia de vencimento. Sem eles ele não tem fatura nenhuma.",
-		"notACofreServer": "Esse endereço respondeu, mas não como um servidor do {{app}}. Confira o endereço do servidor."
+		"notACofreServer": "Esse endereço respondeu, mas não como um servidor do {{app}}. Confira o endereço do servidor.",
+		"kindOfAMove": "Uma movimentação entre contas não vira saída nem entrada por aqui. Apague e lance de novo do jeito certo.",
+		"partKeepsItsKind": "Uma parcela tem o tipo da compra inteira, então não muda sozinha.",
+		"occurrenceKeepsItsKind": "Um lançamento de uma recorrência tem o tipo da recorrência. Mude a recorrência."
 	},
 	"transactions": {
 		"title": "Lançamentos",

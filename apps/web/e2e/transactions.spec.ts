@@ -69,6 +69,37 @@ test.describe("records", () => {
 		await expect(page.getByRole("cell", { name: "-R$ 411,52" })).toBeVisible();
 	});
 
+	// Part 1, D.5 of the request for 2.0.0 (D.3.3 of 1.1.0): a refund of 120 written as money
+	// out could only be removed and written again. The edit now says which way it went.
+	test("turns money out written by mistake into money in", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByLabel("Pago com").selectOption({ label: "Conta corrente" });
+		await dialog.getByLabel("Valor", { exact: true }).fill("120,00");
+		await dialog.getByLabel("Descrição").fill("Reembolso da loja");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(dialog).toHaveCount(0);
+		await expect(record(page, "Reembolso da loja")).toContainText("-R$ 120,00");
+
+		await record(page, "Reembolso da loja").getByRole("button", { name: "Ações" }).click();
+		await page.getByRole("menuitem", { name: "Editar" }).click();
+		await dialog.getByText("Entrada", { exact: true }).click();
+		await expect(dialog.getByLabel("Entrou em").locator("option:checked")).toHaveText(
+			"Conta corrente",
+		);
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(dialog).toHaveCount(0);
+		await expect(record(page, "Reembolso da loja")).not.toContainText("-R$ 120,00");
+		await expect(record(page, "Reembolso da loja")).toContainText("R$ 120,00");
+
+		// A part of a plan keeps the kind of the plan, so its edit does not offer it.
+		await record(page, "Fone de ouvido 1/3").getByRole("button", { name: "Ações" }).click();
+		await page.getByRole("menuitem", { name: "Editar" }).click();
+		await expect(dialog.getByRole("radio", { name: "Entrada" })).toHaveCount(0);
+	});
+
 	// Part 1, D.4 of the request for 2.0.0: instalments on any account, which is decision 6
 	// of 1.1.0. The form offered them only on a credit card, so a carnê of 300 in three on the
 	// current account could not be written as one.

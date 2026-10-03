@@ -102,6 +102,18 @@ export function TransactionForm({
 	// Any money out, which is decision 6 of 1.1.0: a carnê on the current account is a plan
 	// as much as a purchase on the card. Not on a benefit card, which is spent as it goes.
 	const canSplit = kind === "expense" && chosen !== undefined && chosen.kind !== "voucher";
+	/**
+	 * Money out written as money in, or the other way round, corrected in place. Only on a
+	 * record that stands alone: a part of a plan and an occurrence of a series share their
+	 * kind with the rest, a move is changed by its own path, and a record ticked off against
+	 * the bank does not change at all.
+	 */
+	const kindCanChange =
+		editing != null &&
+		editing.kind !== "transfer" &&
+		editing.installmentGroup === null &&
+		editing.recurrenceId === null &&
+		editing.reconciledAt === null;
 
 	/**
 	 * Every way to pay, as one list.
@@ -163,6 +175,9 @@ export function TransactionForm({
 	 */
 	function changeKind(next: TransactionKind) {
 		setKind(next);
+		// A category belongs to one side.
+		const category = (categories.data ?? []).find((one) => one.id === categoryId);
+		if (category && category.kind !== next) setCategoryId("");
 		if (next === "expense") {
 			if (chosenWay) setAccountId(chosenWay.accountId);
 			return;
@@ -252,6 +267,8 @@ export function TransactionForm({
 				// because somebody has not said it happened, and correcting the description of
 				// it is not saying so. The two buttons on the overview are what say so.
 				const change = {
+					// Only when it changed, which only a record that stands alone offers.
+					...(kind !== editing.kind && kind !== "transfer" ? { kind } : {}),
 					amount: parsed.amount,
 					description,
 					accountId,
@@ -379,7 +396,7 @@ export function TransactionForm({
 				}
 			>
 				<form onSubmit={submit} className="space-y-4">
-					{editing ? null : (
+					{editing && !kindCanChange ? null : (
 						<div className="space-y-2">
 							<Segmented
 								label={t("transactions.kind")}
@@ -390,7 +407,7 @@ export function TransactionForm({
 									{ value: "income", label: t("transactionKind.income") },
 								]}
 							/>
-							{kind === "expense" ? (
+							{kind === "expense" && !editing ? (
 								<p className="text-quiet text-sm">
 									{t("transactions.wasAMove")}{" "}
 									<button
