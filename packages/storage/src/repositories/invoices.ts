@@ -26,7 +26,7 @@ import {
 	invoiceStateOf,
 	invoicesInTurn,
 	limitLeftOf,
-	MOST_PARTS,
+	MAX_INSTALLMENTS,
 	parseCalendarDate,
 	parseCalendarMonth,
 	todayIn,
@@ -554,8 +554,8 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 
 	/** The arithmetic of the core, with its refusals in the words of a rule. */
 	function splitOf(input: Parameters<typeof invoiceSplit>[0]): ReturnType<typeof invoiceSplit> {
-		if (input.parts > MOST_PARTS) {
-			throw new RuleError("tooManyInstallments", `a plan has at most ${MOST_PARTS} parts`);
+		if (input.parts > MAX_INSTALLMENTS) {
+			throw new RuleError("tooManyInstallments", `a plan has at most ${MAX_INSTALLMENTS} parts`);
 		}
 		try {
 			return invoiceSplit(input);

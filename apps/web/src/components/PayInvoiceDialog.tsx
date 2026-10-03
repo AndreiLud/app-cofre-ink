@@ -15,7 +15,7 @@ import {
 	type InvoiceState,
 	invoiceMonthOf,
 	invoiceSplit,
-	MOST_PARTS,
+	MAX_INSTALLMENTS,
 } from "@cofre/core";
 import type { Account, Transaction } from "@cofre/storage";
 import { Button, Callout, Dialog, Field, Segmented, Select } from "@cofre/ui";
@@ -282,7 +282,7 @@ export function PayInvoiceDialog({
 		onError: failed,
 	});
 
-	const partsOptions = Array.from({ length: MOST_PARTS }, (_unused, index) => ({
+	const partsOptions = Array.from({ length: MAX_INSTALLMENTS }, (_unused, index) => ({
 		value: String(index + 1),
 		label: t("invoice.partsOption", { count: index + 1 }),
 	}));

@@ -659,7 +659,7 @@
 		"invoiceHasAPaymentAhead": "Um pagamento desta fatura está marcado para um dia que ainda não chegou, e ela seria paga duas vezes. Apague esse pagamento, ou use ele como entrada do parcelamento.",
 		"nothingOwed": "Não falta nada nesta fatura.",
 		"cardInAnotherCurrency": "Só dá para fazer isso entre cartões na moeda do espaço.",
-		"tooManyInstallments": "São no máximo 48 parcelas.",
+		"tooManyInstallments": "Dá para parcelar em até {{max}} vezes.",
 		"splitDoesNotAdd": "As parcelas e a entrada não fecham com o que falta pagar. Confira o valor das parcelas e a entrada.",
 		"sameCard": "Uma fatura não é paga com o próprio cartão. Para isso, use Parcelar.",
 		"cardOfAnotherSpace": "Escolha um cartão deste espaço.",
@@ -670,7 +670,11 @@
 		"noPlan": "Esta fatura não foi parcelada nem paga com outro cartão.",
 		"planHasReconciledRow": "Uma parte disso já foi conferida com o banco, então não dá para desfazer.",
 		"planInvoicePaid": "Uma fatura das parcelas já foi paga, então não dá para desfazer.",
-		"partOfAnArrangement": "Faz parte do parcelamento de uma fatura, ou do pagamento dela com outro cartão. Para mudar, desfaça isso na tela da fatura."
+		"partOfAnArrangement": "Faz parte do parcelamento de uma fatura, ou do pagamento dela com outro cartão. Para mudar, desfaça isso na tela da fatura.",
+		"onlyExpensesGoInInstallments": "Só saídas podem ser parceladas.",
+		"benefitIsNotInInstallments": "O que se gasta no vale não é parcelado.",
+		"partBelowOneCent": "Esse valor não chega a um centavo por parcela.",
+		"firstInstallmentOutsidePlan": "A primeira parcela que fica precisa ser uma das parcelas do plano."
 	},
 	"transactions": {
 		"title": "Lançamentos",

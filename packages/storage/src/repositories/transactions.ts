@@ -7,11 +7,15 @@
 
 import {
 	addMonthsToMonth,
+	allocate,
 	type CalendarDate,
 	type CalendarMonth,
 	type CardCycle,
 	compareCalendarDates,
+	type InstallmentRefusal,
+	installmentRefusal,
 	invoiceMonthOf,
+	MAX_INSTALLMENTS,
 	money,
 	parseCalendarDate,
 	parseCalendarMonth,
@@ -73,8 +77,17 @@ export type CreateTransactionInput = {
 	/** Scaled by ten to the eighth, needed when the currency is not the one of the space. */
 	fxRate?: number | null;
 	notes?: string | null;
-	/** More than one turns the purchase into that many installments. */
+	/**
+	 * More than one turns the purchase into that many installments, forty eight at most, and
+	 * `amount` is then the whole purchase, the parts already paid included.
+	 */
 	installments?: number;
+	/**
+	 * The first part written, when somebody already paid some before writing the plan down:
+	 * "Já paguei 10 parcelas" writes from the eleventh. One by default. `happenedOn` is then the
+	 * day of this part, and `invoiceMonth`, when given, its invoice, each next part one later.
+	 */
+	firstInstallment?: number;
 	categoryId?: string | null;
 	/** Only when this one record disagrees with the priority of its category. */
 	priority?: SpendingPriority | null;
@@ -223,6 +236,59 @@ function cycleOf(account: Account): CardCycle | undefined {
 	if (account.kind !== "credit") return undefined;
 	if (account.closingDay === null || account.dueDay === null) return undefined;
 	return { closingDay: account.closingDay, dueDay: account.dueDay };
+}
+
+/**
+ * Each refusal of a new plan, in the words of the model. Every name is written out, so the
+ * check that every rule has a sentence in both languages can read it.
+ */
+export function planRefused(refusal: InstallmentRefusal): RuleError {
+	switch (refusal) {
+		case "tooManyInstallments":
+			return new RuleError("tooManyInstallments", `a plan has at most ${MAX_INSTALLMENTS} parts`);
+		case "onlyExpensesGoInInstallments":
+			return new RuleError(
+				"onlyExpensesGoInInstallments",
+				"only money out is split into installments",
+			);
+		case "benefitIsNotInInstallments":
+			return new RuleError(
+				"benefitIsNotInInstallments",
+				"what is spent on a benefit card is not split into installments",
+			);
+		case "transfersAreNotSplit":
+			return new RuleError("transfersAreNotSplit", "a transfer is not split into installments");
+		case "partBelowOneCent":
+			return new RuleError("partBelowOneCent", "the amount does not reach one cent for each part");
+		case "firstInstallmentOutsidePlan":
+			return new RuleError(
+				"firstInstallmentOutsidePlan",
+				"the first part written is one of the parts of the plan",
+			);
+	}
+}
+
+/**
+ * Each written part in the currency of the space, the whole converted once and spread over
+ * the parts by their own amounts, so the parts add up to the purchase in that currency too.
+ */
+function baseParts(
+	parts: readonly { amount: { amount: number } }[],
+	currency: string,
+	spaceCurrency: string,
+	fxRate?: number | null,
+): number[] {
+	const amounts = parts.map((part) => part.amount.amount);
+	if (currency === spaceCurrency) return amounts;
+	if (!fxRate || !Number.isSafeInteger(fxRate) || fxRate <= 0) {
+		throw new RuleError(
+			"rateIsRequired",
+			"a record in another currency needs the rate used at the time",
+		);
+	}
+	const written = amounts.reduce((sum, one) => sum + one, 0);
+	const converted = Math.round((written * fxRate) / 100_000_000);
+	return allocate(converted, amounts);
 }
 
 /** One row of an arrangement: a part of paying an invoice with another card, or of splitting one. */
@@ -574,7 +640,9 @@ export function createTransactionsRepository(context: RepositoryContext) {
 	): Promise<Record<string, SqlValue>> {
 		if (compareCalendarDates(found.happenedOn, today) <= 0) return { status: "settled" };
 		const values: Record<string, SqlValue> = { status: "settled", happened_on: today };
-		if (!found.invoiceMonthByHand) {
+		// A part of a plan keeps its invoice, which is the plan's: worked out again from today it
+		// went to the open invoice, beside the part that is really due on it.
+		if (!found.invoiceMonthByHand && found.installmentGroup === null) {
 			values.invoice_month = await invoiceFor(found, today, found.accountId);
 		}
 		return values;
@@ -756,18 +824,35 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			const spaceCurrency = await spaceCurrencyOf(input.spaceId);
 			const cycle = cycleOf(account);
 			const count = input.installments ?? 1;
+			const firstNumber = input.firstInstallment ?? 1;
 			const status = input.status ?? "settled";
 
-			if (count > 1 && input.kind === "transfer") {
-				throw new RuleError("transfersAreNotSplit", "a transfer is not split into installments");
-			}
+			// Before anything is written: forty eight parts at most, money out only, never on a
+			// benefit card, never a move, never a part of less than a cent, and a first part that
+			// is one of the plan. Refused, never cut.
+			const refusal = installmentRefusal({
+				kind: input.kind,
+				accountKind: account.kind,
+				count,
+				total: input.amount,
+				firstNumber,
+			});
+			if (refusal) throw planRefused(refusal);
 
 			const parts = planInstallments({
 				total: money(input.amount, currency),
 				count,
 				purchasedOn: input.happenedOn,
 				cycle,
+				firstNumber,
+				// A chosen invoice is the one of the first part written, and each part after it
+				// is one invoice later. Every part landed on the chosen one, marked by hand.
+				...(input.invoiceMonth ? { firstInvoice: input.invoiceMonth } : {}),
 			});
+			// In the currency of the space the whole purchase is converted once and spread over
+			// the parts, so they add up to it: converted part by part, US$ 1.000,00 in forty
+			// eight at 5,4321 came to R$ 5.432,00 against R$ 5.432,10.
+			const inBase = baseParts(parts, currency, spaceCurrency, input.fxRate);
 
 			const group = count > 1 ? uuidV7() : null;
 			// A category chosen by hand wins. When there is none, the rules of the space
@@ -785,7 +870,7 @@ export function createTransactionsRepository(context: RepositoryContext) {
 				const write = { ...context.write(), driver: tx };
 				const ids: string[] = [];
 
-				for (const part of parts) {
+				for (const [index, part] of parts.entries()) {
 					const amount = signFor(input.kind, part.amount.amount);
 					const id = await insertRow(write, {
 						table: transactions,
@@ -796,7 +881,7 @@ export function createTransactionsRepository(context: RepositoryContext) {
 							amount,
 							currency,
 							fx_rate: input.fxRate ?? null,
-							amount_in_base: baseAmount(amount, currency, spaceCurrency, input.fxRate),
+							amount_in_base: signFor(input.kind, inBase[index] ?? 0),
 							happened_on: part.happenedOn,
 							description:
 								count > 1
@@ -810,9 +895,10 @@ export function createTransactionsRepository(context: RepositoryContext) {
 							installment_number: count > 1 ? part.number : null,
 							installment_count: count > 1 ? part.count : null,
 							// Chosen by the caller only where nothing could work it out, which is
-							// the payment of an invoice, and then marked as chosen so that
-							// editing the record later does not move it.
-							invoice_month: input.invoiceMonth ?? part.invoiceMonth ?? null,
+							// the payment of an invoice, or where a statement said it, and then
+							// marked as chosen so that editing the record later does not move it.
+							// In parts, the chosen one is the first part's and the plan follows it.
+							invoice_month: part.invoiceMonth ?? input.invoiceMonth ?? null,
 							invoice_month_by_hand: input.invoiceMonth ? 1 : null,
 							category_id: categoryId,
 							priority: input.priority ?? sorted.priority,

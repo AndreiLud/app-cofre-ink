@@ -238,7 +238,13 @@ const transactionInput = z.object({
 	currency: z.string().trim().length(3).optional(),
 	fxRate: z.number().int().positive().nullable().optional(),
 	notes: z.string().trim().max(2000).nullable().optional(),
-	installments: z.number().int().min(1).max(420).optional(),
+	// Whole and from one, and no ceiling here: the repository refuses past forty eight with its
+	// own code, 409 tooManyInstallments, which the screen has a sentence for. A ceiling in the
+	// parser answered 400 and the screen said it did not know what went wrong.
+	installments: z.number().int().min(1).optional(),
+	// The first part written, when some were paid before the plan was written down. Dropped by
+	// the parser, a plan with ten parts paid was written whole on a server.
+	firstInstallment: z.number().int().min(1).optional(),
 	categoryId: z.string().min(1).nullable().optional(),
 	priority: priority.nullable().optional(),
 	cardId: cardIdentifier,
@@ -258,7 +264,9 @@ const transactionPatch = z.object({
 	kind: z.enum(["income", "expense"]).optional(),
 	amount: z.number().int().positive().optional(),
 	happenedOn: calendarDate.optional(),
-	description: z.string().trim().min(1).max(200).optional(),
+	// Two hundred, and room for the number of the part the plan adds after them: the name the
+	// application itself wrote, "Geladeira 48/48" at full length, was refused when sent back.
+	description: z.string().trim().min(1).max(210).optional(),
 	accountId: z.string().min(1).optional(),
 	counterAccountId: z.string().min(1).nullable().optional(),
 	status: z.enum(["planned", "settled"]).optional(),

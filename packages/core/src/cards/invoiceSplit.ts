@@ -7,9 +7,7 @@
 // the one thing in the whole arrangement that is spending.
 
 import { MoneyError } from "../money/money.ts";
-
-/** The most parts anything here is split into, which is decision 5 of 2.0.0. */
-export const MOST_PARTS = 48;
+import { MAX_INSTALLMENTS } from "./installments.ts";
 
 export type InvoiceSplitInput = {
 	/** What is still owed on the invoice on the day of the arrangement. */
@@ -63,8 +61,8 @@ export function invoiceSplit(input: InvoiceSplitInput): InvoiceSplit {
 			throw new InvoiceSplitError(`${name} is a whole number of minor units, never negative`);
 		}
 	}
-	if (!Number.isInteger(input.parts) || input.parts < 1 || input.parts > MOST_PARTS) {
-		throw new InvoiceSplitError(`the parts are a whole number from 1 to ${MOST_PARTS}`);
+	if (!Number.isInteger(input.parts) || input.parts < 1 || input.parts > MAX_INSTALLMENTS) {
+		throw new InvoiceSplitError(`the parts are a whole number from 1 to ${MAX_INSTALLMENTS}`);
 	}
 	if (input.owed <= 0) {
 		throw new InvoiceSplitError("there is nothing owed on this invoice to split");

@@ -15,7 +15,7 @@
 // shapes are read here, once.
 
 import { CloudError } from "@cofre/cloud";
-import { MoneyError } from "@cofre/core";
+import { MAX_INSTALLMENTS, MoneyError } from "@cofre/core";
 import { NotFoundError, PermissionError, RuleError } from "@cofre/storage";
 import { ServerError } from "../storage/remoteSession.ts";
 import { FileTooLargeError, LARGEST_FILE } from "./download.ts";
@@ -35,7 +35,9 @@ const SERVER_CODE: Record<string, string> = {
  * a key, which is what a missing translation looks like on screen.
  */
 function saidRule(rule: string, t: Translate): string {
-	return t(`rules.${rule}`, { defaultValue: t("rules.unknown") });
+	// The ceiling of a plan goes to every sentence that wants it, so it is said in one place
+	// and the copy cannot fall out of step with the model.
+	return t(`rules.${rule}`, { defaultValue: t("rules.unknown"), max: MAX_INSTALLMENTS });
 }
 
 /**

@@ -30,6 +30,7 @@ import { runFutureConformance } from "./future.ts";
 import { runHappenedConformance } from "./happened.ts";
 import { runInvoiceConformance } from "./invoices.ts";
 import { runPlanConformance } from "./plan.ts";
+import { runPlanOfPartsConformance } from "./plans.ts";
 import { runPortabilityConformance } from "./portability.ts";
 import { runReportConformance } from "./reports.ts";
 import { runRecurrenceRepairConformance, runRuleConformance } from "./rules.ts";
@@ -1103,6 +1104,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 		runCardConformance(adapter);
 		runInvoiceConformance(adapter);
 		runArrangementConformance(adapter);
+		runPlanOfPartsConformance(adapter);
 		runCategoryConformance(adapter);
 		runRuleConformance(adapter);
 		runRecurrenceRepairConformance(adapter);

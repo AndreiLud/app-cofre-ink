@@ -659,7 +659,7 @@
 		"invoiceHasAPaymentAhead": "A payment of this invoice is set for a day still to come, and it would be paid twice. Delete that payment, or use it as the entry of the split.",
 		"nothingOwed": "Nothing is owed on this invoice.",
 		"cardInAnotherCurrency": "This only works between cards in the currency of the space.",
-		"tooManyInstallments": "There are 48 parts at most.",
+		"tooManyInstallments": "A plan has at most {{max}} parts.",
 		"splitDoesNotAdd": "The parts and the entry do not add up to what is owed. Check the amount of the parts and the entry.",
 		"sameCard": "An invoice is not paid with its own card. For that, use Split.",
 		"cardOfAnotherSpace": "Choose a card of this space.",
@@ -670,7 +670,11 @@
 		"noPlan": "This invoice was not split nor paid with another card.",
 		"planHasReconciledRow": "A part of this was already checked against the bank, so it cannot be undone.",
 		"planInvoicePaid": "An invoice of the parts was already paid, so it cannot be undone.",
-		"partOfAnArrangement": "This is part of an invoice split into parts, or paid with another card. To change it, undo that on the invoice screen."
+		"partOfAnArrangement": "This is part of an invoice split into parts, or paid with another card. To change it, undo that on the invoice screen.",
+		"onlyExpensesGoInInstallments": "Only money out can be split into instalments.",
+		"benefitIsNotInInstallments": "What is spent on a benefit card is not split into instalments.",
+		"partBelowOneCent": "That amount does not reach one cent a part.",
+		"firstInstallmentOutsidePlan": "The first part kept has to be one of the parts of the plan."
 	},
 	"transactions": {
 		"title": "Records",

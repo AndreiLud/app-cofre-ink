@@ -477,6 +477,53 @@ describe("the api", () => {
 		expect((await payment("2026-13")).status).toBe(400);
 	});
 
+	// Part 2, D.1.5 and D.3.4.2 of the request for 2.0.0: forty eight parts are written, forty
+	// nine are refused by the repository with their own code and 409, and a plan written from the
+	// eleventh part has thirty eight rows, the first eleven of forty eight.
+	it("writes forty eight parts, refuses forty nine, and starts a plan after the parts paid", async () => {
+		const ana = createClient(app);
+		await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+		const space = await ana.json<{ id: string }>("/api/spaces", {
+			method: "POST",
+			body: JSON.stringify({ name: "Casa" }),
+		});
+		const card = await ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+			method: "POST",
+			body: JSON.stringify({ kind: "credit", name: "Cartao", closingDay: 3, dueDay: 10 }),
+		});
+		const plan = (over: Record<string, unknown>) =>
+			ana.request(`/api/spaces/${space.id}/transactions`, {
+				method: "POST",
+				body: JSON.stringify({
+					kind: "expense",
+					amount: 240_000,
+					happenedOn: "2026-10-28",
+					description: "Geladeira",
+					accountId: card.id,
+					installments: 48,
+					...over,
+				}),
+			});
+
+		const whole = await plan({});
+		expect(whole.status).toBe(201);
+		expect(((await whole.json()) as unknown[]).length).toBe(48);
+
+		const tooMany = await plan({ installments: 49 });
+		expect(tooMany.status).toBe(409);
+		expect(((await tooMany.json()) as { error: string }).error).toBe("tooManyInstallments");
+
+		const after = await plan({ firstInstallment: 11 });
+		expect(after.status).toBe(201);
+		const rows = (await after.json()) as Array<{ description: string }>;
+		expect(rows.length).toBe(38);
+		expect(rows[0]?.description).toBe("Geladeira 11/48");
+
+		const outside = await plan({ firstInstallment: 49 });
+		expect(outside.status).toBe(409);
+		expect(((await outside.json()) as { error: string }).error).toBe("firstInstallmentOutsidePlan");
+	});
+
 	// Part 2, C.12 and C.14.5 of the request for 2.0.0: splitting an invoice and paying one with
 	// another card on a server, a month that does not exist and an amount that is not whole
 	// refused where they come in, forty nine parts refused by the repository, and the rest
