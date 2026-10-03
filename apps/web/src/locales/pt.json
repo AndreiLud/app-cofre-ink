@@ -1641,7 +1641,11 @@
 		"worthOn": "Valia em {{day}}",
 		"noHoldingsThen": "Nenhuma aplicação existia em {{day}}.",
 		"pricedLater": "Sem preço anotado até o fim do mês: lida pelo preço de {{day}}.",
-		"asItStoodButHoldings": "Os números são como estavam em {{day}}, o último dia do mês, menos as aplicações marcadas lá embaixo, que não tinham preço anotado até esse dia."
+		"asItStoodButHoldings": "Os números são como estavam em {{day}}, o último dia do mês, menos as aplicações marcadas lá embaixo, que não tinham preço anotado até esse dia.",
+		"benefitOn": "Disso, em {{card}}",
+		"byDay": "Dia a dia",
+		"byDayCaption": "O que saiu em cada dia de {{month}}",
+		"day": "Dia"
 	},
 	"move": {
 		"title": "Mover entre contas",

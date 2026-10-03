@@ -1325,6 +1325,7 @@ export function createApp({ config, database, auth }: AppDependencies) {
 					"byPriority",
 					"byMonth",
 					"byDay",
+					"benefitsByCard",
 				]),
 				from: calendarDate,
 				to: calendarDate,
@@ -1352,6 +1353,8 @@ export function createApp({ config, database, auth }: AppDependencies) {
 				return context.json(await reports.byPriority(range));
 			case "byMonth":
 				return context.json(await reports.byMonth(range));
+			case "benefitsByCard":
+				return context.json(await reports.benefitsByCard(range));
 			default:
 				return context.json(await reports.byDay(range));
 		}

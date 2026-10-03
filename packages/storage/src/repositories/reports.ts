@@ -59,6 +59,9 @@ export type MonthTotal = {
 
 export type DayTotal = { day: CalendarDate; total: number };
 
+/** What landed on one benefit card over a period. */
+export type CardBenefit = { accountId: string; name: string; amount: number };
+
 export type PeriodTotals = {
 	income: number;
 	expense: number;
@@ -287,6 +290,27 @@ export function createReportsRepository(context: RepositoryContext) {
 					months.set(month, { month, income: 0, expense: 0, benefits: amount });
 			}
 			return [...months.values()].sort((one, other) => one.month.localeCompare(other.month));
+		},
+
+		/**
+		 * What landed on each benefit card over the period, by the name of the card, from the
+		 * same landings the totals count, so the lines add up to the benefit of the totals.
+		 * The month on paper had one line for the benefit and none for each card.
+		 */
+		async benefitsByCard(range: ReportRange): Promise<CardBenefit[]> {
+			const { where } = await scope(range);
+			if (where.length === 0) return [];
+			const byCard = new Map<string, CardBenefit>();
+			for (const landing of await landingsIn(range)) {
+				const found = byCard.get(landing.accountId) ?? {
+					accountId: landing.accountId,
+					name: landing.name,
+					amount: 0,
+				};
+				found.amount += landing.amount;
+				byCard.set(landing.accountId, found);
+			}
+			return [...byCard.values()].sort((one, other) => one.name.localeCompare(other.name));
 		},
 
 		/** Day by day, for the map that shows which days money leaves. */

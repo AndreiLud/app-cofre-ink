@@ -14,6 +14,7 @@ import type {
 	Budget,
 	BudgetWithProgress,
 	Card,
+	CardBenefit,
 	CardKind,
 	CardStanding,
 	CategorizationRule,
@@ -303,6 +304,8 @@ export type CofreSession = {
 		byPriority: (range: ReportRange) => Promise<PriorityTotal[]>;
 		byMonth: (range: ReportRange) => Promise<MonthTotal[]>;
 		byDay: (range: ReportRange) => Promise<DayTotal[]>;
+		/** What landed on each benefit card, adding up to the benefit of the totals. */
+		benefitsByCard: (range: ReportRange) => Promise<CardBenefit[]>;
 	};
 	budgets: {
 		list: (spaceId: string) => Promise<Budget[]>;

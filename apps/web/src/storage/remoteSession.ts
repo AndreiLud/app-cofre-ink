@@ -20,6 +20,7 @@ import type {
 	Budget,
 	BudgetWithProgress,
 	Card,
+	CardBenefit,
 	CardStanding,
 	CategorizationRule,
 	Category,
@@ -555,6 +556,8 @@ export function createRemoteSession(
 			byPriority: (range: ReportRange) => get<PriorityTotal[]>(reportPath("byPriority", range)),
 			byMonth: (range: ReportRange) => get<MonthTotal[]>(reportPath("byMonth", range)),
 			byDay: (range: ReportRange) => get<DayTotal[]>(reportPath("byDay", range)),
+			benefitsByCard: (range: ReportRange) =>
+				get<CardBenefit[]>(reportPath("benefitsByCard", range)),
 		},
 
 		budgets: {

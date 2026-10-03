@@ -125,6 +125,10 @@ export function PaperReportPage() {
 			year: "numeric",
 			timeZone: "UTC",
 		}).format(new Date(`${day}T00:00:00Z`));
+	const dayOfMonth = (day: string) =>
+		new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "UTC" }).format(
+			new Date(`${day}T00:00:00Z`),
+		);
 	const shortMonth = (value: string) =>
 		new Intl.DateTimeFormat(locale, { month: "short", year: "2-digit", timeZone: "UTC" }).format(
 			new Date(`${value}-01T00:00:00Z`),
@@ -157,6 +161,18 @@ export function PaperReportPage() {
 		queryKey: ["reports", spaceId, "byPriority", month],
 		enabled: on,
 		queryFn: () => session?.reports.byPriority(range) ?? [],
+	});
+	// The month day by day, and what landed on each benefit card, which the file promised in
+	// 1.1.0 and never read: one line for the benefit, and no day at all.
+	const byDay = useQuery({
+		queryKey: ["reports", spaceId, "byDay", month],
+		enabled: on,
+		queryFn: () => session?.reports.byDay(range) ?? [],
+	});
+	const benefitsByCard = useQuery({
+		queryKey: ["reports", spaceId, "benefitsByCard", month],
+		enabled: on,
+		queryFn: () => session?.reports.benefitsByCard(range) ?? [],
 	});
 	const byMonth = useQuery({
 		queryKey: ["reports", spaceId, "byMonth", month],
@@ -304,7 +320,17 @@ export function PaperReportPage() {
 					<TableBody>
 						<Line name={t("reports.income")} amount={period.income} currency={currency} />
 						{period.benefits > 0 ? (
-							<Line name={t("paper.benefitsLine")} amount={period.benefits} currency={currency} />
+							<>
+								<Line name={t("paper.benefitsLine")} amount={period.benefits} currency={currency} />
+								{(benefitsByCard.data ?? []).map((card) => (
+									<Line
+										key={card.accountId}
+										name={t("paper.benefitOn", { card: card.name })}
+										amount={card.amount}
+										currency={currency}
+									/>
+								))}
+							</>
 						) : null}
 						<Line
 							name={t("reports.expense")}
@@ -427,6 +453,29 @@ export function PaperReportPage() {
 									// sentence of a priority called nothing printed the key itself:
 									// a row headed "priority.null" in the file somebody hands over.
 									name={one.priority ? t(`priority.${one.priority}`) : t("reports.noPriority")}
+									amount={one.total}
+									currency={currency}
+								/>
+							))}
+						</TableBody>
+					</Table>
+				</Part>
+			) : null}
+
+			{(byDay.data ?? []).length > 0 ? (
+				<Part title={t("paper.byDay")}>
+					<Table caption={t("paper.byDayCaption", { month: monthName })}>
+						<TableHead>
+							<TableRow>
+								<TableHeader>{t("paper.day")}</TableHeader>
+								<TableHeader numeric={true}>{t("reports.expense")}</TableHeader>
+							</TableRow>
+						</TableHead>
+						<TableBody>
+							{(byDay.data ?? []).map((one) => (
+								<Line
+									key={one.day}
+									name={dayOfMonth(one.day)}
 									amount={one.total}
 									currency={currency}
 								/>

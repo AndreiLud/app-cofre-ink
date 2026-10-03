@@ -128,7 +128,9 @@ export async function benefitLandingsIn(
 	spaceIds: readonly string[],
 	from: CalendarDate,
 	to: CalendarDate,
-): Promise<{ on: CalendarDate; amount: number; spaceId: string }[]> {
+): Promise<
+	{ on: CalendarDate; amount: number; spaceId: string; accountId: string; name: string }[]
+> {
 	if (spaceIds.length === 0) return [];
 
 	// Only the cards that exist and are still in use. The allowance is a fact about the
@@ -145,7 +147,13 @@ export async function benefitLandingsIn(
 		[...spaceIds],
 	);
 
-	const found: { on: CalendarDate; amount: number; spaceId: string }[] = [];
+	const found: {
+		on: CalendarDate;
+		amount: number;
+		spaceId: string;
+		accountId: string;
+		name: string;
+	}[] = [];
 	for (const row of rows) {
 		const account = toAccount(row);
 		const versions = versionsOf(account);
@@ -176,7 +184,13 @@ export async function benefitLandingsIn(
 		});
 		for (const landing of landings) {
 			if (compareCalendarDates(landing.on, from) >= 0) {
-				found.push({ on: landing.on, amount: landing.amount, spaceId: account.spaceId });
+				found.push({
+					on: landing.on,
+					amount: landing.amount,
+					spaceId: account.spaceId,
+					accountId: account.id,
+					name: account.name,
+				});
 			}
 		}
 	}

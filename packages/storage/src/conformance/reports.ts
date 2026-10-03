@@ -168,6 +168,46 @@ export function runReportConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 1, F.5 of the request for 2.0.0: the month on paper had one line for the benefit and
+		// none for each card, which 1.1.0 promised, so two vouchers read as one number.
+		it("says what landed on each benefit card, adding up to the benefit of the period", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const on = await openSession({
+					driver: fixture.driver,
+					userId: fixture.ana.id,
+					deviceId: "deviceAna",
+					now: () => Date.parse("2026-07-20T12:00:00-03:00"),
+				});
+				const space = await on.spaces.create({ name: "Pessoal", kind: "personal" });
+				for (const [name, amount] of [
+					["VR", 90_000],
+					["VA", 60_000],
+				] as const) {
+					await on.accounts.create({
+						spaceId: space.id,
+						kind: "voucher",
+						name,
+						benefit: "meal",
+						quotaAmount: amount,
+						quotaDay: 5,
+						quotaCarries: true,
+					});
+				}
+				const september = { spaceId: space.id, from: "2026-09-01", to: "2026-09-30" };
+
+				const byCard = await on.reports.benefitsByCard(september);
+				expect(byCard.map((one) => [one.name, one.amount])).toEqual([
+					["VA", 60_000],
+					["VR", 90_000],
+				]);
+				const totals = await on.reports.totals(september);
+				expect(byCard.reduce((sum, one) => sum + one.amount, 0)).toBe(totals.benefits);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		it("adds up what came in and what went out inside the period", async () => {
 			const ready = await spaceWithSpending();
 			try {
