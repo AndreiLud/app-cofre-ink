@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest";
 import { NotFoundError } from "../errors.ts";
 import { saveIndexRates } from "../repositories/indices.ts";
+import { openSession } from "../session.ts";
 import { type AdapterUnderTest, prepare } from "./setup.ts";
 
 const TODAY = "2026-09-20";
@@ -539,6 +540,87 @@ export function runAdviceConformance(adapter: AdapterUnderTest): void {
 				// twelve thousand sits still and loses that share of itself in a year.
 				expect(found?.amounts.spare).toBe(1_200_000);
 				expect(found?.amounts.losing).toBe(74_040);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		// Part 1, B.6.2 and C.3 of the request for 2.0.0: a salary of 5,000, 4,500 spent at the
+		// bank and 900 of lunches on the meal card was "spent more than earned" every month, by
+		// the 400 the card had paid for, because the lunches were spending and the allowance
+		// that paid for them was not income. Decision 5: the benefit is income on every screen
+		// that reads income, and somebody who sees only their own records gets none of it.
+		it("reads the benefit of each month as income, and none of it for a logger", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				// The card was written down in June, so July, August and September each had
+				// their allowance land on the fifth.
+				const on = await openSession({
+					driver: fixture.driver,
+					userId: fixture.ana.id,
+					deviceId: "deviceAna",
+					now: () => Date.parse("2026-06-20T12:00:00-03:00"),
+				});
+				const space = await on.spaces.create({ name: "Casa" });
+				const bank = await on.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Banco",
+				});
+				const card = await on.accounts.create({
+					spaceId: space.id,
+					kind: "voucher",
+					name: "VR",
+					benefit: "meal",
+					quotaAmount: 90_000,
+					quotaDay: 5,
+					quotaCarries: true,
+				});
+				for (const month of ["2026-07", "2026-08", "2026-09"]) {
+					const write = (
+						kind: "income" | "expense",
+						amount: number,
+						day: string,
+						accountId: string,
+					) =>
+						on.transactions.create({
+							spaceId: space.id,
+							kind,
+							amount,
+							happenedOn: `${month}-${day}`,
+							description: kind === "income" ? "Salario" : "Gasto",
+							accountId,
+						});
+					await write("income", 500_000, "05", bank.id);
+					await write("expense", 450_000, "12", bank.id);
+					await write("expense", 90_000, "15", card.id);
+				}
+
+				const today = "2026-09-28";
+				const snapshot = await on.advice.snapshot({ spaceId: space.id, today });
+				expect(snapshot.thisMonth.income).toBe(590_000);
+				expect(snapshot.thisMonth.expense).toBe(540_000);
+				expect(snapshot.before.map((month) => [month.month, month.income])).toEqual([
+					["2026-08", 590_000],
+					["2026-07", 590_000],
+				]);
+				const found = await on.advice.findings({ spaceId: space.id, today });
+				expect(found.map((one) => one.code)).not.toContain("spentMoreThanEarned");
+
+				// A logger reads a month made of their own records, and the household's meal
+				// card is not one of them.
+				await on.members.invite({ spaceId: space.id, userId: fixture.joao.id, role: "logger" });
+				await fixture.asJoao.members.accept(space.id);
+				await fixture.asJoao.transactions.create({
+					spaceId: space.id,
+					kind: "income",
+					amount: 100_000,
+					happenedOn: "2026-09-10",
+					description: "Freela",
+					accountId: bank.id,
+				});
+				const theirs = await fixture.asJoao.advice.snapshot({ spaceId: space.id, today });
+				expect(theirs.thisMonth.income).toBe(100_000);
 			} finally {
 				await fixture.close();
 			}

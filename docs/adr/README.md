@@ -62,3 +62,4 @@ new one.
 | [0053](0053_an_allowance_with_a_history.md) | an allowance with a history, and one place that reads a voucher | accepted |
 | [0054](0054_what_is_on_the_card_today.md) | what is on the card today, said once and kept with its day | accepted |
 | [0055](0055_a_purchase_taken_back.md) | a refund on a benefit card is a purchase taken back | accepted |
+| [0056](0056_the_benefit_is_income_wherever_income_is_read.md) | the benefit is income wherever income is read | accepted |

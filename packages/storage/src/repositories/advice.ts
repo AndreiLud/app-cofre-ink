@@ -34,6 +34,7 @@ import type { BudgetsRepository } from "./budgets.ts";
 import type { RepositoryContext } from "./context.ts";
 import type { GoalsRepository } from "./goals.ts";
 import type { TransactionsRepository } from "./transactions.ts";
+import { benefitLandingsIn } from "./voucherReading.ts";
 
 /** How many months behind to read. Six sees a habit without last year deciding today. */
 const WINDOW = 6;
@@ -131,11 +132,31 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			[spaceId, today, from, ...mine(spaceId).params],
 		);
 
-		return rows.map((row) => ({
+		const months = rows.map((row) => ({
 			month: String(row.month),
 			income: asNumber(row.income),
 			expense: Math.abs(asNumber(row.expense)),
 		}));
+
+		// The benefit of each month is income, which is decision 5 of 2.0.0, from the one
+		// reading every screen counts it with and narrowed the same way: nothing of the
+		// household's allowance for somebody who only sees their own records. Without it a
+		// salary of 5,000 against 4,500 spent at the bank and 900 of lunches on the meal
+		// card was "spent more than earned" every month, by the 400 the card had paid for.
+		//
+		// Only in a month somebody kept records in, and in this one. A month of nothing but
+		// the allowance would be a month with no spending in the medians.
+		const thisMonth = monthOf(today);
+		const landings = seesOwnRowsOnly(context.actor(), spaceId)
+			? []
+			: await benefitLandingsIn(context.driver, [spaceId], from, today);
+		for (const landing of landings) {
+			const month = monthOf(landing.on);
+			const found = months.find((one) => one.month === month);
+			if (found) found.income += landing.amount;
+			else if (month === thisMonth) months.push({ month, income: landing.amount, expense: 0 });
+		}
+		return months.sort((left, right) => right.month.localeCompare(left.month));
 	}
 
 	/**
