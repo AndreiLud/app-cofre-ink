@@ -1478,7 +1478,8 @@
 		"partLooksSame": "Parece o mesmo que {{description}}, pelo valor.",
 		"partElsewhere": "A parcela {{number}} de {{count}} de {{description}} já está no app, na fatura de {{month}}. Mover essa e as seguintes para a fatura de {{to}}.",
 		"arrangedHere": "Já está no app: é do parcelamento da fatura, ou do pagamento com outro cartão, que você gravou.",
-		"arrangedElsewhere": "Isto é de um parcelamento de fatura ou de um pagamento com outro cartão. Grave em Faturas, com Parcelar a fatura ou Pagar com outro cartão: como saída contaria duas vezes."
+		"arrangedElsewhere": "Isto é de um parcelamento de fatura ou de um pagamento com outro cartão. Grave em Faturas, com Parcelar a fatura ou Pagar com outro cartão: como saída contaria duas vezes.",
+		"alreadyHere": "Já está aqui"
 	},
 	"demo": {
 		"notice": "Dados fictícios, só para demonstração."

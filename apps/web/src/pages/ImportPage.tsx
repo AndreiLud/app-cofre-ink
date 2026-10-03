@@ -88,6 +88,13 @@ const FIELDS: FieldName[] = [
 	"ignore",
 ];
 
+/** What the screen says about a line already here, by how it is. */
+function alreadySaid(already: MarkedRecord["already"]): string {
+	if (already === "same") return "importing.sameEntry";
+	if (already === "here") return "importing.alreadyHere";
+	return "importing.looksTheSame";
+}
+
 /** How many months from one to the other, as invoices are named. */
 function monthsBetween(from: string, to: string): number {
 	const count = (month: string) => Number(month.slice(0, 4)) * 12 + Number(month.slice(5, 7));
@@ -1199,7 +1206,7 @@ export function ImportPage() {
 												) : null}
 												{record.duplicateOf === null ? null : (
 													<span className="block text-xs text-quiet sm:hidden">
-														{certain ? t("importing.sameEntry") : t("importing.looksTheSame")}
+														{t(alreadySaid(record.already))}
 													</span>
 												)}
 												{/* What the reader was not sure about, beside the line it read,
@@ -1429,11 +1436,7 @@ export function ImportPage() {
 												{sortedInto[index] ?? ""}
 											</TableCell>
 											<TableCell className="hidden whitespace-nowrap text-xs text-quiet sm:table-cell">
-												{record.duplicateOf === null
-													? ""
-													: certain
-														? t("importing.sameEntry")
-														: t("importing.looksTheSame")}
+												{record.duplicateOf === null ? "" : t(alreadySaid(record.already))}
 											</TableCell>
 										</TableRow>
 									);

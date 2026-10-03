@@ -1478,7 +1478,8 @@
 		"partLooksSame": "Looks like {{description}}, by the amount.",
 		"partElsewhere": "Part {{number}} of {{count}} of {{description}} is already here, on the invoice of {{month}}. Move it and the ones after it to the invoice of {{to}}.",
 		"arrangedHere": "Already here: it belongs to the split of an invoice, or the payment with another card, that you wrote.",
-		"arrangedElsewhere": "This belongs to a split invoice or a payment with another card. Write it under Invoices, with Split the invoice or Pay with another card: as money out it would count twice."
+		"arrangedElsewhere": "This belongs to a split invoice or a payment with another card. Write it under Invoices, with Split the invoice or Pay with another card: as money out it would count twice.",
+		"alreadyHere": "Already here"
 	},
 	"demo": {
 		"notice": "Made up data, for demonstration only."

@@ -443,76 +443,87 @@ export type ExistingRecord = {
 
 /** How far apart a line and the move it is may be dated. A slip can take two days. */
 const MOVE_DAYS = 3;
+/** And a payment of an invoice, which the bank may credit to the card days after it left. */
+const PAYMENT_DAYS = 10;
+
+/**
+ * How a line is already here.
+ *
+ * "same": the bank's identifier says so, and nothing is asked. "here": a move that touches the
+ * account, or the occurrence a series wrote, has its amount and its days, which is proof enough
+ * to start it out. "looksSame": only the amount and the days answer, which starts out on an
+ * invoice, where a purchase is rarely twice the same, and in on a statement.
+ */
+export type AlreadyHere = "same" | "here" | "looksSame";
 
 export type MarkedRecord = DraftRecord & {
 	/** The record already here that this one looks like, when there is one. */
 	duplicateOf: string | null;
 	/** True when the bank itself said it is the same entry. */
 	certain: boolean;
+	/** How it is already here, when it is. */
+	already: AlreadyHere | null;
 };
 
 /**
  * Marks what is already here.
  *
- * An identifier from the bank is the truth when there is one. Without it, the same day,
- * the same amount and a description that starts the same way is as close as anybody can
- * get, and it is offered as a suggestion rather than applied as a fact.
+ * An identifier from the bank is the truth when there is one. A move between two accounts
+ * touching this one, going the same way, of the same amount and within days, is the same
+ * money whatever the bank called it: the two statements of one Pix name it differently. So is
+ * the occurrence a series wrote. Without either, the same amount within days is offered as a
+ * suggestion: it was the same day and the same sixteen letters, which a series and a bank
+ * never write alike, and the suggestion came ticked.
  */
 export function markDuplicates(
 	records: readonly DraftRecord[],
 	existing: readonly ExistingRecord[],
 ): MarkedRecord[] {
 	const byExternal = new Map<string, string>();
-	const byFingerprint = new Map<string, string>();
-
 	for (const record of existing) {
 		if (record.externalId) byExternal.set(record.externalId, record.id);
-		byFingerprint.set(fingerprint(record), record.id);
 	}
 
 	const taken = new Set<string>();
+	const within = (known: ExistingRecord, record: DraftRecord, days: number) =>
+		!taken.has(known.id) &&
+		known.amount === record.amount &&
+		Math.abs(daysApart(known.happenedOn, record.happenedOn)) <= days;
 
 	return records.map((record) => {
 		const certain = record.externalId ? byExternal.get(record.externalId) : undefined;
 		if (certain !== undefined) {
-			return { ...record, duplicateOf: certain, certain: true };
+			taken.add(certain);
+			return { ...record, duplicateOf: certain, certain: true, already: "same" as const };
 		}
 
-		const likely = byFingerprint.get(fingerprint(record));
-		if (likely !== undefined && !taken.has(likely)) {
-			taken.add(likely);
-			return { ...record, duplicateOf: likely, certain: false };
+		// A move already here that touches this account, by the amount and the days around it
+		// and not by the words: the record that carried this statement's mark may have been
+		// joined into the move. A card's invoice is paid days before the bank credits it.
+		const reach =
+			record.nature === "cardPayment" || record.nature === "payment" ? PAYMENT_DAYS : MOVE_DAYS;
+		const proof =
+			existing.find((known) => known.moved === true && within(known, record, reach)) ??
+			existing.find(
+				(known) =>
+					known.recurrenceId !== null &&
+					known.recurrenceId !== undefined &&
+					within(known, record, MOVE_DAYS),
+			);
+		if (proof) {
+			taken.add(proof.id);
+			return { ...record, duplicateOf: proof.id, certain: false, already: "here" as const };
 		}
 
-		// A move already here that touches this account, by the amount and the days around
-		// it and not by the words: the two statements of one Pix name it differently, and
-		// the record that carried this statement's mark may have been joined into the move.
-		const move = existing.find(
-			(known) =>
-				known.moved === true &&
-				!taken.has(known.id) &&
-				known.amount === record.amount &&
-				Math.abs(daysApart(known.happenedOn, record.happenedOn)) <= MOVE_DAYS,
-		);
-		if (move) {
-			taken.add(move.id);
-			return { ...record, duplicateOf: move.id, certain: false };
+		const looks = existing.find((known) => within(known, record, MOVE_DAYS));
+		if (looks) {
+			taken.add(looks.id);
+			return { ...record, duplicateOf: looks.id, certain: false, already: "looksSame" as const };
 		}
 
-		return { ...record, duplicateOf: null, certain: false };
+		return { ...record, duplicateOf: null, certain: false, already: null };
 	});
 }
-
 function daysApart(left: string, right: string): number {
 	return (Date.parse(`${right}T00:00:00Z`) - Date.parse(`${left}T00:00:00Z`)) / 86_400_000;
-}
-
-function fingerprint(record: { happenedOn: string; amount: number; description: string }): string {
-	const words = record.description
-		.normalize("NFD")
-		.replace(/[̀-ͯ]/g, "")
-		.toLowerCase()
-		.replace(/[^a-z0-9]/g, "")
-		.slice(0, 16);
-	return `${record.happenedOn}|${record.amount}|${words}`;
 }

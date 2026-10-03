@@ -193,6 +193,37 @@ describe("marking what is already here", () => {
 		expect(marked[0]?.certain).toBe(false);
 	});
 
+	// Part 2, E.15.4: a rent written by a series, and the statement's line of it a day later.
+	it("knows the occurrence a series wrote, whatever the bank called it", () => {
+		const line = {
+			happenedOn: "2026-10-06",
+			amount: -200_000,
+			description: "PIX ALUGUEL",
+			notes: null,
+			externalId: null,
+			category: null,
+			nature: "purchase" as const,
+			installment: null,
+			cardDigits: null,
+			line: 1,
+			confidence: 1,
+			source: null,
+		};
+		const rent = {
+			id: "rent",
+			happenedOn: "2026-10-05",
+			amount: -200_000,
+			description: "Aluguel",
+			externalId: null,
+			kind: "expense" as const,
+			recurrenceId: "series",
+		};
+		expect(markDuplicates([line], [rent])[0]).toMatchObject({
+			duplicateOf: "rent",
+			already: "here",
+		});
+	});
+
 	// Part 2, A.4.5 of the request for 2.0.0: a Pix into savings joined into one move took away
 	// the record that carried the savings statement's mark, so reading that statement again
 	// wrote the 500 a second time. The move touches the account, and it is the same money.
@@ -219,13 +250,18 @@ describe("marking what is already here", () => {
 			externalId: "corr1",
 			moved: true,
 		};
-		expect(markDuplicates([line], [move])[0]?.duplicateOf).toBe("move");
+		expect(markDuplicates([line], [move])[0]).toMatchObject({
+			duplicateOf: "move",
+			already: "here",
+		});
 		// Four days apart is another move.
 		expect(markDuplicates([{ ...line, happenedOn: "2026-10-24" }], [move])[0]?.duplicateOf).toBe(
 			null,
 		);
-		// And a record that is not a move still needs its words to match.
-		expect(markDuplicates([line], [{ ...move, moved: false }])[0]?.duplicateOf).toBe(null);
+		// And a record that is not a move only looks the same, by its amount and its days: it
+		// needed the same first sixteen letters, which a bank and a person never write alike
+		// (part 2, E.15 of the request for 2.0.0).
+		expect(markDuplicates([line], [{ ...move, moved: false }])[0]?.already).toBe("looksSame");
 	});
 
 	it("never points two records at the same one", () => {
