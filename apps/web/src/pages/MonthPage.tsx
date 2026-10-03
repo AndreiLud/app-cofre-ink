@@ -61,6 +61,7 @@ import { Link } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
+import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { fillAmount } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { ROUTES } from "../router.tsx";
@@ -526,9 +527,7 @@ export function MonthPage() {
 		// way through still wrote some of the rows, and a screen that did not go and look
 		// would still believe it had written none of them and write those again.
 		onSettled: () => {
-			void queries.invalidateQueries({ queryKey: ["transactions"] });
-			void queries.invalidateQueries({ queryKey: ["balances"] });
-			void queries.invalidateQueries({ queryKey: ["advice"] });
+			afterRecordsChange(queries);
 			// The three readings below are about the month that was just typed, so they are
 			// stale the moment it is saved.
 			void queries.invalidateQueries({ queryKey: ["reports"] });

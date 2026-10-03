@@ -113,6 +113,33 @@ export function spendableNow(input: TotalInput): number {
 	return totalOver(input, isSpendable);
 }
 
+/**
+ * What can be spent this month, which is what can be spent now less the savings accounts
+ * where money is put aside.
+ *
+ * A savings account is spendable, and it is where the savings rule and the goals send money.
+ * Moving the five hundred the rule asks for from the current account to the savings account
+ * left what is spendable as it was and cleared what the rule still asked, so what was left to
+ * spend this month rose by five hundred, at the moment somebody did the one thing the figure
+ * is meant to encourage. So an account the rule or a goal points at is left out of this, and
+ * what the rule still asks is taken off what is left, as before.
+ *
+ * Only a savings account. A rule or a goal pointed at the current account, which nothing
+ * stops, would otherwise take every account somebody spends from out of the figure.
+ */
+export function spendableThisMonth(input: TotalInput, putAside: Iterable<string | null>): number {
+	const aside = new Set(putAside);
+	return totalOver(
+		{
+			...input,
+			accounts: input.accounts.filter(
+				(account) => !(account.kind === "savings" && aside.has(account.id)),
+			),
+		},
+		isSpendable,
+	);
+}
+
 /** What is owed on the cards, as a positive number, because a debt is not a small balance. */
 export function owedOnCards(input: TotalInput): number {
 	return -totalOver(input, isDebt);

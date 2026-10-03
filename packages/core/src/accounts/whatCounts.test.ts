@@ -11,6 +11,7 @@ import {
 	moneyOnHand,
 	owedOnCards,
 	spendableNow,
+	spendableThisMonth,
 } from "./whatCounts.ts";
 
 const ACCOUNTS: CountedAccount[] = [
@@ -154,5 +155,44 @@ describe("how much is left to spend this month", () => {
 	it("hands back the four parts, so a screen can show the subtraction", () => {
 		const parts = { spendable: 1, comingIn: 2, fallingDue: 3, stillToSave: 4 };
 		expect(canSpendThisMonth(parts).parts).toEqual(parts);
+	});
+
+	// Part 1, A.10 of the request for 2.0.0: 3,000 in the current account and a rule that puts
+	// 500 a month in the savings account. Moving the 500 used to raise what was left to spend
+	// from 2,500 to 3,000, because the savings account was spendable and the rule asked for
+	// nothing more.
+	it("stays where it was when the rule's money is moved to the savings account", () => {
+		const accounts: CountedAccount[] = [
+			{ id: "corrente", kind: "checking" },
+			{ id: "poupanca", kind: "savings" },
+		];
+		const leftWith = (corrente: number, poupanca: number, stillToSave: number) =>
+			canSpendThisMonth({
+				spendable: spendableThisMonth(
+					{
+						accounts,
+						balances: [
+							{ accountId: "corrente", settled: corrente },
+							{ accountId: "poupanca", settled: poupanca },
+						],
+					},
+					["poupanca"],
+				),
+				comingIn: 0,
+				fallingDue: 0,
+				stillToSave,
+			}).amount;
+
+		expect(leftWith(300_000, 0, 50_000)).toBe(250_000);
+		expect(leftWith(250_000, 50_000, 0)).toBe(250_000);
+	});
+
+	it("leaves a current account in, whatever a rule or a goal points at", () => {
+		const accounts: CountedAccount[] = [{ id: "corrente", kind: "checking" }];
+		expect(
+			spendableThisMonth({ accounts, balances: [{ accountId: "corrente", settled: 300_000 }] }, [
+				"corrente",
+			]),
+		).toBe(300_000);
 	});
 });

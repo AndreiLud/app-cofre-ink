@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RecurrencesSection } from "../components/RecurrencesSection.tsx";
 import { Value } from "../components/Value.tsx";
+import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
@@ -56,9 +57,7 @@ export function CalendarPage() {
 			.materialize({ spaceId })
 			.then((written) => {
 				if (written > 0) {
-					void queries.invalidateQueries({ queryKey: ["transactions"] });
-					void queries.invalidateQueries({ queryKey: ["balances"] });
-					void queries.invalidateQueries({ queryKey: ["advice"] });
+					afterRecordsChange(queries);
 				}
 			})
 			// Nothing on screen: the month is drawn either way and a person who did not ask

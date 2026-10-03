@@ -25,7 +25,7 @@ import {
 	monthOf,
 	noticesFor,
 	parseCalendarMonth,
-	spendableNow,
+	spendableThisMonth,
 	splitInvoicesFallingDue,
 	todayIn,
 } from "@cofre/core";
@@ -294,15 +294,21 @@ export function DashboardPage() {
 		queryKey: ["savings", "everywhere", spaces.map((space) => space.id).join(",")],
 		enabled: Boolean(session) && consolidated,
 		queryFn: async () => {
-			if (!session) return { expected: 0, put: 0 };
+			if (!session) return { expected: 0, put: 0, accountIds: [] as string[] };
 			const each = await Promise.all(
 				spaces.map((space) =>
 					session.goals.savings({ spaceId: space.id, month: monthOf(todayIn(space.timezone)) }),
 				),
 			);
+			const goalsOfEach = await Promise.all(spaces.map((space) => session.goals.list(space.id)));
 			return {
 				expected: each.reduce((total, one) => total + (one?.expected ?? 0), 0),
 				put: each.reduce((total, one) => total + (one?.put ?? 0), 0),
+				// Where every space puts money aside, which this figure leaves out.
+				accountIds: [
+					...each.map((one) => one?.rule?.accountId ?? null),
+					...goalsOfEach.flat().map((goal) => goal.accountId),
+				].filter((id): id is string => id !== null),
 			};
 		},
 	});
@@ -408,7 +414,6 @@ export function DashboardPage() {
 
 	const counted = { accounts: shownAccounts, balances: visible, worth };
 	const have = moneyOnHand(counted);
-	const spendable = spendableNow(counted);
 
 	// A benefit card's leftover is the whole card, made of every lunch on it whoever ate it,
 	// so there is no line to draw for somebody who can see none of them. The model answers
@@ -470,7 +475,17 @@ export function DashboardPage() {
 
 	const putAside = consolidated ? savingsEverywhere.data : savings.data;
 	const stillToSave = Math.max(0, (putAside?.expected ?? 0) - (putAside?.put ?? 0));
-	const left = canSpendThisMonth({ spendable, comingIn, fallingDue, stillToSave });
+	// Without the savings accounts the rule and the goals put money in, or moving money into
+	// one of them would raise what is left to spend by what was just put aside.
+	const asideIn = consolidated
+		? (savingsEverywhere.data?.accountIds ?? [])
+		: [savings.data?.rule?.accountId ?? null, ...(goals.data ?? []).map((goal) => goal.accountId)];
+	const left = canSpendThisMonth({
+		spendable: spendableThisMonth(counted, asideIn),
+		comingIn,
+		fallingDue,
+		stillToSave,
+	});
 
 	/**
 	 * Every invoice a card is still owing, as one bill each, with the card it belongs to.

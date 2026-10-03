@@ -23,6 +23,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { fillAmount, readAmount } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -72,9 +73,7 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 
 	const invalidate = () => {
 		void queries.invalidateQueries({ queryKey: ["recurrences"] });
-		void queries.invalidateQueries({ queryKey: ["transactions"] });
-		void queries.invalidateQueries({ queryKey: ["balances"] });
-		void queries.invalidateQueries({ queryKey: ["advice"] });
+		afterRecordsChange(queries);
 	};
 
 	const complain = (error: unknown) => setProblem(sayWhy(error, t));

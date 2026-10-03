@@ -39,6 +39,7 @@ import { type FilterQuery, SavedFilters } from "../components/SavedFilters.tsx";
 import { SplitDialog } from "../components/SplitDialog.tsx";
 import { TransactionForm } from "../components/TransactionForm.tsx";
 import { Value } from "../components/Value.tsx";
+import { afterRecordsChange } from "../lib/afterRecords.ts";
 import {
 	addressFromFilters,
 	type Filters,
@@ -204,9 +205,7 @@ export function TransactionsPage() {
 	});
 
 	const invalidate = () => {
-		void queries.invalidateQueries({ queryKey: ["transactions"] });
-		void queries.invalidateQueries({ queryKey: ["balances"] });
-		void queries.invalidateQueries({ queryKey: ["advice"] });
+		afterRecordsChange(queries);
 	};
 
 	/** A change over a selection either goes through or says why, and then clears it. */
@@ -291,7 +290,6 @@ export function TransactionsPage() {
 			}
 			await session.invoices.move(input.row.id, input.towards);
 			invalidate();
-			void queries.invalidateQueries({ queryKey: ["invoices"] });
 		},
 		onError: complain,
 	});

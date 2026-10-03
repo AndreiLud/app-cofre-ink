@@ -7,7 +7,7 @@
 // for a day already gone simply vanishing.
 
 import { expect, test } from "@playwright/test";
-import { dayField, go, onTheDay, openCofre, promisesFromBefore, total } from "./support.ts";
+import { dayField, figure, go, onTheDay, openCofre, promisesFromBefore, total } from "./support.ts";
 
 test.describe("the overview", () => {
 	test("answers the four questions the product promises, in one line", async ({ page }) => {
@@ -145,6 +145,60 @@ test.describe("the overview", () => {
 		} finally {
 			await before.close();
 		}
+	});
+
+	// Part 1, A.10 of the request for 2.0.0, the commonest case in Brazil: 3,000 in the bank
+	// and a rule that puts 500 a month in the savings account. Moving the 500 raised what was
+	// left to spend from 2,500 to 3,000.
+	test("keeps what is left to spend where it was when money is put aside", async ({ page }) => {
+		await openCofre(page, { demo: false });
+
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		await page.getByLabel("Nome").fill("Banco");
+		await page.getByLabel("Saldo de abertura").fill("3.000,00");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Banco", exact: true })).toBeVisible();
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		await page.getByRole("dialog").getByLabel("Nome").fill("Reserva");
+		await page.getByRole("dialog").getByLabel("Tipo").selectOption("savings");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Reserva", exact: true })).toBeVisible();
+
+		await go(page, "Orçamento");
+		await page.getByRole("button", { name: "Definir a regra" }).click();
+		const rule = page.getByRole("dialog");
+		await rule.getByText("Um valor fixo", { exact: true }).click();
+		await rule.getByLabel("Valor por mês").fill("500,00");
+		await rule.getByLabel("Vai para").selectOption({ label: "Reserva" });
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("dialog")).toHaveCount(0);
+
+		await go(page, "Painel");
+		await expect(figure(page, "Ainda dá para gastar")).toHaveText("R$ 2.500,00");
+
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = page.getByRole("dialog");
+		await form.getByText("Transferência", { exact: true }).click();
+		await form.getByLabel("Valor", { exact: true }).fill("500,00");
+		await form.getByLabel("Descrição").fill("Guardar");
+		await form.getByLabel("Sai de").selectOption({ label: "Banco" });
+		await form.getByLabel("Entra em").selectOption({ label: "Reserva" });
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("dialog")).toHaveCount(0);
+
+		await go(page, "Painel");
+		await expect(figure(page, "Ainda dá para gastar")).toHaveText("R$ 2.500,00");
+		await expect(total(page)).toHaveText("R$ 3.000,00");
+
+		// And read fresh, the way the page is opened the next morning. Before 2.0.0 the
+		// figure above only looked right because the overview kept reading the rule as it
+		// was before the money moved; read again, it said 3,000.
+		await page.reload();
+		await expect(figure(page, "Ainda dá para gastar")).toHaveText("R$ 2.500,00", {
+			timeout: 45_000,
+		});
 	});
 
 	test("puts a card invoice whose due day has gone with the things to answer", async ({ page }) => {

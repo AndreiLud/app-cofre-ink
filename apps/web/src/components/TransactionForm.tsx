@@ -24,6 +24,7 @@ import { Button, Callout, Dialog, Disclosure, Field, Segmented, Select } from "@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { fillAmount, readAmount } from "../lib/amounts.ts";
 import { lastWayUsed, rememberWayUsed } from "../lib/lastWay.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
@@ -309,9 +310,7 @@ export function TransactionForm({
 		onSuccess: () => {
 			if (kind === "expense") rememberWayUsed(spaceId, way);
 			onOpenChange(false);
-			for (const key of ["transactions", "balances", "advice", "invoices"]) {
-				void queries.invalidateQueries({ queryKey: [key] });
-			}
+			afterRecordsChange(queries);
 		},
 		onError: (error: unknown) => setProblem(sayWhy(error, t)),
 	});

@@ -48,6 +48,7 @@ import { Link, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
+import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { fillAmount, readAmount } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { ROUTES } from "../router.tsx";
@@ -181,9 +182,7 @@ export function InvoicePage() {
 
 	function afterInvoiceChange() {
 		setProblem(null);
-		void queries.invalidateQueries({ queryKey: ["invoices"] });
-		void queries.invalidateQueries({ queryKey: ["transactions"] });
-		void queries.invalidateQueries({ queryKey: ["balances"] });
+		afterRecordsChange(queries);
 	}
 
 	function openPayment(state: InvoiceState) {

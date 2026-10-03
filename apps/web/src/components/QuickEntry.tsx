@@ -11,6 +11,7 @@ import { Button, Callout, Field } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { lastWayUsed } from "../lib/lastWay.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -80,9 +81,7 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 	const ready = reading.problems.length === 0 && account !== null;
 
 	const invalidate = () => {
-		void queries.invalidateQueries({ queryKey: ["transactions"] });
-		void queries.invalidateQueries({ queryKey: ["balances"] });
-		void queries.invalidateQueries({ queryKey: ["advice"] });
+		afterRecordsChange(queries);
 	};
 
 	const write = useMutation({
