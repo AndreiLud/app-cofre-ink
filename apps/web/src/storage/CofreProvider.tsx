@@ -14,6 +14,7 @@ import {
 	useState,
 } from "react";
 import i18n from "../i18n/index.ts";
+import { APP_VERSION, type VersionMatch, versionMatchOf } from "../lib/version.ts";
 import type { CofreSession } from "./cofreSession.ts";
 import {
 	deviceId,
@@ -62,6 +63,10 @@ export type CofreValue = {
 	session: CofreSession | null;
 	/** Present only in server mode, because a link needs somewhere to point. */
 	linkInvitations: RemoteInvitations | null;
+	/** Server mode only: the version the server said it runs, which a 1.x does not say. */
+	serverVersion: string | null;
+	/** Whether this page and the server share a major version; always the same in the browser. */
+	versionMatch: VersionMatch;
 	user: User | null;
 	spaces: Space[];
 	currentSpace: Space | null;
@@ -129,6 +134,8 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 	const [client, setClient] = useState<ServerClient | null>(null);
 	const [session, setSession] = useState<CofreSession | null>(null);
 	const [linkInvitations, setLinkInvitations] = useState<RemoteInvitations | null>(null);
+	const [serverVersion, setServerVersion] = useState<string | null>(null);
+	const [versionMatch, setVersionMatch] = useState<VersionMatch>("same");
 	const [user, setUser] = useState<User | null>(null);
 	/** Browser mode only: everybody who has a profile in this database. */
 	const [spaces, setSpaces] = useState<Space[]>([]);
@@ -137,6 +144,8 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 
 	const startLocalSession = useCallback(async (database: Driver, userId: string) => {
 		const opened = await openSession({ driver: database, userId, deviceId: deviceId() });
+		setServerVersion(null);
+		setVersionMatch("same");
 		// What a release before this one wrote and this one reads differently, put right
 		// through the change log before the first screen reads anything. Almost always a
 		// query per space that finds nothing. A failure leaves the rows as they were, which
@@ -157,8 +166,19 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 	}, []);
 
 	const startRemoteSession = useCallback(async (address: string) => {
-		const remote = createRemoteSession(address);
-		const answer = await createServerClient(address).me();
+		const connected = createServerClient(address);
+		// The version first, because it decides whether this page may write at all: a server of
+		// another major version is read and never written to (part 2, K.6.1).
+		// A server old enough to have no such route does not say its version either, and is read
+		// the same way.
+		const [said, answer] = await Promise.all([
+			connected.setup().catch(() => ({ version: undefined })),
+			connected.me(),
+		]);
+		const match = versionMatchOf(APP_VERSION, said.version);
+		const remote = createRemoteSession(address, match);
+		setServerVersion(said.version ?? null);
+		setVersionMatch(match);
 		setSession(remote);
 		setLinkInvitations(remote.invitations);
 		setUser(answer.user);
@@ -441,6 +461,8 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 			client,
 			session,
 			linkInvitations,
+			serverVersion,
+			versionMatch,
 			user,
 			spaces,
 			currentSpace,
@@ -466,6 +488,8 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 			client,
 			session,
 			linkInvitations,
+			serverVersion,
+			versionMatch,
 			user,
 			spaces,
 			currentSpace,

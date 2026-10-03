@@ -90,6 +90,8 @@ import type {
 	UpdateTransactionInput,
 	User,
 } from "@cofre/storage";
+import type { InstalledWith } from "../lib/updateCommands.ts";
+import type { VersionMatch } from "../lib/version.ts";
 import type {
 	AssignableRole,
 	CofreSession,
@@ -118,6 +120,39 @@ export class ServerError extends Error {
 }
 
 export type InvitationWithLink = Invitation & { link: string };
+
+/** What `GET /api/about` says of the server: how it was installed and where its data is. */
+export type ServerAbout = {
+	version: string;
+	installedWith: InstalledWith;
+	image: string | null;
+	database: "sqlite" | "postgres";
+	databasePath: string | null;
+	/** Null when it cannot be told, which is PostgreSQL or a system with no mount table. */
+	dataOnAVolume: boolean | null;
+};
+
+/** A published version, as the server read it from GitHub. */
+export type ReleaseSaid = {
+	/** Written with the v: v2.1.0. */
+	version: string;
+	publishedOn: string | null;
+	/** Plain text, already cut; the page makes elements of it and never markup. */
+	notes: string;
+	/** Made from the version, never taken from what GitHub said. */
+	page: string;
+};
+
+/** What the server says GitHub answered. */
+export type UpdateAnswer = {
+	version: string;
+	state: "current" | "behind" | "ahead";
+	/** When GitHub was asked, in milliseconds. */
+	checkedAt: number;
+	latest: ReleaseSaid | null;
+	/** Every published version after this one, the highest first. */
+	newer: ReleaseSaid[];
+};
 
 /** Inviting by link exists only on the server, so it is named apart from the rest. */
 export type RemoteInvitations = {
@@ -270,8 +305,20 @@ export function createServerClient(server: string) {
 
 		me: () => get<{ user: User; spaces: Space[] }>("/api/me"),
 
-		/** What the sign in screen needs to know before anybody types anything. */
-		setup: () => get<{ needsFirstAccount: boolean; turnstileSiteKey: string | null }>("/api/setup"),
+		/**
+		 * What the sign in screen needs to know before anybody types anything, and the version
+		 * of the server, which a 1.x does not say.
+		 */
+		setup: () =>
+			get<{ needsFirstAccount: boolean; turnstileSiteKey: string | null; version?: string }>(
+				"/api/setup",
+			),
+
+		/** How this server was installed, which is what the commands to update it depend on. */
+		about: () => get<ServerAbout>("/api/about"),
+
+		/** The server asks GitHub, once per tap and never on its own. */
+		checkForUpdates: () => send<UpdateAnswer>("/api/updates/check", "POST", {}),
 
 		previewInvitation: (token: string) =>
 			get<InvitationPreview>(`/api/invitations/${encodeURIComponent(token)}`),
@@ -286,13 +333,23 @@ export type ServerClient = ReturnType<typeof createServerClient>;
  */
 export function createRemoteSession(
 	server: string,
+	/** Whether the server is of this page's major version, read from `/api/setup` on connecting. */
+	match: VersionMatch = "same",
 ): CofreSession & { invitations: RemoteInvitations } {
 	const get = <T>(path: string) => call<T>(server, path);
-	const send = <T>(path: string, method: string, body?: unknown) =>
-		call<T>(server, path, {
+	const send = <T>(path: string, method: string, body?: unknown) => {
+		// Across a major version a write could carry fields the other side does not know, or miss
+		// ones it requires, and nothing would say so. Refused here, before anything is sent, so
+		// the server is not asked at all; signing in and out still go through, because a page
+		// that cannot sign out is a page somebody is stuck on (part 2, K.6.1).
+		if (match !== "same" && !path.startsWith("/api/auth/")) {
+			return Promise.reject(new ServerError({ status: 0, error: "serverOtherVersion" }));
+		}
+		return call<T>(server, path, {
 			method,
 			body: body === undefined ? undefined : JSON.stringify(body),
 		});
+	};
 
 	return {
 		users: {

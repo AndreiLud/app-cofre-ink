@@ -16,7 +16,7 @@
 
 import { CloudError } from "@cofre/cloud";
 import { MAX_INSTALLMENTS, MoneyError } from "@cofre/core";
-import { NotFoundError, PermissionError, RuleError } from "@cofre/storage";
+import { NewerDatabaseError, NotFoundError, PermissionError, RuleError } from "@cofre/storage";
 import { ServerError } from "../storage/remoteSession.ts";
 import { FileTooLargeError, LARGEST_FILE } from "./download.ts";
 
@@ -27,6 +27,15 @@ const SERVER_CODE: Record<string, string> = {
 	notAllowed: "rules.notAllowedHere",
 	notFound: "rules.notThere",
 	notACofreServer: "rules.notACofreServer",
+	// A write refused because the page and the server are of different major versions, here
+	// before it is sent or by the server when it is a change log (part 2, K.6).
+	serverOtherVersion: "rules.serverOtherVersion",
+	// What the server answers when it asked GitHub which version is the latest and could not
+	// tell (part 2, K.3.6): refused, usually the limit an hour; nothing answered, usually a
+	// server with no internet; or an answer nobody can read.
+	githubRefused: "rules.githubRefused",
+	githubUnreachable: "rules.githubUnreachable",
+	githubUnreadable: "rules.githubUnreadable",
 };
 
 /**
@@ -71,6 +80,10 @@ export function sayWhy(error: unknown, t: Translate): string {
 		}
 		return t("destination.answered", { where: error.where, status: error.status });
 	}
+
+	// A database a newer version already migrated, here or on a server, which this version does
+	// not open (part 2, K.6.3).
+	if (error instanceof NewerDatabaseError) return t("rules.newerDatabase");
 
 	// Browser mode: the classes the repositories throw in this tab.
 	if (error instanceof PermissionError) return t("rules.notAllowedHere");

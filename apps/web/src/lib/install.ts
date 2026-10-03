@@ -20,6 +20,18 @@ export function keepWorkingOffline(): void {
 	if (!("serviceWorker" in navigator)) return;
 	if (!import.meta.env.PROD) return;
 
+	// A tab open while the server is updated keeps the bundle it loaded, which asks for its
+	// screens by the names of its own build. The new worker throws the old cache away the moment
+	// it takes over, so the next screen that tab opens may not be anywhere any more. Said, with a
+	// button to reload, the moment it happens. The first worker of a page that had none takes
+	// over too, and that is not a version replacing another, so it is not said (part 2, K.2.2).
+	const hadOne = navigator.serviceWorker.controller !== null;
+	navigator.serviceWorker.addEventListener("controllerchange", () => {
+		if (!hadOne || replaced) return;
+		replaced = true;
+		for (const listener of listeners) listener();
+	});
+
 	window.addEventListener("load", () => {
 		// Against the base of the build, so that a copy served from a folder registers
 		// the worker of that folder and claims only the pages inside it.
@@ -28,3 +40,17 @@ export function keepWorkingOffline(): void {
 		});
 	});
 }
+
+let replaced = false;
+const listeners = new Set<() => void>();
+
+/** For useSyncExternalStore: whether another version of this page took over this tab. */
+export const pageReplaced = {
+	subscribe(listener: () => void): () => void {
+		listeners.add(listener);
+		return () => listeners.delete(listener);
+	},
+	read(): boolean {
+		return replaced;
+	},
+};

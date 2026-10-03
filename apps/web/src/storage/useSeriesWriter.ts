@@ -21,7 +21,7 @@ import { useCofre } from "./CofreProvider.tsx";
 const LOOK_AT_THE_DAY = 60_000;
 
 export function useSeriesWriter(): void {
-	const { session, spaces, user, currentSpace } = useCofre();
+	const { session, spaces, user, currentSpace, versionMatch } = useCofre();
 	const queries = useQueryClient();
 	const timezone = currentSpace?.timezone ?? "America/Sao_Paulo";
 	const [day, setDay] = useState(() => todayIn(timezone));
@@ -40,6 +40,8 @@ export function useSeriesWriter(): void {
 	const opened = currentSpace?.id;
 	useEffect(() => {
 		if (!session || !user) return;
+		// A server of another major version is read and not written to, so nothing is asked.
+		if (versionMatch !== "same") return;
 		void opened;
 		void day;
 		let stopped = false;
@@ -71,5 +73,5 @@ export function useSeriesWriter(): void {
 		return () => {
 			stopped = true;
 		};
-	}, [session, user, spaces, opened, day, queries]);
+	}, [session, user, spaces, opened, day, queries, versionMatch]);
 }

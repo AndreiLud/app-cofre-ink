@@ -430,7 +430,11 @@
 		"busyBody": "In this mode the database is held by one tab at a time, so that no write is lost. Use the tab that is already open, or close it and try again here.",
 		"tryAgain": "Try again",
 		"skipToContent": "Skip to the content",
-		"chooseAgain": "Choose again where the data lives"
+		"chooseAgain": "Choose again where the data lives",
+		"reload": "Reload",
+		"pageOlder": "This page is from an earlier version than the server. Reload it.",
+		"pageReplaced": "A new version of this page was installed and this tab is still on the previous one. Reload to carry on.",
+		"serverOlder": "The server is on a version earlier than {{floor}} and this page on v{{version}}. Update the server before recording anything; until then you can look, not save."
 	},
 	"palette": {
 		"title": "What do you want to do?",
@@ -860,7 +864,12 @@
 		"keptInAHolding": "This money went into a holding or came out of one. Change or delete it in Investments, which undoes both ends together.",
 		"holdingNeedsAnInvestmentAccount": "A holding lives in an investment account. Pick one or create one.",
 		"holdingMovesWithMoney": "The money of a holding comes from an account that holds money and goes back to one. A card, a benefit card or another investment account will not do.",
-		"unknownProduct": "That kind of holding does not exist here. Pick one from the list."
+		"unknownProduct": "That kind of holding does not exist here. Pick one from the list.",
+		"serverOtherVersion": "Nothing was saved: the server runs another major version than this page. The notice at the top of the screen says what to do.",
+		"newerDatabase": "This database was migrated by a newer version of {{app}}. Open the version that migrated it, or restore the copy made before the update.",
+		"githubRefused": "GitHub refused the question, almost always because of its limit of requests an hour. Try again later.",
+		"githubUnreachable": "The server could not reach GitHub. Check that it has access to the internet.",
+		"githubUnreadable": "GitHub answered with something the server could not read. Try again later."
 	},
 	"transactions": {
 		"title": "Records",
@@ -2101,5 +2110,31 @@
 	"arrangement": {
 		"lockedParts": "Part of the split of the {{month}} invoice. To change it, undo the split.",
 		"lockedCard": "Part of paying the {{month}} invoice with another card. To change it, undo that payment."
+	},
+	"about": {
+		"line": "{{app}} v{{version}}",
+		"otherServer": "This page is on {{page}} and the server on {{server}}.",
+		"check": "Check for an update",
+		"checkHint": "The server asks GitHub which version was published last, only when you tap here. GitHub sees the address of the server and nothing else: nothing of yours goes with it.",
+		"current": "This is the latest version published. Checked at {{hour}}.",
+		"behind": "{{latest}} came out on {{day}}. This server is on {{version}}.",
+		"behindNoDay": "{{latest}} is out. This server is on {{version}}.",
+		"ahead": "This server runs a version newer than the latest one published.",
+		"notesTitle": "What changed",
+		"releasePage": "See the page of the version",
+		"howTitle": "How to update",
+		"newMajor": "{{latest}} is a new major version, and the :{{major}} image never reaches it: the commands below bring the latest {{major}}.x. To move to {{latest}}, read the notes and, when you are ready, change COFRE_TAG to {{next}} in .env (or :{{major}} to :{{next}} in docker run) before pulling the image.",
+		"notOnAVolume": "The data of this server is somewhere a new container will not find it: inside the container itself, or in a volume with no name, which recreating the container swaps for an empty one. An update recreates the container, so no command is shown here.",
+		"notOnAVolumeWhat": "Before anything else, save the manual copy of every space on this screen. Then put the data in a named volume, the way the installation guide does, bring the server up and restore what you saved. The manual copy does not carry the accounts people sign in with, so everybody makes theirs again. Do not run docker compose down or pull a new image before that: recreating the container is what removes the data.",
+		"stepCopy": "A copy of the server, with the accounts people sign in with",
+		"stepUpdate": "The new version",
+		"stopFirst": "Stop the server before copying the database.",
+		"startAfter": "Then start the server again.",
+		"alsoManual": "The manual copy on this screen carries your spaces but not the accounts people sign in with, which only the copy above carries.",
+		"manualLink": "Go to the manual copy",
+		"goingBack": "To go back, restore the copy from the first step and start the previous version. Never start a previous version over a database that was already migrated.",
+		"copy": "Copy",
+		"copied": "Copied.",
+		"selected": "The commands are selected: copy them with Ctrl+C, or Cmd+C on a Mac."
 	}
 }

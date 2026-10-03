@@ -8,6 +8,7 @@ import { DonateLink, LanguageToggle, ThemeToggle } from "../components/Controls.
 import { Turnstile } from "../components/Turnstile.tsx";
 import { Wordmark } from "../components/Wordmark.tsx";
 import { useTheme } from "../lib/theme.ts";
+import { APP_VERSION, versionMatchOf } from "../lib/version.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { createRemoteSession, ServerError } from "../storage/remoteSession.ts";
 
@@ -33,6 +34,8 @@ export function SignInPage() {
 	const [password, setPassword] = useState("");
 	const [busy, setBusy] = useState(false);
 	const [problem, setProblem] = useState<string | null>(null);
+	/** What `/api/setup` said, which a 1.x does not say. */
+	const [serverVersion, setServerVersion] = useState<string | undefined>(undefined);
 
 	const isDark =
 		choice === "dark" ||
@@ -46,6 +49,7 @@ export function SignInPage() {
 			.then((answer) => {
 				if (!alive) return;
 				setSiteKey(answer.turnstileSiteKey);
+				setServerVersion(answer.version);
 				if (!answer.needsFirstAccount) return;
 				setFirstEver(true);
 				setIntent("signUp");
@@ -73,10 +77,13 @@ export function SignInPage() {
 				await client.signIn({ email: email.trim(), password, captcha: answer });
 			}
 
-			// A person with no space yet gets the personal one, named in their language.
-			const remote = createRemoteSession(server);
+			// A person with no space yet gets the personal one, named in their language. Not on a
+			// server of another major version, which this page does not write to: the notice on
+			// every screen says why, and the space is made once the two agree.
+			const match = versionMatchOf(APP_VERSION, serverVersion);
+			const remote = createRemoteSession(server, match);
 			const spaces = await remote.spaces.list();
-			if (spaces.length === 0) {
+			if (spaces.length === 0 && match === "same") {
 				await remote.spaces.create({ name: t("onboarding.personalDefault"), kind: "personal" });
 			}
 

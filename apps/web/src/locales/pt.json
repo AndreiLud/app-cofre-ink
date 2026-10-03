@@ -430,7 +430,11 @@
 		"busyBody": "O banco de dados neste modo fica reservado para uma aba só, para nenhuma escrita se perder. Use a aba que já está aberta, ou feche ela e tente de novo aqui.",
 		"tryAgain": "Tentar de novo",
 		"skipToContent": "Ir para o conteúdo",
-		"chooseAgain": "Escolher de novo onde ficam os dados"
+		"chooseAgain": "Escolher de novo onde ficam os dados",
+		"reload": "Recarregar",
+		"pageOlder": "Esta página é de uma versão anterior à do servidor. Recarregue.",
+		"pageReplaced": "Uma versão nova desta página foi instalada, e esta aba ainda está na anterior. Recarregue para continuar.",
+		"serverOlder": "O servidor está numa versão anterior à {{floor}} e esta página na v{{version}}. Atualize o servidor antes de lançar qualquer coisa; até lá dá para ver, não para gravar."
 	},
 	"palette": {
 		"title": "O que você quer fazer?",
@@ -860,7 +864,12 @@
 		"keptInAHolding": "Esse dinheiro entrou numa aplicação ou saiu dela. Mude ou apague em Investimentos, que desfaz as duas pontas juntas.",
 		"holdingNeedsAnInvestmentAccount": "Uma aplicação fica numa conta de investimento. Escolha uma ou crie uma.",
 		"holdingMovesWithMoney": "O dinheiro de uma aplicação sai de uma conta que tem dinheiro e volta para uma. Cartão, vale e outra conta de investimento não servem.",
-		"unknownProduct": "Esse tipo de aplicação não existe aqui. Escolha um da lista."
+		"unknownProduct": "Esse tipo de aplicação não existe aqui. Escolha um da lista.",
+		"serverOtherVersion": "Nada foi gravado: o servidor está numa outra versão maior que esta página. O aviso no alto da tela diz o que fazer.",
+		"newerDatabase": "Este banco foi migrado por uma versão mais nova do {{app}}. Abra a versão que o migrou, ou restaure a cópia feita antes da atualização.",
+		"githubRefused": "O GitHub recusou a pergunta, quase sempre pelo limite de consultas por hora. Tente de novo mais tarde.",
+		"githubUnreachable": "O servidor não conseguiu falar com o GitHub. Veja se ele tem acesso à internet.",
+		"githubUnreadable": "O GitHub respondeu com algo que o servidor não soube ler. Tente de novo mais tarde."
 	},
 	"transactions": {
 		"title": "Lançamentos",
@@ -2101,5 +2110,31 @@
 	"arrangement": {
 		"lockedParts": "Faz parte do parcelamento da fatura de {{month}}. Para mudar, desfaça o parcelamento.",
 		"lockedCard": "Faz parte do pagamento da fatura de {{month}} com outro cartão. Para mudar, desfaça esse pagamento."
+	},
+	"about": {
+		"line": "{{app}} v{{version}}",
+		"otherServer": "Esta página está na {{page}} e o servidor na {{server}}.",
+		"check": "Verificar atualização",
+		"checkHint": "O servidor pergunta ao GitHub qual é a última versão publicada, só quando você toca aqui. O GitHub vê o endereço do servidor e nada mais: nada seu vai junto.",
+		"current": "Esta é a última versão publicada. Conferido às {{hour}}.",
+		"behind": "Saiu a {{latest}} em {{day}}. Este servidor está na {{version}}.",
+		"behindNoDay": "Saiu a {{latest}}. Este servidor está na {{version}}.",
+		"ahead": "Este servidor está numa versão mais nova que a última publicada.",
+		"notesTitle": "O que mudou",
+		"releasePage": "Ver a página da versão",
+		"howTitle": "Como atualizar",
+		"newMajor": "A {{latest}} é uma versão maior nova, e a imagem :{{major}} nunca chega nela: os comandos abaixo trazem a última {{major}}.x. Para ir à {{latest}}, leia as notas e, quando estiver pronto, troque COFRE_TAG por {{next}} no .env (ou :{{major}} por :{{next}} no docker run) antes de puxar a imagem.",
+		"notOnAVolume": "Os dados deste servidor estão num lugar que um contêiner novo não encontra: dentro do próprio contêiner, ou num volume sem nome, que recriar o contêiner troca por um vazio. Uma atualização recria o contêiner, então nenhum comando aparece aqui.",
+		"notOnAVolumeWhat": "Antes de tudo, salve a cópia manual de cada espaço nesta tela. Depois ponha os dados num volume com nome, como o guia de instalação faz, suba o servidor e restaure o que salvou. A cópia manual não leva as contas de acesso, então cada pessoa cria a sua de novo. Não rode docker compose down nem puxe uma imagem nova antes disso: recriar o contêiner é o que apaga os dados.",
+		"stepCopy": "A cópia do servidor, com as contas de acesso",
+		"stepUpdate": "A versão nova",
+		"stopFirst": "Pare o servidor antes de copiar o banco.",
+		"startAfter": "Depois, suba o servidor de novo.",
+		"alsoManual": "A cópia manual desta tela leva os seus espaços, mas não as contas de acesso, que só a cópia acima leva.",
+		"manualLink": "Ir à cópia manual",
+		"goingBack": "Para voltar, restaure a cópia do primeiro passo e suba a versão anterior. Nunca suba uma versão anterior sobre um banco já migrado.",
+		"copy": "Copiar",
+		"copied": "Copiado.",
+		"selected": "Os comandos estão selecionados: copie com Ctrl+C, ou Cmd+C num Mac."
 	}
 }

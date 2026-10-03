@@ -2,6 +2,7 @@
 // everything else. The space is named in the header at all times, which is the whole
 // defence against writing a personal expense into the family space.
 
+import { parseVersion } from "@cofre/core";
 import {
 	Button,
 	Callout,
@@ -12,13 +13,15 @@ import {
 	SpaceRule,
 } from "@cofre/ui";
 import { Link, useRouterState } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { type ReactNode, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { DonateLink, LanguageToggle, PrivacyToggle, ThemeToggle } from "../components/Controls.tsx";
 import { Wordmark } from "../components/Wordmark.tsx";
+import { pageReplaced } from "../lib/install.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useTheme } from "../lib/theme.ts";
 import { useDocumentTitle } from "../lib/title.ts";
+import { APP_VERSION } from "../lib/version.ts";
 import { ModeChooserPage } from "../pages/ModeChooserPage.tsx";
 import { SignInPage } from "../pages/SignInPage.tsx";
 import { ROUTES } from "../router.tsx";
@@ -325,6 +328,44 @@ function Busy() {
 	);
 }
 
+/**
+ * A page and a server of different major versions, said on every screen.
+ *
+ * Every write is already refused before it is sent (remoteSession.ts), so this is the sentence
+ * that explains a refusal before somebody runs into one: a page from app.cofre.ink in front of
+ * a server still on 1.x, or a tab left open across an update of the server (part 2, K.6.1).
+ */
+function OtherVersion() {
+	const { t } = useTranslation();
+	const { versionMatch } = useCofre();
+	// Another version of the page took over this tab, which is a reload away from working.
+	const replaced = useSyncExternalStore(pageReplaced.subscribe, pageReplaced.read);
+	if (versionMatch === "same" && !replaced) return null;
+
+	if (versionMatch === "pageOlder" || replaced) {
+		return (
+			<Callout
+				tone="attention"
+				className="print:hidden"
+				action={
+					<Button variant="secondary" size="small" onClick={() => window.location.reload()}>
+						{t("shell.reload")}
+					</Button>
+				}
+			>
+				{replaced ? t("shell.pageReplaced") : t("shell.pageOlder")}
+			</Callout>
+		);
+	}
+
+	const major = parseVersion(APP_VERSION)?.major ?? 0;
+	return (
+		<Callout tone="attention" className="print:hidden">
+			{t("shell.serverOlder", { floor: `${major}.0.0`, version: APP_VERSION })}
+		</Callout>
+	);
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
 	const { t } = useTranslation();
 	const cofre = useCofre();
@@ -420,6 +461,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 						{t("shell.notPersistentBody")}
 					</Callout>
 				)}
+				<OtherVersion />
 				<Inside />
 				{children}
 			</main>

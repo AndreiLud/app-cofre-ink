@@ -34,6 +34,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AboutThisCopy, MANUAL_COPY } from "../components/AboutThisCopy.tsx";
 import { AutomaticBackup } from "../components/AutomaticBackup.tsx";
 import { DangerZone } from "../components/DangerZone.tsx";
 import { downloadCsv, downloadJson, fileNameFor, readPickedFile } from "../lib/download.ts";
@@ -542,69 +543,73 @@ export function DataPage() {
 				)}
 			</Panel>
 
-			{/* The first of the two ways to have a copy: somebody makes it. */}
-			<Panel title={t("data.manualTitle")} description={t("data.manualBody")}>
-				<div className="divide-y divide-line">
-					<div className="space-y-3 pb-4">
-						<span className="block text-sm font-medium text-ink">{t("data.saveCopy")}</span>
-						<span className="block max-w-[62ch] text-sm leading-relaxed text-quiet">
-							{t("data.saveCopyBody")}
-						</span>
+			{/* The first of the two ways to have a copy: somebody makes it. With an id of its
+			    own, because the steps to update a server point here and #copia is the panel
+			    below, which a server does not have. */}
+			<div id={MANUAL_COPY}>
+				<Panel title={t("data.manualTitle")} description={t("data.manualBody")}>
+					<div className="divide-y divide-line">
+						<div className="space-y-3 pb-4">
+							<span className="block text-sm font-medium text-ink">{t("data.saveCopy")}</span>
+							<span className="block max-w-[62ch] text-sm leading-relaxed text-quiet">
+								{t("data.saveCopyBody")}
+							</span>
 
-						{/* With one space there is nothing to choose, so nothing is asked. */}
-						{spaces.length > 1 ? (
-							<fieldset className="space-y-2">
-								<legend className="pb-1 text-sm text-quiet">{t("data.backupWhich")}</legend>
-								{spaces.map((space) => (
-									<SpaceToTick
-										key={space.id}
-										name={space.name}
-										checked={mayCopy.has(space.id) && !leftOut[space.id]}
-										disabled={!mayCopy.has(space.id)}
-										why={mayCopy.has(space.id) ? undefined : t("data.backupCannot")}
-										onChange={(checked) => setLeftOut({ ...leftOut, [space.id]: !checked })}
-									/>
-								))}
-							</fieldset>
-						) : null}
-
-						<div className="flex flex-wrap items-center gap-3">
-							<Button
-								variant="primary"
-								disabled={chosen.length === 0 || saveBackup.isPending}
-								onClick={() => saveBackup.mutate()}
-							>
-								{t("data.saveCopyAction")}
-							</Button>
-							{chosen.length === 0 ? (
-								<span className="text-sm text-seal">{t("data.backupPickOne")}</span>
+							{/* With one space there is nothing to choose, so nothing is asked. */}
+							{spaces.length > 1 ? (
+								<fieldset className="space-y-2">
+									<legend className="pb-1 text-sm text-quiet">{t("data.backupWhich")}</legend>
+									{spaces.map((space) => (
+										<SpaceToTick
+											key={space.id}
+											name={space.name}
+											checked={mayCopy.has(space.id) && !leftOut[space.id]}
+											disabled={!mayCopy.has(space.id)}
+											why={mayCopy.has(space.id) ? undefined : t("data.backupCannot")}
+											onChange={(checked) => setLeftOut({ ...leftOut, [space.id]: !checked })}
+										/>
+									))}
+								</fieldset>
 							) : null}
-						</div>
-					</div>
 
-					<Action
-						title={t("data.bringBack")}
-						action={
-							<label className="cursor-pointer rounded-sm border border-lineStrong bg-sunken px-3 py-2 text-sm text-ink has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent">
-								{t("data.bringBackAction")}
-								<input
-									type="file"
-									accept=".json,.gz,application/json,application/gzip"
-									className="sr-only"
-									onChange={(event) => {
-										const file = event.target.files?.[0];
-										event.target.value = "";
-										// Read, not written: the dialog says what is inside first.
-										if (file) void readTheFile(file);
-									}}
-								/>
-							</label>
-						}
-					>
-						{t("data.bringBackBody")}
-					</Action>
-				</div>
-			</Panel>
+							<div className="flex flex-wrap items-center gap-3">
+								<Button
+									variant="primary"
+									disabled={chosen.length === 0 || saveBackup.isPending}
+									onClick={() => saveBackup.mutate()}
+								>
+									{t("data.saveCopyAction")}
+								</Button>
+								{chosen.length === 0 ? (
+									<span className="text-sm text-seal">{t("data.backupPickOne")}</span>
+								) : null}
+							</div>
+						</div>
+
+						<Action
+							title={t("data.bringBack")}
+							action={
+								<label className="cursor-pointer rounded-sm border border-lineStrong bg-sunken px-3 py-2 text-sm text-ink has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent">
+									{t("data.bringBackAction")}
+									<input
+										type="file"
+										accept=".json,.gz,application/json,application/gzip"
+										className="sr-only"
+										onChange={(event) => {
+											const file = event.target.files?.[0];
+											event.target.value = "";
+											// Read, not written: the dialog says what is inside first.
+											if (file) void readTheFile(file);
+										}}
+									/>
+								</label>
+							}
+						>
+							{t("data.bringBackBody")}
+						</Action>
+					</div>
+				</Panel>
+			</div>
 
 			{/* The second: a machine makes it, in a place of theirs.
 			    Only where there is a database in this browser for it to copy from. In
@@ -681,6 +686,9 @@ export function DataPage() {
 			</Disclosure>
 
 			<DangerZone />
+
+			{/* Outside the red border, which is for what cannot be undone. */}
+			<AboutThisCopy />
 
 			{/* Reading a file in writes into the space, so it says what it will do. It
 			    adds and never removes, which is the part somebody needs to hear. */}

@@ -10,9 +10,20 @@
 // of which needs a document. The day something here needs one, it is a screen and it belongs
 // in the Playwright flows instead.
 
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vitest/config";
 
+// The same constant the build writes in (vite.config.ts), from the root package.json.
+const version = (
+	JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")) as {
+		version: string;
+	}
+).version;
+
 export default defineConfig({
+	define: {
+		__APP_VERSION__: JSON.stringify(version),
+	},
 	test: {
 		environment: "node",
 		include: ["src/**/*.test.ts"],

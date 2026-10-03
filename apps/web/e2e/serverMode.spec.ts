@@ -4,6 +4,8 @@
 // driving through two separate browsers: each one has its own cookies, its own
 // storage and its own session.
 
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { type Browser, expect, type Page, test } from "@playwright/test";
 import { API_ADDRESS } from "../playwright.config.ts";
 import { go, openSetting, record } from "./support.ts";
@@ -30,10 +32,12 @@ async function arrive(browser: Browser, person: { name: string; email: string })
 	// the click and the toggle sends it back to the form it was already on.
 	const settled = page.waitForResponse((response) => response.url().includes("/api/setup"));
 	await page.getByRole("button", { name: "Conectar", exact: true }).click();
-	await settled;
+	// What the server said, and not whether the screen has drawn it yet: asking the screen
+	// raced the render, and on an empty server the toggle then sent it back to signing in.
+	const { needsFirstAccount } = (await (await settled).json()) as { needsFirstAccount: boolean };
 
 	const naming = page.getByLabel("Como você se chama");
-	if (!(await naming.isVisible())) {
+	if (!needsFirstAccount) {
 		await page.getByRole("button", { name: "Ainda não tenho conta" }).click();
 	}
 
@@ -753,4 +757,184 @@ test.describe("server mode", () => {
 		await inMonth("2030-09");
 		await expect(ana.getByRole("row").filter({ hasText: "geladeira" })).toHaveCount(0);
 	});
+});
+
+// Part 2, K.8.5 of the request for 2.0.0: the version on the screen, the button that asks GitHub
+// through the server, and a page that does not write to a server of another major version.
+test.describe("the version, and who asks GitHub", () => {
+	const ROOT = JSON.parse(
+		readFileSync(new URL("../../../package.json", import.meta.url), "utf8"),
+	) as { version: string };
+	const [major = 0] = ROOT.version.split(".").map(Number);
+	const mine = `v${ROOT.version}`;
+	/** Where the pictures go when the suite runs with SHOTS=1. */
+	const SHOTS = fileURLToPath(new URL("../shots/", import.meta.url));
+
+	const answer = (state: "current" | "behind" | "ahead") => ({
+		version: mine,
+		state,
+		// 17:05 in UTC, which is 14:05 where the suite runs.
+		checkedAt: Date.UTC(2026, 9, 28, 17, 5),
+		latest: {
+			version: state === "behind" ? `v${major}.9.0` : mine,
+			publishedOn: "2026-11-12",
+			notes:
+				"## Corrigido\n\n* A fatura de um [cartão](https://evil.example/x) é paga no dia.\n* Outra coisa",
+			page: "https://evil.example/page",
+		},
+		newer:
+			state === "behind"
+				? [
+						{
+							version: `v${major}.9.0`,
+							publishedOn: "2026-11-12",
+							notes:
+								"## Corrigido\n\n* A fatura de um [cartão](https://evil.example/x) é paga no dia.\n* Outra coisa",
+							page: "https://evil.example/page",
+						},
+					]
+				: [],
+	});
+
+	test("asks GitHub nothing by itself, and one tap is one request", async ({ browser }) => {
+		const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
+		const github: string[] = [];
+		const checks: string[] = [];
+		ana.context().on("request", (request) => {
+			if (request.url().includes("api.github.com")) github.push(request.url());
+			if (request.url().includes("/api/updates/check")) checks.push(request.method());
+		});
+
+		await go(ana, "Dados");
+		await expect(ana.getByText(`Cofre Ink ${mine}`, { exact: true })).toBeVisible();
+		// What the button does is said before it is pressed.
+		await expect(
+			ana.getByText(/O servidor pergunta ao GitHub qual é a última versão publicada/),
+		).toBeVisible();
+		expect(checks).toEqual([]);
+
+		// The server of the suite runs in test mode, where nothing is asked of GitHub and the
+		// answer is the failure of a server with no internet.
+		await ana.getByRole("button", { name: "Verificar atualização" }).click();
+		await expect(
+			ana.getByRole("status").filter({ hasText: "O servidor não conseguiu falar com o GitHub" }),
+		).toBeVisible();
+		expect(checks).toEqual(["POST"]);
+		expect(github).toEqual([]);
+	});
+
+	test("says each answer where it is announced", async ({ browser }) => {
+		const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
+		let reply: { status: number; body: unknown } = { status: 200, body: answer("current") };
+		await ana.route("**/api/updates/check", (route) =>
+			route.fulfill({
+				status: reply.status,
+				contentType: "application/json",
+				body: JSON.stringify(reply.body),
+			}),
+		);
+		await go(ana, "Dados");
+		const check = ana.getByRole("button", { name: "Verificar atualização" });
+		const said = (text: string | RegExp) => ana.getByRole("status").filter({ hasText: text });
+
+		await check.click();
+		await expect(said("Esta é a última versão publicada. Conferido às 14:05.")).toBeVisible();
+
+		reply = { status: 200, body: answer("ahead") };
+		await check.click();
+		await expect(
+			said("Este servidor está numa versão mais nova que a última publicada."),
+		).toBeVisible();
+
+		reply = { status: 502, body: { error: "githubUnreachable" } };
+		await check.click();
+		await expect(said("O servidor não conseguiu falar com o GitHub")).toBeVisible();
+
+		reply = { status: 200, body: answer("behind") };
+		await check.click();
+		await expect(
+			said(`Saiu a v${major}.9.0 em 12/11. Este servidor está na ${mine}.`),
+		).toBeVisible();
+
+		// The notes as text, with no address from them, and the page of the version made from
+		// the version and not from what was sent.
+		await expect(ana.getByRole("heading", { name: `v${major}.9.0` })).toBeVisible();
+		await expect(ana.getByText("A fatura de um cartão é paga no dia.")).toBeVisible();
+		await expect(ana.locator('a[href*="evil"]')).toHaveCount(0);
+		await expect(ana.getByRole("link", { name: "Ver a página da versão" })).toHaveAttribute(
+			"href",
+			`https://github.com/AndreiLud/app-cofre-ink/releases/tag/v${major}.9.0`,
+		);
+
+		// How to update this one, which runs from the source here: the copy first, outside the
+		// clone, and a way to the manual copy of this screen.
+		await expect(ana.getByRole("heading", { name: "Como atualizar" })).toBeVisible();
+		const first = ana.locator("pre").first();
+		// biome-ignore lint/suspicious/noTemplateCurlyInString: it is the shell that reads ${HOME}
+		await expect(first).toContainText("${HOME}/cofreBackups");
+		await expect(ana.getByRole("link", { name: "Ir à cópia manual" })).toHaveAttribute(
+			"href",
+			"#copiaManual",
+		);
+		await ana.getByRole("button", { name: "Copiar" }).first().click();
+		await expect(said(/Copiado|Os comandos estão selecionados/)).toBeVisible();
+		await expect(
+			ana.getByText(/Nunca suba uma versão anterior sobre um banco já migrado/),
+		).toBeVisible();
+		if (process.env.SHOTS === "1") {
+			// From the top, or the header that stays in place is drawn in the middle of the page.
+			await ana.evaluate(() => window.scrollTo(0, 0));
+			await ana.screenshot({ path: `${SHOTS}versao_como_atualizar.png`, fullPage: true });
+			await ana.setViewportSize({ width: 390, height: 844 });
+			await ana.screenshot({ path: `${SHOTS}versao_como_atualizar_telefone.png`, fullPage: true });
+		}
+	});
+
+	for (const [what, version] of [
+		["an older major version", `${major - 1}.2.1`],
+		["no version at all", undefined],
+	] as const) {
+		test(`reads a server that says ${what}, and writes nothing to it`, async ({ browser }) => {
+			const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
+			await go(ana, "Contas");
+			await ana.getByRole("button", { name: "Nova conta" }).first().click();
+			await ana.getByRole("dialog").getByLabel("Nome").fill("Banco");
+			await ana.getByRole("button", { name: "Salvar" }).click();
+			await expect(ana.getByRole("cell", { name: "Banco" })).toBeVisible();
+
+			await ana.route("**/api/setup", (route) =>
+				route.fulfill({
+					contentType: "application/json",
+					body: JSON.stringify({ needsFirstAccount: false, turnstileSiteKey: null, version }),
+				}),
+			);
+			await ana.reload();
+			await expect(
+				ana.getByText(
+					`O servidor está numa versão anterior à ${major}.0.0 e esta página na ${mine}. Atualize o servidor antes de lançar qualquer coisa; até lá dá para ver, não para gravar.`,
+				),
+			).toBeVisible();
+			if (process.env.SHOTS === "1" && version !== undefined) {
+				await ana.screenshot({ path: `${SHOTS}versao_servidor_anterior.png`, fullPage: true });
+			}
+
+			const writes: string[] = [];
+			ana.context().on("request", (request) => {
+				if (request.method() !== "GET" && request.url().includes("/api/")) {
+					writes.push(`${request.method()} ${request.url()}`);
+				}
+			});
+
+			// Reading still works: the account written before is there.
+			await go(ana, "Lançamentos");
+			await ana.getByRole("button", { name: "Novo lançamento" }).first().click();
+			await ana.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("80,00");
+			await ana.getByRole("dialog").getByLabel("Descrição").fill("Conta de luz");
+			await ana.getByRole("button", { name: "Salvar" }).click();
+			await expect(
+				ana.getByText(/Nada foi gravado: o servidor está numa outra versão maior/),
+			).toBeVisible();
+			expect(writes).toEqual([]);
+		});
+	}
 });
