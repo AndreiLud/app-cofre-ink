@@ -4,6 +4,7 @@
 // and the boundaries: what is inside the period, what counts as spending, and whose
 // money is being added up.
 
+import { addDays, todayIn } from "@cofre/core";
 import { describe, expect, it } from "vitest";
 import { NotFoundError } from "../errors.ts";
 import { type AdapterUnderTest, prepare } from "./setup.ts";
@@ -67,6 +68,45 @@ export function runReportConformance(adapter: AdapterUnderTest): void {
 	}
 
 	describe("reports", () => {
+		// Part 1, B.10 of the request for 2.0.0: an allowance landing on the twenty fifth was
+		// counted in the month in hand from its first day. Read against today's date, because
+		// a report reads today where the space lives: the landing is three days ahead.
+		it("counts an allowance in a report once it has landed, and not before", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				const today = todayIn("America/Sao_Paulo");
+				const landsOn = addDays(today, 3);
+				await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "voucher",
+					name: "Vale",
+					benefit: "meal",
+					quotaAmount: 90_000,
+					quotaDay: Number(landsOn.slice(8)),
+					quotaCarries: true,
+				});
+
+				// Ahead of today: the landing in three days and the one a month after it.
+				const ahead = await fixture.asAna.reports.totals({
+					spaceId: space.id,
+					from: today,
+					to: addDays(today, 40),
+				});
+				expect(ahead.benefits).toBe(0);
+
+				// Behind it: the landing of the period the card was written down in.
+				const behind = await fixture.asAna.reports.totals({
+					spaceId: space.id,
+					from: addDays(today, -40),
+					to: today,
+				});
+				expect(behind.benefits).toBe(90_000);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		it("adds up what came in and what went out inside the period", async () => {
 			const ready = await spaceWithSpending();
 			try {

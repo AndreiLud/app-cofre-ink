@@ -187,8 +187,12 @@ export function createReportsRepository(context: RepositoryContext) {
 			 */
 			const since = periodOf(openedOn, day).from;
 			const from = compareCalendarDates(since, range.from) > 0 ? since : range.from;
-			const to =
-				closedOn !== null && compareCalendarDates(closedOn, range.to) < 0 ? closedOn : range.to;
+			// And never past today. An allowance that lands on the twenty fifth has not landed
+			// on the second, and the month in hand counted it from the first day, while the
+			// line of the card on the overview said it would land in twenty three days.
+			const today = todayIn(zone);
+			const ends = compareCalendarDates(today, range.to) < 0 ? today : range.to;
+			const to = closedOn !== null && compareCalendarDates(closedOn, ends) < 0 ? closedOn : ends;
 			if (compareCalendarDates(from, to) > 0) continue;
 
 			// A day before the start, because the count is of landings strictly after the
