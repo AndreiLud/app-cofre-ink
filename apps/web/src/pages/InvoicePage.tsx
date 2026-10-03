@@ -55,6 +55,7 @@ import { Value } from "../components/Value.tsx";
 import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { fillAmount, readAmount } from "../lib/amounts.ts";
 import { invoiceHeadline } from "../lib/invoiceHeadline.ts";
+import { payable } from "../lib/payable.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { accountOptions, cardOptions } from "../lib/wayLabel.ts";
 import { ROUTES } from "../router.tsx";
@@ -679,9 +680,9 @@ export function InvoicePage() {
 				{/* The two do not depend on each other. The earlier invoices used to be offered only
 				    beside a payment of this one, so an open invoice with nothing on it, which is
 				    what somebody who has just updated sees first, hid every invoice they owe. */}
-				{(mayPay && state && amountToPay(state) > 0) || (mayPayOld && owingBefore.length > 0) ? (
+				{(mayPay && payable(state)) || (mayPayOld && owingBefore.length > 0) ? (
 					<div className="flex flex-wrap gap-2 pt-2">
-						{mayPay && state && amountToPay(state) > 0 ? (
+						{mayPay && payable(state) ? (
 							<Button onClick={() => openPayment(state)}>{t("invoice.pay")}</Button>
 						) : null}
 						{mayPayOld && owingBefore.length > 0 ? (

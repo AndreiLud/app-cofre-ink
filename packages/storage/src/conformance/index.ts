@@ -934,6 +934,52 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 					await fixture.close();
 				}
 			});
+
+			// Part 1, H.1.5 of the request for 2.0.0: the question before deleting an account said
+			// the money of its records stops counting anywhere. It leaves the balances, and the
+			// reports and the budget go on counting it, which is what the question says now.
+			it("leaves the records of a removed account in the reports and the budget", async () => {
+				const fixture = await prepare(adapter);
+				try {
+					const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+					const account = await fixture.asAna.accounts.create({
+						spaceId: space.id,
+						kind: "cash",
+						name: "Carteira",
+					});
+					await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "expense",
+						amount: 8_000,
+						happenedOn: "2026-09-10",
+						description: "Feira",
+						accountId: account.id,
+					});
+					await fixture.asAna.budgets.create({
+						spaceId: space.id,
+						scope: "total",
+						amount: 100_000,
+					});
+					await fixture.asAna.accounts.remove(account.id);
+
+					const balances = await fixture.asAna.transactions.balances(space.id, "2026-09-30");
+					expect(balances.map((one) => one.accountId)).not.toContain(account.id);
+					const totals = await fixture.asAna.reports.totals({
+						spaceId: space.id,
+						from: "2026-09-01",
+						to: "2026-09-30",
+					});
+					expect(totals.expense).toBe(8_000);
+					const limits = await fixture.asAna.budgets.progress({
+						spaceId: space.id,
+						month: "2026-09",
+						today: "2026-09-30",
+					});
+					expect(limits[0]?.progress.spent).toBe(8_000);
+				} finally {
+					await fixture.close();
+				}
+			});
 		});
 
 		describe("the change log", () => {

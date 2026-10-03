@@ -146,9 +146,30 @@ test.describe("accounts", () => {
 		const dialog = page.getByRole("dialog");
 		await expect(dialog).toContainText("lançamentos nesta conta");
 		await expect(dialog).toContainText("arquivar");
+		// Part 1, H.1.5 of the request for 2.0.0: it said their money stops counting anywhere,
+		// and the reports, the budget, the check up and the goals go on counting it.
+		await expect(dialog).toContainText(
+			"saem dos saldos e continuam contando nos relatórios, no orçamento, no diagnóstico e nas metas",
+		);
+		await expect(dialog).not.toContainText("deixa de ser contado");
 
 		await dialog.getByRole("button", { name: "Cancelar" }).click();
 		await expect(page.getByRole("cell", { name: "Conta corrente" }).first()).toBeVisible();
+	});
+
+	// Part 1, H.1.7 of the request for 2.0.0: correcting the days of a card moves nothing already
+	// written, which the edit never said, and a comment beside it said the opposite.
+	test("says that new days of a card leave the purchases already written alone", async ({
+		page,
+	}) => {
+		await openCofre(page);
+		await go(page, "Contas");
+		const row = page.getByRole("row").filter({ hasText: "Cartão de crédito" }).first();
+		await row.getByRole("button", { name: "Ações da conta" }).click();
+		await page.getByRole("menuitem", { name: "Editar conta" }).click();
+		const dialog = page.getByRole("dialog");
+		await expect(dialog).toContainText("As que já estão numa fatura ficam onde estão");
+		await expect(dialog).toContainText("Esta fatura fechou em outro dia");
 	});
 
 	test("makes the card of a credit account without asking twice", async ({ page }) => {

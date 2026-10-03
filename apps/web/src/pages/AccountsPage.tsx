@@ -204,6 +204,20 @@ export function AccountsPage() {
 		);
 	}
 
+	/**
+	 * The days of a month to choose from, with an empty first choice while none is chosen.
+	 *
+	 * Without it, a card from before 2.0.0 with no cycle opened its edit showing the first day
+	 * in both fields, a day it did not have, and saving sent none.
+	 */
+	const daysOfTheMonth = (value: string) => [
+		...(value === "" ? [{ value: "", label: t("accounts.quotaDayPick") }] : []),
+		...Array.from({ length: 31 }, (_unused, index) => ({
+			value: String(index + 1),
+			label: String(index + 1),
+		})),
+	];
+
 	function openEdit(account: Account) {
 		setProblem(null);
 		setEditing(account);
@@ -259,9 +273,10 @@ export function AccountsPage() {
 						}
 					: {}),
 				// The cycle of a card, because a bank changes it and because the day somebody
-				// typed when they added the card is the thing most likely to be a guess. Every
-				// invoice of the card is worked out from it, so correcting it moves purchases
-				// between invoices, and never the ones already put where somebody wanted them.
+				// typed when they added the card is the thing most likely to be a guess. It
+				// decides the invoice of what is written from now on. A purchase already written
+				// keeps the invoice on its record, so correcting the days moves nothing; an
+				// invoice that closed on another day is moved from the invoice screen.
 				...(editing.kind === "credit"
 					? {
 							closingDay: editClosingDay.trim() === "" ? null : Number(editClosingDay),
@@ -796,30 +811,31 @@ export function AccountsPage() {
 					) : null}
 					{/* The cycle of a card, correctable here because a bank changes it and
 					    because the day somebody typed when they added the card is the thing
-					    most likely to have been a guess. Every invoice of the card is worked
-					    out from it, so this is what puts them right. */}
+					    most likely to have been a guess. The new days apply to what is written
+					    from now on: a purchase already on an invoice stays on it, because its
+					    invoice is written on the record, and an invoice that closed on another
+					    day is moved whole from its own screen. A card from before 2.0.0 with no
+					    days opens with both fields empty rather than showing a day it does not
+					    have. */}
 					{editing?.kind === "credit" ? (
-						<div className="grid gap-4 sm:grid-cols-2">
-							<Select
-								label={t("accounts.closingDay")}
-								hint={t("accounts.closingDayHint")}
-								value={editClosingDay}
-								onChange={(event) => setEditClosingDay(event.target.value)}
-								options={Array.from({ length: 31 }, (_unused, index) => ({
-									value: String(index + 1),
-									label: String(index + 1),
-								}))}
-							/>
-							<Select
-								label={t("accounts.dueDay")}
-								hint={t("accounts.dueDayHint")}
-								value={editDueDay}
-								onChange={(event) => setEditDueDay(event.target.value)}
-								options={Array.from({ length: 31 }, (_unused, index) => ({
-									value: String(index + 1),
-									label: String(index + 1),
-								}))}
-							/>
+						<div className="space-y-2">
+							<div className="grid gap-4 sm:grid-cols-2">
+								<Select
+									label={t("accounts.closingDay")}
+									hint={t("accounts.closingDayHint")}
+									value={editClosingDay}
+									onChange={(event) => setEditClosingDay(event.target.value)}
+									options={daysOfTheMonth(editClosingDay)}
+								/>
+								<Select
+									label={t("accounts.dueDay")}
+									hint={t("accounts.dueDayHint")}
+									value={editDueDay}
+									onChange={(event) => setEditDueDay(event.target.value)}
+									options={daysOfTheMonth(editDueDay)}
+								/>
+							</div>
+							<p className="text-quiet text-sm">{t("accounts.cycleChangeHint")}</p>
 						</div>
 					) : null}
 					{/* What the bank allows on the card, which the invoice screen takes the
