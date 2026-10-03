@@ -142,7 +142,10 @@ test.describe("the month on paper", () => {
 	 */
 	test("is the whole month in English too", async ({ page }) => {
 		await openCofre(page);
-		await page.goto("/relatorio?mes=2026-09&lang=en");
+		// October, the month being lived in, which has every part. September no longer lists the
+		// card of the sample data: it was written down in October with nothing on it by then
+		// (part 1, F.3 of the request for 2.0.0).
+		await page.goto("/relatorio?mes=2026-10&lang=en");
 
 		for (const part of [
 			"The month",
@@ -159,7 +162,7 @@ test.describe("the month on paper", () => {
 
 		// And the name the browser suggests is the same either way, because it is a file name
 		// and not a sentence.
-		await expect(page).toHaveTitle("cofre_relatorio_2026-09");
+		await expect(page).toHaveTitle("cofre_relatorio_2026-10");
 	});
 
 	/**
@@ -177,6 +180,57 @@ test.describe("the month on paper", () => {
 		await expect(page.getByText(/^[a-z]+\.[a-zA-Z]+$/)).toHaveCount(0);
 		await expect(page.getByRole("cell", { name: "Sem categoria" })).toBeVisible();
 		await expect(page.getByRole("cell", { name: "Sem prioridade" })).toBeVisible();
+	});
+
+	// Part 1, F of the request for 2.0.0: the file of September printed in October priced the
+	// holdings written down in October at today's price, so its money at the end of the month
+	// was R$ 21.279,90, which is R$ 15.525,30 and the R$ 5.754,60 the holdings are worth now.
+	// And the check up read only July and August on the thirtieth, fewer than the three months
+	// a reading needs, and said it could not tell yet while the overview had a finding.
+	test("reads September as it stood on its last day, holdings and check up included", async ({
+		page,
+	}) => {
+		await openCofre(page);
+		await page.goto("/relatorio?mes=2026-09");
+		await expect(page.getByRole("heading", { level: 1 })).toContainText("Pessoal");
+
+		await expect(page.getByRole("row").filter({ hasText: "Dinheiro no fim do mês" })).toContainText(
+			"R$ 15.525,30",
+		);
+		const holdings = page.locator("section").filter({ hasText: "Investimentos" }).last();
+		await expect(
+			holdings.getByText("Nenhuma aplicação existia em 30 de setembro de 2026."),
+		).toBeVisible();
+		await expect(page.getByText(/como estavam em 30 de setembro de 2026/)).toBeVisible();
+
+		await expect(page.getByRole("table", { name: "Os quatro sinais" })).toBeVisible();
+		await expect(page.getByText("Ainda não dá para dizer")).toHaveCount(0);
+
+		// One sign in the whole file: the summary said "Saiu" with a minus over tables that
+		// said the same money without one.
+		const summary = page.getByRole("table", { name: "O resumo de setembro de 2026" });
+		await expect(summary.getByRole("row").filter({ hasText: "Saiu" })).not.toContainText("-");
+
+		// The month day by day, which the file never read.
+		await expect(page.getByRole("heading", { name: "Dia a dia", exact: true })).toBeVisible();
+	});
+
+	// Part 1, F.7 of the request for 2.0.0: a limit took its name from the spending of the month,
+	// so one on a category with nothing spent in it printed an empty first cell.
+	test("names a limit on a category with nothing spent in the month", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Orçamento");
+		await page.getByRole("button", { name: "Novo limite" }).first().click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByText("Uma categoria", { exact: true }).click();
+		await dialog.getByLabel("Categoria", { exact: true }).selectOption({ label: "Família" });
+		await dialog.getByLabel("Quanto por mês").fill("500,00");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(dialog).toHaveCount(0);
+
+		await page.goto("/relatorio?mes=2026-10");
+		const limits = page.getByRole("table", { name: "Os limites de outubro de 2026" });
+		await expect(limits.getByRole("row").filter({ hasText: "R$ 500,00" })).toContainText("Família");
 	});
 
 	test("reads a month already over in English as well", async ({ page }) => {
