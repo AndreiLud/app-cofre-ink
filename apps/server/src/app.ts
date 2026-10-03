@@ -213,6 +213,9 @@ const cardIdentifier = z
 	.optional()
 	.transform((given) => (given === "" ? null : given));
 
+/** A month that exists. "2026-13" passed a pattern of four digits and two, and broke every invoice read after it. */
+const existingMonth = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "expected a month that exists");
+
 const transactionInput = z.object({
 	kind: z.enum(["income", "expense", "transfer"]),
 	// Always positive: the direction comes from the kind, as registry 0010 says.
@@ -234,10 +237,11 @@ const transactionInput = z.object({
 	// would write three more records every time somebody typed the same month, because
 	// it would never find the ones it wrote before.
 	externalId: z.string().trim().max(120).nullable().optional(),
+	// Which invoice a payment pays. The month screen names it, and without it here the parser
+	// dropped it on a server, so the payment paid the oldest invoice still owed instead of
+	// the month it was written for.
+	invoiceMonth: existingMonth.nullable().optional(),
 });
-
-/** A month that exists. "2026-13" passed a pattern of four digits and two, and broke every invoice read after it. */
-const existingMonth = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "expected a month that exists");
 
 const transactionPatch = z.object({
 	amount: z.number().int().positive().optional(),

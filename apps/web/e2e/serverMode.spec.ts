@@ -632,4 +632,36 @@ test.describe("server mode", () => {
 			carla.getByText("Esse convite já foi usado. Cada link serve uma vez só."),
 		).toBeVisible();
 	});
+
+	// Part 1, G.1.2 of the request for 2.0.0: on a server the payment of the month screen lost
+	// the invoice it pays, so it paid the oldest invoice still owed. This suite runs on the real
+	// day, so the card closes late in the month and its payment falls due early in the next:
+	// whatever day it is, the payment of this month's invoice is still to come.
+	test("pays this month's invoice from the month screen, on a server", async ({ browser }) => {
+		const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
+		await go(ana, "Contas");
+		await ana.getByRole("button", { name: "Nova conta" }).first().click();
+		await ana.getByRole("dialog").getByLabel("Nome").fill("Banco");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(ana.getByRole("dialog")).toHaveCount(0);
+		await ana.getByRole("button", { name: "Nova conta" }).first().click();
+		const card = ana.getByRole("dialog");
+		await card.getByLabel("Nome").fill("Cartão");
+		await card.getByLabel("Tipo").selectOption("credit");
+		await card.getByLabel("Dia do fechamento").selectOption("28");
+		await card.getByLabel("Dia do vencimento").selectOption("5");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(card).toHaveCount(0);
+
+		await go(ana, "O mês");
+		await ana.getByLabel("Fatura do cartão Cartão").fill("500,00");
+		await ana.getByRole("button", { name: "Guardar o mês" }).click();
+		await expect(ana.getByText("Está tudo no lugar de sempre")).toBeVisible();
+
+		const month = new Date()
+			.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" })
+			.slice(0, 7);
+		await ana.goto(`/faturas?mes=${month}`);
+		await expect(ana.getByText(/Pagamento agendado para 05\//)).toBeVisible();
+	});
 });

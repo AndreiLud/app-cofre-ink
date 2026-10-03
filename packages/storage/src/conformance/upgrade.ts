@@ -303,7 +303,9 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 
 				const session = await openSession({ driver, userId: ana.id, deviceId: "deviceAna" });
 				const done = await session.repairs.runEverywhere();
-				expect(done).toEqual([{ spaceId: IDS.space, promisesMadeFacts: 3 }]);
+				expect(done).toEqual([
+					{ spaceId: IDS.space, promisesMadeFacts: 3, paymentsGivenTheirInvoice: 0 },
+				]);
 
 				const records = await session.transactions.list({ spaceId: IDS.space });
 				const status = (id: string) => records.find((row) => row.id === id)?.status;
@@ -344,7 +346,7 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 
 				// And it does nothing the second time.
 				expect(await session.repairs.runEverywhere()).toEqual([
-					{ spaceId: IDS.space, promisesMadeFacts: 0 },
+					{ spaceId: IDS.space, promisesMadeFacts: 0, paymentsGivenTheirInvoice: 0 },
 				]);
 			} finally {
 				await driver.close();
@@ -453,14 +455,14 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 				await migrate(driver);
 
 				expect(await repairEverySpace(driver)).toEqual([
-					{ spaceId: IDS.space, promisesMadeFacts: 1 },
+					{ spaceId: IDS.space, promisesMadeFacts: 1, paymentsGivenTheirInvoice: 0 },
 				]);
 				const logged = await driver.all(
 					`SELECT "device_id", "actor_id" FROM "changes" WHERE "entity_id" = 'promiseOfForm'`,
 				);
 				expect(logged).toEqual([{ device_id: "server", actor_id: ana.id }]);
 				expect(await repairEverySpace(driver)).toEqual([
-					{ spaceId: IDS.space, promisesMadeFacts: 0 },
+					{ spaceId: IDS.space, promisesMadeFacts: 0, paymentsGivenTheirInvoice: 0 },
 				]);
 			} finally {
 				await driver.close();

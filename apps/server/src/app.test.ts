@@ -437,6 +437,46 @@ describe("the api", () => {
 		expect(byMark.map((one) => one.externalId)).toEqual(["mes:2026-09:income"]);
 	});
 
+	// Part 1, G.1 of the request for 2.0.0: the payment the month screen writes names the
+	// invoice it pays, and the parser dropped the field, so on a server it paid the oldest
+	// invoice still owed. A month that does not exist is refused.
+	it("keeps the invoice a payment names", async () => {
+		const ana = createClient(app);
+		await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+		const space = await ana.json<{ id: string }>("/api/spaces", {
+			method: "POST",
+			body: JSON.stringify({ name: "Casa" }),
+		});
+		const account = (body: Record<string, unknown>) =>
+			ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+				method: "POST",
+				body: JSON.stringify(body),
+			});
+		const checking = await account({ kind: "checking", name: "Conta" });
+		const card = await account({ kind: "credit", name: "Cartao", closingDay: 3, dueDay: 10 });
+		const payment = (invoiceMonth: string) =>
+			ana.request(`/api/spaces/${space.id}/transactions`, {
+				method: "POST",
+				body: JSON.stringify({
+					kind: "transfer",
+					amount: 90_000,
+					happenedOn: "2026-10-10",
+					description: "Pagamento da fatura de outubro de 2026 (Cartao)",
+					accountId: checking.id,
+					counterAccountId: card.id,
+					invoiceMonth,
+					externalId: `mes:2026-10:payment:${card.id}`,
+				}),
+			});
+
+		const written = (await (await payment("2026-10")).json()) as Array<{
+			invoiceMonth: string | null;
+			invoiceMonthByHand: boolean;
+		}>;
+		expect(written[0]).toMatchObject({ invoiceMonth: "2026-10", invoiceMonthByHand: true });
+		expect((await payment("2026-13")).status).toBe(400);
+	});
+
 	// Part 2, A.4 of the request for 2.0.0: "Era entre contas suas" on a server, with the other
 	// half taken away in the same request, and a month that does not exist refused.
 	it("turns a record into a move and takes away the other half", async () => {

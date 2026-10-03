@@ -99,6 +99,39 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 1, G.1.3 of the request for 2.0.0: on a server the payment the month screen wrote
+		// for a card lost the invoice it pays, and paid the oldest invoice still owed instead.
+		// Its mark says the month, and the repair that travels gives it that invoice.
+		it("gives a payment the month screen wrote with no invoice the invoice of its month", async () => {
+			const ready = await readyCard(adapter);
+			try {
+				const on = ready.fixture.asAna;
+				const old = (month: string, day: string) =>
+					on.transactions.create({
+						spaceId: ready.spaceId,
+						kind: "transfer",
+						amount: 30_000,
+						happenedOn: day,
+						description: "Pagamento da fatura",
+						accountId: ready.checking.id,
+						counterAccountId: ready.card.id,
+						externalId: `mes:${month}:payment`,
+					});
+				const [september] = await old("2026-09", "2026-09-10");
+				const [october] = await old("2026-10", "2026-10-10");
+				expect(september?.invoiceMonth).toBeNull();
+
+				const done = await on.repairs.run(ready.spaceId);
+				expect(done.paymentsGivenTheirInvoice).toBe(2);
+				expect((await on.transactions.get(september?.id ?? "")).invoiceMonth).toBe("2026-09");
+				expect((await on.transactions.get(october?.id ?? "")).invoiceMonth).toBe("2026-10");
+				// And once is enough.
+				expect((await on.repairs.run(ready.spaceId)).paymentsGivenTheirInvoice).toBe(0);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		// Part 2, B.7.4: a credit account with no cycle has no invoices, and it vanished with
 		// nothing said. A new one is refused, and so is an edit that clears a day; one written
 		// before 2.0.0 comes back marked.

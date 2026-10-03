@@ -13,6 +13,7 @@
 // Every repair is safe to run on every opening: it looks for the rows it has not repaired
 // yet, and a database with none costs one query per space.
 
+import { readMonthMark } from "@cofre/core";
 import { MIGRATIONS_TABLE, transactions } from "@cofre/db";
 import { assertCan } from "../actor.ts";
 import { asNumber } from "../driver.ts";
@@ -29,6 +30,8 @@ export type RepairOutcome = {
 	spaceId: string;
 	/** Promises written by releases 1.1.0 to 1.2.1, which are facts now. */
 	promisesMadeFacts: number;
+	/** Payments of the month screen a server wrote with no invoice, given the invoice of their month. */
+	paymentsGivenTheirInvoice: number;
 };
 
 async function appliedAt(context: RepositoryContext, id: string): Promise<number | null> {
@@ -86,8 +89,49 @@ async function promisesOfOneOneToOneTwo(
 	return rows.length;
 }
 
+/**
+ * Payments of the month screen written on a server with no invoice named.
+ *
+ * The route that writes a record dropped the field that names the invoice a payment pays,
+ * so on a server the payment the month screen writes for a card arrived with none, and a
+ * payment that names none pays the oldest invoice still owed rather than the month it was
+ * written for. The mark it carries says which month that was, and the invoice of a month
+ * written by that screen is the invoice named after the month.
+ */
+async function paymentsWithoutTheirInvoice(
+	context: RepositoryContext,
+	spaceId: string,
+): Promise<number> {
+	const rows = await context.driver.all(
+		`SELECT t."id" AS id, t."external_id" AS mark
+		 FROM "transactions" t
+		 JOIN "accounts" a ON a."id" = t."counter_account_id"
+		 WHERE t."space_id" = ? AND t."deleted_at" IS NULL AND t."kind" = 'transfer'
+		   AND t."invoice_month" IS NULL AND a."kind" = 'credit'
+		   AND t."external_id" LIKE 'mes:%'`,
+		[spaceId],
+	);
+	let repaired = 0;
+	for (const row of rows) {
+		const mark = readMonthMark(String(row.mark));
+		if (mark?.part !== "payment") continue;
+		await updateRow(context.write(), {
+			table: transactions,
+			spaceId,
+			id: String(row.id),
+			values: { invoice_month: mark.month, invoice_month_by_hand: 1 },
+		});
+		repaired += 1;
+	}
+	return repaired;
+}
+
 async function repairSpace(context: RepositoryContext, spaceId: string): Promise<RepairOutcome> {
-	return { spaceId, promisesMadeFacts: await promisesOfOneOneToOneTwo(context, spaceId) };
+	return {
+		spaceId,
+		promisesMadeFacts: await promisesOfOneOneToOneTwo(context, spaceId),
+		paymentsGivenTheirInvoice: await paymentsWithoutTheirInvoice(context, spaceId),
+	};
 }
 
 export function createRepairsRepository(context: RepositoryContext) {
