@@ -319,7 +319,7 @@ export function DashboardPage() {
 		queryKey: ["savings", "everywhere", spaces.map((space) => space.id).join(",")],
 		enabled: Boolean(session) && consolidated,
 		queryFn: async () => {
-			if (!session) return { expected: 0, put: 0, accountIds: [] as string[] };
+			if (!session) return { expected: 0, put: 0, rules: 0, accountIds: [] as string[] };
 			const each = await Promise.all(
 				spaces.map((space) =>
 					session.goals.savings({ spaceId: space.id, month: monthOf(todayIn(space.timezone)) }),
@@ -329,6 +329,7 @@ export function DashboardPage() {
 			return {
 				expected: each.reduce((total, one) => total + (one?.expected ?? 0), 0),
 				put: each.reduce((total, one) => total + (one?.put ?? 0), 0),
+				rules: each.filter((one) => one?.rule).length,
 				// Where every space puts money aside, which this figure leaves out.
 				accountIds: [
 					...each.map((one) => one?.rule?.accountId ?? null),
@@ -535,6 +536,12 @@ export function DashboardPage() {
 
 	const putAside = consolidated ? savingsEverywhere.data : savings.data;
 	const stillToSave = Math.max(0, (putAside?.expected ?? 0) - (putAside?.put ?? 0));
+	/** Whether any of the spaces the figure is made of has a rule, which nothing above says. */
+	const hasARule = consolidated
+		? (savingsEverywhere.data?.rules ?? 0) > 0
+		: Boolean(savings.data?.rule);
+	/** Read, so "no rule" is an answer and not a figure still on its way. */
+	const ruleKnown = consolidated ? savingsEverywhere.isSuccess : savings.isSuccess;
 	// Without the savings accounts the rule and the goals put money in, or moving money into
 	// one of them would raise what is left to spend by what was just put aside.
 	const asideIn = consolidated
@@ -779,7 +786,9 @@ export function DashboardPage() {
 						    and every space beside it would say "no saving rule" over a figure
 						    made of four of them. */}
 						<div className="border-line lg:border-l lg:pl-6">
-							{(putAside?.expected ?? 0) > 0 ? (
+							{/* A rule of ten per cent before anything came in asks for nothing yet,
+							    and it is still a rule. */}
+							{hasARule ? (
 								<Figure
 									label={t("dashboard.stillToSave")}
 									amount={stillToSave}
@@ -788,7 +797,9 @@ export function DashboardPage() {
 							) : (
 								<div className="min-w-0">
 									<p className="text-quiet text-sm">{t("dashboard.stillToSave")}</p>
-									<p className="mt-1 text-quiet text-sm">{t("dashboard.noRuleShort")}</p>
+									{ruleKnown ? (
+										<p className="mt-1 text-quiet text-sm">{t("dashboard.noRuleShort")}</p>
+									) : null}
 								</div>
 							)}
 						</div>
@@ -1115,14 +1126,18 @@ export function DashboardPage() {
 				</Panel>
 
 				<Panel title={t("dashboard.savingAndGoals")}>
-					{savings.data ? (
+					{/* The answer always comes back, rule or not, so whether there is a rule is
+					    the rule itself. Asked of the answer, "no rule" never showed and the
+					    sentence said the rule asked for nothing. And nothing while it is read,
+					    which used to say "no rule" to everybody who had one. */}
+					{savings.data?.rule ? (
 						<p>
 							{t("dashboard.ruleAsks")} <Value amount={savings.data.expected} currency={currency} />
 							. {t("dashboard.savedSoFar")} <Value amount={savings.data.put} currency={currency} />.
 						</p>
-					) : (
+					) : savings.isSuccess ? (
 						<p className="text-quiet text-sm">{t("dashboard.noRule")}</p>
-					)}
+					) : null}
 					{saveNow ? (
 						<Button
 							size="small"

@@ -264,6 +264,43 @@ test.describe("the overview", () => {
 		}
 	});
 
+	// Part 1, E.2 of the request for 2.0.0. With no rule, "Guardar e metas" said "A regra pede
+	// R$ 0,00. Guardados R$ 0,00." and the paper printed both lines at nought, because the
+	// answer always comes back as an object. And the line at the top had it the other way
+	// round: a rule of ten per cent, before anything came in, read as no rule at all.
+	test("says there is no saving rule only when there is none", async ({ page }) => {
+		await openCofre(page, { demo: false });
+		await go(page, "Painel");
+		const panel = page.locator("section").filter({ hasText: "Guardar e metas" }).last();
+		await expect(panel.getByText(/^Nenhuma regra de guardar\./)).toBeVisible();
+		await expect(panel.getByText("A regra pede")).toHaveCount(0);
+
+		await page.goto("/relatorio?mes=2026-10");
+		const saving = page.getByRole("table", { name: /guardar/i });
+		await expect(saving.getByText("Sem regra de guardar")).toBeVisible();
+		await expect(saving.getByText("A regra pede")).toHaveCount(0);
+
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		await page.getByRole("dialog").getByLabel("Nome").fill("Reserva");
+		await page.getByRole("dialog").getByLabel("Tipo").selectOption("savings");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Reserva", exact: true })).toBeVisible();
+		await go(page, "Orçamento");
+		await page.getByRole("button", { name: "Definir a regra" }).click();
+		const rule = page.getByRole("dialog");
+		await rule.getByText("Uma porcentagem", { exact: true }).click();
+		await rule.getByLabel("Porcentagem do que entra").fill("10");
+		await rule.getByLabel("Vai para").selectOption({ label: "Reserva" });
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(rule).toHaveCount(0);
+
+		await page.reload();
+		await go(page, "Painel");
+		await expect(page.getByText("Sem regra de guardar")).toHaveCount(0);
+		await expect(figure(page, "Falta guardar")).toHaveText("R$ 0,00");
+	});
+
 	// Part 1, A.10 of the request for 2.0.0, the commonest case in Brazil: 3,000 in the bank
 	// and a rule that puts 500 a month in the savings account. Moving the 500 raised what was
 	// left to spend from 2,500 to 3,000.

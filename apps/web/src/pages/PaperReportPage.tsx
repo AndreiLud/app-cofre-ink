@@ -492,16 +492,26 @@ export function PaperReportPage() {
 						</TableRow>
 					</TableHead>
 					<TableBody>
-						<Line
-							name={t("dashboard.ruleAsks")}
-							amount={savings.data?.expected ?? 0}
-							currency={currency}
-						/>
-						<Line
-							name={t("dashboard.savedSoFar")}
-							amount={savings.data?.put ?? 0}
-							currency={currency}
-						/>
+						{/* Two lines at nought said a rule asked for nothing, on a space with no rule. */}
+						{savings.data?.rule ? (
+							<>
+								<Line
+									name={t("dashboard.ruleAsks")}
+									amount={savings.data.expected}
+									currency={currency}
+								/>
+								<Line
+									name={t("dashboard.savedSoFar")}
+									amount={savings.data.put}
+									currency={currency}
+								/>
+							</>
+						) : (
+							<TableRow>
+								<TableCell>{t("dashboard.noRuleShort")}</TableCell>
+								<TableCell numeric={true} />
+							</TableRow>
+						)}
 						{(goals.data ?? []).map((goal) => (
 							<TableRow key={goal.id}>
 								<TableCell>{goal.name}</TableCell>
