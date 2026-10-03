@@ -44,29 +44,48 @@ const MARK = "mes";
  * so the two cannot be taken for each other, and a record written by hand carries
  * nothing there at all and is never touched by this screen.
  */
-export function monthMark(month: CalendarMonth, part: MonthPart): string {
+export function monthMark(
+	month: CalendarMonth,
+	part: MonthPart,
+	cardAccountId?: string | null,
+): string {
 	parseCalendarMonth(month);
-	return `${MARK}:${month}:${part}`;
+	// The invoice and its payment name their card, because a household has more than one and
+	// each has an invoice of its own, `mes:2026-09:invoice:<account>`. Before 2.0.0 there was
+	// one card and the mark named none, and that mark is still read.
+	const card =
+		(part === "invoice" || part === "payment") && cardAccountId ? `:${cardAccountId}` : "";
+	return `${MARK}:${month}:${part}${card}`;
 }
 
-/** The other direction, for deciding whether a record on screen came from there. */
+/**
+ * The other direction, for deciding whether a record on screen came from there. The card is
+ * nothing on a mark from before 2.0.0, which belongs to the card the record is on: the account
+ * of an invoice and the account a payment went into.
+ */
 export function readMonthMark(
 	externalId: string | null | undefined,
-): { month: CalendarMonth; part: MonthPart } | null {
+): { month: CalendarMonth; part: MonthPart; cardAccountId: string | null } | null {
 	if (!externalId) return null;
 
 	const parts = externalId.split(":");
-	if (parts.length !== 3) return null;
-	const [prefix, month, part] = parts;
+	if (parts.length !== 3 && parts.length !== 4) return null;
+	const [prefix, month, part, card] = parts;
 	if (prefix !== MARK || month === undefined || part === undefined) return null;
 	if (!MONTH_PARTS.includes(part as MonthPart)) return null;
+	if (
+		parts.length === 4 &&
+		(card === undefined || card === "" || (part !== "invoice" && part !== "payment"))
+	) {
+		return null;
+	}
 
 	try {
 		parseCalendarMonth(month as CalendarMonth);
 	} catch {
 		return null;
 	}
-	return { month: month as CalendarMonth, part: part as MonthPart };
+	return { month: month as CalendarMonth, part: part as MonthPart, cardAccountId: card ?? null };
 }
 
 /**

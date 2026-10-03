@@ -20,7 +20,6 @@ import {
 	dateInMonth,
 	invoiceMonthOf,
 	limitsNearBreaking,
-	MONTH_FIELDS,
 	MONTH_PARTS,
 	type MonthPart,
 	monthMark,
@@ -69,8 +68,16 @@ import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
-/** The three that come from a field. The payment is worked out from the invoice. */
-type MonthField = "income" | "spending" | "invoice";
+/** The two that come from a field of their own. Each card has a field for its invoice. */
+type MonthField = "income" | "spending";
+
+/**
+ * Where a record of this screen sits in the month: income and spending once each, and an
+ * invoice and its payment once for every card.
+ */
+function placeOf(part: MonthPart, cardAccountId: string | null): string {
+	return part === "invoice" || part === "payment" ? `${part}:${cardAccountId ?? ""}` : part;
+}
 
 const DESCRIPTION: Record<MonthPart, string> = {
 	income: "theMonth.descriptionIncome",
@@ -184,29 +191,30 @@ export function MonthPage() {
 	// month already holds without an effect copying it into the state behind the person.
 	const [income, setIncome] = useState<string | null>(null);
 	const [spending, setSpending] = useState<string | null>(null);
-	const [invoice, setInvoice] = useState<string | null>(null);
+	/** What was typed for the invoice of each card, by the card; a card not here was not typed. */
+	const [invoices, setInvoices] = useState<Record<string, string>>({});
 	const [accountId, setAccountId] = useState("");
-	const [cardAccountId, setCardAccountId] = useState("");
 	const [problem, setProblem] = useState<string | null>(null);
 	const [saved, setSaved] = useState<string | null>(null);
-	/** Which of the three could not be read, so the sentence sits on the field itself. */
-	const [unreadable, setUnreadable] = useState<MonthField[]>([]);
+	/** Which fields could not be read, so the sentence sits on the field itself. */
+	const [unreadable, setUnreadable] = useState<string[]>([]);
 
 	function goTo(next: string) {
 		setMonth(next);
 		setIncome(null);
 		setSpending(null);
-		setInvoice(null);
+		setInvoices({});
 		setProblem(null);
 		setSaved(null);
 	}
 
 	const enabled = Boolean(session && currentSpace);
 
+	// The archived ones too: a card put away still has the invoices it was written with.
 	const accounts = useQuery({
-		queryKey: ["accounts", spaceId],
+		queryKey: ["accounts", spaceId, "includingArchived"],
 		enabled,
-		queryFn: () => session?.accounts.list(spaceId) ?? [],
+		queryFn: () => session?.accounts.list(spaceId, { includeArchived: true }) ?? [],
 	});
 
 	// A role that does not write should not be handed a button that writes. It used to
@@ -228,33 +236,74 @@ export function MonthPage() {
 	// A benefit card is neither. It takes no income, because whoever gives it is what
 	// credits it, and the spending on it is not the household's money going out.
 	const moneyAccounts = everyAccount.filter(
-		(one) => one.kind !== "credit" && one.kind !== "voucher",
+		(one) => one.archivedAt === null && one.kind !== "credit" && one.kind !== "voucher",
 	);
-	const cardAccounts = everyAccount.filter((one) => one.kind === "credit");
-	const account = moneyAccounts.find((one) => one.id === accountId) ?? likeliest(moneyAccounts);
-	const cardAccount =
-		cardAccounts.find((one) => one.id === cardAccountId) ?? cardAccounts[0] ?? null;
-	const cycle = cycleOf(cardAccount);
+	const creditAccounts = everyAccount.filter((one) => one.kind === "credit");
 
 	// Asked for by name, not by a range of days.
 	//
-	// These four sit on four different days, one of which is in the month before and one
-	// in the month after, and a range wide enough to hold all four is wide enough for a
-	// busy space to fill the page it comes back in. A record that fell off that page would
-	// be read as missing and written a second time, which is the one thing this screen
-	// must never do.
-	const marks = MONTH_PARTS.map((part) => monthMark(shown, part));
+	// These sit on different days, one of which is in the month before and one in the
+	// month after, and a range wide enough to hold them all is wide enough for a busy
+	// space to fill the page it comes back in. A record that fell off that page would be
+	// read as missing and written a second time, which is the one thing this screen must
+	// never do. Every card's invoice and payment, and the two marks from before 2.0.0 that
+	// named no card.
+	const marks = [
+		...MONTH_PARTS.map((part) => monthMark(shown, part)),
+		...creditAccounts.flatMap((card) => [
+			monthMark(shown, "invoice", card.id),
+			monthMark(shown, "payment", card.id),
+		]),
+	];
 	const written = useQuery({
-		queryKey: ["transactions", spaceId, "theMonth", "mine", shown],
-		enabled: enabled && shown !== "",
+		queryKey: ["transactions", spaceId, "theMonth", "mine", shown, marks.join(",")],
+		enabled: enabled && shown !== "" && !accounts.isPending,
 		queryFn: () => session?.transactions.list({ spaceId, externalIds: marks }) ?? [],
 	});
 
-	const mine = new Map<MonthPart, Transaction>();
+	/**
+	 * What this screen already wrote for the month, by where it sits. A mark from before 2.0.0
+	 * names no card and belongs to the card the record is on: the account of the invoice, and
+	 * the account the payment went into.
+	 */
+	const mine = new Map<string, Transaction>();
 	for (const row of written.data ?? []) {
 		const mark = readMonthMark(row.externalId);
-		if (mark && mark.month === shown) mine.set(mark.part, row);
+		if (!mark || mark.month !== shown) continue;
+		const card =
+			mark.cardAccountId ??
+			(mark.part === "invoice"
+				? row.accountId
+				: mark.part === "payment"
+					? row.counterAccountId
+					: null);
+		mine.set(placeOf(mark.part, card), row);
 	}
+
+	/**
+	 * A field for every card in use, and for an archived one only in a month it already has a
+	 * line in. One field for one card made somebody with two choose which invoice the month
+	 * had, and saving again moved the invoice, its payment and the account.
+	 */
+	const cardAccounts = creditAccounts.filter(
+		(card) =>
+			card.archivedAt === null ||
+			mine.has(placeOf("invoice", card.id)) ||
+			mine.has(placeOf("payment", card.id)),
+	);
+
+	// Where the money of the month lands: where the saved income went, else the spending,
+	// else a payment. It opened on the likeliest account whatever had been saved, so saving
+	// the month again moved every record of it there.
+	const savedIn = [
+		mine.get("income")?.accountId,
+		mine.get("spending")?.accountId,
+		...cardAccounts.map((card) => mine.get(placeOf("payment", card.id))?.accountId),
+	].find((id) => id !== undefined && moneyAccounts.some((one) => one.id === id));
+	const account =
+		moneyAccounts.find((one) => one.id === accountId) ??
+		moneyAccounts.find((one) => one.id === savedIn) ??
+		likeliest(moneyAccounts);
 
 	// What is in this month that somebody wrote a line at a time. It counts too, and
 	// saying so is the only thing standing between this screen and a month counted twice.
@@ -386,35 +435,49 @@ export function MonthPage() {
 	const text: Record<MonthField, string> = {
 		income: income ?? asText(mine.get("income"), language, currency),
 		spending: spending ?? asText(mine.get("spending"), language, currency),
-		invoice: invoice ?? asText(mine.get("invoice"), language, currency),
 	};
+	/** What the field of one card's invoice says: what was typed, or what the month holds. */
+	const invoiceText = (cardId: string) =>
+		invoices[cardId] ?? asText(mine.get(placeOf("invoice", cardId)), language, currency);
 	// Null means the month has no such number, which is what takes a record away, and it
 	// is asked of the text rather than read off a failed parse. A word somebody mistyped
 	// is not the month saying it has no income.
+	const read = (typed: string) =>
+		meansNoSuchNumber(typed, currency) ? null : typedAmount(typed, currency);
 	const cents: Record<MonthField, number | null> = {
-		income: meansNoSuchNumber(text.income, currency) ? null : typedAmount(text.income, currency),
-		spending: meansNoSuchNumber(text.spending, currency)
-			? null
-			: typedAmount(text.spending, currency),
-		invoice: meansNoSuchNumber(text.invoice, currency) ? null : typedAmount(text.invoice, currency),
+		income: read(text.income),
+		spending: read(text.spending),
 	};
-	const left = (cents.income ?? 0) - (cents.spending ?? 0) - (cents.invoice ?? 0);
+	const invoiceCents = (cardId: string) => read(invoiceText(cardId));
+	/** Every invoice of the month added up, which is what comes off what is left over. */
+	const invoicesTogether = cardAccounts.reduce(
+		(total, card) => total + (invoiceCents(card.id) ?? 0),
+		0,
+	);
+	const anyInvoice = cardAccounts.some((card) => invoiceCents(card.id) !== null);
+	const left = (cents.income ?? 0) - (cents.spending ?? 0) - invoicesTogether;
 
 	/**
 	 * What the month should end up holding.
 	 *
-	 * Four rows from three fields. The fourth is the payment of the invoice, and it is
-	 * not a question: an invoice is paid, and leaving that out was what made the account
-	 * the wages arrive in climb by the whole invoice every month while the card sank by
-	 * the same amount. The total was right and both accounts were wrong.
+	 * Income and spending, and for every card its invoice and the payment of it. The payment is
+	 * not a question: an invoice is paid, and leaving that out was what made the account the
+	 * wages arrive in climb by the whole invoice every month while the card sank by the same
+	 * amount. The total was right and both accounts were wrong. Each payment leaves on the day
+	 * its own card falls due and names the invoice of its own card.
 	 */
 	function wanted(): Array<{
+		place: string;
 		part: MonthPart;
+		/** The mark it carries, with the card in it for an invoice and a payment. */
+		mark: string;
 		amount: number | null;
 		into: Account;
 		kind: "income" | "expense" | "transfer";
 		counter: string | null;
 		status: TransactionStatus;
+		happenedOn: string;
+		description: string;
 		/** Which invoice a payment pays, where the row is one. */
 		invoiceMonth?: string | null;
 	}> {
@@ -422,56 +485,70 @@ export function MonthPage() {
 
 		const rows: ReturnType<typeof wanted> = [
 			{
+				place: "income",
 				part: "income",
+				mark: monthMark(shown, "income"),
 				amount: cents.income,
 				into: account,
 				kind: "income",
 				counter: null,
 				status: "settled",
+				happenedOn: monthPartDay(shown, "income", null, today),
+				description: t(DESCRIPTION.income, { month: withYear }),
 			},
 			{
+				place: "spending",
 				part: "spending",
+				mark: monthMark(shown, "spending"),
 				amount: cents.spending,
 				into: account,
 				kind: "expense",
 				counter: null,
 				status: "settled",
+				happenedOn: monthPartDay(shown, "spending", null, today),
+				description: t(DESCRIPTION.spending, { month: withYear }),
 			},
 		];
 
-		if (cardAccount !== null) {
+		for (const card of cardAccounts) {
+			const cycle = cycleOf(card);
+			const amount = invoiceCents(card.id);
 			rows.push({
+				place: placeOf("invoice", card.id),
 				part: "invoice",
-				amount: cents.invoice,
-				into: cardAccount,
+				mark: monthMark(shown, "invoice", card.id),
+				amount,
+				into: card,
 				kind: "expense",
 				counter: null,
 				status: "settled",
+				happenedOn: monthPartDay(shown, "invoice", cycle, today),
+				description: t(DESCRIPTION.invoice, { month: withYear, card: card.name }),
 			});
 			rows.push({
+				place: placeOf("payment", card.id),
 				part: "payment",
-				amount: cents.invoice,
+				mark: monthMark(shown, "payment", card.id),
+				amount,
 				into: account,
 				kind: "transfer",
-				counter: cardAccount.id,
+				counter: card.id,
 				// A fact, like everything the application writes. An invoice that has not
 				// fallen due yet has not been paid yet, and its day says so: the payment
-				// leaves the bank and pays the invoice on that day, by itself. Written as a
-				// promise it waited for somebody to say so, and counted against the invoice
-				// at once while the bank still held the money.
+				// leaves the bank and pays the invoice on that day, by itself.
 				status: "settled",
+				happenedOn: monthPartDay(shown, "payment", cycle, today),
+				description: t(DESCRIPTION.payment, { month: withYear, card: card.name }),
 				/**
 				 * Which invoice it pays, said out loud.
 				 *
-				 * The row above is charged to the card and finds its invoice through the
-				 * cycle. This one named none, so it fell through to the rule written for a
-				 * payment nobody explained, which pays down the oldest invoice still owing.
-				 * Somebody filling in three months out of order therefore had each payment
-				 * land on a month it was not about, and the invoice screen showed the wrong
-				 * one as settled.
+				 * The invoice row is charged to the card and finds its invoice through the cycle.
+				 * A payment that named none fell through to the rule written for a payment nobody
+				 * explained, which pays down the oldest invoice still owing, so somebody filling
+				 * in three months out of order had each payment land on a month it was not about.
 				 */
 				invoiceMonth:
-					cycle === null || cycle === undefined
+					cycle === null
 						? null
 						: invoiceMonthOf(monthPartDay(shown, "invoice", cycle, today), cycle),
 			});
@@ -485,24 +562,25 @@ export function MonthPage() {
 			if (!session) return;
 
 			for (const one of wanted()) {
-				const existing = mine.get(one.part);
+				const existing = mine.get(one.place);
 
 				if (one.amount === null) {
 					if (existing) await session.transactions.remove(existing.id);
 					continue;
 				}
 
-				const happenedOn = monthPartDay(shown, one.part, cycle, today);
-				const description = t(DESCRIPTION[one.part], { month: withYear });
-
 				if (existing) {
 					await session.transactions.update(existing.id, {
 						amount: one.amount,
-						happenedOn,
-						description,
+						happenedOn: one.happenedOn,
+						description: one.description,
 						accountId: one.into.id,
 						counterAccountId: one.counter,
 						status: one.status,
+						// A record written before 2.0.0 carries a mark with no card, and saving the
+						// month gives it the mark of its own, so the next save finds it by its card.
+						externalId: one.mark,
+						...(one.invoiceMonth ? { invoiceMonth: one.invoiceMonth } : {}),
 					});
 					continue;
 				}
@@ -511,8 +589,8 @@ export function MonthPage() {
 					spaceId,
 					kind: one.kind,
 					amount: one.amount,
-					happenedOn,
-					description,
+					happenedOn: one.happenedOn,
+					description: one.description,
 					accountId: one.into.id,
 					counterAccountId: one.counter,
 					status: one.status,
@@ -520,14 +598,14 @@ export function MonthPage() {
 					// correcting the closing day of the card afterwards leaves it where it
 					// was put rather than dragging it to another month.
 					...(one.invoiceMonth ? { invoiceMonth: one.invoiceMonth } : {}),
-					externalId: monthMark(shown, one.part),
+					externalId: one.mark,
 				});
 			}
 		},
 		onSuccess: () => {
 			setIncome(null);
 			setSpending(null);
-			setInvoice(null);
+			setInvoices({});
 			setProblem(null);
 			setSaved(shown);
 		},
@@ -555,18 +633,21 @@ export function MonthPage() {
 		// On the field that is wrong, and in the words every amount field uses. It said
 		// one of three amounts could not be read without saying which, and the field it
 		// was about looked exactly like the other two.
-		const wrong = MONTH_FIELDS.filter((part) =>
-			isUnreadable(text[part as MonthField], currency),
-		) as MonthField[];
+		const wrong = [
+			...(["income", "spending"] as const).filter((part) => isUnreadable(text[part], currency)),
+			...cardAccounts
+				.filter((card) => isUnreadable(invoiceText(card.id), currency))
+				.map((card) => placeOf("invoice", card.id)),
+		];
 		if (wrong.length > 0) {
 			setUnreadable(wrong);
 			return;
 		}
 		setUnreadable([]);
-		// Nothing in all three, with nothing written for the month either, is somebody who
+		// Nothing in any field, with nothing written for the month either, is somebody who
 		// opened the screen and pressed the button. Taking away what is not there and
 		// saying it worked would read as having lost something.
-		const nothing = MONTH_FIELDS.every((part) => cents[part as MonthField] === null);
+		const nothing = cents.income === null && cents.spending === null && !anyInvoice;
 		if (nothing && mine.size === 0) {
 			setProblem(t("theMonth.nothingTyped"));
 			return;
@@ -724,17 +805,36 @@ export function MonthPage() {
 						onChange={(event) => setSpending(event.target.value)}
 						placeholder={t("fields.amountPlaceholder")}
 					/>
+					{/* A field for every card, under one heading, because a household with two cards
+					    has two invoices, and one field made it choose which one the month had. */}
 					{cardAccounts.length > 0 ? (
-						<Field
-							label={t("theMonth.invoice")}
-							error={unreadable.includes("invoice") ? t("fields.amountError") : null}
-							hint={t("theMonth.invoiceHint", { month: monthName })}
-							numeric={true}
-							inputMode="decimal"
-							value={text.invoice}
-							onChange={(event) => setInvoice(event.target.value)}
-							placeholder={t("fields.amountPlaceholder")}
-						/>
+						<fieldset className="space-y-3">
+							<legend className="font-medium text-ink text-sm">{t("theMonth.invoices")}</legend>
+							<p className="text-quiet text-xs">
+								{t("theMonth.invoicesHint", { month: monthName, count: cardAccounts.length })}
+							</p>
+							{cardAccounts.map((card) => (
+								<Field
+									key={card.id}
+									label={t("theMonth.invoiceOf", {
+										card:
+											card.archivedAt === null
+												? card.name
+												: `${card.name} (${t("invoice.archivedMark")})`,
+									})}
+									error={
+										unreadable.includes(placeOf("invoice", card.id))
+											? t("fields.amountError")
+											: null
+									}
+									numeric={true}
+									inputMode="decimal"
+									value={invoiceText(card.id)}
+									onChange={(event) => setInvoices({ ...invoices, [card.id]: event.target.value })}
+									placeholder={t("fields.amountPlaceholder")}
+								/>
+							))}
+						</fieldset>
 					) : null}
 
 					{moneyAccounts.length > 1 ? (
@@ -746,14 +846,6 @@ export function MonthPage() {
 							options={accountOptions(moneyAccounts, t)}
 						/>
 					) : null}
-					{cardAccounts.length > 1 ? (
-						<Select
-							label={t("theMonth.whichCard")}
-							value={cardAccount?.id ?? ""}
-							onChange={(event) => setCardAccountId(event.target.value)}
-							options={accountOptions(cardAccounts, t)}
-						/>
-					) : null}
 
 					<p className="text-sm text-quiet">
 						{t("theMonth.clearHint")}
@@ -762,7 +854,7 @@ export function MonthPage() {
 							: ""}
 					</p>
 
-					{cents.income !== null || cents.spending !== null || cents.invoice !== null ? (
+					{cents.income !== null || cents.spending !== null || anyInvoice ? (
 						<p className="text-sm text-ink">
 							{left >= 0 ? t("theMonth.leftOver") : t("theMonth.shortBy")}{" "}
 							<Value
@@ -809,11 +901,18 @@ export function MonthPage() {
 								</TableRow>
 							</TableHead>
 							<TableBody>
-								{MONTH_PARTS.map((part) => {
-									const row = mine.get(part);
+								{[
+									"income",
+									"spending",
+									...cardAccounts.flatMap((card) => [
+										placeOf("invoice", card.id),
+										placeOf("payment", card.id),
+									]),
+								].map((place) => {
+									const row = mine.get(place);
 									if (!row) return null;
 									return (
-										<TableRow key={part}>
+										<TableRow key={place}>
 											<TableCell>
 												{row.description}
 												{hasHappened(row, today) ? null : (

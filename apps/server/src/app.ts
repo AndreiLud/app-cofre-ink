@@ -236,6 +236,9 @@ const transactionInput = z.object({
 	externalId: z.string().trim().max(120).nullable().optional(),
 });
 
+/** A month that exists. "2026-13" passed a pattern of four digits and two, and broke every invoice read after it. */
+const existingMonth = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "expected a month that exists");
+
 const transactionPatch = z.object({
 	amount: z.number().int().positive().optional(),
 	happenedOn: calendarDate.optional(),
@@ -247,6 +250,10 @@ const transactionPatch = z.object({
 	categoryId: z.string().min(1).nullable().optional(),
 	priority: priority.nullable().optional(),
 	cardId: cardIdentifier,
+	// The month screen gives a record it wrote before 2.0.0 the mark of its card, and names
+	// the invoice a payment pays. Left out here, the parser would drop both in server mode.
+	externalId: z.string().trim().max(120).nullable().optional(),
+	invoiceMonth: existingMonth.nullable().optional(),
 });
 
 /** A selection, kept small enough that one request cannot lock the database. */

@@ -949,6 +949,35 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 				await ready.fixture.close();
 			}
 		});
+
+		// Part 2, B.5.2 of the request for 2.0.0: the month screen gives a payment it wrote before
+		// 2.0.0, whose mark names no card, the mark of its card, and names the invoice it pays.
+		it("writes a mark and the invoice a payment pays again on a record that exists", async () => {
+			const ready = await readySpace(adapter);
+			try {
+				const [payment] = await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "transfer",
+					amount: 90_000,
+					happenedOn: "2026-10-10",
+					description: "Pagamento da fatura de setembro",
+					accountId: ready.checking.id,
+					counterAccountId: ready.card.id,
+					externalId: "mes:2026-09:payment",
+				});
+				const changed = await ready.fixture.asAna.transactions.update(payment?.id ?? "", {
+					externalId: `mes:2026-09:payment:${ready.card.id}`,
+					invoiceMonth: "2026-10",
+				});
+				expect(changed).toMatchObject({
+					externalId: `mes:2026-09:payment:${ready.card.id}`,
+					invoiceMonth: "2026-10",
+					invoiceMonthByHand: true,
+				});
+			} finally {
+				await ready.fixture.close();
+			}
+		});
 	});
 
 	describe("changing several records at once", () => {

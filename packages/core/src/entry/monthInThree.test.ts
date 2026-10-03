@@ -7,7 +7,32 @@ import { MONTH_PARTS, monthMark, monthPartDay, readMonthMark } from "./monthInTh
 describe("the mark the three records carry", () => {
 	it("says the month and which of the three it is", () => {
 		expect(monthMark("2026-09", "income")).toBe("mes:2026-09:income");
-		expect(readMonthMark("mes:2026-09:income")).toEqual({ month: "2026-09", part: "income" });
+		expect(readMonthMark("mes:2026-09:income")).toEqual({
+			month: "2026-09",
+			part: "income",
+			cardAccountId: null,
+		});
+	});
+
+	// Part 2, B.5.2 and B.5.5 of the request for 2.0.0: an invoice and its payment for each
+	// card, with the card in the mark; the mark from before, with none, is still read.
+	it("names the card of an invoice and of its payment, and reads the mark without one", () => {
+		expect(monthMark("2026-09", "invoice", "acc1")).toBe("mes:2026-09:invoice:acc1");
+		expect(readMonthMark("mes:2026-09:invoice:acc1")).toEqual({
+			month: "2026-09",
+			part: "invoice",
+			cardAccountId: "acc1",
+		});
+		expect(readMonthMark("mes:2026-09:payment:acc1")?.cardAccountId).toBe("acc1");
+		expect(readMonthMark("mes:2026-09:invoice")).toEqual({
+			month: "2026-09",
+			part: "invoice",
+			cardAccountId: null,
+		});
+		// Income and spending have no card, so a card on them is not a mark this wrote.
+		expect(monthMark("2026-09", "income", "acc1")).toBe("mes:2026-09:income");
+		expect(readMonthMark("mes:2026-09:income:acc1")).toBeNull();
+		expect(readMonthMark("mes:2026-09:invoice:")).toBeNull();
 	});
 
 	it("comes back from whatever it was written as", () => {
@@ -16,9 +41,15 @@ describe("the mark the three records carry", () => {
 				fc.integer({ min: 1900, max: 2999 }),
 				fc.integer({ min: 1, max: 12 }),
 				fc.constantFrom(...MONTH_PARTS),
-				(year, month, part) => {
+				fc.option(fc.stringMatching(/^[a-z0-9]{1,12}$/), { nil: null }),
+				(year, month, part, card) => {
 					const named = `${year}-${String(month).padStart(2, "0")}` as const;
-					expect(readMonthMark(monthMark(named, part))).toEqual({ month: named, part });
+					const carried = part === "invoice" || part === "payment" ? card : null;
+					expect(readMonthMark(monthMark(named, part, card))).toEqual({
+						month: named,
+						part,
+						cardAccountId: carried,
+					});
 				},
 			),
 		);

@@ -5,6 +5,7 @@
 // month a second time corrects those records rather than writing three more, and that
 // the card ends the month paid rather than owing the invoice forever.
 
+import { readFile } from "node:fs/promises";
 import { expect, type Page, test } from "@playwright/test";
 import { go, openCofre, record } from "./support.ts";
 
@@ -45,7 +46,7 @@ test.describe("a month in three numbers", () => {
 		await go(page, "O mês");
 		await page.getByLabel("Quanto entrou").fill("5.000,00");
 		await page.getByLabel("Quanto você gastou").fill("2.200,50");
-		await page.getByLabel("A fatura do cartão").fill("1.800,00");
+		await page.getByLabel("Fatura do cartão Cartão de crédito").fill("1.800,00");
 		await page.getByLabel("Em qual conta").selectOption({ label: "Conta corrente" });
 
 		// What is left over is worked out before anything is written.
@@ -128,17 +129,136 @@ test.describe("a month in three numbers", () => {
 		await openCofre(page);
 		await go(page, "O mês");
 
-		await page.getByLabel("A fatura do cartão").fill("900,00");
+		await page.getByLabel("Fatura do cartão Cartão de crédito").fill("900,00");
 		await page.getByRole("button", { name: "Guardar o mês" }).click();
 		await expect(page.getByText("Está tudo no lugar de sempre")).toBeVisible();
 		await expect(page.getByRole("table")).toContainText("Pagamento da fatura de");
 
-		await page.getByLabel("A fatura do cartão").fill("");
+		await page.getByLabel("Fatura do cartão Cartão de crédito").fill("");
 		await page.getByRole("button", { name: "Guardar o mês" }).click();
 
 		await go(page, "Lista");
 		await expect(row(page, /Fatura de/)).toHaveCount(0);
 		await expect(row(page, /Pagamento da fatura de/)).toHaveCount(0);
+	});
+
+	// Part 2, B.5 of the request for 2.0.0: one invoice field for one card, so somebody with
+	// two chose which invoice the month had, and saving again moved the invoice, its payment
+	// and the account to whatever the screen opened on.
+	test("keeps an invoice for each card, and each in its place when the month is saved again", async ({
+		page,
+	}) => {
+		await openCofre(page, { demo: false });
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		await page.getByLabel("Nome").fill("Banco");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Banco", exact: true })).toBeVisible();
+		for (const [name, closes, due] of [
+			["Nubank", "15", "22"],
+			["Itaú", "25", "5"],
+		] as const) {
+			await page.getByRole("button", { name: "Nova conta" }).first().click();
+			const card = page.getByRole("dialog");
+			await card.getByLabel("Nome").fill(name);
+			await card.getByLabel("Tipo").selectOption("credit");
+			await card.getByLabel("Dia do fechamento").selectOption(closes);
+			await card.getByLabel("Dia do vencimento").selectOption(due);
+			await page.getByRole("button", { name: "Salvar" }).click();
+			await expect(page.getByRole("cell", { name, exact: true })).toBeVisible();
+		}
+
+		await go(page, "O mês");
+		await page.getByLabel("Quanto entrou").fill("6.000,00");
+		await page.getByLabel("Quanto você gastou").fill("1.000,00");
+		await page.getByLabel("Fatura do cartão Nubank").fill("1.800,00");
+		await page.getByLabel("Fatura do cartão Itaú").fill("900,00");
+		// Both invoices come off what is left over.
+		await expect(page.getByText(/^Sobrou/)).toContainText("R$ 2.300,00");
+		await page.getByRole("button", { name: "Guardar o mês" }).click();
+		await expect(page.getByText("Está tudo no lugar de sempre")).toBeVisible();
+
+		// Opened again the next morning, and only what came in corrected.
+		await page.reload();
+		await go(page, "O mês");
+		// Written back the way a field holds an amount, without the thousands.
+		await expect(page.getByLabel("Fatura do cartão Nubank")).toHaveValue("1800,00");
+		await expect(page.getByLabel("Fatura do cartão Itaú")).toHaveValue("900,00");
+		await page.getByLabel("Quanto entrou").fill("6.500,00");
+		await expect(page.getByText(/^Sobrou/)).toContainText("R$ 2.800,00");
+		await page.getByRole("button", { name: "Guardar o mês" }).click();
+		await expect(page.getByText("Está tudo no lugar de sempre")).toBeVisible();
+
+		await page.goto("/lancamentos?mes=tudo");
+		await expect(row(page, /^.*Fatura de outubro de 2026 \(Nubank\)/)).toContainText("Nubank");
+		await expect(row(page, /Fatura de outubro de 2026 \(Itaú\)/)).toContainText("Itaú");
+		await expect(row(page, /Pagamento da fatura de outubro de 2026 \(Nubank\)/)).toContainText(
+			"Banco → Nubank",
+		);
+		await expect(row(page, /Pagamento da fatura de outubro de 2026 \(Itaú\)/)).toContainText(
+			"Banco → Itaú",
+		);
+		await expect(row(page, /Fatura de outubro/)).toHaveCount(2);
+		await expect(row(page, /Pagamento da fatura de outubro/)).toHaveCount(2);
+	});
+
+	// Part 2, B.5.2 and B.5.5: a month written by 1.2.1 carries marks that name no card. It
+	// opens with its invoice on the card, and saving it writes no second line.
+	test("reads a month written before 2.0.0 and writes it again in place", async ({ browser }) => {
+		const first = await browser.newContext({ acceptDownloads: true });
+		const second = await browser.newContext({ acceptDownloads: true });
+		try {
+			const one = await first.newPage();
+			await openCofre(one);
+			await go(one, "O mês");
+			await one.getByLabel("Fatura do cartão Cartão de crédito").fill("900,00");
+			await one.getByRole("button", { name: "Guardar o mês" }).click();
+			await expect(one.getByText("Está tudo no lugar de sempre")).toBeVisible();
+
+			await go(one, "Dados");
+			const download = one.waitForEvent("download");
+			await one.getByRole("button", { name: "Baixar", exact: true }).first().click();
+			const backup = JSON.parse(await readFile(await (await download).path(), "utf8")) as {
+				spaces: { tables: Record<string, Record<string, unknown>[]> }[];
+			};
+			let rewritten = 0;
+			for (const space of backup.spaces) {
+				for (const record of space.tables.transactions ?? []) {
+					const mark = String(record.external_id ?? "");
+					// The marks as 1.2.1 wrote them, with no card.
+					if (/^mes:\d{4}-\d{2}:(invoice|payment):/.test(mark)) {
+						record.external_id = mark.split(":").slice(0, 3).join(":");
+						rewritten += 1;
+					}
+				}
+			}
+			expect(rewritten).toBe(2);
+
+			const page = await second.newPage();
+			await openCofre(page, { demo: false });
+			await go(page, "Dados");
+			await page.getByLabel("Escolher arquivo").setInputFiles({
+				name: "cofre_backup_da_versao_1_2_1.json",
+				mimeType: "application/json",
+				buffer: Buffer.from(JSON.stringify(backup)),
+			});
+			await page.getByRole("dialog").getByRole("button", { name: "Trazer de volta" }).click();
+			await expect(page.getByText("Restaurado", { exact: true })).toBeVisible({ timeout: 20_000 });
+
+			await go(page, "O mês");
+			const field = page.getByLabel("Fatura do cartão Cartão de crédito");
+			await expect(field).toHaveValue("900,00");
+			await page.getByLabel("Quanto entrou").fill("100,00");
+			await page.getByRole("button", { name: "Guardar o mês" }).click();
+			await expect(page.getByText("Está tudo no lugar de sempre")).toBeVisible();
+
+			await page.goto("/lancamentos?mes=tudo");
+			await expect(row(page, /Fatura de outubro/)).toHaveCount(1);
+			await expect(row(page, /Pagamento da fatura de outubro/)).toHaveCount(1);
+		} finally {
+			await first.close();
+			await second.close();
+		}
 	});
 
 	test("reads the month back against a usual one", async ({ page }) => {

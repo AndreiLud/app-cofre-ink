@@ -100,6 +100,13 @@ export type UpdateTransactionInput = {
 	categoryId?: string | null;
 	priority?: SpendingPriority | null;
 	cardId?: string | null;
+	/**
+	 * The mark of the month screen, written again: a record it wrote before 2.0.0 named no
+	 * card, and saving the month gives it the mark of its card.
+	 */
+	externalId?: string | null;
+	/** The invoice a payment pays, chosen and not worked out, as on a new record. */
+	invoiceMonth?: CalendarMonth | null;
 };
 
 export type TransactionFilter = {
@@ -483,6 +490,13 @@ export function createTransactionsRepository(context: RepositoryContext) {
 		if (!chosen && (day !== found.happenedOn || accountId !== found.accountId)) {
 			values.invoice_month = await invoiceFor(found, day, accountId);
 		}
+		// Named, it wins over anything worked out, and stays chosen.
+		if (input.invoiceMonth !== undefined) {
+			if (input.invoiceMonth !== null) parseCalendarMonth(input.invoiceMonth);
+			values.invoice_month = input.invoiceMonth;
+			values.invoice_month_by_hand = input.invoiceMonth === null ? null : 1;
+		}
+		if (input.externalId !== undefined) values.external_id = input.externalId;
 		if (input.counterAccountId !== undefined) {
 			if (input.counterAccountId) await accountIn(found.spaceId, input.counterAccountId);
 			values.counter_account_id = input.counterAccountId;
