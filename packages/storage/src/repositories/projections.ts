@@ -22,6 +22,7 @@ import {
 	type ProjectedMonth,
 	project,
 	type RecurrenceSpec,
+	worthByAccount,
 } from "@cofre/core";
 import { assertCan, seesOwnRowsOnly } from "../actor.ts";
 import { notOnABenefitCard } from "../benefitCards.ts";
@@ -375,10 +376,8 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 			// price is not a movement, so the balance of a broker account is what was paid
 			// into it. Without this the projection opened at the money put in while the
 			// overview showed what it is worth, which is two answers to one question.
-			const worth: Record<string, number> = {};
-			for (const holding of holdings) {
-				worth[holding.accountId] = (worth[holding.accountId] ?? 0) + holding.value;
-			}
+			// The one sum every screen reads, in packages/core (part 2, H.4.1 of 2.0.0).
+			const worth = worthByAccount(holdings);
 
 			const opening = moneyOnHand({ accounts, balances, worth });
 

@@ -1,9 +1,12 @@
 // Money set aside on purpose.
 //
-// A goal points at the account the money sits in, and what has been saved is simply the
-// balance of that account. No parallel ledger, no contributions to record: moving money
-// into the account is the contribution. That is why one account holds one goal at a
-// time, and the repository says so instead of quietly adding the same money twice.
+// A goal points at the account the money sits in, and what has been saved is simply what that
+// account is worth: its balance, or for an investment account what its holdings are worth. No
+// parallel ledger, no contributions to record: moving money into the account is the
+// contribution. That is why one account holds one goal at a time, and the repository says so
+// instead of quietly adding the same money twice. A goal may also point at one holding inside
+// an investment account, the caixinha Viagem beside the caixinha Reserva of the same broker,
+// and then it is that holding that holds it, one goal each.
 //
 // The savings rule is the promise to do that before anything else. There is one per
 // space, and it is compared against what actually went in this month.
@@ -18,12 +21,15 @@ import { type Goal, type SavingsMode, type SavingsRule, toGoal, toSavingsRule } 
 import { marks } from "../sql.ts";
 import { insertRow, softDeleteRow, updateRow } from "../writer.ts";
 import type { RepositoryContext } from "./context.ts";
+import { createInvestmentsRepository } from "./investments.ts";
 
 export type CreateGoalInput = {
 	spaceId: string;
 	name: string;
 	targetAmount: number;
 	accountId: string;
+	/** One holding inside that account, when the goal is in it and not in the whole account. */
+	holdingId?: string | null;
 	targetDate?: string | null;
 	notes?: string | null;
 };
@@ -64,6 +70,43 @@ const RULE_SELECT = `SELECT "id", "space_id", "mode", "value", "account_id", "ho
 	FROM "savings_rules"`;
 
 export function createGoalsRepository(context: RepositoryContext) {
+	const investments = createInvestmentsRepository(context);
+
+	/** A holding of that account in that space, or nothing. */
+	async function holdingIn(spaceId: string, accountId: string, holdingId: string): Promise<void> {
+		const rows = await context.driver.all(
+			`SELECT "id" FROM "holdings"
+			 WHERE "id" = ? AND "space_id" = ? AND "account_id" = ? AND "deleted_at" IS NULL`,
+			[holdingId, spaceId, accountId],
+		);
+		if (rows.length === 0) throw new NotFoundError("holding", holdingId);
+	}
+
+	/**
+	 * What a goal has: the value of its holding, or what an investment account is worth by its
+	 * holdings when it has any, or the balance. A logger reads their own part of the balance, as
+	 * always, because the holdings are the household's and not theirs.
+	 */
+	async function savedIn(goal: Goal, today: string): Promise<number> {
+		if (seesOwnRowsOnly(context.actor(), goal.spaceId)) {
+			return balanceOf(goal.accountId, goal.spaceId, today);
+		}
+		const kind = await context.driver.all(`SELECT "kind" FROM "accounts" WHERE "id" = ?`, [
+			goal.accountId,
+		]);
+		if (String(kind[0]?.kind ?? "") !== "investment") {
+			return balanceOf(goal.accountId, goal.spaceId, today);
+		}
+		const held = (await investments.list(goal.spaceId)).filter(
+			(holding) => holding.accountId === goal.accountId,
+		);
+		if (goal.holdingId !== null) {
+			return held.find((holding) => holding.id === goal.holdingId)?.value ?? 0;
+		}
+		if (held.length === 0) return balanceOf(goal.accountId, goal.spaceId, today);
+		return held.reduce((sum, holding) => sum + holding.value, 0);
+	}
+
 	async function reachable(id: string): Promise<Goal> {
 		const spaceIds = readableSpaceIds(context.actor());
 		if (spaceIds.length === 0) throw new NotFoundError("goal", id);
@@ -180,13 +223,16 @@ export function createGoalsRepository(context: RepositoryContext) {
 			}
 			if (input.targetDate) parseCalendarDate(input.targetDate);
 			await accountIn(input.spaceId, input.accountId);
+			if (input.holdingId) await holdingIn(input.spaceId, input.accountId, input.holdingId);
 
 			// Two goals on one account would count the same money twice, so this refuses
-			// instead of showing both of them as nearly done.
+			// instead of showing both of them as nearly done. On one holding each, two goals in one
+			// broker are two different sums; a goal on the whole account counts all of them.
 			const taken = await context.driver.all(
 				`SELECT "id" FROM "goals" WHERE "account_id" = ? AND "deleted_at" IS NULL
-				 AND "archived_at" IS NULL`,
-				[input.accountId],
+				 AND "archived_at" IS NULL
+				 AND ("holding_id" IS NULL OR CAST(? AS TEXT) IS NULL OR "holding_id" = ?)`,
+				[input.accountId, input.holdingId ?? null, input.holdingId ?? null],
 			);
 			if (taken.length > 0) {
 				throw new RuleError(
@@ -203,6 +249,7 @@ export function createGoalsRepository(context: RepositoryContext) {
 					target_amount: input.targetAmount,
 					target_date: input.targetDate ?? null,
 					account_id: input.accountId,
+					holding_id: input.holdingId ?? null,
 					notes: input.notes ?? null,
 					achieved_at: null,
 					archived_at: null,
@@ -262,7 +309,7 @@ export function createGoalsRepository(context: RepositoryContext) {
 
 			const found: GoalProgress[] = [];
 			for (const row of rows.map(toGoal)) {
-				const saved = Math.max(0, await balanceOf(row.accountId, input.spaceId, input.today));
+				const saved = Math.max(0, await savedIn(row, input.today));
 				const left = Math.max(0, row.targetAmount - saved);
 				found.push({
 					...row,
@@ -287,6 +334,8 @@ export function createGoalsRepository(context: RepositoryContext) {
 			mode: SavingsMode;
 			value: number;
 			accountId?: string | null;
+			/** One holding of that account, which "Guardar agora" then puts the money into. */
+			holdingId?: string | null;
 		}): Promise<SavingsRule> {
 			assertCan(context.actor(), input.spaceId, "plan.write");
 			if (!Number.isSafeInteger(input.value) || input.value <= 0) {
@@ -296,6 +345,10 @@ export function createGoalsRepository(context: RepositoryContext) {
 				throw new RuleError("percentIsTooLarge", "a share of what comes in cannot be over 100");
 			}
 			if (input.accountId) await accountIn(input.spaceId, input.accountId);
+			if (input.holdingId && input.accountId) {
+				await holdingIn(input.spaceId, input.accountId, input.holdingId);
+			}
+			const holdingId = input.accountId ? (input.holdingId ?? null) : null;
 
 			const existing = await context.driver.all(
 				`SELECT "id" FROM "savings_rules" WHERE "space_id" = ? AND "deleted_at" IS NULL LIMIT 1`,
@@ -312,6 +365,7 @@ export function createGoalsRepository(context: RepositoryContext) {
 						mode: input.mode,
 						value: input.value,
 						account_id: input.accountId ?? null,
+						holding_id: holdingId,
 					},
 				});
 			} else {
@@ -322,6 +376,7 @@ export function createGoalsRepository(context: RepositoryContext) {
 						mode: input.mode,
 						value: input.value,
 						account_id: input.accountId ?? null,
+						holding_id: holdingId,
 						created_by: context.actor().userId,
 					},
 				});
@@ -379,7 +434,16 @@ export function createGoalsRepository(context: RepositoryContext) {
 			const earned = asNumber(earnedRows[0]?.total ?? 0);
 
 			let put = 0;
-			if (rule?.accountId) {
+			if (rule?.holdingId) {
+				// What went into the holding this month, whoever put it: the movements in, by their day.
+				const intoRows = await context.driver.all(
+					`SELECT COALESCE(SUM("amount"), 0) AS total FROM "holding_moves"
+					 WHERE "holding_id" = ? AND "deleted_at" IS NULL AND "kind" = 'in'
+					   AND "on_day" <= ? AND "on_day" >= ? AND "on_day" <= ? ${only.clause}`,
+					[rule.holdingId, today, from, to, ...only.params],
+				);
+				put = asNumber(intoRows[0]?.total ?? 0);
+			} else if (rule?.accountId) {
 				const intoRows = await context.driver.all(
 					`SELECT COALESCE(SUM("amount_in_base"), 0) AS total FROM "transactions"
 					 WHERE "space_id" = ? AND "deleted_at" IS NULL AND ${happenedBy(null)}

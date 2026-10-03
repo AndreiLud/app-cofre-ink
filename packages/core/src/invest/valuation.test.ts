@@ -74,6 +74,20 @@ describe("what a holding is worth", () => {
 		});
 	});
 
+	it("counts money put in after a value typed on the same day, and not before it", () => {
+		const box = (writtenAt: number) =>
+			valueOfHolding({
+				facts: facts("box", { indexer: "cdi", rate: 10_000, unitPrice: 100_000 }),
+				prices: [{ day: "2026-10-28", unitPrice: 100_000, writtenAt: 1_000 }],
+				moves: [{ day: "2026-10-28", kind: "in", amount: 50_000, quantity: null, writtenAt }],
+				series: NO_SERIES,
+				on: "2026-10-28",
+			}).value;
+		// Typed after the deposit, the value already had it; typed before, it did not.
+		expect(box(500)).toBe(100_000);
+		expect(box(2_000)).toBe(150_000);
+	});
+
 	it("adds up the holdings of an account, and leaves out an account with none", () => {
 		expect(
 			worthByAccount([

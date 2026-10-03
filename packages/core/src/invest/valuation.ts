@@ -23,7 +23,13 @@ import type { Indexer, Product } from "./products.ts";
 /** Quantities are scaled by ten to the eighth, so a fund can have fractions of a unit. */
 export const QUANTITY_SCALE = 100_000_000;
 
-/** What a holding was opened with, and what it follows. */
+/**
+ * What a holding was opened with, and what it follows.
+ *
+ * A product counted by value (one estimated from an index, or typed) is one unit whose price is
+ * the whole of it: the quantity is one, scaled, the opening is the unit price, and a value typed
+ * later is a price of that one unit.
+ */
 export type HoldingFacts = {
 	product: Product;
 	indexer: Indexer | null;
@@ -43,8 +49,8 @@ export type HoldingFacts = {
 	anniversaryDay: number | null;
 };
 
-/** A price, or a value, typed for a day. */
-export type TypedPrice = { day: CalendarDate; unitPrice: number };
+/** A price, or a value, typed for a day, and the moment it was written down. */
+export type TypedPrice = { day: CalendarDate; unitPrice: number; writtenAt?: number };
 
 /** Money in, money out and income, with the units they moved when there are units. */
 export type HoldingMoveFact = {
@@ -53,7 +59,26 @@ export type HoldingMoveFact = {
 	/** Minor units, always positive. */
 	amount: number;
 	quantity: number | null;
+	/** The moment it was written down, which says whether a value typed that day had it. */
+	writtenAt?: number;
 };
+
+/**
+ * What went in or out on the day of a value typed, after it was typed: the value is the one at
+ * the end of its day as the statement showed it, so money moved later that day is not in it.
+ */
+function sameDayAfter(moves: readonly HoldingMoveFact[], typed: TypedPrice): number {
+	if (typed.writtenAt === undefined) return 0;
+	return moves
+		.filter(
+			(move) =>
+				move.day === typed.day &&
+				move.kind !== "income" &&
+				move.writtenAt !== undefined &&
+				move.writtenAt > (typed.writtenAt as number),
+		)
+		.reduce((sum, move) => sum + (move.kind === "in" ? move.amount : -move.amount), 0);
+}
 
 /** The daily series the estimates read. */
 export type DailySeries = {
@@ -139,12 +164,13 @@ export function valueOfHolding(input: {
 	const opening = Math.round((facts.quantity * facts.unitPrice) / QUANTITY_SCALE);
 
 	if (valuation === "typed") {
-		// The newest value typed, and what went in and came out after it.
+		// The newest value typed, which is the whole value of a product counted by value, and what
+		// went in and came out after it; with none typed, the opening and every movement.
 		const from = newest
-			? { day: newest.day, value: Math.round((facts.quantity * newest.unitPrice) / QUANTITY_SCALE) }
+			? { day: newest.day, value: newest.unitPrice + sameDayAfter(moves, newest) }
 			: { day: facts.boughtOn ?? facts.writtenOn, value: opening };
 		const after = movementsOf(moves, on).filter(
-			(move) => compareCalendarDates(from.day, move.day) < 0,
+			(move) => newest === null || compareCalendarDates(from.day, move.day) < 0,
 		);
 		return {
 			value: from.value + after.reduce((sum, move) => sum + move.amount, 0),
@@ -165,7 +191,7 @@ export function valueOfHolding(input: {
 				? input.series.savings
 				: input.series.cdiDaily;
 	const from = newest
-		? { day: newest.day, value: Math.round((facts.quantity * newest.unitPrice) / QUANTITY_SCALE) }
+		? { day: newest.day, value: newest.unitPrice + sameDayAfter(moves, newest) }
 		: null;
 	const deposits = movementsOf(moves, on);
 	if (from === null) deposits.push({ day: facts.boughtOn ?? facts.writtenOn, amount: opening });

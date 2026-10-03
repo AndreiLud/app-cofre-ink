@@ -259,7 +259,7 @@ export function createInvestmentsRepository(context: RepositoryContext) {
 
 	async function pricesBySpace(spaceId: string): Promise<Map<string, TypedPrice[]>> {
 		const rows = await context.driver.all(
-			`SELECT "holding_id", "on_day", "unit_price" FROM "holding_prices"
+			`SELECT "holding_id", "on_day", "unit_price", "created_at" FROM "holding_prices"
 			 WHERE "space_id" = ? AND "deleted_at" IS NULL
 			 ORDER BY "on_day", "created_at"`,
 			[spaceId],
@@ -269,7 +269,11 @@ export function createInvestmentsRepository(context: RepositoryContext) {
 			const id = String(row.holding_id);
 			found.set(id, [
 				...(found.get(id) ?? []),
-				{ day: String(row.on_day), unitPrice: asNumber(row.unit_price) },
+				{
+					day: String(row.on_day),
+					unitPrice: asNumber(row.unit_price),
+					writtenAt: asNumber(row.created_at),
+				},
 			]);
 		}
 		return found;
@@ -277,7 +281,7 @@ export function createInvestmentsRepository(context: RepositoryContext) {
 
 	async function movesBySpace(spaceId: string): Promise<Map<string, HoldingMoveFact[]>> {
 		const rows = await context.driver.all(
-			`SELECT "holding_id", "on_day", "kind", "amount", "quantity" FROM "holding_moves"
+			`SELECT "holding_id", "on_day", "kind", "amount", "quantity", "created_at" FROM "holding_moves"
 			 WHERE "space_id" = ? AND "deleted_at" IS NULL
 			 ORDER BY "on_day", "created_at"`,
 			[spaceId],
@@ -292,6 +296,7 @@ export function createInvestmentsRepository(context: RepositoryContext) {
 					kind: String(row.kind) as HoldingMoveFact["kind"],
 					amount: asNumber(row.amount),
 					quantity: row.quantity === null ? null : asNumber(row.quantity),
+					writtenAt: asNumber(row.created_at),
 				},
 			]);
 		}

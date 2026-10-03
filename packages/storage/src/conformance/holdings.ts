@@ -1,7 +1,7 @@
 // Holdings as products, the money that moves with them, and what an investment account is worth.
 // Part 2, H of the request for 2.0.0, with its numbers.
 
-import { type CalendarDate, moneyOnHand, todayIn, worthByAccount } from "@cofre/core";
+import { type CalendarDate, moneyOnHand, spendableNow, todayIn, worthByAccount } from "@cofre/core";
 import { describe, expect, it } from "vitest";
 import { RuleError } from "../errors.ts";
 import { openSession, type Session } from "../session.ts";
@@ -288,6 +288,145 @@ export function runHoldingsConformance(adapter: AdapterUnderTest): void {
 						unitPrice: 10_000,
 					}),
 				).rejects.toMatchObject({ rule: "holdingNeedsAnInvestmentAccount" });
+			} finally {
+				await fixture.close();
+			}
+		});
+	});
+
+	describe("where a holding counts", () => {
+		it("gives a goal on one caixinha what that caixinha is worth, and nothing of the other", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const on = fixture.asAna;
+				const today = todayIn("America/Sao_Paulo");
+				const space = await on.spaces.create({ name: "Casa" });
+				const broker = await on.accounts.create({
+					spaceId: space.id,
+					kind: "investment",
+					name: "Nubank",
+				});
+				const box = (name: string, value: number) =>
+					on.investments.create({
+						spaceId: space.id,
+						accountId: broker.id,
+						name,
+						product: "box",
+						rate: 10_000,
+						quantity: SCALE,
+						unitPrice: value,
+					});
+				const trip = await box("Viagem", 201_524);
+				await box("Reserva", 1_000_000);
+				const goal = await on.goals.create({
+					spaceId: space.id,
+					name: "Viagem",
+					targetAmount: 500_000,
+					accountId: broker.id,
+					holdingId: trip.id,
+				});
+				const [progress] = await on.goals.progress({ spaceId: space.id, today });
+				expect(progress?.id).toBe(goal.id);
+				expect(progress?.saved).toBe(201_524);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("leaves what is left to spend where it was when the rule's money goes into the caixinha", async () => {
+			// R$ 5.000,00 in the current account and a rule of R$ 500,00 into the caixinha.
+			const fixture = await prepare(adapter);
+			try {
+				const on = fixture.asAna;
+				const today = todayIn("America/Sao_Paulo");
+				const space = await on.spaces.create({ name: "Casa" });
+				const checking = await on.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Corrente",
+					initialBalance: 500_000,
+				});
+				const broker = await on.accounts.create({
+					spaceId: space.id,
+					kind: "investment",
+					name: "Nubank",
+				});
+				const box = await on.investments.create({
+					spaceId: space.id,
+					accountId: broker.id,
+					name: "Reserva",
+					product: "box",
+					rate: 10_000,
+					quantity: SCALE,
+					unitPrice: 100_000,
+				});
+				await on.goals.setRule({
+					spaceId: space.id,
+					mode: "fixed",
+					value: 50_000,
+					accountId: broker.id,
+					holdingId: box.id,
+				});
+				const leftToSpend = async () => {
+					const accounts = await on.accounts.list(space.id);
+					const balances = await on.transactions.balances(space.id, today);
+					const savings = await on.goals.savings({ spaceId: space.id, month: today.slice(0, 7) });
+					const spendable = spendableNow({
+						accounts: accounts.map((account) => ({ id: account.id, kind: account.kind })),
+						balances: balances.map((one) => ({ accountId: one.accountId, settled: one.settled })),
+					});
+					return spendable - Math.max(0, savings.expected - savings.put);
+				};
+				expect(await leftToSpend()).toBe(450_000);
+				await on.investments.move({
+					holdingId: box.id,
+					kind: "in",
+					onDay: today,
+					amount: 50_000,
+					accountId: checking.id,
+				});
+				expect(await leftToSpend()).toBe(450_000);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("earns nothing in the months projected, so putting money in changes no month", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const on = fixture.asAna;
+				const today = todayIn("America/Sao_Paulo");
+				const { spaceId, checkingId } = await aHousehold(on);
+				const broker = await on.accounts.create({ spaceId, kind: "investment", name: "Nubank" });
+				const box = await on.investments.create({
+					spaceId,
+					accountId: broker.id,
+					name: "Reserva",
+					product: "box",
+					rate: 10_000,
+					quantity: SCALE,
+					unitPrice: 100_000,
+				});
+				const ahead = () =>
+					on.projections.monthsAhead({
+						spaceId,
+						from: today.slice(0, 7),
+						months: 3,
+						today,
+					});
+				const before = await ahead();
+				await on.investments.move({
+					holdingId: box.id,
+					kind: "in",
+					onDay: today,
+					amount: 50_000,
+					accountId: checkingId,
+				});
+				const after = await ahead();
+				expect(after.opening).toBe(before.opening);
+				expect(after.months.map((month) => month.balance)).toEqual(
+					before.months.map((month) => month.balance),
+				);
 			} finally {
 				await fixture.close();
 			}
