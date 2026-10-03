@@ -247,7 +247,8 @@ export async function fourCards(page: Page): Promise<void> {
 		await dialog.getByLabel("Nome").fill(name);
 		await fill(dialog);
 		await page.getByRole("button", { name: "Salvar" }).click();
-		await expect(page.getByRole("cell", { name, exact: true })).toBeVisible();
+		// The name on its own: on a telephone the cell also says the kind under it.
+		await expect(page.getByRole("table").getByText(name, { exact: true })).toBeVisible();
 	};
 	await account("Banco", (dialog) => dialog.getByLabel("Saldo de abertura").fill("10.000,00"));
 	for (const [name, closes, due] of [

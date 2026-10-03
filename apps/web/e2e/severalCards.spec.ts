@@ -175,6 +175,39 @@ test.describe("more than one card", () => {
 		await expect(record(page, "padaria")).toContainText("Cartão do banco, Cartão de crédito");
 	});
 
+	// Part 2, B.8, with part 1, E.7: at 375 pixels the accounts table cut the balance to
+	// "R$ 1.101,0" and pushed the menu off the screen, and the kind is what tells the current
+	// account "Nubank" from the card "Nubank".
+	test("fits the accounts on a telephone, the kind of each one included", async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await fourCards(page);
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		await page.getByRole("dialog").getByLabel("Nome").fill("Nubank");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("dialog")).toHaveCount(0);
+
+		const table = page.getByRole("table").first();
+		await expect(table.getByRole("row")).toHaveCount(8);
+		// The checking "Nubank" and the card "Nubank", each with its kind under the name.
+		const nubank = table.getByRole("row").filter({ hasText: "Nubank" });
+		await expect(nubank.filter({ hasText: "Conta corrente" })).toHaveCount(1);
+		await expect(nubank.filter({ hasText: /Nubank\s*Cartão/ })).toHaveCount(1);
+
+		const sideways = await page.evaluate(
+			() => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+		);
+		expect(sideways).toBeLessThanOrEqual(0);
+		for (const cell of await table.locator("td").all()) {
+			const cut = await cell.evaluate((element) => element.scrollWidth - element.clientWidth);
+			expect(cut).toBeLessThanOrEqual(0);
+		}
+		for (const button of await table.getByRole("button", { name: "Ações da conta" }).all()) {
+			const box = await button.boundingBox();
+			expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(375);
+		}
+	});
+
 	// Part 2, B.4.2, B.4.3, B.4.4 and B.4.8: four cards and a meal card on the twenty eighth.
 	test("adds four cards into one line at the top and lists them by urgency", async ({ page }) => {
 		await fourCards(page);

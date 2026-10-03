@@ -458,6 +458,10 @@ export function AccountsPage() {
 	 */
 	const makesAnAccount = !(kind === "credit" && works === "debit");
 
+	/** What kind of account it is, or which benefit for a benefit card. */
+	const kindOf = (account: Account) =>
+		account.benefit ? t(`benefitKind.${account.benefit}`) : t(`accountKind.${account.kind}`);
+
 	/** The cards that reach one account, which is what its menu looks after. */
 	const cardsOf = (accountId: string) =>
 		plastic.filter(
@@ -553,8 +557,13 @@ export function AccountsPage() {
 						<TableHead>
 							<TableRow>
 								<TableHeader>{t("accounts.name")}</TableHeader>
-								<TableHeader>{t("accounts.kind")}</TableHeader>
-								<TableHeader>{t("accounts.institution")}</TableHeader>
+								{/* On a telephone the kind and the institution go under the name, so
+								    the balance and the menu keep their room: five columns at 375
+								    pixels cut the balance to "R$ 1.101,0" and pushed the menu off. */}
+								<TableHeader className="hidden sm:table-cell">{t("accounts.kind")}</TableHeader>
+								<TableHeader className="hidden sm:table-cell">
+									{t("accounts.institution")}
+								</TableHeader>
 								<TableHeader numeric={true}>{t("accounts.balanceNow")}</TableHeader>
 								<TableHeader numeric={true}>
 									<span className="sr-only">{t("accounts.actions")}</span>
@@ -568,13 +577,19 @@ export function AccountsPage() {
 										<span className={account.archivedAt ? "text-quiet line-through" : ""}>
 											{account.name}
 										</span>
+										{/* The kind never leaves: it is what tells the current account
+										    "Nubank" from the card "Nubank". */}
+										<span className="block text-quiet text-xs sm:hidden">
+											{kindOf(account)}
+											{account.institution ? `, ${account.institution}` : ""}
+										</span>
 									</TableCell>
-									<TableCell className="text-quiet">
-										{account.benefit
-											? t(`benefitKind.${account.benefit}`)
-											: t(`accountKind.${account.kind}`)}
+									<TableCell className="hidden text-quiet sm:table-cell">
+										{kindOf(account)}
 									</TableCell>
-									<TableCell className="text-quiet">{account.institution ?? ""}</TableCell>
+									<TableCell className="hidden text-quiet sm:table-cell">
+										{account.institution ?? ""}
+									</TableCell>
 									{/* What is in the account now, and not what was in it the day somebody
 									    wrote it down. The column was headed with the words for the opening
 									    balance and was read as the balance, which is the number anybody
