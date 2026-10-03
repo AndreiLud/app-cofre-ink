@@ -86,6 +86,30 @@ describe("what a holding is worth", () => {
 		// Typed after the deposit, the value already had it; typed before, it did not.
 		expect(box(500)).toBe(100_000);
 		expect(box(2_000)).toBe(150_000);
+		// The same moment, on a clock that did not move between the two writes: the money put in
+		// is not lost (a caixinha of R$ 1.000,00 written down and given R$ 500,00 at once read
+		// R$ 1.000,00 and a loss of R$ 500,00).
+		expect(box(1_000)).toBe(150_000);
+	});
+
+	it("is an estimate only once a day of the index went into it", () => {
+		const typedToday = valueOfHolding({
+			facts: facts("box", { indexer: "cdi", rate: 10_000, unitPrice: 100_000 }),
+			prices: [{ day: "2026-10-28", unitPrice: 100_000, writtenAt: 1_000 }],
+			moves: [],
+			series: {
+				...NO_SERIES,
+				cdiDaily: [{ day: "2026-09-30", rate: 5_078_800 }],
+			},
+			on: "2026-10-28",
+		});
+		// Nothing published after the value typed: the value typed, and not "calculated up to"
+		// the day it was typed on.
+		expect(typedToday).toMatchObject({
+			value: 100_000,
+			estimated: false,
+			estimatedThrough: null,
+		});
 	});
 
 	it("adds up the holdings of an account, and leaves out an account with none", () => {

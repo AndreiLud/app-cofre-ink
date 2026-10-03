@@ -66,6 +66,10 @@ export type HoldingMoveFact = {
 /**
  * What went in or out on the day of a value typed, after it was typed: the value is the one at
  * the end of its day as the statement showed it, so money moved later that day is not in it.
+ *
+ * Written at the same moment counts as after. A value typed and money put in can carry the same
+ * moment, on a clock that has not moved between the two writes or on two devices, and a value
+ * is never typed as part of a movement of money: leaving the movement out lost the money.
  */
 function sameDayAfter(moves: readonly HoldingMoveFact[], typed: TypedPrice): number {
 	if (typed.writtenAt === undefined) return 0;
@@ -75,7 +79,7 @@ function sameDayAfter(moves: readonly HoldingMoveFact[], typed: TypedPrice): num
 				move.day === typed.day &&
 				move.kind !== "income" &&
 				move.writtenAt !== undefined &&
-				move.writtenAt > (typed.writtenAt as number),
+				move.writtenAt >= (typed.writtenAt as number),
 		)
 		.reduce((sum, move) => sum + (move.kind === "in" ? move.amount : -move.amount), 0);
 }
@@ -205,12 +209,16 @@ export function valueOfHolding(input: {
 		anniversaryDay: facts.anniversaryDay,
 		days,
 	});
+	// An estimate only once a day of the index went into it: a value typed today with nothing
+	// published after it is the value typed, and saying "calculated up to" its own day was
+	// saying it had been worked out from something.
+	const grew = estimate.through !== null && estimate.through !== (from?.day ?? null);
 	return {
 		value: estimate.value,
 		quantity,
 		invested,
-		estimatedThrough: estimate.through,
-		estimated: true,
+		estimatedThrough: grew ? estimate.through : null,
+		estimated: grew,
 	};
 }
 
