@@ -860,8 +860,13 @@ export function DashboardPage() {
 					</Callout>
 				) : null}
 
-				{/* The four questions the product brief promises an answer to, on one line. */}
-				{balances.isPending ? (
+				{/* The four questions the product brief promises an answer to, on one line.
+				    Not before everything the first of them adds up is in: the balances of every
+				    space in "Todos", and the holdings. It showed the total without the holdings
+				    for a moment and then with them, two answers to one question a second apart. */}
+				{balances.isPending ||
+				holdings.isPending ||
+				(consolidated && (everywhere.isPending || balancesEverywhere.isPending)) ? (
 					<Skeleton lines={2} />
 				) : (
 					<div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-4">
