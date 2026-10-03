@@ -95,15 +95,27 @@ file -> reader -> records -> review -> written
 ```
 
 1. **The reader** is chosen by what the file is: CSV, OFX, QIF, XLSX, JSON, or the PDF
-   reader written by hand for card invoices and receipts.
-2. **The account is guessed**, and the screen says why it guessed that: the name of the
-   file, an institution in the text, a card number.
-3. **Columns are remembered per file shape**, so the same bank is mapped once.
+   reader written by hand for card invoices, statements and receipts. It says what kind of
+   document it is, which the person can change, and every line comes with its direction and
+   its nature: a purchase, a fee, a refund, a part of a plan, the payment of the invoice, or
+   the payment of a card. An invoice checks itself against its own total and a statement
+   against its balances, and the screen says by how much when they do not add up.
+2. **The account is guessed**, and the screen says why it guessed that: the digits of a card,
+   an institution in the text, what was remembered for that bank, kind and card. An invoice
+   goes on a card, and with two or more and nothing in the file it waits for the person to
+   choose. "Fatura de" says which invoice the file is, and every line goes on it.
+3. **Columns are remembered per file shape**, so the same bank is mapped once. The file's own
+   signs beat what was remembered.
 4. **Repeats are found** by comparing what is already in the space around the days the
-   file covers. A move between accounts that touches the account is found by its amount and
-   its days, whatever the bank called it.
-5. **Nothing is written until somebody has seen it.** The review is a screen, not a
-   confirmation dialog.
+   file covers. The bank's identifier is the same entry. A move touching the account, or the
+   occurrence of a series, of the same amount within days, is already here and starts out. The
+   same amount alone only looks the same. A part of a plan finds the plan already written; a
+   refund finds the purchase it takes back; the lines of a split invoice find the split.
+5. **The payment on an invoice** is the invoice before it paid from an account of money, and
+   the payment of a card on a statement is that card's invoice paid. Neither is spending.
+6. **Nothing is written until somebody has seen it.** The review is a screen, not a
+   confirmation dialog. What was written can be taken back in one go from the message that
+   says it was.
 
 ## A month in three numbers
 

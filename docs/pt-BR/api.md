@@ -165,8 +165,9 @@ quem chama possa apontar.
 
 | método | caminho | o que faz |
 | --- | --- | --- |
-| `GET` | `/api/spaces/:id/imports/existing` | o que o espaço já tem em volta dos dias que um arquivo cobre, para achar repetição |
-| `POST` | `/api/spaces/:id/imports` | gravar lançamentos revisados, até 3000 por vez |
+| `GET` | `/api/spaces/:id/imports/existing` | o que o espaço já tem em volta dos dias que um arquivo cobre, para achar repetição, do mais novo para o mais antigo, com o tipo, a outra ponta de uma movimentação, o cartão, a fatura, a série e a parcela de cada um. `invoiceMonth` traz os planos da conta em volta dessa fatura |
+| `POST` | `/api/spaces/:id/imports` | gravar lançamentos revisados, até 3000 por vez, todos ou nenhum. `invoiceMonth` faz do arquivo a fatura daquele mês; `removes` tira lançamentos que ele substitui. Cada lançamento pode dizer `cardId`, `nature`, `installment` (`number` de 1 a `count`, `count` a partir de 2), `paymentFrom`, `reverses`, `paysCard` e `paysInvoice`. Mais de 48 parcelas dá 409 `tooManyInstallments`; um mês que não existe dá 400 |
+| `POST` | `/api/imports/undo` | desfazer uma importação pelos ids que ela devolveu, numa chamada só, todos ou nenhum |
 | `GET` | `/api/backup/spaces` | de quais espaços esta pessoa pode tirar cópia |
 | `GET` | `/api/spaces/:id/backup` e `/api/backup` | um espaço, ou tudo. `?spaces=a,b` para os que foram marcados |
 | `GET` | `/api/spaces/:id/records` | só os lançamentos, para uma planilha |

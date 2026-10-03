@@ -22,7 +22,7 @@ new one.
 | [0013](0013_budget_goals_and_splitting.md) | limits, goals, saving first and dividing an expense | accepted |
 | [0014](0014_charts_and_sizes.md) | charts drawn by hand, and screens that survive a resize | accepted |
 | [0015](0015_import_export_and_sync.md) | reading files in, taking everything out, and meeting a server | accepted, extended by 0035 |
-| [0016](0016_reading_a_document.md) | reading a card invoice and a receipt out of a PDF | accepted |
+| [0016](0016_reading_a_document.md) | reading a card invoice and a receipt out of a PDF | accepted, amended by 0065 |
 | [0017](0017_where_a_copy_lives.md) | where a copy of a space can live, and what each place costs | accepted, the file dropped by 0036 |
 | [0018](0018_making_the_history_smaller.md) | folding the change log up to a watermark, and packing what travels | accepted |
 | [0019](0019_the_months_ahead.md) | projections, scenarios, compound interest and what is put aside | accepted |
@@ -70,3 +70,5 @@ new one.
 | [0062](0062_a_month_on_paper_as_it_stood.md) | a month on paper as it stood, and the day a month counts as over | accepted |
 | [0063](0063_an_invoice_paid_with_a_card_or_in_parts.md) | an invoice paid with another card, or in parts | accepted |
 | [0064](0064_a_plan_of_up_to_forty_eight_parts.md) | a plan of up to forty eight parts, refused rather than cut | accepted, the division between people waits for the owner |
+| [0065](0065_reading_a_document_again.md) | reading a document again: its kind, its convention and its own total | accepted |
+| [0066](0066_what_an_import_writes.md) | what an import writes | accepted, the owner's suggestions wait for confirmation |

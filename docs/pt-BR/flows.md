@@ -95,15 +95,27 @@ arquivo -> leitor -> lançamentos -> revisão -> gravado
 ```
 
 1. **O leitor** é escolhido pelo que o arquivo é: CSV, OFX, QIF, XLSX, JSON, ou o
-   leitor de PDF escrito à mão para faturas de cartão e comprovantes.
-2. **A conta é adivinhada**, e a tela diz por que adivinhou aquilo: o nome do arquivo,
-   uma instituição no texto, um número de cartão.
+   leitor de PDF escrito à mão para faturas de cartão, extratos e comprovantes. Ele diz que
+   documento é, o que a pessoa pode trocar, e cada linha vem com o sentido e a natureza: uma
+   compra, uma tarifa, um estorno, uma parcela, o pagamento da fatura ou o pagamento de um
+   cartão. Uma fatura se confere com o próprio total e um extrato com os saldos, e a tela diz
+   quanto falta quando não batem.
+2. **A conta é adivinhada**, e a tela diz por que adivinhou aquilo: os dígitos de um
+   cartão, uma instituição no texto, o que ficou guardado para aquele banco, tipo e cartão.
+   Uma fatura vai para um cartão, e com dois ou mais e nada no arquivo ela espera a pessoa
+   escolher. "Fatura de" diz que fatura o arquivo é, e toda linha vai para ela.
 3. **As colunas ficam guardadas por formato de arquivo**, então o mesmo banco é mapeado
-   uma vez.
+   uma vez. Os sinais do próprio arquivo vencem o que ficou guardado.
 4. **As repetições são encontradas** comparando o que já existe no espaço em volta dos
-   dias que o arquivo cobre. Uma movimentação entre contas que toca a conta é encontrada
-   pelo valor e pelos dias, seja qual for o nome que o banco deu.
-5. **Nada é gravado até alguém ver.** A revisão é uma tela, não uma caixa de confirmar.
+   dias que o arquivo cobre. O identificador do banco é o mesmo lançamento. Uma movimentação
+   que toca a conta, ou a ocorrência de uma série, do mesmo valor em poucos dias, já está aqui
+   e vem desmarcada. Só o mesmo valor apenas parece o mesmo. Uma parcela acha o plano já
+   gravado, um estorno acha a compra que desfaz, e as linhas de uma fatura parcelada acham o
+   parcelamento.
+5. **O pagamento numa fatura** é a fatura anterior paga de uma conta de dinheiro, e o
+   pagamento de um cartão num extrato é a fatura desse cartão paga. Nenhum dos dois é gasto.
+6. **Nada é gravado até alguém ver.** A revisão é uma tela, não uma caixa de confirmar. O
+   que foi gravado pode ser desfeito de uma vez pela mensagem que diz que foi gravado.
 
 ## O mês em três números
 

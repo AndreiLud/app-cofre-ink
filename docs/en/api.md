@@ -166,8 +166,9 @@ The series names come from a fixed list, so there is nothing a caller can point 
 
 | method | path | what it does |
 | --- | --- | --- |
-| `GET` | `/api/spaces/:id/imports/existing` | what the space already has around the days a file covers, to spot a repeat |
-| `POST` | `/api/spaces/:id/imports` | write reviewed records, up to 3000 at a time |
+| `GET` | `/api/spaces/:id/imports/existing` | what the space already has around the days a file covers, to spot a repeat, newest first, with the kind, the other end of a move, the card, the invoice, the series and the part of a plan of each. `invoiceMonth` brings the plans of the account around that invoice |
+| `POST` | `/api/spaces/:id/imports` | write reviewed records, up to 3000 at a time, all of them or none. `invoiceMonth` makes the file an invoice of that month; `removes` takes out records it replaces. Each record may say its `cardId`, `nature`, `installment` (`number` from 1 to `count`, `count` from 2), `paymentFrom`, `reverses`, `paysCard` and `paysInvoice`. Over 48 parts is 409 `tooManyInstallments`; a month that is not one is 400 |
+| `POST` | `/api/imports/undo` | take an import back by the ids it answered with, in one call, all of them or none |
 | `GET` | `/api/backup/spaces` | which spaces this person may take a copy of |
 | `GET` | `/api/spaces/:id/backup` and `/api/backup` | a space, or everything. `?spaces=a,b` for the ones that were ticked |
 | `GET` | `/api/spaces/:id/records` | the records alone, for a spreadsheet |
