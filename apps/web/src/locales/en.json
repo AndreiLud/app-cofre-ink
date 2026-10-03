@@ -1090,7 +1090,8 @@
 		"chargeInterestTitle": "The interest on the {{month}} invoice",
 		"chargeInterestBody": "It goes in as spending on the open invoice, in the category Fees and interest. Type what the bank charged.",
 		"interestOf": "Interest on the {{month}} invoice",
-		"inPartsHeadline": "{{card}}: the {{month}} invoice was split into parts"
+		"inPartsHeadline": "{{card}}: the {{month}} invoice was split into parts",
+		"importInvoice": "Import an invoice"
 	},
 	"transactionKind": {
 		"expense": "Money out",
@@ -1424,7 +1425,16 @@
 		"signHint": "The file has amounts on both sides, so its sign is what counts.",
 		"documentIs": "This document is",
 		"isStatement": "An account statement",
-		"isInvoice": "A card invoice"
+		"isInvoice": "A card invoice",
+		"card": "Card",
+		"pickCard": "Choose the card",
+		"pickAccount": "Choose the account",
+		"waitsForCard": "The file does not say which card it is from. Choose one to write it.",
+		"invoiceOf": "Invoice of",
+		"invoiceOfHint": "Everything on this invoice goes to it, whatever the day of each purchase.",
+		"putAwayTitle": "The card ending {{digits}} is archived",
+		"putAwayBody": "{{name}} was archived and owes nothing. To import an invoice of it, bring the card back under Accounts.",
+		"toAccounts": "Go to Accounts"
 	},
 	"demo": {
 		"notice": "Made up data, for demonstration only."

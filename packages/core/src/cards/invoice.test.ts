@@ -8,6 +8,7 @@ import {
 	daysUntilDue,
 	invoiceClosingDate,
 	invoiceDueDate,
+	invoiceMonthForDue,
 	invoiceMonthOf,
 	invoicePeriod,
 } from "./invoice.ts";
@@ -16,6 +17,21 @@ import {
 const early: CardCycle = { closingDay: 3, dueDay: 10 };
 // A card that closes on the twenty eighth and falls due on the fifth of the month after.
 const late: CardCycle = { closingDay: 28, dueDay: 5 };
+
+// Part 2, E.7 of the request for 2.0.0: which invoice a due date printed on paper is.
+describe("the invoice of a printed due date", () => {
+	it("is the one whose due date is nearest", () => {
+		expect(invoiceMonthForDue("2026-10-10", early)).toBe("2026-10");
+		expect(invoiceMonthForDue("2026-10-05", late)).toBe("2026-09");
+		// A bank that moved the due date to the next working day is still that invoice.
+		expect(invoiceMonthForDue("2026-10-12", early)).toBe("2026-10");
+		expect(invoiceMonthForDue("2026-10-06", late)).toBe("2026-09");
+	});
+
+	it("is the month of the date for a card with no cycle", () => {
+		expect(invoiceMonthForDue("2026-10-10", null)).toBe("2026-10");
+	});
+});
 
 describe("which invoice a purchase lands on", () => {
 	it("puts a purchase before the closing day on the invoice closing that month", () => {

@@ -95,7 +95,9 @@ describe("a document, rather than a table", () => {
 		expect(result.format).toBe("pdf");
 		expect(result.document?.kind).toBe("statement");
 		expect(result.document?.institution).toBe("Inter");
-		expect(result.accountHint).toBe("Inter");
+		// The hint is the digits of a card, which name one plastic, and not the bank, which names
+		// all of them: this statement names none (part 2, E.7 of the request for 2.0.0).
+		expect(result.accountHint).toBe(null);
 
 		expect(result.records.map((record) => record.amount)).toEqual([500_000, -4290]);
 		expect(result.records.every((record) => record.confidence > 0.9)).toBe(true);
@@ -153,6 +155,7 @@ describe("marking what is already here", () => {
 					category: null,
 					nature: "purchase",
 					installment: null,
+					cardDigits: null,
 					line: 1,
 					confidence: 1,
 					source: null,
@@ -177,6 +180,7 @@ describe("marking what is already here", () => {
 					category: null,
 					nature: "purchase",
 					installment: null,
+					cardDigits: null,
 					line: 1,
 					confidence: 1,
 					source: null,
@@ -202,6 +206,7 @@ describe("marking what is already here", () => {
 			category: null,
 			nature: "purchase" as const,
 			installment: null,
+			cardDigits: null,
 			line: 1,
 			confidence: 1,
 			source: null,
@@ -233,6 +238,7 @@ describe("marking what is already here", () => {
 			category: null,
 			nature: "purchase" as const,
 			installment: null,
+			cardDigits: null,
 			line: index + 1,
 			confidence: 1,
 			source: null,
@@ -255,6 +261,7 @@ describe("marking what is already here", () => {
 					category: null,
 					nature: "purchase",
 					installment: null,
+					cardDigits: null,
 					line: 1,
 					confidence: 1,
 					source: null,

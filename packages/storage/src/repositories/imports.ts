@@ -37,6 +37,11 @@ export type ImportedRecord = {
 	externalId?: string | null;
 	categoryId?: string | null;
 	priority?: SpendingPriority | null;
+	/**
+	 * The plastic of this line, when the file says it: an invoice lists the holder's purchases
+	 * and each additional card's under headings of their own. Left out, the one of the file.
+	 */
+	cardId?: string | null;
 };
 
 export type ImportInput = {
@@ -226,21 +231,27 @@ export function createImportsRepository(context: RepositoryContext) {
 			// Checked once for the whole file, for the same reason every other check here
 			// is: a card that does not reach this account has to stop the import before a
 			// single row is written, not halfway through.
-			let cardId: string | null = null;
-			if (input.cardId) {
+			const cardId: string | null = input.cardId ?? null;
+			const plastics = [
+				...new Set(
+					[cardId, ...input.records.map((record) => record.cardId ?? null)].filter(
+						(id): id is string => id !== null && id !== "",
+					),
+				),
+			];
+			if (plastics.length > 0) {
 				const rows = await context.driver.all(
 					`SELECT "id" FROM "cards"
-					 WHERE "id" = ? AND "space_id" = ? AND "deleted_at" IS NULL
+					 WHERE "id" IN (${marks(plastics.length)}) AND "space_id" = ? AND "deleted_at" IS NULL
 					   AND ("credit_account_id" = ? OR "debit_account_id" = ?)`,
-					[input.cardId, input.spaceId, input.accountId, input.accountId],
+					[...plastics, input.spaceId, input.accountId, input.accountId],
 				);
-				if (rows.length === 0) {
+				if (rows.length !== plastics.length) {
 					throw new RuleError(
 						"cardDoesNotReachAccount",
 						"this card does not spend from the account the file is being read into",
 					);
 				}
-				cardId = input.cardId;
 			}
 
 			const ids = await context.driver.transaction(async (tx) => {
@@ -283,7 +294,7 @@ export function createImportsRepository(context: RepositoryContext) {
 							category_id: record.categoryId ?? sorted?.categoryId ?? null,
 							priority: record.priority ?? sorted?.priority ?? null,
 							external_id: record.externalId ?? null,
-							card_id: cardId,
+							card_id: record.cardId || cardId,
 							created_by: context.actor().userId,
 						},
 					});

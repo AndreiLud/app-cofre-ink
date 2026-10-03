@@ -50,6 +50,8 @@ export type DraftRecord = {
 	nature: Nature;
 	/** Which part of a plan the line is, when it carries the mark of one. */
 	installment: InstallmentMark | null;
+	/** The last four digits of the card a line of an invoice is under, when it says. */
+	cardDigits: string | null;
 	/** The line it came from, so a problem can be pointed at. */
 	line: number;
 	/**
@@ -197,6 +199,7 @@ function fromPdf(bytes: Uint8Array, options: ReadOptions): ReadFileResult {
 			category: null,
 			nature: entry.nature,
 			installment: entry.installment,
+			cardDigits: entry.cardDigits,
 			line: entry.line,
 			confidence: entry.confidence,
 			source: entry.source,
@@ -208,7 +211,9 @@ function fromPdf(bytes: Uint8Array, options: ReadOptions): ReadFileResult {
 		})),
 		mapping: null,
 		header: [],
-		accountHint: document.institution,
+		// The digits of the cards, which name the plastic, and not the bank, which names
+		// every card of it. The bank is in the document.
+		accountHint: document.cards.length > 0 ? document.cards.join(" ") : null,
 		currency: document.currency,
 		document,
 	};
@@ -259,6 +264,7 @@ function fromRows(
 				installment: installment?.sure === true,
 			}),
 			installment,
+			cardDigits: null,
 			line,
 			// A table was read rather than understood, so there is nothing to be unsure of.
 			confidence: 1,
@@ -294,6 +300,7 @@ function fromOfx(text: string): ReadFileResult {
 			category: null,
 			nature: natureOf(description, "statement", { installment: installment?.sure === true }),
 			installment,
+			cardDigits: null,
 			line: index + 1,
 			confidence: 1,
 			source: null,
@@ -328,6 +335,7 @@ function fromQif(text: string): ReadFileResult {
 				category: entry.category,
 				nature: natureOf(description, "statement", { installment: installment?.sure === true }),
 				installment,
+				cardDigits: null,
 				line: index + 1,
 				confidence: 1,
 				source: null,
@@ -376,6 +384,7 @@ function fromJson(text: string): ReadFileResult {
 			nature: natureOf(typeof row.description === "string" ? row.description : "", "statement"),
 			// Our own export writes the number of a part after the name, which is ours to add again.
 			installment: null,
+			cardDigits: null,
 			line: index + 1,
 			confidence: 1,
 			source: null,

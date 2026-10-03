@@ -688,6 +688,22 @@ export function InvoicePage() {
 							{t("invoice.nextShort")}
 						</Button>
 					</div>
+					{/* The bank's own invoice of this card and this month, read in with both
+					    already chosen. */}
+					{mayWrite && invoiceAccount && !cardElsewhere ? (
+						<Button
+							size="small"
+							variant="quiet"
+							onClick={() =>
+								void navigate({
+									to: ROUTES.import,
+									search: { cartao: invoiceAccount.id, mes: shown },
+								})
+							}
+						>
+							{t("invoice.importInvoice")}
+						</Button>
+					) : null}
 				</div>
 			</div>
 

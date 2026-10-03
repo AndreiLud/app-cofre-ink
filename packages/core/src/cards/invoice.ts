@@ -62,6 +62,30 @@ export function invoiceDueDate(month: CalendarMonth, cycle: CardCycle): Calendar
 	return dateInMonth(target, cycle.dueDay);
 }
 
+/**
+ * The invoice a due date printed on paper belongs to: the one whose due date under this cycle
+ * is nearest. A card written down without its days has no cycle to ask, and the month of the
+ * due date is the best there is.
+ */
+export function invoiceMonthForDue(dueOn: CalendarDate, cycle?: CardCycle | null): CalendarMonth {
+	const { year, month } = parseCalendarDate(dueOn);
+	const printed = formatCalendarMonth(year, month);
+	if (!cycle) return printed;
+	assertCycle(cycle);
+	const target = Date.parse(`${dueOn}T00:00:00Z`);
+	let best = printed;
+	let distance = Number.POSITIVE_INFINITY;
+	for (let offset = -2; offset <= 1; offset += 1) {
+		const candidate = addMonthsToMonth(printed, offset);
+		const away = Math.abs(Date.parse(`${invoiceDueDate(candidate, cycle)}T00:00:00Z`) - target);
+		if (away < distance) {
+			best = candidate;
+			distance = away;
+		}
+	}
+	return best;
+}
+
 /** The days a given invoice covers, both ends included. */
 export function invoicePeriod(
 	month: CalendarMonth,

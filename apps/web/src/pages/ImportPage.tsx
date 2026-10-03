@@ -5,16 +5,25 @@
 // and what looks like something already here. An import that decides on its own is how
 // somebody ends up with two of every purchase in a month and no way to tell which.
 
-import { pickRule, todayIn } from "@cofre/core";
+import {
+	addMonthsToMonth,
+	type CardCycle,
+	invoiceMonthForDue,
+	invoiceMonthOf,
+	monthOf,
+	pickRule,
+	todayIn,
+} from "@cofre/core";
 import type {
 	AccountGuess,
+	DraftRecord,
 	FieldName,
 	MarkedRecord,
 	RecognisedDocument,
 	SignMeaning,
 } from "@cofre/importers";
 import { guessAccount, markDuplicates, readFile, shapeOf } from "@cofre/importers";
-import type { ImportedRecord } from "@cofre/storage";
+import type { Account, ImportedRecord } from "@cofre/storage";
 import {
 	Button,
 	Callout,
@@ -32,22 +41,23 @@ import {
 	TableRow,
 } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { type ChangeEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
 import { readPickedFile } from "../lib/download.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
-import { accountOptions } from "../lib/wayLabel.ts";
+import { accountOptions, type Way, waysToPay } from "../lib/wayLabel.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import {
-	recallAccount,
+	documentKey,
 	recallColumns,
 	recallSign,
-	rememberAccount,
+	recallWay,
 	rememberColumns,
 	rememberSign,
+	rememberWay,
 } from "../storage/importMemory.ts";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
@@ -109,7 +119,7 @@ function WhatItIs({ document }: { document: RecognisedDocument }) {
 }
 
 export function ImportPage() {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const navigate = useNavigate();
 	const { session, currentSpace } = useCofre();
 	const queries = useQueryClient();
@@ -120,7 +130,12 @@ export function ImportPage() {
 	const [sign, setSign] = useState<SignMeaning | null>(null);
 	/** What the person said a document is, when the reader got it wrong. */
 	const [documentKind, setDocumentKind] = useState<"statement" | "invoice" | null>(null);
-	const [accountId, setAccountId] = useState("");
+	/** The way the person chose, as the value of its line in the list, or nothing yet. */
+	const [wayChosen, setWayChosen] = useState<string | null>(null);
+	/** The invoice the person said the file is, when the one worked out was not it. */
+	const [monthChosen, setMonthChosen] = useState<string | null>(null);
+	/** The card and the invoice, when the import was opened from the invoices of a card. */
+	const asked = useSearch({ from: ROUTES.import });
 	const [left, setLeft] = useState<Set<number>>(new Set());
 	const [problem, setProblem] = useState<string | null>(null);
 	const [written, setWritten] = useState<number | null>(null);
@@ -178,30 +193,100 @@ export function ImportPage() {
 
 	const usable = (accounts.data ?? []).filter((account) => account.archivedAt === null);
 
-	/** What the file says about where it belongs, before anybody is asked. */
-	const guessed = useMemo<AccountGuess | null>(() => {
-		if (!read || usable.length === 0) return null;
+	// What each card still owes, so a card put away with a debt is still offered an invoice.
+	const standing = useQuery({
+		queryKey: ["invoices", "standing", spaceId, today],
+		enabled: Boolean(session && spaceId !== ""),
+		queryFn: () => session?.invoices.standing(spaceId, today) ?? [],
+	});
+	const owingPutAway = useMemo(
+		() =>
+			(standing.data ?? [])
+				.filter(
+					(card) =>
+						card.account.archivedAt !== null &&
+						(card.owing.length > 0 || card.open.left > 0 || card.later > 0),
+				)
+				.map((card) => card.account),
+		[standing.data],
+	);
 
-		const shape = shapeOf(read.header);
-		const bank = read.document?.institution ?? read.accountHint ?? "";
-		const remembered =
-			recallAccount(spaceId, shape) ?? (bank === "" ? null : recallAccount(spaceId, bank));
-		if (remembered && usable.some((account) => account.id === remembered)) {
-			return { id: remembered, why: "remembered" as const };
+	/** Whether the file is a card invoice: what the document says, or a file of purchases. */
+	const isInvoice =
+		read?.document !== null && read?.document !== undefined
+			? read.document.kind === "invoice"
+			: read?.mapping?.positiveMeans === "expense";
+
+	/**
+	 * Where the file can go. An invoice goes on a card: each plastic by its credit side, a credit
+	 * account with no plastic, and one put away that still owes, the cards of one account
+	 * together. It was every account, and with no guess it opened on the first of them, so an
+	 * invoice landed on a current account nobody chose.
+	 */
+	const ways = useMemo<Way[]>(() => {
+		if (!isInvoice) {
+			return accountOptions(usable, t).map((option) => ({
+				...option,
+				value: `:${option.value}`,
+				cardId: null,
+				accountId: option.value,
+			}));
 		}
+		const credit = new Set(
+			usable.filter((account) => account.kind === "credit").map((account) => account.id),
+		);
+		const open = waysToPay(cards.data ?? [], usable, t).filter((way) => credit.has(way.accountId));
+		const putAway = owingPutAway.map((account) => ({
+			value: `:${account.id}`,
+			label: t("ways.archived", { name: account.name }),
+			group: t("ways.cards"),
+			cardId: null,
+			accountId: account.id,
+		}));
+		const order = new Map(
+			[...usable, ...owingPutAway].map((account, index) => [account.id, index] as const),
+		);
+		return [...open, ...putAway].sort(
+			(left, right) => (order.get(left.accountId) ?? 0) - (order.get(right.accountId) ?? 0),
+		);
+	}, [isInvoice, usable, cards.data, owingPutAway, t]);
 
-		return guessAccount(
+	const reachable: Account[] = useMemo(() => [...usable, ...owingPutAway], [usable, owingPutAway]);
+
+	/** What a document is remembered by: its bank, its kind and the digits of its cards. */
+	const memoryKey = useMemo(() => {
+		if (!read) return "";
+		if (read.mapping) return shapeOf(read.header);
+		return documentKey(
+			read.document?.institution ?? null,
+			read.document?.kind ?? null,
+			read.document?.cards ?? [],
+		);
+	}, [read]);
+
+	/**
+	 * What the file says about where it belongs, before anybody is asked.
+	 *
+	 * The digits of a card first: they name one plastic. What was remembered after them, because
+	 * the memory of the bank sent the invoice of a second card of that bank to the first one.
+	 */
+	const guessed = useMemo<AccountGuess | null>(() => {
+		if (!read || reachable.length === 0) return null;
+
+		const worked = guessAccount(
 			{
 				institution: read.document?.institution ?? null,
 				accountHint: read.accountHint,
-				kind: read.document?.kind ?? null,
+				kind: isInvoice ? "invoice" : (read.document?.kind ?? null),
 			},
-			usable.map((account) => ({
-				id: account.id,
-				name: account.name,
-				kind: account.kind,
-				institution: account.institution,
-			})),
+			(isInvoice ? reachable.filter((account) => account.kind === "credit") : usable).map(
+				(account) => ({
+					id: account.id,
+					name: account.name,
+					kind: account.kind,
+					institution: account.institution,
+				}),
+			),
 			(cards.data ?? []).map((card) => ({
 				id: card.id,
 				name: card.name,
@@ -210,12 +295,103 @@ export function ImportPage() {
 				debitAccountId: card.debitAccountId,
 			})),
 		);
-	}, [read, usable, spaceId, cards.data]);
+		if (worked && (worked.why === "cardDigits" || worked.why === "digits")) return worked;
 
-	const chosen =
-		usable.find((account) => account.id === accountId) ??
-		usable.find((account) => account.id === guessed?.id) ??
-		usable[0];
+		const remembered = recallWay(spaceId, memoryKey);
+		if (remembered && ways.some((way) => way.accountId === remembered.accountId)) {
+			return {
+				id: remembered.accountId,
+				why: "remembered" as const,
+				...(remembered.cardId ? { cardId: remembered.cardId } : {}),
+			};
+		}
+		return worked;
+	}, [read, reachable, usable, spaceId, cards.data, memoryKey, ways, isInvoice]);
+
+	/** The way of an account, the plastic named when there is one. */
+	const wayOf = (accountId: string | undefined, cardId?: string | null): Way | null => {
+		if (!accountId) return null;
+		return (
+			ways.find((way) => way.accountId === accountId && cardId && way.cardId === cardId) ??
+			ways.find((way) => way.accountId === accountId) ??
+			null
+		);
+	};
+
+	/**
+	 * The way the file goes, which may be none yet: an invoice with two cards or more to choose
+	 * from and nothing in the file to choose by waits for the person.
+	 */
+	const chosenWay: Way | null =
+		wayChosen !== null
+			? (ways.find((way) => way.value === wayChosen) ?? null)
+			: (wayOf(asked.cartao) ??
+				wayOf(guessed?.id, guessed?.cardId) ??
+				(isInvoice ? (ways.length === 1 ? (ways[0] ?? null) : null) : (ways[0] ?? null)));
+	const chosen = reachable.find((account) => account.id === chosenWay?.accountId);
+
+	/** Digits the file names that belong to a card put away with nothing owed. */
+	const putAwayCard = useMemo(() => {
+		const named = read?.document?.cards ?? [];
+		return (
+			(cards.data ?? []).find(
+				(card) =>
+					card.archivedAt !== null &&
+					card.lastFour !== null &&
+					named.includes(card.lastFour) &&
+					!ways.some((way) => way.accountId === card.creditAccountId),
+			) ?? null
+		);
+	}, [read, cards.data, ways]);
+
+	const cycle: CardCycle | null =
+		chosen?.kind === "credit" && chosen.closingDay !== null && chosen.dueDay !== null
+			? { closingDay: chosen.closingDay, dueDay: chosen.dueDay }
+			: null;
+
+	/**
+	 * Which invoice the file is: the one whose due date is nearest the one printed, or the one
+	 * the newest line falls on. The person can take the one before or after.
+	 */
+	const documentMonth = useMemo(() => {
+		if (!read || !isInvoice) return null;
+		if (asked.mes) return asked.mes;
+		const due = read.document?.dueOn ?? null;
+		if (due) return invoiceMonthForDue(due, cycle);
+		const newest = read.records
+			.map((record) => record.happenedOn)
+			.sort()
+			.at(-1);
+		if (!newest) return null;
+		return cycle ? invoiceMonthOf(newest, cycle) : monthOf(newest);
+	}, [read, isInvoice, asked.mes, cycle]);
+	const invoiceMonth = monthChosen ?? documentMonth;
+	const monthName = (month: string) =>
+		new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+			month: "long",
+			year: "numeric",
+			timeZone: "UTC",
+		}).format(new Date(`${month}-01T00:00:00Z`));
+	const monthOptions = documentMonth
+		? [...new Set([-1, 0, 1].map((offset) => addMonthsToMonth(documentMonth, offset)))]
+				.concat(invoiceMonth && !documentMonth ? [invoiceMonth] : [])
+				.map((month) => ({ value: month, label: monthName(month) }))
+		: [];
+
+	/**
+	 * The plastic of a line: the card whose digits head the part of the invoice it is under,
+	 * when that card is on the account the file goes to.
+	 */
+	const cardOfLine = (record: DraftRecord): string | null => {
+		if (!record.cardDigits || !chosen) return null;
+		return (
+			(cards.data ?? []).find(
+				(card) =>
+					card.lastFour === record.cardDigits &&
+					(card.creditAccountId === chosen.id || card.debitAccountId === chosen.id),
+			)?.id ?? null
+		);
+	};
 
 	const span = useMemo(() => {
 		const days = (read?.records ?? []).map((record) => record.happenedOn).sort();
@@ -281,6 +457,8 @@ export function ImportPage() {
 		setLeft(new Set());
 		setFields(null);
 		setDocumentKind(null);
+		setWayChosen(null);
+		setMonthChosen(null);
 
 		try {
 			setPicked({ name: file.name, bytes: await readPickedFile(file) });
@@ -305,26 +483,32 @@ export function ImportPage() {
 	const save = useMutation({
 		mutationFn: async () => {
 			if (!session || !chosen) throw new Error("no session");
-			const records: ImportedRecord[] = keeping.map((record) => ({
-				happenedOn: record.happenedOn,
-				amount: record.amount,
-				description: record.description,
-				notes: record.notes,
-				externalId: record.externalId,
-			}));
-			// Only when the file itself named the card, and only while the account it
-			// named is still the one being written into.
+			const records: ImportedRecord[] = keeping.map((record) => {
+				const card = cardOfLine(record);
+				return {
+					happenedOn: record.happenedOn,
+					amount: record.amount,
+					description: record.description,
+					notes: record.notes,
+					externalId: record.externalId,
+					...(card ? { cardId: card } : {}),
+				};
+			});
+			// The plastic of the way chosen, or the one the file itself named while the account
+			// it named is still the one being written into.
 			const cardId =
-				guessed?.cardId !== undefined && guessed.id === chosen.id ? guessed.cardId : null;
+				chosenWay?.cardId ??
+				(guessed?.cardId !== undefined && guessed.id === chosen.id ? guessed.cardId : null);
 			return session.imports.create({ spaceId, accountId: chosen.id, cardId, records });
 		},
 		onSuccess: (result) => {
 			// What this import took to get right is what the next one starts from.
 			if (read && chosen) {
 				const shape = shapeOf(read.header);
-				rememberAccount(spaceId, shape, chosen.id);
-				const bank = read.document?.institution ?? read.accountHint ?? "";
-				if (bank !== "") rememberAccount(spaceId, bank, chosen.id);
+				rememberWay(spaceId, memoryKey, {
+					accountId: chosen.id,
+					cardId: chosenWay?.cardId ?? null,
+				});
 				if (read.mapping) {
 					rememberColumns(spaceId, shape, read.mapping.fields);
 					rememberSign(spaceId, shape, read.mapping.positiveMeans);
@@ -431,6 +615,25 @@ export function ImportPage() {
 			{read === null ? null : (
 				<div className="space-y-5">
 					{read.document ? <WhatItIs document={read.document} /> : null}
+					{/* The file names a card that was put away with nothing owed: nothing is offered
+					    for it, and the way back is where the cards are. */}
+					{putAwayCard ? (
+						<Callout
+							tone="attention"
+							title={t("importing.putAwayTitle", { digits: putAwayCard.lastFour ?? "" })}
+							action={
+								<Button
+									size="small"
+									variant="secondary"
+									onClick={() => void navigate({ to: ROUTES.accounts })}
+								>
+									{t("importing.toAccounts")}
+								</Button>
+							}
+						>
+							{t("importing.putAwayBody", { name: putAwayCard.name })}
+						</Callout>
+					) : null}
 					{/* The reader decides from the words at the top of the page, and the person
 					    can say otherwise: a statement and an invoice are read differently. */}
 					{read.document && read.document.kind !== "receipt" ? (
@@ -450,17 +653,42 @@ export function ImportPage() {
 					<div className="flex flex-wrap items-end gap-4">
 						<div className="min-w-[14rem] grow sm:grow-0">
 							<Select
-								label={t("importing.account")}
-								value={chosen?.id ?? ""}
-								onChange={(event) => setAccountId(event.target.value)}
-								options={accountOptions(usable, t)}
+								label={isInvoice ? t("importing.card") : t("importing.account")}
+								value={chosenWay?.value ?? ""}
+								onChange={(event) => setWayChosen(event.target.value)}
+								options={[
+									...(chosenWay === null
+										? [
+												{
+													value: "",
+													label: isInvoice ? t("importing.pickCard") : t("importing.pickAccount"),
+												},
+											]
+										: []),
+									...ways.map(({ value, label, group }) => ({ value, label, group })),
+								]}
 								hint={
-									guessed && chosen?.id === guessed.id
-										? t(`importing.chose.${guessed.why}`)
-										: t("importing.accountHint")
+									chosenWay === null
+										? t("importing.waitsForCard")
+										: guessed && chosen?.id === guessed.id && wayChosen === null
+											? t(`importing.chose.${guessed.why}`)
+											: t("importing.accountHint")
 								}
 							/>
 						</div>
+						{/* Which invoice of the card this is. The one whose due date is nearest the
+						    one printed, and the ones on either side, for a bank that says otherwise. */}
+						{isInvoice && invoiceMonth ? (
+							<div className="min-w-[12rem] grow sm:grow-0">
+								<Select
+									label={t("importing.invoiceOf")}
+									value={invoiceMonth}
+									onChange={(event) => setMonthChosen(event.target.value)}
+									options={monthOptions}
+									hint={t("importing.invoiceOfHint")}
+								/>
+							</div>
+						) : null}
 						<p className="text-sm text-quiet">
 							{t("importing.found", {
 								count: read.records.length,

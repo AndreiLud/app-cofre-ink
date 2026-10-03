@@ -1090,7 +1090,8 @@
 		"chargeInterestTitle": "Os juros da fatura de {{month}}",
 		"chargeInterestBody": "Entram como gasto na fatura aberta, na categoria Tarifas e juros. Digite o valor que o banco cobrou.",
 		"interestOf": "Juros da fatura de {{month}}",
-		"inPartsHeadline": "{{card}}: a fatura de {{month}} foi parcelada"
+		"inPartsHeadline": "{{card}}: a fatura de {{month}} foi parcelada",
+		"importInvoice": "Importar fatura"
 	},
 	"transactionKind": {
 		"expense": "Saída",
@@ -1424,7 +1425,16 @@
 		"signHint": "O arquivo tem valores dos dois lados, então o sinal dele é que manda.",
 		"documentIs": "O documento é",
 		"isStatement": "Extrato de conta",
-		"isInvoice": "Fatura de cartão"
+		"isInvoice": "Fatura de cartão",
+		"card": "Cartão",
+		"pickCard": "Escolha o cartão",
+		"pickAccount": "Escolha a conta",
+		"waitsForCard": "O arquivo não diz de qual cartão é. Escolha um para gravar.",
+		"invoiceOf": "Fatura de",
+		"invoiceOfHint": "Tudo o que está nesta fatura vai para ela, qualquer que seja o dia de cada compra.",
+		"putAwayTitle": "O cartão final {{digits}} está arquivado",
+		"putAwayBody": "{{name}} foi arquivado e não deve nada. Para importar uma fatura dele, traga o cartão de volta em Contas.",
+		"toAccounts": "Ir para Contas"
 	},
 	"demo": {
 		"notice": "Dados fictícios, só para demonstração."

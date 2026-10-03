@@ -317,6 +317,8 @@ const importedRecord = z.object({
 	externalId: z.string().trim().max(120).nullable().optional(),
 	categoryId: z.string().min(1).nullable().optional(),
 	priority: priority.nullable().optional(),
+	// The plastic of the line, when an invoice heads each card's purchases with its digits.
+	cardId: z.string().min(1).max(64).nullable().optional(),
 });
 
 const importInput = z.object({

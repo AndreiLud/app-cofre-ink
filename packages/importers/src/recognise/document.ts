@@ -35,6 +35,11 @@ export type RecognisedEntry = {
 	installment: InstallmentMark | null;
 	/** What else the line said: the price abroad of a purchase paid in reais. */
 	notes: string | null;
+	/**
+	 * The last four digits of the card the line is under: an invoice lists the holder's
+	 * purchases and each additional card's under a heading of its own.
+	 */
+	cardDigits: string | null;
 	/** What the bank called it, when the line carried an identifier. */
 	externalId: string | null;
 	/** The line it came from, so the person can compare. */
@@ -54,6 +59,8 @@ export type RecognisedDocument = {
 	total: number | null;
 	/** How an invoice writes a purchase. Nothing on any other document. */
 	convention: InvoiceConvention | null;
+	/** The last four digits of every card the document names, in the order it names them. */
+	cards: string[];
 	entries: RecognisedEntry[];
 	/** Lines that looked like they held money and could not be read. */
 	unread: { line: number; text: string }[];
@@ -383,6 +390,17 @@ export function installmentOf(
 		description: tidy(description.replace(found[0], " ")),
 		overTheCeiling: false,
 	};
+}
+
+/**
+ * The last four digits a line names a card by: "final 1234", "**** 1234", "XXXX 1234".
+ * An invoice heads the purchases of each card with them.
+ */
+const CARD_DIGITS =
+	/(?:\bfinal\b|\bterminad[oa] em\b|\btermina em\b|\*{2,}|\bx{4}\b|•{2,})[\s.:*x•-]*(\d{4})\b/i;
+
+export function cardDigitsOf(line: string): string | null {
+	return CARD_DIGITS.exec(fold(line))?.[1] ?? null;
 }
 
 /** A heading under which the lines are parts of plans. */
@@ -728,6 +746,7 @@ export function recogniseStatement(
 	const charges: {
 		index: number;
 		line: string;
+		card: string | null;
 		day: CalendarDate;
 		sure: boolean;
 		chosen: FoundAmount;
@@ -744,10 +763,21 @@ export function recogniseStatement(
 	let inSection = false;
 	/** Under a heading of what is still to come, where nothing is an entry yet. */
 	let ahead = false;
+	/** The cards the document names, and the one the lines below belong to. */
+	const cards: string[] = [];
+	let card: string | null = null;
 
 	lines.forEach((text, index) => {
 		const line = tidy(text);
 		if (line === "") return;
+
+		const digits = cardDigitsOf(line);
+		if (digits !== null) {
+			card = digits;
+			if (!cards.includes(digits)) cards.push(digits);
+			// A heading that names a card is not an entry, whatever else it holds.
+			if (findDate(line, order, year) === null) return;
+		}
 
 		const heading = fold(line).trim();
 		if (FUTURE_SECTION.test(heading)) {
@@ -822,6 +852,7 @@ export function recogniseStatement(
 			charges.push({
 				index,
 				line,
+				card,
 				day,
 				sure: date.sure,
 				chosen,
@@ -908,6 +939,7 @@ export function recogniseStatement(
 			}),
 			installment: read.mark,
 			notes: null,
+			cardDigits: card,
 			externalId: findIdentifier(line),
 			line: index + 1,
 			source: line,
@@ -945,6 +977,7 @@ export function recogniseStatement(
 			}),
 			installment: charge.mark,
 			notes: charge.notes,
+			cardDigits: charge.card,
 			externalId: findIdentifier(charge.line),
 			line: charge.index + 1,
 			source: charge.line,
@@ -972,6 +1005,7 @@ export function recogniseStatement(
 		dueOn,
 		total,
 		convention,
+		cards,
 		entries,
 		unread,
 		confidence: Math.max(0, average - penalty),

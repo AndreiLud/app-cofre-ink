@@ -409,6 +409,29 @@ describe("the kind of document and the bank", () => {
 	});
 });
 
+// Part 2, E.7: which card each line of an invoice is under.
+describe("the cards of an invoice", () => {
+	it("gives each line the digits of the card it is under", () => {
+		const read = recogniseStatement(
+			[
+				"Itau",
+				"Fatura do cartao",
+				"Vencimento: 10/10/2026",
+				"ANA SOUZA final 1234",
+				"12/09/2026 Padaria 18,40",
+				"Cartao adicional **** 5678",
+				"13/09/2026 Mercado 131,60",
+			],
+			{ today },
+		);
+		expect(read.cards).toEqual(["1234", "5678"]);
+		expect(read.entries.map((entry) => [entry.description, entry.cardDigits])).toEqual([
+			["Padaria", "1234"],
+			["Mercado", "5678"],
+		]);
+	});
+});
+
 describe("whatever the lines hold", () => {
 	it("never throws, and never invents a record", () => {
 		fc.assert(

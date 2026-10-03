@@ -152,6 +152,17 @@ const dataRoute = createRoute({
 const importRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/importar",
+	/**
+	 * Which card an invoice is for, and which of its invoices, when the import was opened from
+	 * the invoices of a card. Both optional and read as on the invoices screen.
+	 */
+	validateSearch: (search: Record<string, unknown>): { cartao?: string; mes?: string } => ({
+		cartao: typeof search.cartao === "string" && search.cartao !== "" ? search.cartao : undefined,
+		mes:
+			typeof search.mes === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(search.mes)
+				? search.mes
+				: undefined,
+	}),
 	component: lazyRouteComponent(() => import("./pages/ImportPage.tsx"), "ImportPage"),
 });
 

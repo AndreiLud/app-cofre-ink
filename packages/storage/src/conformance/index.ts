@@ -28,6 +28,7 @@ import { runCategoryConformance } from "./categories.ts";
 import { runErasureConformance } from "./erasure.ts";
 import { runFutureConformance } from "./future.ts";
 import { runHappenedConformance } from "./happened.ts";
+import { runImportingConformance } from "./importing.ts";
 import { runInvoiceConformance } from "./invoices.ts";
 import { runPlanConformance } from "./plan.ts";
 import { runPlanOfPartsConformance } from "./plans.ts";
@@ -1105,6 +1106,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 		runInvoiceConformance(adapter);
 		runArrangementConformance(adapter);
 		runPlanOfPartsConformance(adapter);
+		runImportingConformance(adapter);
 		runCategoryConformance(adapter);
 		runRuleConformance(adapter);
 		runRecurrenceRepairConformance(adapter);

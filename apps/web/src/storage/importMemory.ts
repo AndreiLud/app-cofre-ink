@@ -60,15 +60,36 @@ export function rememberSign(spaceId: string, shape: string, sign: SignMeaning):
 	write(SIGNS, all);
 }
 
-/** The account a file of this shape, or from this bank, went into last time. */
-export function recallAccount(spaceId: string, key: string): string | null {
+/** Where a file went: the account, and the plastic when it was a card's. */
+export type RememberedWay = { accountId: string; cardId: string | null };
+
+/**
+ * Where a file of this shape, or a document of this bank, kind and card, went last time.
+ *
+ * Kept by the bank alone it sent the invoice of a second card of the same bank to the first,
+ * and it kept only the account, so the plastic was lost. Written by 1.x as the account alone,
+ * which is still read.
+ */
+export function recallWay(spaceId: string, key: string): RememberedWay | null {
 	if (key === "") return null;
-	return read<string>(ACCOUNTS)[`${spaceId}:${key}`] ?? null;
+	const found = read<string | RememberedWay>(ACCOUNTS)[`${spaceId}:${key}`];
+	if (found === undefined || found === null) return null;
+	return typeof found === "string" ? { accountId: found, cardId: null } : found;
 }
 
-export function rememberAccount(spaceId: string, key: string, accountId: string): void {
-	if (key === "" || accountId === "") return;
-	const all = read<string>(ACCOUNTS);
-	all[`${spaceId}:${key}`] = accountId;
+export function rememberWay(spaceId: string, key: string, way: RememberedWay): void {
+	if (key === "" || way.accountId === "") return;
+	const all = read<string | RememberedWay>(ACCOUNTS);
+	all[`${spaceId}:${key}`] = way;
 	write(ACCOUNTS, all);
+}
+
+/** The key a document is remembered by: its bank, its kind and the digits of its card. */
+export function documentKey(
+	bank: string | null,
+	kind: string | null,
+	digits: readonly string[],
+): string {
+	if (!bank && digits.length === 0) return "";
+	return [bank ?? "", kind ?? "", digits.join(" ")].join("|");
 }
