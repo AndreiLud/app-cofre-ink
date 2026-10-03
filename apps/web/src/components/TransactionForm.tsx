@@ -24,7 +24,7 @@ import type {
 import { RuleError } from "@cofre/storage";
 import { Button, Callout, Dialog, Disclosure, Field, Segmented, Select } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { fillAmount, readAmount } from "../lib/amounts.ts";
@@ -69,6 +69,8 @@ export function TransactionForm({
 	const [categoryId, setCategoryId] = useState("");
 	const [priority, setPriority] = useState("");
 	const [way, setWay] = useState("");
+	/** Whether somebody chose the way, or the kind, since the form opened. */
+	const wayTouched = useRef(false);
 	/**
 	 * How far a correction to one part of a purchase reaches.
 	 *
@@ -171,6 +173,7 @@ export function TransactionForm({
 
 	/** Picking the way picks the account and the card together, which is the whole point. */
 	function pickWay(value: string) {
+		wayTouched.current = true;
 		setWay(value);
 		const found = ways.find((entry) => entry.value === value);
 		if (found) setAccountId(found.accountId);
@@ -185,6 +188,7 @@ export function TransactionForm({
 	 * a spend goes back to the way that was chosen for it.
 	 */
 	function changeKind(next: TransactionKind) {
+		wayTouched.current = true;
 		setKind(next);
 		// A category belongs to one side.
 		const category = (categories.data ?? []).find((one) => one.id === categoryId);
@@ -243,15 +247,38 @@ export function TransactionForm({
 		setNotes("");
 		setCategoryId("");
 		setPriority("");
-		// The last way somebody paid, on this device and in this space. A list sorted by
-		// name put whichever account was called something early in the alphabet first,
-		// which for most households is a pocket rather than the bank.
+		setWay("");
+		setAccountId("");
+		wayTouched.current = false;
+	}, [open, editing, today, i18n.resolvedLanguage]);
+
+	/**
+	 * The way to pay of a new record, once the ways are known.
+	 *
+	 * Apart from the reset above, because the cards arrive after the form opens. When this
+	 * was part of the reset, their arrival opened the form again: an amount typed in the
+	 * first moment was wiped, and saving said it could not read an empty field.
+	 *
+	 * The last way somebody paid, on this device and in this space. A list sorted by name put
+	 * whichever account was called something early in the alphabet first, which for most
+	 * households is a pocket rather than the bank. A way somebody chose, or a kind they
+	 * changed, stays while the way is still on the list.
+	 */
+	useEffect(() => {
+		if (!open || editing) return;
+		const listed = (value: string) => value !== "" && ways.some((entry) => entry.value === value);
+		if (wayTouched.current && listed(way)) return;
 		const remembered = lastWayUsed(spaceId);
-		const known = remembered !== null && ways.some((entry) => entry.value === remembered);
-		const first = known ? remembered : (ways[0]?.value ?? "");
+		const first =
+			remembered !== null && listed(remembered)
+				? remembered
+				: listed(way)
+					? way
+					: (ways[0]?.value ?? "");
+		if (first === way) return;
 		setWay(first);
 		setAccountId(ways.find((entry) => entry.value === first)?.accountId ?? usable[0]?.id ?? "");
-	}, [open, editing, today, spaceId, ways, usable, i18n.resolvedLanguage]);
+	}, [open, editing, way, ways, usable, spaceId]);
 
 	const save = useMutation({
 		mutationFn: async () => {
