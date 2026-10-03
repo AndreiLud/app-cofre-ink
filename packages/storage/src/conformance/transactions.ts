@@ -1128,8 +1128,13 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 					ready.fixture.asAna.transactions.updateMany(ids, { status: "settled" }),
 				).rejects.toBeInstanceOf(RuleError);
 
+				// The other two stay as they were. The one ticked off is settled by the ticking
+				// itself, since part 1, D.9 of 2.0.0: it was checked against the bank.
 				const rows = await ready.fixture.asAna.transactions.list({ spaceId: ready.spaceId });
-				expect(rows.every((row) => row.status === "planned")).toBe(true);
+				expect(
+					rows.filter((row) => row.id !== ids[1]).every((row) => row.status === "planned"),
+				).toBe(true);
+				expect(rows.find((row) => row.id === ids[1])?.status).toBe("settled");
 			} finally {
 				await ready.fixture.close();
 			}
