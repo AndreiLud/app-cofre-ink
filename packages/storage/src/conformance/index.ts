@@ -346,6 +346,13 @@ const PROBES: Probe[] = [
 				unitPrice: 10_000,
 			}),
 	},
+	{
+		// Writing through the change log as somebody, so only somebody who may change the
+		// space. With nothing to repair it changes nothing when it goes through.
+		method: "repairs.run",
+		permission: "space.update",
+		run: (session, where) => session.repairs.run(where.spaceId),
+	},
 ];
 
 export function runConformanceSuite(adapter: AdapterUnderTest): void {

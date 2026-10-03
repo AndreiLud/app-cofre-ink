@@ -13,6 +13,7 @@
 import { describe, expect, it } from "vitest";
 import type { Driver } from "../driver.ts";
 import { migrate } from "../migrate.ts";
+import { repairEverySpace } from "../repairEverySpace.ts";
 import { createUser } from "../repositories/users.ts";
 import { openSession } from "../session.ts";
 import type { AdapterUnderTest } from "./setup.ts";
@@ -144,12 +145,13 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 				const ana = await createUser(driver, { email: "ana@exemplo.com", name: "Ana" });
 				await fillAsOf105(driver, ana.id);
 
-				// And the upgrade, for real: only the three that are new, in order, once.
+				// And the upgrade, for real: only the ones that are new, in order, once.
 				const ran = await migrate(driver);
 				expect(ran).toEqual([
 					"0013_benefit_quota",
 					"0014_invoice_by_hand",
 					"0015_subscriptions_reach_their_invoice",
+					"0016_release_2_0_0",
 				]);
 				// Idempotent, which is what a device that syncs and then opens again does.
 				expect(await migrate(driver)).toEqual([]);
@@ -229,5 +231,208 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 				await driver.close();
 			}
 		});
+
+		// Releases 1.1.0 to 1.2.1 wrote a record dated ahead, every occurrence of a series and
+		// the payment of the month screen as promises, and nothing ever made one a fact. So a
+		// database those releases wrote is full of promises called late that should have
+		// counted on their day. Release 1.0 wrote promises as well, on purpose, and those stay.
+		it("makes the promises 1.1.0 to 1.2.1 wrote facts, and keeps the ones of 1.0", async () => {
+			const driver = await adapter.open();
+			try {
+				await migrate(driver, { stopAfter: AS_OF_105 });
+				const ana = await createUser(driver, { email: "ana@exemplo.com", name: "Ana" });
+				await fillAsOf105(driver, ana.id);
+				// A promise of release 1.0, written on the first of September.
+				await promiseAsWritten(driver, ana.id, {
+					id: "promiseOf105",
+					kind: "expense",
+					amount: -18_000,
+					happenedOn: "2026-09-05",
+					description: "Conta de luz",
+					accountId: IDS.checking,
+					createdAt: WHEN,
+				});
+
+				// The database as 1.2.1 left it, upgraded to 1.1.0 on the second of September.
+				await migrate(driver, { stopAfter: AS_OF_121 });
+				await driver.run(
+					`UPDATE "schema_migrations" SET "applied_at" = ? WHERE "id" IN (?, ?, ?)`,
+					[WHEN + DAY, "0013_benefit_quota", "0014_invoice_by_hand", AS_OF_121],
+				);
+
+				// What 1.2.1 wrote as promises on the twentieth: a record dated ahead from the
+				// form, the October occurrence of the series, and the payment of the month screen.
+				const later = WHEN + 19 * DAY;
+				await promiseAsWritten(driver, ana.id, {
+					id: "promiseOfForm",
+					kind: "expense",
+					amount: -9_900,
+					happenedOn: "2026-09-25",
+					description: "Academia",
+					accountId: IDS.checking,
+					createdAt: later,
+				});
+				await promiseAsWritten(driver, ana.id, {
+					id: "promiseOfSeries",
+					kind: "expense",
+					amount: -3990,
+					happenedOn: "2026-10-10",
+					description: "Streaming",
+					accountId: IDS.card,
+					recurrenceId: IDS.series,
+					invoiceMonth: "2026-10",
+					createdAt: later,
+				});
+				await promiseAsWritten(driver, ana.id, {
+					id: "promiseOfPayment",
+					kind: "transfer",
+					amount: 15_990,
+					happenedOn: "2026-10-05",
+					description: "Pagamento da fatura",
+					accountId: IDS.checking,
+					counterAccountId: IDS.card,
+					invoiceMonth: "2026-09",
+					createdAt: later,
+				});
+
+				expect(await migrate(driver)).toEqual(["0016_release_2_0_0"]);
+
+				const session = await openSession({ driver, userId: ana.id, deviceId: "deviceAna" });
+				const done = await session.repairs.runEverywhere();
+				expect(done).toEqual([{ spaceId: IDS.space, promisesMadeFacts: 3 }]);
+
+				const records = await session.transactions.list({ spaceId: IDS.space });
+				const status = (id: string) => records.find((row) => row.id === id)?.status;
+				expect(status("promiseOfForm")).toBe("settled");
+				expect(status("promiseOfSeries")).toBe("settled");
+				expect(status("promiseOfPayment")).toBe("settled");
+				expect(status("promiseOf105")).toBe("planned");
+
+				// Written as a change, so a copy kept elsewhere and the other devices learn it,
+				// and an older copy of the row arriving later does not undo it.
+				const logged = await driver.all(
+					`SELECT "entity_id" FROM "changes" WHERE "entity" = 'transactions'
+					   AND "operation" = 'update' ORDER BY "entity_id"`,
+				);
+				expect(logged.map((row) => String(row.entity_id))).toEqual([
+					"promiseOfForm",
+					"promiseOfPayment",
+					"promiseOfSeries",
+				]);
+
+				// The September invoice is paid on the fifth of October, by itself.
+				const invoice = await session.invoices.get(IDS.card, "2026-09", "2026-10-05");
+				expect(invoice.paid).toBe(15_990);
+				expect(invoice.left).toBe(0);
+
+				// The record of the twenty fifth counts on its day, and the promise of 1.0 is
+				// still the one thing waiting for an answer.
+				const balances = await session.transactions.balances(IDS.space, "2026-09-30");
+				expect(balances.find((one) => one.accountId === IDS.checking)?.settled).toBe(
+					250_000 - 9_900,
+				);
+				const late = await session.transactions.list({
+					spaceId: IDS.space,
+					status: "planned",
+					to: "2026-09-30",
+				});
+				expect(late.map((row) => row.id)).toEqual(["promiseOf105"]);
+
+				// And it does nothing the second time.
+				expect(await session.repairs.runEverywhere()).toEqual([
+					{ spaceId: IDS.space, promisesMadeFacts: 0 },
+				]);
+			} finally {
+				await driver.close();
+			}
+		});
+
+		// A server has nobody in front of it, so it repairs each space as its owner when it
+		// starts, from a device that says it is the server.
+		it("repairs every space on a server, as the owner of each", async () => {
+			const driver = await adapter.open();
+			try {
+				await migrate(driver, { stopAfter: AS_OF_105 });
+				const ana = await createUser(driver, { email: "ana@exemplo.com", name: "Ana" });
+				await fillAsOf105(driver, ana.id);
+				await migrate(driver, { stopAfter: AS_OF_121 });
+				await driver.run(`UPDATE "schema_migrations" SET "applied_at" = ? WHERE "id" = ?`, [
+					WHEN + DAY,
+					"0013_benefit_quota",
+				]);
+				await promiseAsWritten(driver, ana.id, {
+					id: "promiseOfForm",
+					kind: "expense",
+					amount: -9_900,
+					happenedOn: "2026-09-25",
+					description: "Academia",
+					accountId: IDS.checking,
+					createdAt: WHEN + 19 * DAY,
+				});
+				await migrate(driver);
+
+				expect(await repairEverySpace(driver)).toEqual([
+					{ spaceId: IDS.space, promisesMadeFacts: 1 },
+				]);
+				const logged = await driver.all(
+					`SELECT "device_id", "actor_id" FROM "changes" WHERE "entity_id" = 'promiseOfForm'`,
+				);
+				expect(logged).toEqual([{ device_id: "server", actor_id: ana.id }]);
+				expect(await repairEverySpace(driver)).toEqual([
+					{ spaceId: IDS.space, promisesMadeFacts: 0 },
+				]);
+			} finally {
+				await driver.close();
+			}
+		});
 	});
+}
+
+/** The last migration release 1.2.1 carried. */
+const AS_OF_121 = "0015_subscriptions_reach_their_invoice";
+
+const DAY = 24 * 60 * 60 * 1000;
+
+/** A promise written by hand in the shape 1.2.1 left, which has the invoice columns. */
+async function promiseAsWritten(
+	driver: Driver,
+	userId: string,
+	row: {
+		id: string;
+		kind: "expense" | "transfer";
+		amount: number;
+		happenedOn: string;
+		description: string;
+		accountId: string;
+		counterAccountId?: string;
+		recurrenceId?: string;
+		invoiceMonth?: string;
+		createdAt: number;
+	},
+): Promise<void> {
+	await driver.run(
+		`INSERT INTO "transactions" ("id", "space_id", "kind", "status", "amount", "currency",
+		   "amount_in_base", "happened_on", "description", "account_id", "counter_account_id",
+		   "recurrence_id", "invoice_month", "created_by", "created_at", "updated_at",
+		   "deleted_at", "hlc")
+		 VALUES (?, ?, ?, 'planned', ?, 'BRL', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		[
+			row.id,
+			IDS.space,
+			row.kind,
+			row.amount,
+			row.amount,
+			row.happenedOn,
+			row.description,
+			row.accountId,
+			row.counterAccountId ?? null,
+			row.recurrenceId ?? null,
+			row.invoiceMonth ?? null,
+			userId,
+			row.createdAt,
+			row.createdAt,
+			null,
+			"stamp1",
+		],
+	);
 }

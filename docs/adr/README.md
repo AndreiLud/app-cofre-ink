@@ -57,3 +57,4 @@ new one.
 | [0048](0048_the_day_a_test_runs_on.md) | the day a test runs on | accepted |
 | [0049](0049_reading_a_month_of_three_numbers_back.md) | reading a month of three numbers back | accepted |
 | [0050](0050_a_fact_that_waits_for_its_day.md) | a fact that waits for its day, and one rule for what has happened | accepted |
+| [0051](0051_repairs_that_travel.md) | repairs that travel, and the moment a database took 2.0.0 | accepted |

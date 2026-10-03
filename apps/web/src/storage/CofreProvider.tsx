@@ -137,6 +137,11 @@ export function CofreProvider({ children }: { children: ReactNode }) {
 
 	const startLocalSession = useCallback(async (database: Driver, userId: string) => {
 		const opened = await openSession({ driver: database, userId, deviceId: deviceId() });
+		// What a release before this one wrote and this one reads differently, put right
+		// through the change log before the first screen reads anything. Almost always a
+		// query per space that finds nothing. A failure leaves the rows as they were, which
+		// is how they have been read until now, so it is not a reason to stop opening.
+		await opened.repairs.runEverywhere().catch(() => []);
 		const [me, list] = await Promise.all([opened.users.me(), opened.spaces.list()]);
 		setSession(asCofreSession(opened));
 		setLinkInvitations(null);

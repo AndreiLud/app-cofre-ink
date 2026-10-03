@@ -192,6 +192,17 @@ export const MIGRATIONS: readonly Migration[] = [
 		id: "0015_subscriptions_reach_their_invoice",
 		statements: () => [STAMP_SERIES_WITH_THEIR_INVOICE],
 	},
+	{
+		/**
+		 * Nothing changes in the shape. What this records is the moment a database moved to
+		 * release 2.0.0, which one repair needs: the promises releases 1.1.0 to 1.2.1 wrote
+		 * are the ones this database wrote after taking 0013 and before taking this. Every
+		 * row a release writes carries the moment it was written, and no row says which
+		 * release wrote it, so the two moments are the only way to tell.
+		 */
+		id: "0016_release_2_0_0",
+		statements: () => [],
+	},
 ];
 
 /**

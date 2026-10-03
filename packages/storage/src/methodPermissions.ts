@@ -61,6 +61,7 @@ export const METHOD_PERMISSIONS = {
 	"backup.restore": "backup.restore",
 	"investments.list": "investment.read",
 	"investments.create": "investment.write",
+	"repairs.run": "space.update",
 } as const satisfies Record<string, Permission>;
 
 /** One call of one repository, named the way a screen names what its button does. */

@@ -22,6 +22,7 @@ import { createInvoicesRepository } from "./repositories/invoices.ts";
 import { createMembersRepository } from "./repositories/members.ts";
 import { createProjectionsRepository } from "./repositories/projections.ts";
 import { createRecurrencesRepository } from "./repositories/recurrences.ts";
+import { createRepairsRepository } from "./repositories/repairs.ts";
 import { createReportsRepository } from "./repositories/reports.ts";
 import { createRulesRepository } from "./repositories/rules.ts";
 import { createSavedFiltersRepository } from "./repositories/savedFilters.ts";
@@ -70,6 +71,7 @@ export type Session = {
 	backup: ReturnType<typeof createBackupRepository>;
 	changes: ReturnType<typeof createChangesRepository>;
 	users: ReturnType<typeof createUsersRepository>;
+	repairs: ReturnType<typeof createRepairsRepository>;
 };
 
 /** Reads which spaces a person belongs to, and with which role. */
@@ -167,5 +169,6 @@ export async function openSession(options: SessionOptions): Promise<Session> {
 		backup: createBackupRepository(context),
 		changes: createChangesRepository(context),
 		users: createUsersRepository(context),
+		repairs: createRepairsRepository(context),
 	};
 }

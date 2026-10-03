@@ -2,7 +2,7 @@
 // application can be built in a test with a database that lives in memory.
 
 import { existsSync } from "node:fs";
-import { tidyEverySpace } from "@cofre/storage";
+import { repairEverySpace, tidyEverySpace } from "@cofre/storage";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { createApp } from "./app.ts";
@@ -28,6 +28,14 @@ async function main(): Promise<void> {
 			return page ?? context.text("not found", 404);
 		});
 	}
+
+	// What a release before this one wrote and this one reads differently, put right through
+	// the change log, as the owner of each space. Before the first request, so nobody reads a
+	// space halfway through it.
+	const repaired = await repairEverySpace(database.driver);
+	const promises = repaired.reduce((total, one) => total + one.promisesMadeFacts, 0);
+	if (promises > 0)
+		console.log(`repaired ${promises} records written as promises by 1.1.0 to 1.2.1`);
 
 	const server = serve({ fetch: app.fetch, port: config.COFRE_PORT }, (address) => {
 		console.log(`Cofre Ink is listening on http://localhost:${address.port}`);
