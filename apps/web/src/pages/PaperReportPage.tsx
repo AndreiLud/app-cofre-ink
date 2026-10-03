@@ -194,10 +194,13 @@ export function PaperReportPage() {
 		enabled: on && past,
 		queryFn: () => session?.investments.list(spaceId) ?? [],
 	});
+	// As they stood on the last day, for a month that has gone. Summed whatever the day of each
+	// purchase and payment, the file of August printed after the bill was paid showed August's
+	// invoice paid, and a card written down later appeared at nought.
 	const cards = useQuery({
-		queryKey: ["invoices", "standing", spaceId, asOf],
+		queryKey: ["invoices", "standing", spaceId, asOf, past ? "asItStood" : "now"],
 		enabled: on,
-		queryFn: () => session?.invoices.standing(spaceId, asOf) ?? [],
+		queryFn: () => session?.invoices.standing(spaceId, asOf, { asItStood: past }) ?? [],
 	});
 
 	const budgets = useQuery({
@@ -341,29 +344,37 @@ export function PaperReportPage() {
 							</TableRow>
 						</TableHead>
 						<TableBody>
-							{(cards.data ?? []).map((card) => (
-								<TableRow key={card.account.id}>
-									<TableCell>{card.account.name}</TableCell>
-									<TableCell>{t(`invoice.standing.${card.open.standing}`)}</TableCell>
-									{/* In the currency of the space, which is what an invoice is summed in:
-									    each purchase at the rate written down with it. A card holding a
-									    purchase with no rate has no honest total and says so. */}
-									<TableCell numeric={true}>
-										{card.open.withoutRate > 0 ? (
-											t("paper.noTotal")
-										) : (
-											<Value amount={card.open.charged} currency={currency} />
-										)}
-									</TableCell>
-									<TableCell numeric={true}>
-										{card.open.withoutRate > 0 ? (
-											t("paper.noTotal")
-										) : (
-											<Value amount={card.open.left} currency={currency} />
-										)}
-									</TableCell>
-								</TableRow>
-							))}
+							{/* Every invoice that closed and is still owed, oldest first, and then the
+							    open one. Only the open one was here, so a bill closed and not paid on
+							    the last day of the month was missing from the file of that month. */}
+							{(cards.data ?? []).flatMap((card) =>
+								[...card.owing, card.open].map((invoice) => (
+									<TableRow key={`${card.account.id}${invoice.month}`}>
+										<TableCell>
+											{card.account.name}
+											<span className="block text-quiet text-xs">{shortMonth(invoice.month)}</span>
+										</TableCell>
+										<TableCell>{t(`invoice.standing.${invoice.standing}`)}</TableCell>
+										{/* In the currency of the space, which is what an invoice is summed in:
+										    each purchase at the rate written down with it. A card holding a
+										    purchase with no rate has no honest total and says so. */}
+										<TableCell numeric={true}>
+											{invoice.withoutRate > 0 ? (
+												t("paper.noTotal")
+											) : (
+												<Value amount={invoice.charged} currency={currency} />
+											)}
+										</TableCell>
+										<TableCell numeric={true}>
+											{invoice.withoutRate > 0 ? (
+												t("paper.noTotal")
+											) : (
+												<Value amount={invoice.left} currency={currency} />
+											)}
+										</TableCell>
+									</TableRow>
+								)),
+							)}
 						</TableBody>
 					</Table>
 				</Part>

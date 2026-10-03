@@ -536,6 +536,33 @@ describe("the api", () => {
 		expect(invoices.status).toBe(200);
 		const standing = await ana.request(`/api/spaces/${space.id}/invoices?today=2026-10-28`);
 		expect(standing.status).toBe(200);
+
+		// Part 1, F.3 and F.1 of the request for 2.0.0: the month on paper reads the cards and the
+		// holdings as they stood on a day that has gone, in server mode as in the browser. The
+		// card here was written down today with nothing on it, so on a day long gone it did not
+		// exist, and neither did a holding written down today.
+		const stood = await ana.json<unknown[]>(
+			`/api/spaces/${space.id}/invoices?today=2020-01-31&asItStood=true`,
+		);
+		expect(stood).toEqual([]);
+		const now = await ana.json<unknown[]>(`/api/spaces/${space.id}/invoices?today=2020-01-31`);
+		expect(now.length).toBe(1);
+		const broker = await ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+			method: "POST",
+			body: JSON.stringify({ kind: "investment", name: "Corretora" }),
+		});
+		const holding = await post(`/api/spaces/${space.id}/holdings`, {
+			accountId: broker.id,
+			name: "Tesouro",
+			kind: "fixedIncome",
+			quantity: 100_000_000,
+			unitPrice: 10_000,
+		});
+		expect(holding.status).toBe(201);
+		expect(await ana.json<unknown[]>(`/api/spaces/${space.id}/holdings?onDay=2020-01-31`)).toEqual(
+			[],
+		);
+		expect((await ana.json<unknown[]>(`/api/spaces/${space.id}/holdings`)).length).toBe(1);
 	});
 
 	// Part 2, A.4 of the request for 2.0.0: "Era entre contas suas" on a server, with the other

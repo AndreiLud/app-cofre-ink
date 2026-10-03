@@ -1612,7 +1612,7 @@
 		"moneyAtTheEnd": "Money at the end of the month",
 		"spendableAtTheEnd": "Of that, there to be spent",
 		"cards": "Cards",
-		"cardsCaption": "The open invoice of each card",
+		"cardsCaption": "The invoices of each card: those closed and still owed, and the open one",
 		"card": "Card",
 		"state": "State",
 		"charged": "Charged",

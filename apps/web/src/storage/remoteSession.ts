@@ -463,8 +463,10 @@ export function createRemoteSession(
 				get<InvoiceState[]>(`/api/accounts/${accountId}/invoices?today=${today}`),
 			get: (accountId: string, month: string, today: CalendarDate) =>
 				get<InvoiceState>(`/api/accounts/${accountId}/invoices/${month}?today=${today}`),
-			standing: (spaceId: string, today: CalendarDate) =>
-				get<CardStanding[]>(`/api/spaces/${spaceId}/invoices?today=${today}`),
+			standing: (spaceId: string, today: CalendarDate, options: { asItStood?: boolean } = {}) =>
+				get<CardStanding[]>(
+					`/api/spaces/${spaceId}/invoices?today=${today}${options.asItStood ? "&asItStood=true" : ""}`,
+				),
 			pay: ({ accountId, ...rest }) =>
 				send<Transaction>(`/api/accounts/${accountId}/invoices/pay`, "POST", rest),
 			markPaidUntil: async ({ accountId, ...rest }) =>

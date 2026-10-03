@@ -712,10 +712,15 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		);
 	});
 
+	// With asItStood, the cards as they were on a day that has gone, for the month on paper.
 	app.get("/api/spaces/:id/invoices", async (context) => {
-		const query = z.object({ today: calendarDate }).parse(context.req.query());
+		const query = z
+			.object({ today: calendarDate, asItStood: z.enum(["true", "false"]).optional() })
+			.parse(context.req.query());
 		return context.json(
-			await context.get("session").invoices.standing(context.req.param("id"), query.today),
+			await context.get("session").invoices.standing(context.req.param("id"), query.today, {
+				asItStood: query.asItStood === "true",
+			}),
 		);
 	});
 

@@ -1612,7 +1612,7 @@
 		"moneyAtTheEnd": "Dinheiro no fim do mês",
 		"spendableAtTheEnd": "Disso, disponível para gastar",
 		"cards": "Cartões",
-		"cardsCaption": "As faturas abertas de cada cartão",
+		"cardsCaption": "As faturas de cada cartão: as fechadas que ainda se devem e a aberta",
 		"card": "Cartão",
 		"state": "Situação",
 		"charged": "Cobrado",

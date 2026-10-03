@@ -206,8 +206,19 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 		accountId: string,
 		baseCurrency: string,
 		today: CalendarDate,
+		asItStood: boolean,
 	): Promise<Map<CalendarMonth, InvoiceSum>> {
 		const payment = `t."counter_account_id" = ? AND COALESCE(src."kind", '') <> 'credit'`;
+		// As it stood on a day that has gone, only what existed by then: a record whose day had
+		// come, and every part of a purchase in parts whose first part had, because the bank
+		// puts the whole plan on the card the day of the purchase. A payment dated later had
+		// not been made, so it is neither paid nor scheduled.
+		const stood = asItStood
+			? `AND (CASE WHEN t."installment_group" IS NULL THEN t."happened_on"
+			     ELSE (SELECT MIN(p."happened_on") FROM "transactions" p
+			           WHERE p."installment_group" = t."installment_group" AND p."deleted_at" IS NULL)
+			     END) <= ?`
+			: "";
 		const rows = await context.driver.all(
 			`SELECT t."invoice_month" AS month,
 			   COALESCE(SUM(CASE WHEN t."account_id" = ?
@@ -226,6 +237,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 			 LEFT JOIN "accounts" src ON src."id" = t."account_id"
 			 WHERE t."deleted_at" IS NULL AND t."invoice_month" IS NOT NULL
 			   AND (t."account_id" = ? OR ${payment})
+			   ${stood}
 			 GROUP BY t."invoice_month"`,
 			[
 				accountId,
@@ -239,6 +251,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 				baseCurrency,
 				accountId,
 				accountId,
+				...(asItStood ? [today] : []),
 			],
 		);
 
@@ -320,10 +333,14 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 	 * ask somebody to remember which month they meant. The debt the card was written down
 	 * with comes before every other, because it is older than anything charged since.
 	 */
-	async function statesOf(accountId: string, today: CalendarDate): Promise<InvoiceState[]> {
+	async function statesOf(
+		accountId: string,
+		today: CalendarDate,
+		asItStood = false,
+	): Promise<InvoiceState[]> {
 		const { account, cycle } = await cardAccount(accountId);
 		const baseCurrency = await baseCurrencyOf(account.spaceId);
-		const totals = await sums(account.id, baseCurrency, today);
+		const totals = await sums(account.id, baseCurrency, today, asItStood);
 
 		const opening = await openingOf(account, cycle, baseCurrency);
 		if (opening) {
@@ -423,18 +440,30 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 		 * from one person's purchases is not the invoice, and a button that pays it would
 		 * be paying a number that is not the card's.
 		 */
-		async standing(spaceId: string, today: CalendarDate): Promise<CardStanding[]> {
+		async standing(
+			spaceId: string,
+			today: CalendarDate,
+			options: { asItStood?: boolean } = {},
+		): Promise<CardStanding[]> {
 			assertCan(context.actor(), spaceId, "transaction.read");
 			if (seesOwnRowsOnly(context.actor(), spaceId)) return [];
+			const asItStood = options.asItStood === true;
 
 			// The archived ones too: a card put away with its last invoice still owed vanished
 			// from the overview, the months ahead and the invoices while the bank still wanted it.
 			const accounts = await needs.accounts.list(spaceId, { includeArchived: true });
 			const cards = accounts.filter((account) => account.kind === "credit");
 			const baseCurrency = await baseCurrencyOf(spaceId);
+			const zone = asItStood ? await timezoneOf(spaceId) : "";
+			const dayOf = (instant: number) => todayIn(zone, new Date(instant));
 
 			const standing: CardStanding[] = [];
-			for (const account of cards) {
+			for (const original of cards) {
+				// As it stood, a card put away after the day was still in use on it.
+				const account =
+					asItStood && original.archivedAt !== null && dayOf(original.archivedAt) > today
+						? { ...original, archivedAt: null }
+						: original;
 				const cycle = cycleOf(account);
 				// A card from before 2.0.0 written without its two days has no invoices to show,
 				// and it used to vanish with nothing said. It comes back marked, with nothing on
@@ -453,10 +482,19 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 					});
 					continue;
 				}
-				const states = await statesOf(account.id, today);
+				const states = await statesOf(account.id, today, asItStood);
 				// Archived, it stays only while something on it is still owed, the debt it was
 				// written down with included.
 				if (account.archivedAt !== null && !states.some((state) => state.left > 0)) continue;
+				// As it stood, a card written down after the day with nothing on it by then did not
+				// exist yet. It came out as an open invoice of nought, as if it had been in the wallet.
+				if (
+					asItStood &&
+					dayOf(account.createdAt) > today &&
+					states.every((state) => state.charged === 0 && state.paid === 0)
+				) {
+					continue;
+				}
 				const openMonth = invoiceMonthOf(today, cycle);
 
 				const open =

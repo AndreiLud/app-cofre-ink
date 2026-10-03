@@ -35,6 +35,77 @@ async function readyCard(adapter: AdapterUnderTest) {
 
 export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 	describe("invoices", () => {
+		// Part 1, F.3 of the request for 2.0.0: the month on paper for August, printed in
+		// October, summed every purchase and payment whatever its day, so the card could come
+		// out paid, a card written down after August appeared at nought, and the invoice that
+		// had closed and was owed was not in the table at all.
+		it("reads the cards as they stood on a day that has gone", async () => {
+			const ready = await readyCard(adapter);
+			try {
+				const on = ready.fixture.asAna;
+				const write = (amount: number, happenedOn: string, description: string) =>
+					on.transactions.create({
+						spaceId: ready.spaceId,
+						kind: "expense",
+						amount,
+						happenedOn,
+						description,
+						accountId: ready.card.id,
+					});
+				// August's invoice closed on the third, owed 300 and was paid on the tenth.
+				await write(30_000, "2026-07-20", "Julho");
+				await on.invoices.pay({
+					accountId: ready.card.id,
+					fromAccountId: ready.checking.id,
+					amount: 30_000,
+					happenedOn: "2026-08-10",
+					month: "2026-08",
+					description: "Pagamento",
+				});
+				// September's had 500 by the end of August, and 200 more on the first.
+				await write(50_000, "2026-08-20", "Agosto");
+				await write(20_000, "2026-09-01", "Setembro");
+				await on.invoices.pay({
+					accountId: ready.card.id,
+					fromAccountId: ready.checking.id,
+					amount: 50_000,
+					happenedOn: "2026-09-10",
+					month: "2026-09",
+					description: "Pagamento",
+				});
+				// A card written down later, which did not exist on the day.
+				await on.accounts.create({
+					spaceId: ready.spaceId,
+					kind: "credit",
+					name: "Cartao novo",
+					closingDay: 3,
+					dueDay: 10,
+				});
+
+				const asItStood = await on.invoices.standing(ready.spaceId, "2026-08-31", {
+					asItStood: true,
+				});
+				expect(asItStood.map((one) => one.account.name)).toEqual(["Cartao"]);
+				const card = asItStood[0];
+				// The open invoice holds what had been bought by then, and is not paid.
+				expect(card?.open).toMatchObject({ month: "2026-09", charged: 50_000, paid: 0 });
+				expect(card?.open.scheduled).toBe(0);
+				// August's, closed on the third and paid on the tenth, owes nothing.
+				expect(card?.owing.map((one) => one.month)).toEqual([]);
+
+				// Read on the fifth of August, before it was paid, July's purchase is the invoice
+				// that closed and is still owed.
+				const earlier = await on.invoices.standing(ready.spaceId, "2026-08-05", {
+					asItStood: true,
+				});
+				expect(earlier[0]?.owing.map((one) => [one.month, one.left])).toEqual([
+					["2026-08", 30_000],
+				]);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		// Part 2, B.7.1, B.7.2 and B.7.5 of the request for 2.0.0: a card archived with its last
 		// invoice still owed vanished from the overview, the months ahead and the invoices,
 		// while the bank still wanted 640 of it. It stays while something is owed, it can be

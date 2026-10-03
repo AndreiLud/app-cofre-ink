@@ -186,7 +186,12 @@ export type CofreSession = {
 		/** One invoice of one card, whether or not anything is on it. */
 		get: (accountId: string, month: string, today: CalendarDate) => Promise<InvoiceState>;
 		/** Where every card of a space stands today. Empty for somebody who sees only their own. */
-		standing: (spaceId: string, today: CalendarDate) => Promise<CardStanding[]>;
+		/** With `asItStood`, the cards as they were on a day that has gone. */
+		standing: (
+			spaceId: string,
+			today: CalendarDate,
+			options?: { asItStood?: boolean },
+		) => Promise<CardStanding[]>;
 		pay: (input: {
 			accountId: string;
 			fromAccountId: string;
