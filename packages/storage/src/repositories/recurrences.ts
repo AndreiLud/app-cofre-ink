@@ -30,7 +30,7 @@ import {
 } from "@cofre/core";
 import { recurrences as recurrenceTable, transactions } from "@cofre/db";
 import { assertCan, readableSpaceIds } from "../actor.ts";
-import { asNumber, type SqlValue } from "../driver.ts";
+import { asNumber, type Driver, type SqlValue } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
 import {
 	type Recurrence,
@@ -169,8 +169,11 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 	 * set, and nothing for every other kind, so a series on a current account goes on
 	 * belonging to no invoice.
 	 */
-	async function cycleOfAccount(accountId: string): Promise<CardCycle | undefined> {
-		const rows = await context.driver.all(
+	async function cycleOfAccount(
+		accountId: string,
+		driver: Driver = context.driver,
+	): Promise<CardCycle | undefined> {
+		const rows = await driver.all(
 			`SELECT "kind", "closing_day", "due_day" FROM "accounts"
 			 WHERE "id" = ? AND "deleted_at" IS NULL`,
 			[accountId],
@@ -268,16 +271,15 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 	}
 
 	/** The series a series continues, the one just before it first, up the chain. */
-	async function chainBefore(one: Recurrence): Promise<string[]> {
+	async function chainBefore(one: Recurrence, driver: Driver = context.driver): Promise<string[]> {
 		const ids: string[] = [];
 		let next = one.followsId;
 		// A chain that loops is a chain somebody wrote by hand, and it ends here.
 		while (next !== null && !ids.includes(next) && ids.length < 500) {
 			ids.push(next);
-			const rows = await context.driver.all(
-				`SELECT "follows_id" FROM "recurrences" WHERE "id" = ?`,
-				[next],
-			);
+			const rows = await driver.all(`SELECT "follows_id" FROM "recurrences" WHERE "id" = ?`, [
+				next,
+			]);
 			const above = rows[0]?.follows_id;
 			next = above === null || above === undefined ? null : String(above);
 		}
@@ -289,10 +291,13 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 	 * by hand, which a change of the series leaves where it is. The continuation writes nothing
 	 * in them, so the rent of a month is not paid twice.
 	 */
-	async function periodsKeptBefore(one: Recurrence): Promise<Set<string>> {
-		const before = await chainBefore(one);
+	async function periodsKeptBefore(
+		one: Recurrence,
+		driver: Driver = context.driver,
+	): Promise<Set<string>> {
+		const before = await chainBefore(one, driver);
 		if (before.length === 0) return new Set();
-		const rows = await context.driver.all(
+		const rows = await driver.all(
 			`SELECT "happened_on" FROM "transactions"
 			 WHERE "recurrence_id" IN (${marks(before.length)}) AND "deleted_at" IS NULL
 			   AND "happened_on" >= ?`,
@@ -565,7 +570,9 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 			...already.map((row) => String(row.happened_on)),
 			...skipped.map((row) => String(row.day)),
 		]);
-		const taken = await periodsKeptBefore(one);
+		// Through the write it was given: inside a transaction every read has to go through the
+		// transaction, or a browser, which runs every query in one queue, waits for itself.
+		const taken = await periodsKeptBefore(one, write.driver);
 		const missing = days.filter(
 			(day) => !seen.has(day) && !taken.has(seriesPeriodOf(one.frequency, day)),
 		);
@@ -575,7 +582,7 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 
 		// A subscription charged to a credit card lands on an invoice, like every other
 		// purchase on that card.
-		const cycle = await cycleOfAccount(one.accountId);
+		const cycle = await cycleOfAccount(one.accountId, write.driver);
 
 		let written = 0;
 		for (const day of missing) {
