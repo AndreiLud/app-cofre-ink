@@ -20,12 +20,21 @@ export type SavedFiltersProps = {
 	onApply: (query: FilterQuery) => void;
 };
 
-/** Two filters are the same question when the parts that were set match. */
+/**
+ * Two filters are the same question when the parts that were set match.
+ *
+ * An empty month is set: it is every month, and leaving the month out is the month it is.
+ * Dropping it with the other empty values made a filter of every month look active on the
+ * list of this one.
+ */
 function sameQuery(left: FilterQuery, right: FilterQuery): boolean {
 	const written = (query: FilterQuery) =>
 		JSON.stringify(
 			Object.entries(query)
-				.filter(([, value]) => value !== "" && value !== undefined && value !== null)
+				.filter(
+					([name, value]) =>
+						value !== undefined && value !== null && (value !== "" || name === "month"),
+				)
 				.sort(([one], [other]) => one.localeCompare(other)),
 		);
 	return written(left) === written(right);
@@ -98,7 +107,12 @@ export function SavedFilters({ spaceId, current, onApply }: SavedFiltersProps) {
 							active ? "border-ink text-ink" : "border-line text-quiet"
 						}`}
 					>
-						<button type="button" onClick={() => onApply(filter.query)} className="hover:text-ink">
+						<button
+							type="button"
+							onClick={() => onApply(filter.query)}
+							aria-pressed={active}
+							className="hover:text-ink"
+						>
 							{filter.name}
 						</button>
 						<button

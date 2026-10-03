@@ -2,7 +2,15 @@
 // people actually ask: what did I spend at that place, what is still to come, what
 // went through this card.
 
-import { addMonthsToMonth, addUpInBase, type CalendarDate, monthOf, todayIn } from "@cofre/core";
+import {
+	addMonthsToMonth,
+	type CalendarDate,
+	formatMoney,
+	maskMoney,
+	money,
+	monthOf,
+	todayIn,
+} from "@cofre/core";
 import {
 	hasHappened,
 	type Transaction,
@@ -17,6 +25,7 @@ import {
 	EmptyState,
 	Field,
 	Icon,
+	InsightTitle,
 	Menu,
 	MenuItem,
 	MenuLabel,
@@ -32,7 +41,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@cofre/ui";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -42,20 +51,28 @@ import { SplitDialog } from "../components/SplitDialog.tsx";
 import { sideOfMove, ToTransferDialog } from "../components/ToTransferDialog.tsx";
 import { TransactionForm } from "../components/TransactionForm.tsx";
 import { Value } from "../components/Value.tsx";
+import { type Language, LOCALE_OF } from "../i18n/index.ts";
 import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { fillAmount, readAmount } from "../lib/amounts.ts";
+import { useMonthInAddress } from "../lib/monthAddress.ts";
 import {
 	addressFromFilters,
+	daysOfPeriod,
 	type Filters,
 	filtersFromAddress,
 	filtersFromSaved,
+	kindOfPeriod,
 	narrowedIn,
+	savedFromFilters,
 } from "../lib/recordFilters.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { accountOptions, cardOptions, paidWithLabel } from "../lib/wayLabel.ts";
 import { ROUTES } from "../routes.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
+
+/** How many records a page of the list brings, and how many more each press of the button. */
+const PAGE = 200;
 
 export function TransactionsPage() {
 	const { t, i18n } = useTranslation();
@@ -66,7 +83,8 @@ export function TransactionsPage() {
 			year: month.slice(0, 4) === today.slice(0, 4) ? undefined : "numeric",
 			timeZone: "UTC",
 		}).format(new Date(`${month}-01T00:00:00Z`));
-	const { session, currentSpace } = useCofre();
+	const { session, currentSpace, amountsHidden } = useCofre();
+	const locale = LOCALE_OF[(i18n.resolvedLanguage ?? "pt") as Language];
 	const queries = useQueryClient();
 	const navigate = useNavigate();
 
@@ -88,7 +106,24 @@ export function TransactionsPage() {
 	 * narrowing the list is a change of address.
 	 */
 	const asked = useSearch({ from: ROUTES.transactions });
-	const filters = useMemo(() => filtersFromAddress(asked, thisMonth), [asked, thisMonth]);
+	const inAddress = useMemo(() => filtersFromAddress(asked, thisMonth), [asked, thisMonth]);
+
+	/**
+	 * The period is the one filter the back button walks.
+	 *
+	 * It is written when the person stops changing it, as one entry in the history, so the back
+	 * button reopens the period before rather than leaving the screen; every other filter
+	 * replaces the entry it is in, so the back button does not walk keystrokes.
+	 */
+	const [period, setPeriod] = useMonthInAddress(
+		inAddress.month,
+		(next) =>
+			void navigate({
+				to: ROUTES.transactions,
+				search: addressFromFilters({ ...inAddress, month: next }, thisMonth),
+			}),
+	);
+	const filters = useMemo(() => ({ ...inAddress, month: period }), [inAddress, period]);
 
 	/** Replacing rather than pushing, so the back button leaves instead of walking keystrokes. */
 	const show = (next: Filters) =>
@@ -206,31 +241,71 @@ export function TransactionsPage() {
 		return [filters.categoryId, ...children];
 	}, [filters.categoryId, categories.data]);
 
-	const period = useMemo(() => {
-		if (filters.month === "") return {};
-		const [year, month] = filters.month.split("-").map(Number);
-		const lastDay = new Date(Date.UTC(year ?? 2026, month ?? 1, 0)).getUTCDate();
-		return {
-			from: `${filters.month}-01`,
-			to: `${filters.month}-${String(lastDay).padStart(2, "0")}`,
-		};
-	}, [filters.month]);
+	/**
+	 * One month, a year, or every month, and where the months still to come go.
+	 *
+	 * A year or every month is grouped by month. In the year it is, and in every month, the
+	 * months after this one are a closed group at the top: forty eight parts of a purchase put
+	 * four years of them ahead of the month somebody opened the list to read.
+	 */
+	const periodKind = kindOfPeriod(filters.month);
+	const grouped = periodKind !== "month";
+	const days = daysOfPeriod(filters.month);
+	const splitsAhead =
+		periodKind === "all" || (periodKind === "year" && filters.month === thisMonth.slice(0, 4));
+	const lastOfThisMonth = daysOfPeriod(thisMonth).to;
+	const firstOfNextMonth = `${addMonthsToMonth(thisMonth, 1)}-01`;
 
-	const records = useQuery({
+	const narrowedBy = {
+		spaceId,
+		kind: filters.kind === "" ? undefined : filters.kind,
+		status: filters.status === "" ? undefined : filters.status,
+		accountId: filters.accountId === "" ? undefined : filters.accountId,
+		cardId: filters.cardId === "" ? undefined : filters.cardId,
+		search: filters.search === "" ? undefined : filters.search,
+		categoryIds: chosenCategories,
+		withoutCategory: filters.categoryId === "none",
+	};
+
+	/**
+	 * What the list adds up to, every record it reaches and not the page on screen.
+	 *
+	 * The footer added the two hundred records the page held, and the page was all the list
+	 * ever showed: the two hundred and first record of a busy year was not on the screen and
+	 * not in the total, and nothing said so.
+	 */
+	const summary = useQuery({
+		queryKey: ["transactions", spaceId, "summary", filters, chosenCategories],
+		enabled: Boolean(session && currentSpace),
+		queryFn: () => session?.transactions.summarize({ ...narrowedBy, ...days }) ?? null,
+	});
+
+	/** A page at a time, the next one when it is asked for. */
+	const pages = (range: { from?: string; to?: string }) => ({
+		initialPageParam: 0,
+		queryFn: async ({ pageParam }: { pageParam: number }) =>
+			(await session?.transactions.list({
+				...narrowedBy,
+				...range,
+				limit: PAGE,
+				offset: pageParam,
+			})) ?? [],
+		getNextPageParam: (last: Transaction[], all: Transaction[][]) =>
+			last.length < PAGE ? undefined : all.reduce((sum, page) => sum + page.length, 0),
+	});
+
+	const records = useInfiniteQuery({
 		queryKey: ["transactions", spaceId, filters, chosenCategories],
 		enabled: Boolean(session && currentSpace),
-		queryFn: () =>
-			session?.transactions.list({
-				spaceId,
-				kind: filters.kind === "" ? undefined : filters.kind,
-				status: filters.status === "" ? undefined : filters.status,
-				accountId: filters.accountId === "" ? undefined : filters.accountId,
-				cardId: filters.cardId === "" ? undefined : filters.cardId,
-				search: filters.search === "" ? undefined : filters.search,
-				categoryIds: chosenCategories,
-				withoutCategory: filters.categoryId === "none",
-				...period,
-			}) ?? [],
+		...pages(splitsAhead ? { ...days, to: lastOfThisMonth } : days),
+	});
+
+	// Read only once the group is opened, which most people never do.
+	const [aheadOpen, setAheadOpen] = useState(false);
+	const ahead = useInfiniteQuery({
+		queryKey: ["transactions", spaceId, filters, chosenCategories, "ahead"],
+		enabled: Boolean(session && currentSpace) && splitsAhead && aheadOpen,
+		...pages({ ...days, from: firstOfNextMonth }),
 	});
 
 	const invalidate = () => {
@@ -401,15 +476,59 @@ export function TransactionsPage() {
 
 	if (!currentSpace) return null;
 
-	const rows = records.data ?? [];
+	const rows = records.data?.pages.flat() ?? [];
+	const aheadRows = ahead.data?.pages.flat() ?? [];
 	const nameOf = (accountId: string) =>
 		accounts.data?.find((account) => account.id === accountId)?.name ?? "";
 	const nameOfCategory = (categoryId: string) =>
 		categories.data?.find((category) => category.id === categoryId)?.name ?? "";
 
-	// In the currency of the space, which is what the footer labels it with. It added the
-	// amount as written, so a dinner of forty dollars went into a total in reais as forty.
-	const total = addUpInBase(rows);
+	// In the currency of the space and added up by the database over every record the list
+	// reaches, never over the rows that happen to be loaded.
+	const currency = currentSpace.baseCurrency;
+	const said = (amount: number) => {
+		const value = money(amount, currency);
+		return amountsHidden ? maskMoney(value, { locale }) : formatMoney(value, { locale });
+	};
+	const months = summary.data?.byMonth ?? [];
+	const aheadMonths = splitsAhead ? months.filter((one) => one.month > thisMonth) : [];
+	const aheadCount = aheadMonths.reduce((sum, one) => sum + one.count, 0);
+	const listedCount = (summary.data?.count ?? 0) - aheadCount;
+	const sumOfMonth = (month: string) => {
+		const one = months.find((each) => each.month === month);
+		return t("transactions.monthSum", {
+			income: said(one?.income ?? 0),
+			expense: said(one?.expense ?? 0),
+		});
+	};
+
+	/** A month at the head of its group, with the year always: a group may be any year. */
+	const monthHeading = (month: string) => {
+		const text = new Intl.DateTimeFormat(locale, {
+			month: "long",
+			year: "numeric",
+			timeZone: "UTC",
+		}).format(new Date(`${month}-01T00:00:00Z`));
+		return text.charAt(0).toLocaleUpperCase(locale) + text.slice(1);
+	};
+	/** Consecutive rows of one month, newest month first, which is the order the list has. */
+	const byMonth = (list: Transaction[]) => {
+		const groups: [string, Transaction[]][] = [];
+		for (const row of list) {
+			const month = row.happenedOn.slice(0, 7);
+			const last = groups.at(-1);
+			if (last && last[0] === month) last[1].push(row);
+			else groups.push([month, [row]]);
+		}
+		return groups;
+	};
+
+	const title =
+		periodKind === "all"
+			? t("transactions.titleAll")
+			: periodKind === "year"
+				? t("transactions.titleYear", { year: filters.month })
+				: t("transactions.titleMonth", { month: monthLong(filters.month) });
 
 	const visible = rows.map((row) => row.id);
 	const allPicked = visible.length > 0 && visible.every((id) => picked.includes(id));
@@ -417,6 +536,257 @@ export function TransactionsPage() {
 		setPicked((current) =>
 			current.includes(id) ? current.filter((kept) => kept !== id) : [...current, id],
 		);
+
+	/** The head of a table of records. The months ahead have no tick for every row, which is the list's. */
+	const tableHead = (pickAll: boolean) => (
+		<TableHead>
+			<TableRow>
+				{/* The column itself goes when nothing can be done with a selection,
+								    header and cells together, so the table keeps its shape. */}
+				{mayPick ? (
+					<TableHeader>
+						{pickAll ? (
+							<input
+								type="checkbox"
+								checked={allPicked}
+								aria-label={t("transactions.pickAll")}
+								onChange={(event) => setPicked(event.target.checked ? visible : [])}
+								className="size-4 accent-[var(--ink)]"
+							/>
+						) : null}
+					</TableHeader>
+				) : null}
+				<TableHeader>{t("transactions.day")}</TableHeader>
+				<TableHeader>{t("transactions.description")}</TableHeader>
+				{/* The account is the first thing to go when the screen is narrow:
+								    it is context, and the description is the answer. */}
+				<TableHeader className="hidden sm:table-cell">{t("transactions.account")}</TableHeader>
+				<TableHeader numeric={true}>{t("transactions.amount")}</TableHeader>
+				<TableHeader numeric={true}>
+					<span className="sr-only">{t("transactions.actions")}</span>
+				</TableHeader>
+			</TableRow>
+		</TableHead>
+	);
+
+	const recordRow = (row: Transaction) => (
+		<TableRow key={row.id}>
+			{mayPick ? (
+				<TableCell>
+					<input
+						type="checkbox"
+						checked={picked.includes(row.id)}
+						aria-label={t("transactions.pick", { description: row.description })}
+						onChange={() => toggle(row.id)}
+						className="size-4 accent-[var(--ink)]"
+					/>
+				</TableCell>
+			) : null}
+			<TableCell className="whitespace-nowrap font-mono text-quiet">
+				{row.happenedOn.slice(8)}/{row.happenedOn.slice(5, 7)}
+			</TableCell>
+			<TableCell>
+				<span className={hasHappened(row, today) ? "" : "text-quiet"}>{row.description}</span>
+				{row.categoryId ? (
+					<span className="ml-2 text-xs text-quiet">{nameOfCategory(row.categoryId)}</span>
+				) : null}
+				{hasHappened(row, today) ? null : (
+					<span className="ml-2 text-xs text-ochre">{t("transactionStatus.planned")}</span>
+				)}
+				{row.reconciledAt !== null ? (
+					<span className="ml-2 text-xs text-cedar">{t("transactions.reconciled")}</span>
+				) : null}
+			</TableCell>
+			<TableCell className="hidden text-quiet sm:table-cell">
+				{/* The card beside the account, when the record says which: the
+										    card and the current account of one bank carry one name, and
+										    the plastic is what somebody remembers paying with. */}
+				{paidWithLabel(
+					nameOf(row.accountId),
+					row.cardId === null ? null : cards.data?.find((card) => card.id === row.cardId),
+				)}
+				{row.counterAccountId ? ` → ${nameOf(row.counterAccountId)}` : ""}
+			</TableCell>
+			<TableCell numeric={true}>
+				<Value
+					amount={row.amount}
+					currency={row.currency}
+					tone={row.kind === "transfer" ? "neutral" : "auto"}
+				/>
+			</TableCell>
+			<TableCell numeric={true}>
+				{/* A button that opens an empty popup is worse than no button. */}
+				{mayActOnARow ? (
+					<Menu
+						align="end"
+						trigger={
+							<Button size="small" variant="quiet" aria-label={t("transactions.actions")}>
+								<Icon name="settings" />
+							</Button>
+						}
+					>
+						{/* A row of a split invoice, or of one paid with another card, changes
+												    only with the arrangement: this says why, and what to do instead. */}
+						{row.arrangedFor !== null ? (
+							<MenuLabel>
+								{t(
+									row.arrangedBy === "card" ? "arrangement.lockedCard" : "arrangement.lockedParts",
+									{ month: monthLong(row.arrangedFor) },
+								)}
+							</MenuLabel>
+						) : null}
+						{mayUpdate && row.arrangedFor === null ? (
+							<MenuItem
+								onSelect={() => {
+									setEditing(row);
+									setOpen(true);
+								}}
+							>
+								{t("transactions.edit")}
+							</MenuItem>
+						) : null}
+						{row.status === "planned" && mayUpdate ? (
+							<MenuItem onSelect={() => settle.mutate(row.id)}>{t("transactions.settle")}</MenuItem>
+						) : null}
+						{/* A purchase on a card the bank closed onto another invoice, moved
+												    from where somebody finds it, and not only from the invoice. */}
+						{mayRefund &&
+						row.kind === "expense" &&
+						row.amount < 0 &&
+						accounts.data?.find((one) => one.id === row.accountId)?.kind === "voucher" ? (
+							<MenuItem onSelect={() => openRefund(row)}>{t("transactions.refund")}</MenuItem>
+						) : null}
+						{/* Money out that went into savings, or a payment written from both
+												    ends by the importer of 1.x, made into the move it was. */}
+						{mayMakeAMove &&
+						row.arrangedFor === null &&
+						sideOfMove(row, accounts.data ?? []) !== null ? (
+							<MenuItem onSelect={() => setMakingAMove(row)}>{t("toMove.action")}</MenuItem>
+						) : null}
+						{mayMoveInvoice &&
+						row.arrangedFor === null &&
+						row.invoiceMonth !== null &&
+						row.kind !== "transfer" ? (
+							<>
+								<MenuItem onSelect={() => moveToInvoice.mutate({ row, towards: "earlier" })}>
+									{t("invoice.moveEarlier")}
+								</MenuItem>
+								<MenuItem onSelect={() => moveToInvoice.mutate({ row, towards: "later" })}>
+									{t("invoice.moveLater")}
+								</MenuItem>
+							</>
+						) : null}
+						{row.categoryId && mayTeach ? (
+							<MenuItem onSelect={() => teach.mutate(row)}>
+								{t("transactions.alwaysSortLikeThis")}
+							</MenuItem>
+						) : null}
+						{currentSpace.kind === "shared" &&
+						row.kind === "expense" &&
+						row.arrangedFor === null &&
+						mayShare ? (
+							<MenuItem onSelect={() => setDividing(row)}>{t("sharing.divide")}</MenuItem>
+						) : null}
+						{mayReconcile ? (
+							<MenuItem
+								onSelect={() =>
+									reconcile.mutate({
+										id: row.id,
+										reconciled: row.reconciledAt === null,
+									})
+								}
+							>
+								{row.reconciledAt === null
+									? t("transactions.reconcile")
+									: t("transactions.unreconcile")}
+							</MenuItem>
+						) : null}
+						{mayDelete && row.arrangedFor === null ? <MenuSeparator /> : null}
+						{mayDelete && row.arrangedFor === null ? (
+							<MenuItem onSelect={() => setDropping({ kind: "one", row })}>
+								{t("actions.delete")}
+							</MenuItem>
+						) : null}
+						{mayDeletePlan && row.installmentGroup && row.arrangedFor === null ? (
+							<MenuItem
+								onSelect={() =>
+									setDropping({
+										kind: "group",
+										row,
+										group: row.installmentGroup ?? "",
+									})
+								}
+							>
+								{t("transactions.deleteGroup")}
+							</MenuItem>
+						) : null}
+					</Menu>
+				) : null}
+			</TableCell>
+		</TableRow>
+	);
+
+	/**
+	 * The rows, and in a year or every month a group per month: its name, which opens it, and
+	 * what it adds up to, from the database and never from the rows loaded.
+	 */
+	const columns = mayPick ? 6 : 5;
+	const bodies = (list: Transaction[]) =>
+		grouped ? (
+			byMonth(list).map(([month, ofMonth]) => (
+				<TableBody key={month}>
+					<TableRow className="bg-sunken/60 hover:bg-sunken/60">
+						<TableHeader scope="rowgroup" colSpan={columns} className="text-sm text-ink">
+							<span className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+								<Link
+									to={ROUTES.transactions}
+									search={addressFromFilters({ ...filters, month }, thisMonth)}
+									className="font-medium underline-offset-2 hover:underline"
+								>
+									{monthHeading(month)}
+								</Link>
+								<span className="font-normal text-quiet">{sumOfMonth(month)}</span>
+							</span>
+						</TableHeader>
+					</TableRow>
+					{ofMonth.map(recordRow)}
+				</TableBody>
+			))
+		) : (
+			<TableBody>{list.map(recordRow)}</TableBody>
+		);
+
+	/**
+	 * How many of the records are on screen, and the next page when they are not all there.
+	 * The list stopped at two hundred and the footer said nothing about the rest.
+	 */
+	const more = (
+		paged: {
+			hasNextPage: boolean;
+			isFetchingNextPage: boolean;
+			fetchNextPage: () => Promise<unknown>;
+		},
+		shown: number,
+		total: number,
+	) => (
+		<p className="flex flex-wrap items-center justify-between gap-2">
+			<span className="text-quiet">
+				{shown < total
+					? t("transactions.showing", { shown, total })
+					: t("transactions.countedIn", { count: shown })}
+			</span>
+			{shown < total && paged.hasNextPage ? (
+				<Button
+					size="small"
+					variant="secondary"
+					onClick={() => void paged.fetchNextPage()}
+					disabled={paged.isFetchingNextPage}
+				>
+					{t("transactions.showMore")}
+				</Button>
+			) : null}
+		</p>
+	);
 
 	return (
 		<div className="space-y-6">
@@ -449,8 +819,23 @@ export function TransactionsPage() {
 					) : null
 				}
 			>
-				{t("transactions.title")}
+				{title}
 			</SectionTitle>
+
+			{/* A year or every month opens with what the list adds up to, which is the one
+			    question a list that long answers. */}
+			{grouped && summary.data ? (
+				<InsightTitle>
+					{t(
+						periodKind === "year" ? "transactions.sumSentenceYear" : "transactions.sumSentenceAll",
+						{
+							year: filters.month,
+							income: said(summary.data.income),
+							expense: said(summary.data.expense),
+						},
+					)}
+				</InsightTitle>
+			) : null}
 
 			{mayWrite ? (
 				<Panel>
@@ -486,12 +871,33 @@ export function TransactionsPage() {
 				}
 			>
 				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-					<Field
-						label={t("transactions.month")}
-						type="month"
-						value={filters.month}
-						onChange={(event) => change({ month: event.target.value })}
-					/>
+					<div className="space-y-2">
+						<Field
+							label={t("transactions.month")}
+							type="month"
+							value={periodKind === "month" ? filters.month : ""}
+							onChange={(event) => setPeriod(event.target.value)}
+						/>
+						{/* The year of the month on screen, or every month. */}
+						<div className="flex flex-wrap gap-2">
+							<Button
+								size="small"
+								variant={periodKind === "year" ? "primary" : "quiet"}
+								aria-pressed={periodKind === "year"}
+								onClick={() => setPeriod((filters.month || thisMonth).slice(0, 4))}
+							>
+								{t("transactions.wholeYear")}
+							</Button>
+							<Button
+								size="small"
+								variant={periodKind === "all" ? "primary" : "quiet"}
+								aria-pressed={periodKind === "all"}
+								onClick={() => setPeriod("")}
+							>
+								{t("transactions.everyMonth")}
+							</Button>
+						</div>
+					</div>
 					<Field
 						label={t("transactions.search")}
 						value={filters.search}
@@ -573,7 +979,7 @@ export function TransactionsPage() {
 				<div className="mt-3">
 					<SavedFilters
 						spaceId={spaceId}
-						current={filters as unknown as FilterQuery}
+						current={savedFromFilters(filters, thisMonth) as FilterQuery}
 						onApply={(query) => {
 							show(filtersFromSaved(query, thisMonth));
 							setPicked([]);
@@ -584,7 +990,7 @@ export function TransactionsPage() {
 
 			{records.isPending ? <Skeleton lines={5} /> : null}
 
-			{!records.isPending && rows.length === 0 ? (
+			{!records.isPending && rows.length === 0 && aheadCount === 0 ? (
 				<EmptyState
 					icon="wallet"
 					title={t("transactions.emptyTitle")}
@@ -711,232 +1117,60 @@ export function TransactionsPage() {
 				</div>
 			) : null}
 
+			{/* The months after this one, closed at the top, with how many and what they add up to.
+			    Read only when opened. */}
+			{aheadMonths.length > 0 ? (
+				<Panel flush>
+					<details open={aheadOpen} onToggle={(event) => setAheadOpen(event.currentTarget.open)}>
+						<summary className="flex cursor-pointer flex-wrap items-baseline justify-between gap-2 px-4 py-3 text-sm">
+							<span className="font-medium text-ink">{t("transactions.ahead")}</span>
+							<span className="text-quiet">
+								{t("transactions.aheadSummary", {
+									count: aheadCount,
+									income: said(aheadMonths.reduce((sum, one) => sum + one.income, 0)),
+									expense: said(aheadMonths.reduce((sum, one) => sum + one.expense, 0)),
+								})}
+							</span>
+						</summary>
+						{aheadOpen ? (
+							ahead.isPending ? (
+								<Skeleton lines={3} />
+							) : (
+								<>
+									<Table caption={t("transactions.aheadCaption")}>
+										{tableHead(false)}
+										{bodies(aheadRows)}
+									</Table>
+									<div className="border-t border-line bg-sunken px-4 py-3 text-sm">
+										{more(ahead, aheadRows.length, aheadCount)}
+									</div>
+								</>
+							)
+						) : null}
+					</details>
+				</Panel>
+			) : null}
+
 			{rows.length > 0 ? (
 				<Panel flush>
 					<Table caption={t("transactions.caption")}>
-						<TableHead>
-							<TableRow>
-								{/* The column itself goes when nothing can be done with a selection,
-								    header and cells together, so the table keeps its shape. */}
-								{mayPick ? (
-									<TableHeader>
-										<input
-											type="checkbox"
-											checked={allPicked}
-											aria-label={t("transactions.pickAll")}
-											onChange={(event) => setPicked(event.target.checked ? visible : [])}
-											className="size-4 accent-[var(--ink)]"
-										/>
-									</TableHeader>
-								) : null}
-								<TableHeader>{t("transactions.day")}</TableHeader>
-								<TableHeader>{t("transactions.description")}</TableHeader>
-								{/* The account is the first thing to go when the screen is narrow:
-								    it is context, and the description is the answer. */}
-								<TableHeader className="hidden sm:table-cell">
-									{t("transactions.account")}
-								</TableHeader>
-								<TableHeader numeric={true}>{t("transactions.amount")}</TableHeader>
-								<TableHeader numeric={true}>
-									<span className="sr-only">{t("transactions.actions")}</span>
-								</TableHeader>
-							</TableRow>
-						</TableHead>
-						<TableBody>
-							{rows.map((row) => (
-								<TableRow key={row.id}>
-									{mayPick ? (
-										<TableCell>
-											<input
-												type="checkbox"
-												checked={picked.includes(row.id)}
-												aria-label={t("transactions.pick", { description: row.description })}
-												onChange={() => toggle(row.id)}
-												className="size-4 accent-[var(--ink)]"
-											/>
-										</TableCell>
-									) : null}
-									<TableCell className="whitespace-nowrap font-mono text-quiet">
-										{row.happenedOn.slice(8)}/{row.happenedOn.slice(5, 7)}
-									</TableCell>
-									<TableCell>
-										<span className={hasHappened(row, today) ? "" : "text-quiet"}>
-											{row.description}
-										</span>
-										{row.categoryId ? (
-											<span className="ml-2 text-xs text-quiet">
-												{nameOfCategory(row.categoryId)}
-											</span>
-										) : null}
-										{hasHappened(row, today) ? null : (
-											<span className="ml-2 text-xs text-ochre">
-												{t("transactionStatus.planned")}
-											</span>
-										)}
-										{row.reconciledAt !== null ? (
-											<span className="ml-2 text-xs text-cedar">
-												{t("transactions.reconciled")}
-											</span>
-										) : null}
-									</TableCell>
-									<TableCell className="hidden text-quiet sm:table-cell">
-										{/* The card beside the account, when the record says which: the
-										    card and the current account of one bank carry one name, and
-										    the plastic is what somebody remembers paying with. */}
-										{paidWithLabel(
-											nameOf(row.accountId),
-											row.cardId === null
-												? null
-												: cards.data?.find((card) => card.id === row.cardId),
-										)}
-										{row.counterAccountId ? ` → ${nameOf(row.counterAccountId)}` : ""}
-									</TableCell>
-									<TableCell numeric={true}>
-										<Value
-											amount={row.amount}
-											currency={row.currency}
-											tone={row.kind === "transfer" ? "neutral" : "auto"}
-										/>
-									</TableCell>
-									<TableCell numeric={true}>
-										{/* A button that opens an empty popup is worse than no button. */}
-										{mayActOnARow ? (
-											<Menu
-												align="end"
-												trigger={
-													<Button
-														size="small"
-														variant="quiet"
-														aria-label={t("transactions.actions")}
-													>
-														<Icon name="settings" />
-													</Button>
-												}
-											>
-												{/* A row of a split invoice, or of one paid with another card, changes
-												    only with the arrangement: this says why, and what to do instead. */}
-												{row.arrangedFor !== null ? (
-													<MenuLabel>
-														{t(
-															row.arrangedBy === "card"
-																? "arrangement.lockedCard"
-																: "arrangement.lockedParts",
-															{ month: monthLong(row.arrangedFor) },
-														)}
-													</MenuLabel>
-												) : null}
-												{mayUpdate && row.arrangedFor === null ? (
-													<MenuItem
-														onSelect={() => {
-															setEditing(row);
-															setOpen(true);
-														}}
-													>
-														{t("transactions.edit")}
-													</MenuItem>
-												) : null}
-												{row.status === "planned" && mayUpdate ? (
-													<MenuItem onSelect={() => settle.mutate(row.id)}>
-														{t("transactions.settle")}
-													</MenuItem>
-												) : null}
-												{/* A purchase on a card the bank closed onto another invoice, moved
-												    from where somebody finds it, and not only from the invoice. */}
-												{mayRefund &&
-												row.kind === "expense" &&
-												row.amount < 0 &&
-												accounts.data?.find((one) => one.id === row.accountId)?.kind ===
-													"voucher" ? (
-													<MenuItem onSelect={() => openRefund(row)}>
-														{t("transactions.refund")}
-													</MenuItem>
-												) : null}
-												{/* Money out that went into savings, or a payment written from both
-												    ends by the importer of 1.x, made into the move it was. */}
-												{mayMakeAMove &&
-												row.arrangedFor === null &&
-												sideOfMove(row, accounts.data ?? []) !== null ? (
-													<MenuItem onSelect={() => setMakingAMove(row)}>
-														{t("toMove.action")}
-													</MenuItem>
-												) : null}
-												{mayMoveInvoice &&
-												row.arrangedFor === null &&
-												row.invoiceMonth !== null &&
-												row.kind !== "transfer" ? (
-													<>
-														<MenuItem
-															onSelect={() => moveToInvoice.mutate({ row, towards: "earlier" })}
-														>
-															{t("invoice.moveEarlier")}
-														</MenuItem>
-														<MenuItem
-															onSelect={() => moveToInvoice.mutate({ row, towards: "later" })}
-														>
-															{t("invoice.moveLater")}
-														</MenuItem>
-													</>
-												) : null}
-												{row.categoryId && mayTeach ? (
-													<MenuItem onSelect={() => teach.mutate(row)}>
-														{t("transactions.alwaysSortLikeThis")}
-													</MenuItem>
-												) : null}
-												{currentSpace.kind === "shared" &&
-												row.kind === "expense" &&
-												row.arrangedFor === null &&
-												mayShare ? (
-													<MenuItem onSelect={() => setDividing(row)}>
-														{t("sharing.divide")}
-													</MenuItem>
-												) : null}
-												{mayReconcile ? (
-													<MenuItem
-														onSelect={() =>
-															reconcile.mutate({
-																id: row.id,
-																reconciled: row.reconciledAt === null,
-															})
-														}
-													>
-														{row.reconciledAt === null
-															? t("transactions.reconcile")
-															: t("transactions.unreconcile")}
-													</MenuItem>
-												) : null}
-												{mayDelete && row.arrangedFor === null ? <MenuSeparator /> : null}
-												{mayDelete && row.arrangedFor === null ? (
-													<MenuItem onSelect={() => setDropping({ kind: "one", row })}>
-														{t("actions.delete")}
-													</MenuItem>
-												) : null}
-												{mayDeletePlan && row.installmentGroup && row.arrangedFor === null ? (
-													<MenuItem
-														onSelect={() =>
-															setDropping({
-																kind: "group",
-																row,
-																group: row.installmentGroup ?? "",
-															})
-														}
-													>
-														{t("transactions.deleteGroup")}
-													</MenuItem>
-												) : null}
-											</Menu>
-										) : null}
-									</TableCell>
-								</TableRow>
-							))}
-						</TableBody>
+						{tableHead(true)}
+						{bodies(rows)}
 					</Table>
 
-					<p className="flex items-baseline justify-between border-t border-line bg-sunken px-4 py-3 text-sm">
-						<span className="text-quiet">
-							{t("transactions.countedIn", { count: rows.length })}
-						</span>
-						<Value amount={total} currency={currentSpace.baseCurrency} tone="auto" />
-					</p>
+					{/* What the list adds up to, every record it reaches with the months ahead, and
+					    never "Entrou" and "Saiu", which are the money that came and went. */}
+					<div className="space-y-2 border-t border-line bg-sunken px-4 py-3 text-sm">
+						{more(records, rows.length, listedCount)}
+						{summary.data ? (
+							<p className="text-ink">
+								{t("transactions.addingUp", {
+									income: said(summary.data.income),
+									expense: said(summary.data.expense),
+								})}
+							</p>
+						) : null}
+					</div>
 				</Panel>
 			) : null}
 

@@ -53,7 +53,7 @@ new one.
 | [0044](0044_four_figures_on_one_line.md) | four figures on one line | accepted |
 | [0045](0045_money_is_not_a_setting.md) | money is not a setting | accepted |
 | [0046](0046_a_month_in_a_file.md) | a month in a file, written by the browser | accepted |
-| [0047](0047_a_list_is_an_address.md) | a list is an address | accepted |
+| [0047](0047_a_list_is_an_address.md) | a list is an address | accepted, amended by 0067 |
 | [0048](0048_the_day_a_test_runs_on.md) | the day a test runs on | accepted |
 | [0049](0049_reading_a_month_of_three_numbers_back.md) | reading a month of three numbers back | accepted |
 | [0050](0050_a_fact_that_waits_for_its_day.md) | a fact that waits for its day, and one rule for what has happened | accepted |
@@ -72,3 +72,4 @@ new one.
 | [0064](0064_a_plan_of_up_to_forty_eight_parts.md) | a plan of up to forty eight parts, refused rather than cut | accepted, the division between people waits for the owner |
 | [0065](0065_reading_a_document_again.md) | reading a document again: its kind, its convention and its own total | accepted |
 | [0066](0066_what_an_import_writes.md) | what an import writes | accepted, the owner's suggestions wait for confirmation |
+| [0067](0067_the_period_of_a_list.md) | the period of a list, and a filter that follows the calendar | accepted, the months ahead and the saved period wait for confirmation |
