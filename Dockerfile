@@ -62,5 +62,10 @@ USER node
 VOLUME /data
 EXPOSE 4321
 
+# Where this image came from: built here, or the one a release published, which the release
+# says when it builds. The screen of updates reads it to show the commands that fit.
+ARG COFRE_IMAGE_SOURCE=local
+ENV COFRE_IMAGE_SOURCE=${COFRE_IMAGE_SOURCE}
+
 # Node runs the TypeScript directly, so there is no build output to keep in step.
 CMD ["node", "--experimental-strip-types", "apps/server/src/main.ts"]

@@ -1,0 +1,16 @@
+# Building the image from this folder rather than pulling the published one.
+#
+#   docker compose -f compose.yaml -f compose.build.yaml up -d --build
+#
+# Added on top of compose.yaml, which keeps everything else: the project name, the volume and
+# the settings. The image gets a name of its own, never the published one and never the name
+# an older compose file gave a build, so a build here can never be mistaken for a release or
+# overwrite one. COFRE_LOCAL_IMAGE in .env changes it.
+services:
+  cofre:
+    image: ${COFRE_LOCAL_IMAGE:-cofre-local}
+    build:
+      context: .
+      args:
+        COFRE_IMAGE_SOURCE: local
+    pull_policy: build

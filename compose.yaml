@@ -4,6 +4,12 @@
 #   2. fill COFRE_SECRET
 #   3. docker compose up -d
 #
+# This pulls the image every release publishes, on the line of version 2, so a pull brings
+# the corrections and the additions of 2.x and never a version 3 nobody asked for. To build
+# from this folder instead, add the second file:
+#
+#   docker compose -f compose.yaml -f compose.build.yaml up -d --build
+#
 # The data lives in the named volume below, so it survives an update of the image.
 # For PostgreSQL instead of SQLite, read the note above the database service further
 # down: there are four things to uncomment, and leaving one out stops the whole file.
@@ -14,7 +20,9 @@ name: cofre
 
 services:
   cofre:
-    build: .
+    # The published image. COFRE_TAG in .env pins another, for example 2.0.0, and moving to
+    # a version 3 is that line changed after reading its notes.
+    image: ghcr.io/andreilud/app-cofre-ink:${COFRE_TAG:-2}
     restart: unless-stopped
     ports:
       - "${COFRE_PORT:-4321}:4321"
@@ -31,6 +39,9 @@ services:
       COFRE_CLIENT_IP_HEADER: ${COFRE_CLIENT_IP_HEADER:-}
       COFRE_TURNSTILE_SITE_KEY: ${COFRE_TURNSTILE_SITE_KEY:-}
       COFRE_TURNSTILE_SECRET: ${COFRE_TURNSTILE_SECRET:-}
+      # How this copy was installed, which the screen of updates reads to show the commands
+      # that fit it.
+      COFRE_INSTALLED_WITH: compose
       NODE_ENV: production
     volumes:
       - cofreData:/data

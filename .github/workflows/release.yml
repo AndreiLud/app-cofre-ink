@@ -84,9 +84,15 @@ jobs:
       # The same tag the other two check out. On a push it is what the default would
       # have given anyway, and it is written out so that loosening the line above never
       # quietly builds an image of something else.
+      # Every tag as well, which the question below needs.
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.TAG }}
+          fetch-depth: 0
+
+      # Whether this is the highest version tagged, which is the only one latest may name.
+      - id: highest
+        run: node scripts/isHighestTag.mjs "$TAG"
 
       # Two architectures, because the guide says a Raspberry Pi is a place to run this
       # and a Pi is not an Intel machine. The second one is emulated and slow, which is
@@ -101,15 +107,20 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # It writes the lower case name the registry insists on, and the set of tags: the
-      # full version, the major and minor, and latest for a version that is not a
-      # preview of something.
+      # full version, the major and minor, the major alone, which is what the compose file
+      # follows, and latest only for the highest version tagged. The action put latest on
+      # every tag, so a correction to the old line published after the new one would have
+      # taken everybody following latest backwards.
       - id: names
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
+          flavor: latest=false
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable=${{ steps.highest.outputs.highest == 'true' }}
 
       - uses: docker/build-push-action@v6
         with:
@@ -118,6 +129,9 @@ jobs:
           push: true
           tags: ${{ steps.names.outputs.tags }}
           labels: ${{ steps.names.outputs.labels }}
+          # So the server knows it is the published image, and shows the commands for it.
+          build-args: |
+            COFRE_IMAGE_SOURCE=ghcr
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
