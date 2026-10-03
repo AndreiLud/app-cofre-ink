@@ -1,9 +1,11 @@
-// Correcting one card, and letting it go.
+// Correcting one card, letting it go, and adding a second one to an invoice that exists.
 //
-// It does not add one. A card is added where an account is added, in "Nova conta",
-// because a card is one of the things that screen can add and a second door onto the
-// same form is a second door to keep in step. This is what the menu of an account opens
-// for a card that already reaches it.
+// A card with an account of its own is added where an account is added, in "Nova conta",
+// because a card is one of the things that screen can add. A second piece of plastic on an
+// invoice that already exists, the extra card somebody else in the house carries, had no
+// way in at all: "Nova conta" makes an invoice, and this only corrected. So the menu of a
+// credit account opens this to add one, with the invoice fixed and nothing else to choose.
+// This is what the menu of an account opens for a card that already reaches it, too.
 //
 // The kind is not here either. A card that became another kind would leave every record
 // it already wrote pointing at an invoice it no longer charges, so the honest move is to
@@ -22,6 +24,8 @@ import { useWhatIMayDo } from "../storage/roles.ts";
 export type CardDialogProps = {
 	/** The card being looked after, or nothing when the dialog is closed. */
 	card: Card | null;
+	/** Or the invoice a new piece of plastic is being added to. */
+	addingTo?: Account | null;
 	accounts: Account[];
 	onClose: () => void;
 };
@@ -35,7 +39,7 @@ const NEEDS: Record<CardKind, { credit: boolean; debit: boolean }> = {
 	prepaid: { credit: false, debit: true },
 };
 
-export function CardDialog({ card, accounts, onClose }: CardDialogProps) {
+export function CardDialog({ card, addingTo = null, accounts, onClose }: CardDialogProps) {
 	const { t } = useTranslation();
 	const { session, currentSpace } = useCofre();
 	// Archiving a card asks what correcting an account asks; deleting one asks what
@@ -54,15 +58,24 @@ export function CardDialog({ card, accounts, onClose }: CardDialogProps) {
 	const balances = open.filter((account) => account.kind !== "credit");
 	const needs = card === null ? NEEDS.credit : NEEDS[card.kind];
 
-	// Opening is what fills the form, so a half typed correction is never inherited.
+	// Opening is what fills the form, so a half typed correction is never inherited. A new
+	// one starts empty, on the invoice it was opened from.
 	useEffect(() => {
+		if (addingTo) {
+			setProblem(null);
+			setName("");
+			setLastFour("");
+			setCreditAccountId(addingTo.id);
+			setDebitAccountId("");
+			return;
+		}
 		if (!card) return;
 		setProblem(null);
 		setName(card.name);
 		setLastFour(card.lastFour ?? "");
 		setCreditAccountId(card.creditAccountId ?? "");
 		setDebitAccountId(card.debitAccountId ?? "");
-	}, [card]);
+	}, [card, addingTo]);
 
 	function complain(error: unknown) {
 		setProblem(sayWhy(error, t));
@@ -70,7 +83,18 @@ export function CardDialog({ card, accounts, onClose }: CardDialogProps) {
 
 	const save = useMutation({
 		mutationFn: async () => {
-			if (!session || !card) throw new Error("nothing to save");
+			if (!session) throw new Error("nothing to save");
+			if (addingTo) {
+				// Credit on that invoice and nothing else, which is what an extra card is.
+				return session.cards.create({
+					spaceId: addingTo.spaceId,
+					kind: "credit",
+					name,
+					lastFour: lastFour.trim() === "" ? null : lastFour.trim(),
+					creditAccountId: addingTo.id,
+				});
+			}
+			if (!card) throw new Error("nothing to save");
 			return session.cards.update(card.id, {
 				name,
 				lastFour: lastFour.trim() === "" ? null : lastFour.trim(),
@@ -113,12 +137,12 @@ export function CardDialog({ card, accounts, onClose }: CardDialogProps) {
 
 	return (
 		<Dialog
-			open={card !== null}
+			open={card !== null || addingTo !== null}
 			onOpenChange={(next) => {
 				if (!next) onClose();
 			}}
-			title={t("cards.edit")}
-			description={t("cards.editDescription")}
+			title={addingTo ? t("cards.addToInvoice", { name: addingTo.name }) : t("cards.edit")}
+			description={addingTo ? t("cards.addToInvoiceDescription") : t("cards.editDescription")}
 			closeLabel={t("actions.close")}
 			footer={
 				<>
@@ -144,7 +168,7 @@ export function CardDialog({ card, accounts, onClose }: CardDialogProps) {
 					required={true}
 				/>
 
-				{needs.credit && invoices.length > 0 ? (
+				{needs.credit && invoices.length > 0 && !addingTo ? (
 					<Select
 						label={t("cards.creditAccount")}
 						hint={t("cards.creditAccountHint")}
@@ -174,33 +198,36 @@ export function CardDialog({ card, accounts, onClose }: CardDialogProps) {
 
 				{problem ? <Callout tone="problem">{problem}</Callout> : null}
 
-				<div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
-					<Button
-						variant="secondary"
-						size="small"
-						disabled={change.isPending}
-						onClick={() => change.mutate("archive")}
-					>
-						{card?.archivedAt === null ? t("cards.archive") : t("cards.unarchive")}
-					</Button>
-					{/* Archiving a card is open to whoever may correct an account, and deleting
+				{/* Nothing to archive or remove on a card that does not exist yet. */}
+				{addingTo ? null : (
+					<div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
+						<Button
+							variant="secondary"
+							size="small"
+							disabled={change.isPending}
+							onClick={() => change.mutate("archive")}
+						>
+							{card?.archivedAt === null ? t("cards.archive") : t("cards.unarchive")}
+						</Button>
+						{/* Archiving a card is open to whoever may correct an account, and deleting
 					    one is not: it asks what deleting an account asks. So this dialog is
 					    reached by an Editor who then finds the red button refuses, with the
 					    archive button beside it working, which reads as a fault. */}
-					{mayDelete ? (
-						<>
-							<Button
-								variant="destructive"
-								size="small"
-								disabled={change.isPending}
-								onClick={() => change.mutate("remove")}
-							>
-								{t("cards.removeAction")}
-							</Button>
-							<span className="text-xs text-quiet">{t("cards.removeKeeps")}</span>
-						</>
-					) : null}
-				</div>
+						{mayDelete ? (
+							<>
+								<Button
+									variant="destructive"
+									size="small"
+									disabled={change.isPending}
+									onClick={() => change.mutate("remove")}
+								>
+									{t("cards.removeAction")}
+								</Button>
+								<span className="text-xs text-quiet">{t("cards.removeKeeps")}</span>
+							</>
+						) : null}
+					</div>
+				)}
 			</form>
 		</Dialog>
 	);

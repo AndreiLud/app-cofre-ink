@@ -118,6 +118,46 @@ test.describe("more than one card", () => {
 		await expect(page.getByText("Nubank", { exact: true }).first()).toBeVisible();
 	});
 
+	// Part 2, B.6 and B.3.6 of the request for 2.0.0: a second piece of plastic on an invoice that
+	// exists had no way in, and an invoice charged by two did not say which made each purchase.
+	test("adds a second card to an invoice, and says which card made each purchase", async ({
+		page,
+	}) => {
+		await openCofre(page);
+		await go(page, "Contas");
+		await page
+			.getByRole("row")
+			.filter({ has: page.getByRole("cell", { name: "Cartão de crédito", exact: true }) })
+			.getByRole("button", { name: "Ações da conta" })
+			.click();
+		await page.getByRole("menuitem", { name: "Adicionar cartão nesta fatura" }).click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByLabel("Nome").fill("Cartão da Ana");
+		await dialog.getByLabel("Quatro últimos dígitos").fill("9120");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(dialog).toHaveCount(0);
+		await expect(page.getByText("Final 9120")).toBeVisible();
+
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = page.getByRole("dialog");
+		await form.getByLabel("Pago com").selectOption({ label: "Cartão da Ana" });
+		await form.getByLabel("Valor", { exact: true }).fill("80,00");
+		await form.getByLabel("Descrição").fill("Padaria da Ana");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(form).toHaveCount(0);
+		await expect(record(page, "Padaria da Ana")).toContainText("Cartão de crédito");
+
+		// On the holder's invoice, with the card that made it beside it.
+		await go(page, "Faturas");
+		await expect(page.getByRole("row").filter({ hasText: "Padaria da Ana" })).toContainText(
+			"Cartão da Ana",
+		);
+		await expect(page.getByRole("row").filter({ hasText: "Livraria" })).toContainText(
+			"Cartão do banco",
+		);
+	});
+
 	// Part 2, B.4.2, B.4.3, B.4.4 and B.4.8: four cards and a meal card on the twenty eighth.
 	test("adds four cards into one line at the top and lists them by urgency", async ({ page }) => {
 		await fourCards(page);

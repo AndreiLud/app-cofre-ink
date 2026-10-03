@@ -5,9 +5,10 @@
 // invoice of one account, the balance of another, or both when it is a cartao multiplo.
 // Nobody has to know the data model to read it.
 //
-// It only shows. A card is made with the account it belongs to, and looked after from
-// the menu of that account in the table above. A second place to change the same thing
-// is a second thing to keep in step, and it is what made this screen confusing.
+// It only shows. A card is made with the account it belongs to, or added to an invoice that
+// exists from the menu of that credit account, and looked after from the menu of the account
+// it reaches in the table above. A second place to change the same thing is a second thing
+// to keep in step, and it is what made this screen confusing.
 
 import type { Account, Card } from "@cofre/storage";
 import { Panel, Skeleton } from "@cofre/ui";
@@ -59,7 +60,10 @@ export function CardsSection({ accounts, cards, loading }: CardsSectionProps) {
 					    quoting a Portuguese label. And it is only quoted to somebody who has
 					    it: it named a button that is not on their screen. */}
 					{mayCreate
-						? t("cards.fromAccounts", { where: t("accounts.create") })
+						? t("cards.fromAccounts", {
+								where: t("accounts.create"),
+								add: t("cards.addToThisInvoice"),
+							})
 						: t("cards.noneAndNotYours")}
 				</p>
 			) : null}

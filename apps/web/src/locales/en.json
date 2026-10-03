@@ -1484,12 +1484,15 @@
 		"onInvoice": "Cards on this invoice",
 		"editDescription": "The name, the digits and the accounts can be corrected. The kind does not change: a card of another kind is another card.",
 		"kindIs": "Kind: {{kind}}.",
-		"fromAccounts": "Cards are added in {{where}}, up there: choose the kind Card and say whether it is credit, debit or multiple.",
+		"fromAccounts": "Cards are added in {{where}}, up there: choose the kind Card and say whether it is credit, debit or multiple. A second card on the same invoice comes in from the menu of the credit card, in {{add}}.",
 		"noneAndNotYours": "No cards yet. Adding one belongs to whoever runs the space.",
 		"editNamed": "Edit card {{name}}",
 		"managedFromAccounts": "To change or remove a card, use the menu of its account up there.",
 		"removeAction": "Remove card",
-		"removeKeeps": "The records stay. Only the name of the card leaves them."
+		"removeKeeps": "The records stay. Only the name of the card leaves them.",
+		"addToThisInvoice": "Add a card to this invoice",
+		"addToInvoice": "Add a card to the {{name}} invoice",
+		"addToInvoiceDescription": "Another card that charges the same invoice, like the extra card somebody else in the house carries. Its purchases go on the holder's invoice."
 	},
 	"transaction": {
 		"card": "Card"

@@ -75,6 +75,8 @@ export function AccountsPage() {
 	const [works, setWorks] = useState<CardKind>("credit");
 	const [debitAccountId, setDebitAccountId] = useState("");
 	const [cardTarget, setCardTarget] = useState<Card | null>(null);
+	/** The invoice a second piece of plastic is being added to. */
+	const [addingCardTo, setAddingCardTo] = useState<Account | null>(null);
 	const [problem, setProblem] = useState<string | null>(null);
 	/** A move between two accounts being written, with what the door it came through knew. */
 	const [moving, setMoving] = useState<MoveStart | null>(null);
@@ -411,6 +413,7 @@ export function AccountsPage() {
 	const mayArchive = mayCall("accounts.archive");
 	const mayDelete = mayCall("accounts.remove");
 	const mayWrite = mayCall("transactions.create");
+	const mayAddCard = mayCall("cards.create");
 
 	// None of these three said anything when they failed: the menu closed, the row stayed,
 	// and a refusal looked exactly like a click that had not landed.
@@ -591,7 +594,7 @@ export function AccountsPage() {
 									<TableCell numeric={true}>
 										{/* Nothing to offer is no button, rather than a button that opens
 										    an empty popup. */}
-										{mayUpdate || mayArchive || mayDelete || mayMove ? (
+										{mayUpdate || mayArchive || mayDelete || mayMove || mayAddCard ? (
 											<Menu
 												align="end"
 												trigger={
@@ -625,10 +628,10 @@ export function AccountsPage() {
 														<MenuSeparator />
 													</>
 												) : null}
-												{/* Only the cards that already reach this account. Adding one is
-												    "Nova conta", where a card is one of the things you can add,
-												    and a second door onto the same form is a second door to keep
-												    in step. */}
+												{/* The cards that already reach this account, and on a credit account
+												    a way to add another piece of plastic to the same invoice, the
+												    extra card somebody else in the house carries. A card with an
+												    account of its own is still added in "Nova conta". */}
 												{mayUpdate
 													? cardsOf(account.id).map((card) => (
 															<MenuItem key={card.id} onSelect={() => setCardTarget(card)}>
@@ -636,7 +639,15 @@ export function AccountsPage() {
 															</MenuItem>
 														))
 													: null}
-												{mayUpdate && cardsOf(account.id).length > 0 ? <MenuSeparator /> : null}
+												{mayAddCard && account.kind === "credit" && account.archivedAt === null ? (
+													<MenuItem onSelect={() => setAddingCardTo(account)}>
+														{t("cards.addToThisInvoice")}
+													</MenuItem>
+												) : null}
+												{(mayUpdate && cardsOf(account.id).length > 0) ||
+												(mayAddCard && account.kind === "credit" && account.archivedAt === null) ? (
+													<MenuSeparator />
+												) : null}
 												{mayArchive ? (
 													account.archivedAt ? (
 														<MenuItem onSelect={() => unarchive.mutate(account.id)}>
@@ -874,7 +885,15 @@ export function AccountsPage() {
 				<p className="text-quiet text-sm">{t("accounts.archiveOwingStays")}</p>
 			</Dialog>
 
-			<CardDialog card={cardTarget} accounts={rows} onClose={() => setCardTarget(null)} />
+			<CardDialog
+				card={cardTarget}
+				addingTo={addingCardTo}
+				accounts={rows}
+				onClose={() => {
+					setCardTarget(null);
+					setAddingCardTo(null);
+				}}
+			/>
 
 			<Dialog
 				open={isOpen}

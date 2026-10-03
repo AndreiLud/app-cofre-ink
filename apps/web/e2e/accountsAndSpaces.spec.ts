@@ -255,7 +255,7 @@ test.describe("accounts", () => {
 
 		await go(page, "Contas");
 
-		// A card is added where an account is added, and nowhere else.
+		// A card with an account of its own is added where an account is added.
 		await page.getByRole("button", { name: "Nova conta" }).first().click();
 		const adding = page.getByRole("dialog");
 		await adding.getByLabel("Nome").fill("Cartão novo");

@@ -1484,12 +1484,15 @@
 		"onInvoice": "Cartões desta fatura",
 		"editDescription": "Dá para corrigir o nome, os dígitos e as contas. O tipo não muda: um cartão de outro tipo é outro cartão.",
 		"kindIs": "Tipo: {{kind}}.",
-		"fromAccounts": "Os cartões são cadastrados em {{where}}, ali em cima: escolha o tipo Cartão e diga se ele é de crédito, de débito ou múltiplo.",
+		"fromAccounts": "Os cartões são cadastrados em {{where}}, ali em cima: escolha o tipo Cartão e diga se ele é de crédito, de débito ou múltiplo. Um segundo cartão na mesma fatura entra pelo menu do cartão de crédito, em {{add}}.",
 		"noneAndNotYours": "Nenhum cartão cadastrado ainda. Cadastrar um é de quem cuida do espaço.",
 		"editNamed": "Editar cartão {{name}}",
 		"managedFromAccounts": "Para mudar ou apagar um cartão, use o menu da conta dele ali em cima.",
 		"removeAction": "Apagar cartão",
-		"removeKeeps": "Os lançamentos ficam. Só o nome do cartão sai deles."
+		"removeKeeps": "Os lançamentos ficam. Só o nome do cartão sai deles.",
+		"addToThisInvoice": "Adicionar cartão nesta fatura",
+		"addToInvoice": "Adicionar cartão na fatura do {{name}}",
+		"addToInvoiceDescription": "Outro cartão que cobra na mesma fatura, como o adicional de alguém da casa. As compras dele entram na fatura de quem é o titular."
 	},
 	"transaction": {
 		"card": "Cartão"
