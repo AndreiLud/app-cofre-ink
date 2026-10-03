@@ -16,12 +16,42 @@ over the commit message.
 ## Before you push
 
 ```bash
-pnpm check      # lint, types, the writing rule, the two languages
+pnpm check      # lint, types, the writing rule, the two languages, what the repository holds
 pnpm test       # the unit and property suites
 pnpm test:e2e   # the flows, in a real browser
 ```
 
 CI runs all of it on Node 22 and on Node 24.
+
+`node scripts/checkRepository.mjs`, which `pnpm check` and the hook before every commit run,
+reads what git tracks and refuses a statement, a spreadsheet, a backup, a database, a sample
+document, a review picture or anything over one megabyte that is not the lockfile. It also asks
+git about a list of paths that must be ignored and paths that must not be, so a change to
+`.gitignore` that lets a statement in, or hides a source folder, fails at once.
+
+## What stays on your machine
+
+Two folders are local and never committed, and git ignores them:
+
+1. **`shots`**, wherever the camera ran from, is where the screenshots and the reports of a
+   review land. The camera itself, `apps/web/e2e/shots.spec.ts`, is in the repository and is
+   skipped unless asked for. To take the pictures, from `apps/web`:
+
+   ```bash
+   SHOTS=1 pnpm --filter @cofre/web exec playwright test shots
+   ```
+
+   In PowerShell, `$env:SHOTS = "1"` first. From the root it does not work: Turborepo in
+   strict mode does not hand `SHOTS` over, and every case is skipped without an error.
+2. **`samples`**, at the root, is where real statements wait while the reader is taught an
+   institution. Its README, the one file there that is committed, says how a sample is laid
+   out.
+
+A real statement or a real backup never goes into a commit, here or in an issue: they are
+somebody's money, in full.
+
+The page of the design system is at `/designSystem` in a development build. It is not in the
+command palette, which is for the screens a person uses.
 
 ## The rules that are not negotiable
 
@@ -78,6 +108,12 @@ interface says so when it is about to.
 7. **Accessibility is WCAG 2.2 AA.** Keyboard first, visible focus, reduced motion
    respected.
 8. **Comments say why, not what.** The code already says what.
+9. **Which language opens** is decided by the first of four answers that speaks: the `lang`
+   parameter of the address, the choice this browser holds, the zone of the device (Brazil
+   opens in Portuguese, anywhere else in English), and Portuguese when the device will not
+   say. The order is `firstLanguage` in `packages/core`, and the reasoning is
+   [decision record 0034](../adr/0034_which_language_opens.md). Nothing is asked of any
+   service.
 
 ## Where things go
 

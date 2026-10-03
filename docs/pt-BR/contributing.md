@@ -16,12 +16,43 @@ de escrita de novo sobre a mensagem do commit.
 ## Antes de enviar
 
 ```bash
-pnpm check      # lint, tipos, a regra de escrita, os dois idiomas
+pnpm check      # lint, tipos, a regra de escrita, os dois idiomas, o que o repositório guarda
 pnpm test       # as suítes de unidade e de propriedade
 pnpm test:e2e   # os fluxos, num navegador de verdade
 ```
 
 A CI roda tudo isso no Node 22 e no Node 24.
+
+O `node scripts/checkRepository.mjs`, que o `pnpm check` e o gancho antes de todo commit rodam,
+lê o que o git acompanha e recusa um extrato, uma planilha, um backup, um banco, um documento de
+amostra, uma captura de revisão ou qualquer coisa acima de um megabyte que não seja o lockfile.
+Ele também pergunta ao git sobre uma lista de caminhos que precisam ser ignorados e caminhos que
+não podem ser, então uma mudança no `.gitignore` que deixe um extrato entrar, ou esconda uma
+pasta de código, falha na hora.
+
+## O que fica na sua máquina
+
+Duas pastas são locais e nunca entram em commit, e o git as ignora:
+
+1. **`shots`**, de onde quer que a câmera tenha rodado, é onde caem as capturas e os relatórios
+   de uma revisão. A câmera em si, `apps/web/e2e/shots.spec.ts`, está no repositório e é pulada
+   a não ser que alguém peça. Para tirar as capturas, a partir de `apps/web`:
+
+   ```bash
+   SHOTS=1 pnpm --filter @cofre/web exec playwright test shots
+   ```
+
+   No PowerShell, `$env:SHOTS = "1"` antes. Pela raiz não funciona: o Turborepo em modo estrito
+   não repassa o `SHOTS`, e todo caso é pulado sem erro.
+2. **`samples`**, na raiz, é onde extratos de verdade esperam enquanto o leitor aprende uma
+   instituição. O README dela, o único arquivo dali que entra em commit, diz como uma amostra
+   fica.
+
+Um extrato de verdade ou um backup de verdade nunca entra num commit, aqui ou numa issue: eles
+são o dinheiro de alguém, por inteiro.
+
+A página do sistema de design fica em `/designSystem` num build de desenvolvimento. Ela não está
+na paleta de comandos, que é para as telas que uma pessoa usa.
 
 ## As regras que não se negociam
 
@@ -81,6 +112,11 @@ quando vai sair.
 7. **Acessibilidade é WCAG 2.2 AA.** Teclado primeiro, foco visível, movimento reduzido
    respeitado.
 8. **Comentários dizem por quê, não o quê.** O código já diz o quê.
+9. **Qual idioma abre** é decidido pela primeira de quatro respostas que falar: o parâmetro
+   `lang` do endereço, a escolha que este navegador guarda, o fuso do aparelho (o Brasil abre
+   em português, qualquer outro lugar em inglês), e português quando o aparelho não diz. A
+   ordem é a `firstLanguage` no `packages/core`, e o raciocínio é o
+   [registro 0034](../adr/0034_which_language_opens.md). Nada é perguntado a serviço nenhum.
 
 ## Onde cada coisa vai
 

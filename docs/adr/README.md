@@ -66,3 +66,4 @@ new one.
 | [0057](0057_moving_money_is_not_a_kind_of_record.md) | moving money is not a kind of record | accepted |
 | [0058](0058_several_cards_in_the_order_they_are_dealt_with.md) | several cards, in the order they are dealt with | accepted |
 | [0059](0059_a_repair_asked_again_after_rows_arrive.md) | a repair asked again after rows arrive, and the invoice of a series joins them | accepted |
+| [0060](0060_what_the_repository_keeps_and_the_image_carries.md) | what the repository keeps, what git ignores, and what the image carries | accepted |

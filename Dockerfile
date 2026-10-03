@@ -31,6 +31,8 @@ RUN corepack enable
 ENV NODE_ENV=production
 
 COPY --from=build /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
+# The licence the code is distributed under goes with the code.
+COPY --from=build /app/LICENSE ./
 COPY --from=build /app/apps/server/package.json apps/server/
 COPY --from=build /app/packages/cloud/package.json packages/cloud/
 COPY --from=build /app/packages/core/package.json packages/core/

@@ -21,8 +21,9 @@ bridge, or `pdf-lib` with a font, is 110 to 130 KB compressed on top of that, wh
 forty to fifty per cent increase in what a device fetches.
 
 **Accessibility.** Neither library emits a tag tree. The PDF a browser writes from a page
-does have one, derived from the page itself. The target in `CLAUDE.md` is WCAG 2.2 AA, so
-the library route produces a worse file than the one already available for nothing.
+does have one, derived from the page itself. The target, convention 7 of
+[the contributing guide](../en/contributing.md#conventions), is WCAG 2.2 AA, so the library
+route produces a worse file than the one already available for nothing.
 
 **The charts.** They are SVG drawn by hand, coloured through custom properties, so
 serialising one yields class names and no colour: any library path has to walk the tree

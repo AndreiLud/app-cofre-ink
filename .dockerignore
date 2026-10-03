@@ -1,38 +1,57 @@
-# What never belongs in the image. The build installs its own dependencies inside
-# Linux, so anything installed or built on the host would only make the image bigger
-# and, in the case of native binaries, wrong.
+# What enters the image, written as a list of what enters rather than of what does not.
+#
+# A list of exclusions only catches what somebody thought of. With `COPY . .` in the build,
+# a database in apps/server/data or a .env in apps/server went into the image, because the
+# rules for them held only at the root of the context. So everything is out first, the few
+# things the build reads come back in, and then what must never go along is taken out again
+# from inside them. The last line that matches a path wins.
 
-node_modules
+*
+
+# The files the first copy of the Dockerfile names, the licence the image distributes the
+# code under, and the code.
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!turbo.json
+!tsconfig.base.json
+!LICENSE
+!apps/web
+!apps/server
+!packages
+!scripts
+
+# Out again: what is installed or built on the host, which inside Linux is only bigger and,
+# for a native binary, wrong.
 **/node_modules
-dist
 **/dist
-build
-**/build
-.turbo
 **/.turbo
+**/.vite
+**/*.tsbuildinfo
 
-.git
-.github
-.vscode
-.idea
-
-docs
-
+# Out again: the tests and what they leave behind. The image runs the server and nothing
+# else, and the conformance suite imports the test runner.
+**/*.test.ts
+**/*.spec.ts
+**/coverage
 **/playwright-report
 **/test-results
-**/*.spec.ts
-**/*.test.ts
+**/blob-report
 apps/web/e2e
+apps/web/shots
+packages/storage/src/conformance
 
-.env
-.env.*
-!.env.example
-*.db
-*.db-journal
-*.sqlite
-*.sqlite3
-*.log
-
-Dockerfile
-.dockerignore
-compose.yaml
+# Out again: anybody's money and anybody's secrets, at any depth. Never a rule on every
+# folder called data or build, which would take source folders with them.
+apps/server/data
+**/samples
+**/.env*
+**/*.db
+**/*.db-journal
+**/*.db-wal
+**/*.db-shm
+**/*.sqlite
+**/*.sqlite3
+**/*.log
+**/CLAUDE.md
+**/CLAUDE.local.md

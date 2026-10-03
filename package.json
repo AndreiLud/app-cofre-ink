@@ -26,13 +26,13 @@
 		"typecheck": "turbo run typecheck",
 		"lint": "biome check .",
 		"format": "biome format --write .",
-		"check": "biome check . && turbo run typecheck && node scripts/checkWriting.mjs && node scripts/checkTranslations.mjs",
+		"check": "biome check . && turbo run typecheck && node scripts/checkWriting.mjs && node scripts/checkTranslations.mjs && node scripts/checkRepository.mjs",
 		"check:writing": "node scripts/checkWriting.mjs",
 		"check:translations": "node scripts/checkTranslations.mjs",
 		"prepare": "node scripts/installHooks.mjs"
 	},
 	"simple-git-hooks": {
-		"pre-commit": "pnpm exec biome check --staged --no-errors-on-unmatched && node scripts/checkWriting.mjs && node scripts/checkTranslations.mjs",
+		"pre-commit": "pnpm exec biome check --staged --no-errors-on-unmatched && node scripts/checkWriting.mjs && node scripts/checkTranslations.mjs && node scripts/checkRepository.mjs",
 		"commit-msg": "node scripts/checkWriting.mjs --commitMsg $1"
 	},
 	"devDependencies": {

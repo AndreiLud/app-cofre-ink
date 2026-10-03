@@ -9,10 +9,12 @@ node_modules/
 .pnpm-store/
 *.tgz
 
-# What a build produces. Every one of these is written again by pnpm build.
+# What a build produces. Every one of these is written again by pnpm build. Build and
+# out are anchored at the root: unanchored they hid any folder of that name, a source
+# folder included.
 dist/
-build/
-out/
+/build/
+/out/
 .vite/
 *.tsbuildinfo
 
@@ -26,6 +28,7 @@ out/
 .env
 .env.*
 !.env.example
+.dev.vars*
 
 # Databases. In browser mode the database is inside the browser, and on a server it is
 # a file. Neither is ever committed, and a stray one in a working copy is somebody's
@@ -36,7 +39,10 @@ out/
 *.db-shm
 *.sqlite
 *.sqlite3
-data/
+# Where a server keeps its file when nothing says otherwise, and a folder of that name at
+# the root. Unanchored, this hid every folder called data, source folders included.
+/data/
+apps/server/data/
 
 # What the test runners leave behind.
 coverage/
@@ -46,8 +52,30 @@ apps/web/playwright-report/
 apps/web/test-results/
 blob-report/
 
-# Throwaway pictures taken for a review.
-apps/web/shots/
+# Throwaway pictures and reports taken for a review, wherever the camera ran from. A
+# folder only, so the spec that takes them, shots.spec.ts, is never caught.
+shots/
+
+# Real documents read by the statement reader while it is being taught an institution.
+# The content and never the folder, or the README could not come back in.
+**/samples/*
+!/samples/README.md
+
+# What a bank hands over and what this application writes out, when it lands at the root
+# of the clone: statements, spreadsheets, backups and dumps. At the root only, because a
+# rule everywhere would hide a template kept in apps/web/public. Anywhere else, the check
+# in scripts/checkRepository.mjs is what refuses them.
+/*.pdf
+/*.ofx
+/*.qfx
+/*.qif
+/*.csv
+/*.xls
+/*.xlsx
+/*.json.gz
+/cofre_*.json
+/*.tar.gz
+/*.sql
 
 # Logs.
 *.log
@@ -62,6 +90,7 @@ yarn-debug.log*
 
 # Notes to the tooling, not to the product.
 CLAUDE.md
+CLAUDE.local.md
 .claude/
 
 # Editors and operating systems.

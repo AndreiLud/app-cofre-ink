@@ -4,4 +4,8 @@
 *.webp binary
 *.woff2 binary
 *.wasm binary
+*.pdf binary
+*.gz binary
+*.xls binary
+*.xlsx binary
 pnpm-lock.yaml linguist-generated=true

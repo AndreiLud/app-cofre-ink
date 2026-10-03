@@ -35,6 +35,27 @@ jobs:
       - name: writing rule
         run: pnpm run check:writing
 
+      # What is tracked and what is ignored, asked of git itself.
+      - name: repository
+        run: node scripts/checkRepository.mjs
+
+      # And that the check above fails when it should: a statement and a file of two
+      # megabytes forced past the ignore rules, refused, and taken back out.
+      - name: the repository check refuses what it is there to refuse
+        if: matrix.node == 24
+        run: |
+          mkdir -p samples
+          printf 'x' > samples/extrato.pdf
+          head -c 2097152 /dev/zero > large.bin
+          git add -f samples/extrato.pdf large.bin
+          if node scripts/checkRepository.mjs; then
+            echo "the check let a statement and a large file through"
+            git reset -q samples/extrato.pdf large.bin
+            exit 1
+          fi
+          git reset -q samples/extrato.pdf large.bin
+          rm samples/extrato.pdf large.bin
+
       - name: translations
         run: pnpm run check:translations
 
@@ -49,6 +70,42 @@ jobs:
 
       - name: build
         run: pnpm run build
+
+  # What the image is built from. The build copies the whole context, so anything the
+  # ignore file lets through goes into the image: a database or a secret in a subfolder, a
+  # review picture, a sample statement. Canaries are put where they would be, and a build of
+  # nothing but busybox fails if any of them reached the context, if the tests or the
+  # conformance suite did, or if the lockfile or the licence did not.
+  context:
+    name: what the image is built from
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: canaries that must stay out of the image
+        run: |
+          mkdir -p apps/server/data apps/web/shots samples
+          printf 'x' > apps/server/data/cofre.db
+          printf 'COFRE_SECRET=canary' > apps/server/.env
+          printf 'x' > apps/web/shots/canary.png
+          printf 'x' > CLAUDE.md
+          printf 'x' > samples/extrato.pdf
+          printf 'x' > cofre.tar.gz
+
+      - name: the context holds what the build needs and nothing else
+        run: |
+          docker build --progress=plain -f - . <<'DOCKERFILE'
+          FROM busybox
+          COPY . /context
+          RUN set -e; cd /context; \
+            for path in apps/server/data/cofre.db apps/server/.env apps/web/shots/canary.png CLAUDE.md samples/extrato.pdf cofre.tar.gz apps/web/e2e packages/storage/src/conformance; do \
+              if [ -e "$path" ]; then echo "in the context and it should not be: $path"; exit 1; fi; \
+            done; \
+            for path in pnpm-lock.yaml LICENSE package.json apps/web/package.json apps/server/src packages/core/src scripts; do \
+              if [ ! -e "$path" ]; then echo "missing from the context: $path"; exit 1; fi; \
+            done; \
+            echo "the context is what it should be"
+          DOCKERFILE
 
   e2e:
     name: flows in a real browser

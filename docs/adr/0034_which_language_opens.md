@@ -102,9 +102,11 @@ Accurate, and against the whole product. Rejected on the first sentence.
 
 ## Consequences
 
-1. **This amends decision 2 of `CLAUDE.md`.** The interface is no longer "Portuguese,
-   with English available". It opens in the language of wherever the device is, unless
-   somebody has said otherwise, and Portuguese is what it falls back to.
+1. **This amends the language policy of [registry 0007](0007_language_and_writing_rule.md).**
+   The interface is no longer "Portuguese, with English available". It opens in the language
+   of wherever the device is, unless somebody has said otherwise, and Portuguese is what it
+   falls back to. The rule is convention 9 of
+   [the contributing guide](../en/contributing.md#conventions).
 2. **The flows in a browser had to be pinned to a zone.** They are written in Portuguese
    and the runners sit in UTC, which is not Brazil, so `playwright.config.ts` now sets
    `timezoneId`. Without it the suite passes on a machine in Brazil and fails everywhere
