@@ -466,6 +466,7 @@ export function runHoldingsConformance(adapter: AdapterUnderTest): void {
 				expect(box.value).toBe(1_001_677);
 				expect(box.estimatedThrough).toBe("2026-09-30");
 				expect(box.atTheCdi).toBe(1_001_524);
+				expect(box.atTheCdiThrough).toBe("2026-09-30");
 				const old = await on.investments.create({
 					spaceId: space.id,
 					accountId: broker.id,
@@ -475,6 +476,7 @@ export function runHoldingsConformance(adapter: AdapterUnderTest): void {
 					unitPrice: 500_000,
 				});
 				expect(old.atTheCdi).toBeNull();
+				expect(old.atTheCdiThrough).toBeNull();
 			} finally {
 				await fixture.close();
 			}

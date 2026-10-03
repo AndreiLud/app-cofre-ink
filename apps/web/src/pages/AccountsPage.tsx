@@ -7,6 +7,7 @@ import {
 	openingChargeOf,
 	parseMoney,
 	todayIn,
+	worthByAccount,
 } from "@cofre/core";
 import type { Account, AccountKind, BenefitKind, Card, CardKind } from "@cofre/storage";
 import {
@@ -40,6 +41,7 @@ import { MoveDialog, type MoveStart, movesInto, movesOutOf } from "../components
 import { Value } from "../components/Value.tsx";
 import { VoucherAmount } from "../components/VoucherAmount.tsx";
 import { fillAmount, readAmount } from "../lib/amounts.ts";
+import { estimateBehind, HOLDINGS, shortDay } from "../lib/holdings.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { accountOptions } from "../lib/wayLabel.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -128,10 +130,17 @@ export function AccountsPage() {
 	// showing nothing on one screen and thousands on the next is two answers to one
 	// question, which is the thing this release exists to stop.
 	const holdings = useQuery({
-		queryKey: ["investments", spaceId],
+		queryKey: [HOLDINGS, spaceId],
 		enabled: Boolean(session && currentSpace),
 		queryFn: () => session?.investments.list(spaceId) ?? [],
 	});
+	const worth = worthByAccount(holdings.data ?? []);
+	/** The oldest day an estimate inside an investment account stops at, when it is behind. */
+	const behindIn = (accountId: string) =>
+		estimateBehind(
+			(holdings.data ?? []).filter((holding) => holding.accountId === accountId),
+			today,
+		);
 
 	/** What each card still owes, which archiving one asks about first. */
 	const invoicesStanding = useQuery({
@@ -197,10 +206,8 @@ export function AccountsPage() {
 	 * it and not what it is worth. Everything else is what the records add up to.
 	 */
 	function worthOf(account: Account): number {
-		if (account.kind === "investment") {
-			const priced = (holdings.data ?? []).filter((one) => one.accountId === account.id);
-			if (priced.length > 0) return priced.reduce((total, one) => total + one.value, 0);
-		}
+		const priced = account.kind === "investment" ? worth[account.id] : undefined;
+		if (priced !== undefined) return priced;
 		return (
 			standing.data?.find((one) => one.accountId === account.id)?.settled ?? account.initialBalance
 		);
@@ -688,7 +695,16 @@ export function AccountsPage() {
 												known={!seesOwnRowsOnly}
 											/>
 										) : (
-											<Value amount={worthOf(account)} currency={account.currency} tone="auto" />
+											<>
+												<Value amount={worthOf(account)} currency={account.currency} tone="auto" />
+												{account.kind === "investment" && behindIn(account.id) ? (
+													<span className="block text-quiet text-xs">
+														{t("investments.estimatedThrough", {
+															day: shortDay(behindIn(account.id) ?? today, i18n.resolvedLanguage),
+														})}
+													</span>
+												) : null}
+											</>
 										)}
 									</TableCell>
 									<TableCell numeric={true}>

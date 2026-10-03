@@ -163,6 +163,11 @@ export type HoldingValue = Holding & {
 	 * holding written down before 2.0.0, which the comparison lists apart.
 	 */
 	atTheCdi: number | null;
+	/**
+	 * The last day of the CDI in that figure. Null when no day of it was held, before the indices
+	 * were fetched, when the same money at the CDI is only the money and says nothing.
+	 */
+	atTheCdiThrough: string | null;
 };
 
 /** What deleting a movement or a holding gives back to each account, said before it is deleted. */
@@ -363,14 +368,15 @@ export function createInvestmentsRepository(context: RepositoryContext) {
 					moves: deposits,
 					until: on,
 					days: series.cdiDaily,
-				}).value
+				})
 			: null;
 
 		return {
 			...holding,
 			unitPrice: shown?.unitPrice ?? holding.unitPrice,
 			pricedOn: shown?.day ?? holding.pricedOn,
-			atTheCdi,
+			atTheCdi: atTheCdi?.value ?? null,
+			atTheCdiThrough: atTheCdi?.through ?? null,
 			value: worth.value,
 			gain,
 			gainPercent: worth.invested <= 0 ? 0 : Math.round((gain / worth.invested) * 10_000),

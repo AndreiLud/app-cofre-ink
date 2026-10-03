@@ -1,30 +1,40 @@
 // What is put aside, and whether it is keeping up.
 //
-// Prices are typed in by hand, which sounds like a limitation and is mostly a decision:
-// a quote service means a key, a bill and a dependency on somebody else staying in
-// business, and the person who wants live prices already has them at their broker. What
-// this screen is for is the question a broker never answers, which is whether the money
-// put aside is doing better than leaving it in the bank.
+// A caixinha, a poupança, a CDB, an LCI, an LCA and the Tesouro Selic grow by what the Banco
+// Central publishes, from the last value somebody typed; a share, a fund or crypto by the price
+// somebody types, because a quote service means a key, a bill and a dependency on somebody else
+// staying in business. A value typed from the statement always wins.
 //
-// That is what the comparison is. The same money, put in on the same day, growing at
-// what the CDI actually did. The numbers come from the Banco Central and are asked for
-// when somebody presses the button, never on a schedule.
+// The holdings are listed by class, each with the day its value is from, and each row has what
+// can be done to it, every item there for whoever may make the call behind it. What this screen
+// is for is the question a broker never answers, which is whether the money put aside is doing
+// better than leaving it at the CDI: each holding against the same deposits at the CDI, each
+// from its own day, and the ones whose days are not known listed apart rather than guessed.
 
-import { addMonthsToMonth, grow, growAtRates, independence, monthOf, todayIn } from "@cofre/core";
-import type { HoldingKind, HoldingValue, IndexRate } from "@cofre/storage";
-import { RuleError } from "@cofre/storage";
+import {
+	addMonthsToMonth,
+	grow,
+	independence,
+	monthOf,
+	PRODUCT_GROUPS,
+	type ProductGroup,
+	todayIn,
+} from "@cofre/core";
+import type { HoldingMoveKind, HoldingValue } from "@cofre/storage";
 import {
 	BarList,
 	Button,
 	Callout,
-	Dialog,
 	EmptyState,
 	Field,
+	Icon,
 	InsightTitle,
 	LineChart,
+	Menu,
+	MenuItem,
+	MenuSeparator,
 	Panel,
 	SectionTitle,
-	Select,
 	Skeleton,
 	Table,
 	TableBody,
@@ -34,30 +44,28 @@ import {
 	TableRow,
 } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import {
+	HoldingHistoryDialog,
+	HoldingPriceDialog,
+	HoldingRemoveDialog,
+} from "../components/HoldingDialogs.tsx";
+import { HoldingForm } from "../components/HoldingForm.tsx";
+import { HoldingMoveDialog } from "../components/HoldingMoveDialog.tsx";
 import { Value } from "../components/Value.tsx";
-import { readAmount, readAmountOrZero, readPercentOrZero, readQuantity } from "../lib/amounts.ts";
+import { readAmountOrZero, readPercentOrZero } from "../lib/amounts.ts";
+import {
+	afterHoldingsChange,
+	HOLDINGS,
+	inUnits,
+	paysIncome,
+	productOf,
+	shortDay,
+} from "../lib/holdings.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
-import { accountOptions } from "../lib/wayLabel.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
-
-const KINDS: HoldingKind[] = [
-	"fixedIncome",
-	"fund",
-	"stock",
-	"realEstate",
-	"crypto",
-	"pension",
-	"other",
-];
-
-/** Quantities are scaled by ten to the eighth, so a fund can have fractions of a unit. */
-const QUANTITY_SCALE = 100_000_000;
-
-/** Ten to the eighth, as a number of decimal places rather than as a multiplier. */
-const QUANTITY_DIGITS = 8;
 
 export function InvestmentsPage() {
 	const { t, i18n } = useTranslation();
@@ -68,18 +76,19 @@ export function InvestmentsPage() {
 	const currency = currentSpace?.baseCurrency ?? "BRL";
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
 	const locale = i18n.resolvedLanguage === "en" ? "en" : "pt-BR";
+	const money = (cents: number) =>
+		new Intl.NumberFormat(locale, { style: "currency", currency }).format(cents / 100);
+	const day = (value: string) => shortDay(value, i18n.resolvedLanguage);
 
-	const [isOpen, setOpen] = useState(false);
+	/** The form: open for a new holding, or with the holding being corrected. */
+	const [form, setForm] = useState<{ editing: HoldingValue | null } | null>(null);
+	const [moving, setMoving] = useState<{ holding: HoldingValue; kind: HoldingMoveKind } | null>(
+		null,
+	);
 	const [pricing, setPricing] = useState<HoldingValue | null>(null);
+	const [history, setHistory] = useState<HoldingValue | null>(null);
+	const [removing, setRemoving] = useState<HoldingValue | null>(null);
 	const [problem, setProblem] = useState<string | null>(null);
-
-	const [name, setName] = useState("");
-	const [kind, setKind] = useState<HoldingKind>("fixedIncome");
-	const [accountId, setAccountId] = useState("");
-	const [quantity, setQuantity] = useState("1");
-	const [unitPrice, setUnitPrice] = useState("");
-	const [cost, setCost] = useState("");
-	const [newPrice, setNewPrice] = useState("");
 
 	// The simulator, which is its own little thing and writes nothing.
 	const [monthly, setMonthly] = useState("500");
@@ -93,9 +102,15 @@ export function InvestmentsPage() {
 	});
 
 	const holdings = useQuery({
-		queryKey: ["holdings", spaceId],
+		queryKey: [HOLDINGS, spaceId],
 		enabled: Boolean(session && spaceId !== ""),
 		queryFn: () => session?.investments.list(spaceId) ?? [],
+	});
+
+	const balances = useQuery({
+		queryKey: ["balances", spaceId, today],
+		enabled: Boolean(session && spaceId !== ""),
+		queryFn: () => session?.transactions.balances(spaceId, today) ?? [],
 	});
 
 	// The month after this one, because the question below is what a whole month costs and
@@ -109,27 +124,29 @@ export function InvestmentsPage() {
 			session?.projections.monthsAhead({ spaceId, from: whole, months: 1, today }) ?? null,
 	});
 
-	const indices = useQuery({
-		queryKey: ["indices", "cdi"],
-		enabled: Boolean(session),
-		queryFn: () => session?.indices.list("cdi", { from: "2024-01" }) ?? [],
-	});
+	/**
+	 * What somebody owns is part of what the space is worth, so everybody in it sees it. Each
+	 * thing done to a holding is offered to whoever may make its call. Fetching the indices is
+	 * for everybody: CDI, Selic, IPCA and the poupança are public figures in a table with no
+	 * space of its own.
+	 */
+	const mine = useWhatIMayDo(spaceId);
+	const may = {
+		create: mine.mayCall("investments.create"),
+		move: mine.mayCall("investments.move"),
+		price: mine.mayCall("investments.price"),
+		update: mine.mayCall("investments.update"),
+		history: mine.mayCall("investments.moves"),
+		remove: mine.mayCall("investments.remove"),
+	};
 
+	// Whether the indices were ever fetched here, which they are all at once.
 	const latest = useQuery({
 		queryKey: ["indices", "latest"],
 		enabled: Boolean(session),
-		queryFn: async () =>
-			(await session?.indices.latest()) ?? ({} as Record<string, IndexRate | null>),
+		queryFn: async () => (await session?.indices.latest()) ?? {},
 	});
-
-	/**
-	 * What somebody owns is part of what the space is worth, so everybody in it sees the
-	 * total. Typing in a price is for the people who keep the space. Refreshing the
-	 * indices is neither: CDI, Selic and IPCA are public figures in a table with no space
-	 * of its own, so that button stays for everybody.
-	 */
-	const mine = useWhatIMayDo(spaceId);
-	const mayWrite = mine.mayCall("investments.create");
+	const fetched = Boolean(latest.data?.cdi);
 
 	const refresh = useMutation({
 		mutationFn: async () => {
@@ -139,53 +156,8 @@ export function InvestmentsPage() {
 		onSuccess: async () => {
 			setProblem(null);
 			await queries.invalidateQueries({ queryKey: ["indices"] });
-		},
-		onError: (error: unknown) => setProblem(sayWhy(error, t)),
-	});
-
-	const create = useMutation({
-		mutationFn: async () => {
-			if (!session) throw new Error("no session");
-			const usable = (accounts.data ?? []).filter((account) => account.archivedAt === null);
-			const account = usable.find((one) => one.id === accountId) ?? usable[0];
-			if (!account)
-				throw new RuleError("investmentNeedsAnAccount", "an investment sits in an account");
-
-			return session.investments.create({
-				spaceId,
-				accountId: account.id,
-				name: name.trim(),
-				kind,
-				quantity: readQuantity(quantity, QUANTITY_DIGITS),
-				unitPrice: readAmount(unitPrice, currency),
-				cost: cost.trim() === "" ? undefined : readAmount(cost, currency),
-			});
-		},
-		onSuccess: async () => {
-			setOpen(false);
-			setName("");
-			setUnitPrice("");
-			setCost("");
-			setProblem(null);
-			await queries.invalidateQueries({ queryKey: ["holdings", spaceId] });
-		},
-		onError: (error: unknown) => setProblem(sayWhy(error, t)),
-	});
-
-	const price = useMutation({
-		mutationFn: async () => {
-			if (!session || !pricing) throw new Error("no session");
-			return session.investments.price({
-				id: pricing.id,
-				unitPrice: readAmount(newPrice, currency),
-				onDay: today,
-			});
-		},
-		onSuccess: async () => {
-			setPricing(null);
-			setNewPrice("");
-			setProblem(null);
-			await queries.invalidateQueries({ queryKey: ["holdings", spaceId] });
+			// An estimate grows with every day fetched.
+			afterHoldingsChange(queries);
 		},
 		onError: (error: unknown) => setProblem(sayWhy(error, t)),
 	});
@@ -193,16 +165,33 @@ export function InvestmentsPage() {
 	if (!currentSpace) return null;
 
 	const list = holdings.data ?? [];
+	const everyAccount = accounts.data ?? [];
+	const accountOf = (id: string) => everyAccount.find((account) => account.id === id);
 	const value = list.reduce((sum, holding) => sum + holding.value, 0);
-	const invested = list.reduce((sum, holding) => sum + holding.cost, 0);
+	const invested = list.reduce((sum, holding) => sum + holding.invested, 0);
 	const gain = value - invested;
+	const percent = invested <= 0 ? 0 : Math.round((Math.abs(gain) / invested) * 100);
 
-	// The same money, at what the CDI actually did, for the months that are held.
-	const rates = (indices.data ?? []).slice(-24);
-	const againstCdi = growAtRates(
-		invested,
-		rates.map((month) => month.rate),
-	);
+	/** Holdings from before 2.0.0 left in an account that is not an investment account. */
+	const outside = list.filter((holding) => accountOf(holding.accountId)?.kind !== "investment");
+
+	const groupOf = (holding: HoldingValue): ProductGroup => productOf(holding).group;
+	const groups = PRODUCT_GROUPS.map((group) => ({
+		group,
+		rows: list.filter((holding) => groupOf(holding) === group),
+	})).filter((one) => one.rows.length > 0);
+
+	// Against the CDI: each holding whose deposits have days, at the CDI from those days.
+	const dated = list.filter((holding) => holding.atTheCdi !== null);
+	const undated = list.filter((holding) => holding.atTheCdi === null);
+	const cdiThrough = dated
+		.map((holding) => holding.atTheCdiThrough)
+		.filter((one): one is string => one !== null)
+		.sort()
+		.at(-1);
+	const datedValue = dated.reduce((sum, holding) => sum + holding.value, 0);
+	const atTheCdi = dated.reduce((sum, holding) => sum + (holding.atTheCdi ?? 0), 0);
+	const beyond = datedValue - atTheCdi;
 
 	// Read while it is being typed, so half of what is there is half a number. The two
 	// simulators below redraw on every keystroke, which is not the place for a sentence
@@ -228,6 +217,98 @@ export function InvestmentsPage() {
 		yearly: readPercentOrZero(rate),
 	});
 
+	/** What a holding is, as the statement calls it, and where it is. */
+	function whatItIs(holding: HoldingValue): string {
+		const product = holding.product
+			? t(`investments.products.${holding.product}`)
+			: t(`investments.kinds.${holding.kind}`);
+		const where = accountOf(holding.accountId)?.name;
+		return where ? `${product} · ${where}` : product;
+	}
+
+	/** The day the value is from: calculated through a day, or typed on one. */
+	function dayOfValue(holding: HoldingValue): string | null {
+		if (holding.estimated && holding.estimatedThrough) {
+			return t("investments.estimatedThrough", { day: day(holding.estimatedThrough) });
+		}
+		if (holding.pricedOn) return t("investments.valueOn", { day: day(holding.pricedOn) });
+		return null;
+	}
+
+	/** What would be left after tax if it were all taken out today, or why that is not said. */
+	function net(holding: HoldingValue): string | null {
+		if (holding.exempt) return t("investments.exempt");
+		if (holding.net) return t("investments.netToday", { amount: money(holding.net.net) });
+		if (productOf(holding).tax === "regressive") return t("investments.noNet");
+		return null;
+	}
+
+	function menu(holding: HoldingValue) {
+		const units = inUnits(holding);
+		const items = [
+			may.move ? (
+				<MenuItem key="in" onSelect={() => setMoving({ holding, kind: "in" })}>
+					{units ? t("investments.menu.buy") : t("investments.menu.in")}
+				</MenuItem>
+			) : null,
+			may.move ? (
+				<MenuItem key="out" onSelect={() => setMoving({ holding, kind: "out" })}>
+					{units ? t("investments.menu.sell") : t("investments.menu.out")}
+				</MenuItem>
+			) : null,
+			may.move && paysIncome(holding) ? (
+				<MenuItem key="income" onSelect={() => setMoving({ holding, kind: "income" })}>
+					{t("investments.menu.income")}
+				</MenuItem>
+			) : null,
+			may.price ? (
+				<MenuItem key="price" onSelect={() => setPricing(holding)}>
+					{t("investments.menu.price")}
+				</MenuItem>
+			) : null,
+			may.update ? (
+				<MenuItem key="edit" onSelect={() => setForm({ editing: holding })}>
+					{t("investments.menu.edit")}
+				</MenuItem>
+			) : null,
+			may.update && outside.includes(holding) ? (
+				<MenuItem key="account" onSelect={() => setForm({ editing: holding })}>
+					{t("investments.menu.toInvestmentAccount")}
+				</MenuItem>
+			) : null,
+			may.history ? (
+				<MenuItem key="history" onSelect={() => setHistory(holding)}>
+					{t("investments.menu.history")}
+				</MenuItem>
+			) : null,
+		].filter(Boolean);
+		if (items.length === 0 && !may.remove) return null;
+		return (
+			<Menu
+				align="end"
+				trigger={
+					<Button
+						size="small"
+						variant="quiet"
+						aria-label={t("investments.actionsOf", { name: holding.name })}
+					>
+						<Icon name="settings" />
+					</Button>
+				}
+			>
+				{items}
+				{may.remove ? (
+					<>
+						{items.length > 0 ? <MenuSeparator /> : null}
+						<MenuItem onSelect={() => setRemoving(holding)} className="text-seal">
+							{t("investments.menu.remove")}
+						</MenuItem>
+					</>
+				) : null}
+			</Menu>
+		);
+	}
+
 	return (
 		<div className="space-y-8">
 			<div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -236,30 +317,24 @@ export function InvestmentsPage() {
 					detail={
 						list.length === 0
 							? t("investments.nothingDetail")
-							: t("investments.detail", {
-									invested: new Intl.NumberFormat(locale, {
-										style: "currency",
-										currency,
-									}).format(invested / 100),
-									percent: invested === 0 ? 0 : Math.round((gain / invested) * 100),
-								})
+							: gain > 0
+								? t("investments.detailAbove", { invested: money(invested), percent })
+								: gain < 0
+									? t("investments.detailBelow", { invested: money(invested), percent })
+									: t("investments.detailEven", { invested: money(invested) })
 					}
 				>
 					{list.length === 0
 						? t("investments.nothingHeadline")
-						: t("investments.headline", {
-								amount: new Intl.NumberFormat(locale, { style: "currency", currency }).format(
-									value / 100,
-								),
-							})}
+						: t("investments.headline", { amount: money(value) })}
 				</InsightTitle>
 
-				{mayWrite ? (
+				{may.create ? (
 					<Button
 						variant="primary"
 						onClick={() => {
 							setProblem(null);
-							setOpen(true);
+							setForm({ editing: null });
 						}}
 					>
 						{t("investments.add")}
@@ -267,9 +342,14 @@ export function InvestmentsPage() {
 				) : null}
 			</div>
 
-			{/* Only when no dialog is over it: both forms show it inside themselves. */}
-			{problem && !isOpen && pricing === null ? <Callout tone="problem">{problem}</Callout> : null}
+			{problem ? <Callout tone="problem">{problem}</Callout> : null}
 			{holdings.isPending ? <Skeleton lines={3} /> : null}
+
+			{outside.length > 0 ? (
+				<Callout tone="attention" title={t("investments.outsideTitle", { count: outside.length })}>
+					{t("investments.outsideBody")}
+				</Callout>
+			) : null}
 
 			{!holdings.isPending && list.length === 0 ? (
 				<EmptyState
@@ -279,93 +359,92 @@ export function InvestmentsPage() {
 				/>
 			) : null}
 
-			{list.length === 0 ? null : (
-				<>
-					<Panel title={t("investments.whatYouHave")}>
-						<Table caption={t("investments.caption")}>
-							<TableHead>
-								<TableRow>
-									<TableHeader>{t("investments.name")}</TableHeader>
-									<TableHeader className="hidden sm:table-cell">
-										{t("investments.kind")}
-									</TableHeader>
-									<TableHeader numeric={true}>{t("investments.quantity")}</TableHeader>
-									<TableHeader numeric={true}>{t("investments.unitPrice")}</TableHeader>
-									<TableHeader numeric={true}>{t("investments.value")}</TableHeader>
-									<TableHeader numeric={true}>{t("investments.gain")}</TableHeader>
-									<TableHeader className="print:hidden">{t("investments.actions")}</TableHeader>
-								</TableRow>
-							</TableHead>
-							<TableBody>
-								{list.map((holding) => (
+			{/* One table, a heading row for each class, so the amounts of every class stand in the
+			    same column: a table for each class drew each column at its own width. */}
+			{groups.length === 0 ? null : (
+				<Table caption={t("investments.caption")}>
+					<TableHead>
+						<TableRow>
+							<TableHeader>{t("investments.name")}</TableHeader>
+							<TableHeader numeric={true}>{t("investments.value")}</TableHeader>
+							<TableHeader numeric={true} className="hidden sm:table-cell">
+								{t("investments.gain")}
+							</TableHeader>
+							<TableHeader className="w-12 print:hidden">
+								<span className="sr-only">{t("investments.actions")}</span>
+							</TableHeader>
+						</TableRow>
+					</TableHead>
+					{groups.map(({ group, rows }) => (
+						<TableBody key={group}>
+							<tr>
+								<th
+									scope="rowgroup"
+									colSpan={4}
+									className="px-3 pt-6 pb-2 text-left font-normal sm:px-5"
+								>
+									<span className="font-serif text-ink text-lg">
+										{t(`investments.groups.${group}`)}
+									</span>
+									<span className="ml-2 text-quiet text-sm">
+										{money(rows.reduce((sum, holding) => sum + holding.value, 0))}
+									</span>
+								</th>
+							</tr>
+							{rows.map((holding) => {
+								const said = dayOfValue(holding);
+								const after = net(holding);
+								return (
 									<TableRow key={holding.id}>
 										<TableCell>
-											{holding.name}
-											{holding.pricedOn ? (
-												<span className="block text-xs text-quiet">
-													{t("investments.pricedOn", { day: holding.pricedOn })}
+											<span className="font-medium">{holding.name}</span>
+											<span className="block text-quiet text-xs">{whatItIs(holding)}</span>
+											{said ? <span className="block text-quiet text-xs">{said}</span> : null}
+											{outside.includes(holding) ? (
+												<span className="block text-seal text-xs">
+													{t("investments.outsideMark")}
 												</span>
 											) : null}
 										</TableCell>
-										<TableCell className="hidden text-quiet sm:table-cell">
-											{t(`investments.kinds.${holding.kind}`)}
-										</TableCell>
-										<TableCell numeric={true} className="font-mono text-xs">
-											{(holding.quantity / QUANTITY_SCALE).toLocaleString(locale, {
-												maximumFractionDigits: 8,
-											})}
-										</TableCell>
-										<TableCell numeric={true}>
-											<Value
-												amount={holding.unitPrice}
-												currency={holding.currency}
-												tone="neutral"
-											/>
-										</TableCell>
 										<TableCell numeric={true}>
 											<Value amount={holding.value} currency={holding.currency} tone="neutral" />
+											{after ? <span className="block text-quiet text-xs">{after}</span> : null}
 										</TableCell>
-										<TableCell numeric={true}>
+										<TableCell numeric={true} className="hidden sm:table-cell">
 											<Value amount={holding.gain} currency={holding.currency} tone="auto" />
-										</TableCell>
-										<TableCell className="print:hidden">
-											{/* The column stays so the table keeps its shape, and the button
-											    goes for whoever would only be refused by it. */}
-											{mayWrite ? (
-												<Button
-													size="small"
-													variant="quiet"
-													onClick={() => {
-														setProblem(null);
-														setPricing(holding);
-														setNewPrice("");
-													}}
-												>
-													{t("investments.newPrice")}
-												</Button>
+											{holding.invested > 0 ? (
+												<span className="block text-quiet text-xs">
+													{t("investments.gainPercent", {
+														percent: (holding.gainPercent / 100).toLocaleString(locale, {
+															maximumFractionDigits: 2,
+														}),
+													})}
+												</span>
 											) : null}
 										</TableCell>
+										<TableCell className="print:hidden">{menu(holding)}</TableCell>
 									</TableRow>
-								))}
-							</TableBody>
-						</Table>
-					</Panel>
+								);
+							})}
+						</TableBody>
+					))}
+				</Table>
+			)}
 
-					<Panel title={t("investments.byKind")}>
+			{list.length === 0 ? null : (
+				<>
+					<Panel title={t("investments.byClass")}>
 						<BarList
-							items={KINDS.map((one) => ({
-								key: one,
-								label: t(`investments.kinds.${one}`),
-								amount: list
-									.filter((holding) => holding.kind === one)
-									.reduce((sum, holding) => sum + holding.value, 0),
-								value: new Intl.NumberFormat(locale, { style: "currency", currency }).format(
-									list
-										.filter((holding) => holding.kind === one)
-										.reduce((sum, holding) => sum + holding.value, 0) / 100,
-								),
-								tone: "cedar" as const,
-							})).filter((item) => item.amount > 0)}
+							items={groups.map(({ group, rows }) => {
+								const amount = rows.reduce((sum, holding) => sum + holding.value, 0);
+								return {
+									key: group,
+									label: t(`investments.groups.${group}`),
+									amount,
+									value: money(amount),
+									tone: "cedar" as const,
+								};
+							})}
 						/>
 					</Panel>
 
@@ -382,65 +461,63 @@ export function InvestmentsPage() {
 							</Button>
 						}
 					>
-						<p className="max-w-[60ch] text-sm text-quiet">{t("investments.againstBody")}</p>
+						<p className="max-w-[60ch] text-quiet text-sm">{t("investments.againstBody")}</p>
 
-						{rates.length === 0 ? (
+						{!fetched && cdiThrough === undefined ? (
 							<Callout tone="attention" title={t("investments.noIndicesTitle")}>
 								{t("investments.noIndicesBody")}
 							</Callout>
-						) : (
+						) : dated.length === 0 ? null : (
 							<>
-								<LineChart
-									labels={rates.map((month) => month.month)}
-									series={[
-										{
-											key: "cdi",
-											label: "CDI",
-											tone: "graphite",
-											dotted: true,
-											points: againstCdi,
-										},
-										{
-											key: "mine",
-											label: t("investments.yours"),
-											tone: gain >= 0 ? "cedar" : "seal",
-											// A straight line from what was put in to what it is worth, for
-											// want of a value on every month: the prices that exist are the
-											// ones that were typed in.
-											points: rates.map((_month, index) =>
-												Math.round(
-													invested + ((value - invested) * (index + 1)) / Math.max(1, rates.length),
-												),
-											),
-										},
-									]}
-									description={t("investments.chartDescription")}
-									format={(value) =>
-										new Intl.NumberFormat(locale, {
-											style: "currency",
-											currency,
-											maximumFractionDigits: 0,
-										}).format(value / 100)
-									}
-								/>
-								<p className="text-xs text-quiet">
-									{t("investments.chartLegend", {
-										cdi: new Intl.NumberFormat(locale, { style: "currency", currency }).format(
-											(againstCdi[againstCdi.length - 1] ?? invested) / 100,
-										),
-										yours: new Intl.NumberFormat(locale, { style: "currency", currency }).format(
-											value / 100,
-										),
-									})}
+								<p className="text-ink text-sm">
+									{beyond >= 0
+										? t("investments.beatTheCdi", { amount: money(beyond) })
+										: t("investments.behindTheCdi", { amount: money(-beyond) })}
 								</p>
+								<Table caption={t("investments.againstCaption")}>
+									<TableHead>
+										<TableRow>
+											<TableHeader>{t("investments.name")}</TableHeader>
+											<TableHeader numeric={true}>{t("investments.value")}</TableHeader>
+											<TableHeader numeric={true}>{t("investments.atTheCdi")}</TableHeader>
+											<TableHeader numeric={true} className="hidden sm:table-cell">
+												{t("investments.difference")}
+											</TableHeader>
+										</TableRow>
+									</TableHead>
+									<TableBody>
+										{dated.map((holding) => (
+											<TableRow key={holding.id}>
+												<TableCell>{holding.name}</TableCell>
+												<TableCell numeric={true}>
+													<Value amount={holding.value} currency={holding.currency} />
+												</TableCell>
+												<TableCell numeric={true}>
+													<Value amount={holding.atTheCdi ?? 0} currency={holding.currency} />
+												</TableCell>
+												<TableCell numeric={true} className="hidden sm:table-cell">
+													<Value
+														amount={holding.value - (holding.atTheCdi ?? 0)}
+														currency={holding.currency}
+														tone="auto"
+													/>
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+								{cdiThrough ? (
+									<p className="text-quiet text-xs">
+										{t("investments.cdiThrough", { day: day(cdiThrough) })}
+									</p>
+								) : null}
 							</>
 						)}
 
-						{latest.data?.cdi ? (
-							<p className="text-xs text-quiet">
-								{t("investments.indicesAsOf", {
-									month: latest.data.cdi.month,
-									when: new Date(latest.data.cdi.fetchedAt).toLocaleDateString(locale),
+						{undated.length > 0 ? (
+							<p className="text-quiet text-sm">
+								{t("investments.leftOutOfComparison", {
+									names: undated.map((holding) => holding.name).join(", "),
 								})}
 							</p>
 						) : null}
@@ -448,9 +525,9 @@ export function InvestmentsPage() {
 				</>
 			)}
 
-			<section className="space-y-3 border-t border-line pt-5">
+			<section className="space-y-3 border-line border-t pt-5">
 				<SectionTitle>{t("investments.simulator")}</SectionTitle>
-				<p className="max-w-[60ch] text-sm text-quiet">{t("investments.simulatorBody")}</p>
+				<p className="max-w-[60ch] text-quiet text-sm">{t("investments.simulatorBody")}</p>
 
 				<div className="grid gap-3 sm:grid-cols-3">
 					<Field
@@ -498,24 +575,20 @@ export function InvestmentsPage() {
 						},
 					]}
 					description={t("investments.simulatorChart")}
-					format={(value) =>
+					format={(amount) =>
 						new Intl.NumberFormat(locale, {
 							style: "currency",
 							currency,
 							maximumFractionDigits: 0,
-						}).format(value / 100)
+						}).format(amount / 100)
 					}
 				/>
 
-				<p className="text-sm text-quiet">
+				<p className="text-quiet text-sm">
 					{t("investments.simulatorResult", {
 						years,
-						total: new Intl.NumberFormat(locale, { style: "currency", currency }).format(
-							(simulated[simulated.length - 1]?.total ?? 0) / 100,
-						),
-						earned: new Intl.NumberFormat(locale, { style: "currency", currency }).format(
-							(simulated[simulated.length - 1]?.earned ?? 0) / 100,
-						),
+						total: money(simulated[simulated.length - 1]?.total ?? 0),
+						earned: money(simulated[simulated.length - 1]?.earned ?? 0),
 					})}
 				</p>
 
@@ -525,22 +598,20 @@ export function InvestmentsPage() {
 				    different questions: five hundred months of cover and financial
 				    independence reached. */}
 				{value > 0 && monthlyExpense > 0 && !mine.seesOwnRowsOnly ? (
-					<div className="space-y-1 border-t border-line pt-4">
-						<p className="text-sm text-ink">
+					<div className="space-y-1 border-line border-t pt-4">
+						<p className="text-ink text-sm">
 							{t("investments.covers", { count: independent.monthsCovered })}
 						</p>
-						<p className="text-sm text-quiet">
+						<p className="text-quiet text-sm">
 							{t("investments.independence", {
-								target: new Intl.NumberFormat(locale, { style: "currency", currency }).format(
-									independent.target / 100,
-								),
+								target: money(independent.target),
 								percent: independent.percent,
 							})}
 						</p>
 						{independent.months === null ? (
-							<p className="text-sm text-quiet">{t("investments.independenceNever")}</p>
+							<p className="text-quiet text-sm">{t("investments.independenceNever")}</p>
 						) : (
-							<p className="text-sm text-quiet">
+							<p className="text-quiet text-sm">
 								{t("investments.independenceWhen", {
 									years: Math.floor(independent.months / 12),
 									months: independent.months % 12,
@@ -551,120 +622,42 @@ export function InvestmentsPage() {
 				) : null}
 			</section>
 
-			<Dialog
-				open={isOpen}
-				onOpenChange={setOpen}
-				title={t("investments.add")}
-				description={t("investments.addDescription")}
-				closeLabel={t("actions.close")}
-				footer={
-					<>
-						<Button variant="quiet" onClick={() => setOpen(false)}>
-							{t("actions.cancel")}
-						</Button>
-						<Button variant="primary" onClick={() => create.mutate()} disabled={create.isPending}>
-							{t("actions.save")}
-						</Button>
-					</>
-				}
-			>
-				<form
-					className="space-y-4"
-					onSubmit={(event: FormEvent) => {
-						event.preventDefault();
-						create.mutate();
-					}}
-				>
-					<Field
-						label={t("investments.name")}
-						value={name}
-						onChange={(event) => setName(event.target.value)}
-						placeholder={t("investments.namePlaceholder")}
-						required={true}
-					/>
-					<Select
-						label={t("investments.kind")}
-						value={kind}
-						onChange={(event) => setKind(event.target.value as HoldingKind)}
-						options={KINDS.map((one) => ({ value: one, label: t(`investments.kinds.${one}`) }))}
-					/>
-					<Select
-						label={t("investments.account")}
-						value={accountId}
-						onChange={(event) => setAccountId(event.target.value)}
-						options={accountOptions(
-							(accounts.data ?? []).filter((account) => account.archivedAt === null),
-							t,
-						)}
-						hint={t("investments.accountHint")}
-					/>
-					{/* The one field on this form whose separator is read differently from the
-					    two below it, and it was the one with nothing said about it. */}
-					<Field
-						label={t("investments.quantity")}
-						value={quantity}
-						onChange={(event) => setQuantity(event.target.value)}
-						hint={t("investments.quantityHint")}
-						numeric={true}
-					/>
-					<Field
-						label={t("investments.unitPrice")}
-						value={unitPrice}
-						onChange={(event) => setUnitPrice(event.target.value)}
-						hint={t("fields.amountHint")}
-						numeric={true}
-					/>
-					<Field
-						label={t("investments.cost")}
-						value={cost}
-						onChange={(event) => setCost(event.target.value)}
-						hint={t("investments.costHint")}
-						numeric={true}
-					/>
-					{problem ? <Callout tone="problem">{problem}</Callout> : null}
-				</form>
-			</Dialog>
-
-			<Dialog
-				open={pricing !== null}
+			<HoldingForm
+				open={form !== null}
 				onOpenChange={(open) => {
-					if (!open) setPricing(null);
+					if (!open) setForm(null);
 				}}
-				title={t("investments.newPriceFor", { name: pricing?.name ?? "" })}
-				description={t("investments.newPriceDescription")}
-				closeLabel={t("actions.close")}
-				footer={
-					<>
-						<Button variant="quiet" onClick={() => setPricing(null)}>
-							{t("actions.cancel")}
-						</Button>
-						<Button variant="primary" onClick={() => price.mutate()} disabled={price.isPending}>
-							{t("actions.save")}
-						</Button>
-					</>
-				}
-			>
-				<form
-					className="space-y-4"
-					onSubmit={(event: FormEvent) => {
-						event.preventDefault();
-						price.mutate();
-					}}
-				>
-					<Field
-						label={t("investments.unitPrice")}
-						value={newPrice}
-						onChange={(event) => setNewPrice(event.target.value)}
-						hint={t("fields.amountHint")}
-						numeric={true}
-						required={true}
-					/>
-					{/* In here, where the person is. It was drawn at the top of the page,
-					    behind this dialog, so pressing Save with a word in the field looked
-					    like the button had done nothing. */}
-					{problem ? <Callout tone="problem">{problem}</Callout> : null}
-				</form>
-			</Dialog>
+				spaceId={spaceId}
+				editing={form?.editing ?? null}
+				accounts={everyAccount}
+				holdings={list}
+				balances={balances.data ?? []}
+				today={today}
+			/>
+			<HoldingMoveDialog
+				open={moving !== null}
+				onOpenChange={(open) => {
+					if (!open) setMoving(null);
+				}}
+				spaceId={spaceId}
+				holding={moving?.holding ?? null}
+				kind={moving?.kind ?? "in"}
+				accounts={everyAccount}
+				today={today}
+			/>
+			<HoldingPriceDialog holding={pricing} onClose={() => setPricing(null)} today={today} />
+			<HoldingHistoryDialog
+				holding={history}
+				onClose={() => setHistory(null)}
+				accounts={everyAccount}
+				spaceId={spaceId}
+			/>
+			<HoldingRemoveDialog
+				holding={removing}
+				onClose={() => setRemoving(null)}
+				accounts={everyAccount}
+				spaceId={spaceId}
+			/>
 		</div>
 	);
 }

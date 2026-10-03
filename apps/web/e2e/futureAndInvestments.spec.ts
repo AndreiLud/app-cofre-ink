@@ -4,8 +4,8 @@
 // the shape of the page: does the projection say what a month is made of, and does a
 // holding that was typed in turn into a portfolio that is worth something.
 
-import { expect, test } from "@playwright/test";
-import { go, openCofre } from "./support.ts";
+import { expect, type Page, test } from "@playwright/test";
+import { go, openCofre, total } from "./support.ts";
 
 test.describe("the months ahead", () => {
 	test("says what each month is made of, and lets a scenario change it", async ({ page }) => {
@@ -44,51 +44,163 @@ test.describe("the months ahead", () => {
 	});
 });
 
+/** What the Banco Central answers, for the request it is: three days of the CDI at 0,050788%. */
+async function bancoCentral(page: Page): Promise<void> {
+	await page.route("**api.bcb.gov.br/**", async (route) => {
+		const url = route.request().url();
+		const body = url.includes("bcdata.sgs.12/")
+			? [
+					{ data: "28/09/2026", valor: "0.050788" },
+					{ data: "29/09/2026", valor: "0.050788" },
+					{ data: "30/09/2026", valor: "0.050788" },
+				]
+			: url.includes("bcdata.sgs.4391/")
+				? [{ data: "01/09/2026", valor: "1.05" }]
+				: [];
+		await route.fulfill({
+			status: 200,
+			headers: { "access-control-allow-origin": "*", "content-type": "application/json" },
+			body: JSON.stringify(body),
+		});
+	});
+}
+
+/** Opens the form, chooses what the holding is, and leaves the second step open. */
+async function newHolding(page: Page, product: string) {
+	await page.getByRole("button", { name: "Novo investimento" }).click();
+	const dialog = page.getByRole("dialog");
+	await dialog.getByRole("button", { name: product, exact: true }).click();
+	return dialog;
+}
+
+/** What one row of the holdings says. */
+function holdingRow(page: Page, name: string) {
+	return page.getByRole("row").filter({ hasText: name }).first();
+}
+
 test.describe("what is put aside", () => {
-	test("adds a holding by hand and says what the portfolio is worth", async ({ page }) => {
+	// Part 2, H.8 of 2.0.0: every holding was asked a quantity, a price today and a cost, so a
+	// share kept the F of the fractional market and a caixinha was a quantity of one.
+	test("writes a share down by its code and its average price, and takes a new price", async ({
+		page,
+	}) => {
 		await openCofre(page);
 		await go(page, "Investimentos");
 
 		// The demonstration data comes with a couple of holdings, so the screen starts
 		// with a portfolio rather than an explanation of one.
-		await expect(page.getByRole("cell", { name: "Tesouro Selic 2029" })).toBeVisible();
-		const before = await page.getByRole("heading", { level: 1 }).innerText();
+		await expect(holdingRow(page, "Tesouro Selic 2029")).toBeVisible();
 
-		await page.getByRole("button", { name: "Novo investimento" }).click();
-		const dialog = page.getByRole("dialog");
-		await dialog.getByLabel("Nome").fill("Ação da padaria");
+		const dialog = await newHolding(page, "Ação");
+		await dialog.getByLabel("Código").fill("petr4f");
 		await dialog.getByLabel("Quantidade").fill("2");
-		await dialog.getByLabel("Preço de hoje").fill("150,00");
-		await dialog.getByLabel("Quanto custou no total").fill("280,00");
+		await dialog.getByLabel("Preço médio").fill("150,00");
 		await page.getByRole("button", { name: "Salvar" }).click();
 
-		// Two units at a hundred and fifty is three hundred, and it cost two eighty, so
-		// the gain is twenty.
-		await expect(page.getByRole("cell", { name: "Ação da padaria" })).toBeVisible();
-		await expect(page.getByRole("cell", { name: "R$ 20,00" })).toBeVisible();
-		expect(await page.getByRole("heading", { level: 1 }).innerText()).not.toBe(before);
+		// The code of the B3 in capitals and without the F, two shares at a hundred and fifty.
+		const row = holdingRow(page, "PETR4");
+		await expect(row).toContainText("R$ 300,00");
+		await expect(page.getByText("PETR4F")).toHaveCount(0);
 
 		// A new price is kept beside the old one rather than replacing the history.
-		const row = page.getByRole("row").filter({ hasText: "Ação da padaria" });
-		await row.getByRole("button", { name: "Atualizar preço" }).click();
-		await page.getByRole("dialog").getByLabel("Preço de hoje").fill("160,00");
+		await row.getByRole("button", { name: "O que fazer com PETR4" }).click();
+		await page.getByRole("menuitem", { name: "Atualizar valor" }).click();
+		await page.getByRole("dialog").getByLabel("Preço de uma unidade").fill("160,00");
 		await page.getByRole("button", { name: "Salvar" }).click();
 
-		await expect(row.getByRole("cell", { name: "R$ 320,00" })).toBeVisible();
+		await expect(row).toContainText("R$ 320,00");
+		await expect(row).toContainText("R$ 20,00");
+	});
+
+	// Part 2, H.5 and H.8.5 of 2.0.0: a caixinha grows by the CDI the Banco Central published,
+	// and says up to which day.
+	test("grows a caixinha by the CDI and says up to which day", async ({ page }) => {
+		await bancoCentral(page);
+		await openCofre(page);
+		await go(page, "Investimentos");
+
+		const dialog = await newHolding(page, "Caixinha");
+		await dialog.getByLabel("Nome", { exact: true }).fill("Reserva");
+		await expect(dialog.getByLabel("Quanto rende do CDI (%)")).toHaveValue("100");
+		await dialog.getByLabel("Quanto colocou").fill("10000,00");
+		await dialog.getByLabel("Quando colocou").fill("2026-09-28");
+		await page.getByRole("button", { name: "Salvar" }).click();
+
+		// Nothing fetched yet: what went in, and the screen says it has no indices.
+		const row = holdingRow(page, "Reserva");
+		await expect(row).toContainText("R$ 10.000,00");
+		await expect(page.getByText("Ainda não tenho os índices")).toBeVisible();
+
+		await page.getByRole("button", { name: "Atualizar os índices" }).click();
+
+		// Three days of 0,050788% on ten thousand, each day the money was there included.
+		await expect(row).toContainText("R$ 10.015,24");
+		await expect(row).toContainText("calculado até 30/09/2026");
+		// And against the CDI it is the CDI, to the cent.
+		await expect(page.getByText("Somando, rendeu R$ 0,00 a mais que o CDI.")).toBeVisible();
 	});
 
 	test("says it has no indices before anybody asks for them", async ({ page }) => {
 		await openCofre(page);
 		await go(page, "Investimentos");
 
-		await page.getByRole("button", { name: "Novo investimento" }).click();
-		await page.getByRole("dialog").getByLabel("Nome").fill("Fundo");
-		await page.getByRole("dialog").getByLabel("Preço de hoje").fill("100,00");
+		const dialog = await newHolding(page, "Fundo");
+		await dialog.getByLabel("Nome", { exact: true }).fill("Fundo");
+		await dialog.getByLabel("Quantidade").fill("1");
+		await dialog.getByLabel("Preço de uma unidade").fill("100,00");
 		await page.getByRole("button", { name: "Salvar" }).click();
 
 		// Nothing has been fetched, and the screen says so instead of drawing an empty
 		// comparison.
 		await expect(page.getByText("Ainda não tenho os índices")).toBeVisible();
 		await expect(page.getByRole("button", { name: "Atualizar os índices" })).toBeVisible();
+	});
+
+	// Part 2, H.9.8 of 2.0.0: the overview, Accounts and Investments read the holdings under
+	// two keys, so putting money into a caixinha changed one screen and not the other two.
+	test("agrees on the overview, on Accounts and on Investments after Guardar", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Investimentos");
+
+		const dialog = await newHolding(page, "Caixinha");
+		await dialog.getByLabel("Nome", { exact: true }).fill("Viagem");
+		await dialog.getByLabel("Quanto colocou").fill("1000,00");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(holdingRow(page, "Viagem")).toContainText("R$ 1.000,00");
+
+		await go(page, "Painel");
+		await expect(total(page)).toBeVisible();
+		const before = await total(page).innerText();
+
+		await go(page, "Investimentos");
+		await holdingRow(page, "Viagem")
+			.getByRole("button", { name: "O que fazer com Viagem" })
+			.click();
+		await page.getByRole("menuitem", { name: "Guardar" }).click();
+		const guardar = page.getByRole("dialog");
+		await guardar.getByLabel("Quanto", { exact: true }).fill("500,00");
+		await expect(guardar.getByLabel("De onde sai o dinheiro")).toHaveValue(/.+/);
+		await page.getByRole("button", { name: "Salvar" }).click();
+
+		// The demonstration's Tesouro Selic at R$ 4.570,20 and its fund at R$ 1.184,40, and the
+		// caixinha at R$ 1.500,00: the broker is worth R$ 7.254,60 on every screen.
+		await expect(holdingRow(page, "Viagem")).toContainText("R$ 1.500,00");
+		await expect(page.getByRole("heading", { level: 1 })).toContainText("R$ 7.254,60");
+
+		await go(page, "Contas");
+		await expect(page.getByRole("row").filter({ hasText: "Corretora" })).toContainText(
+			"R$ 7.254,60",
+		);
+
+		await go(page, "Painel");
+		await expect(
+			page
+				.locator("section")
+				.filter({ hasText: "Onde o dinheiro está" })
+				.getByRole("link", { name: /Corretora/ }),
+		).toContainText("R$ 7.254,60");
+		// Money moved from the current account into a holding of the same person: what they
+		// have is what it was.
+		await expect(total(page)).toHaveText(before);
 	});
 });

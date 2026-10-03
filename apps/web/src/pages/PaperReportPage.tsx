@@ -24,6 +24,7 @@ import {
 	parseCalendarMonth,
 	spendableNow,
 	todayIn,
+	worthByAccount,
 } from "@cofre/core";
 import {
 	Button,
@@ -40,6 +41,7 @@ import { useSearch } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
+import { HOLDINGS } from "../lib/holdings.ts";
 import { stepSaid, stepTitle } from "../lib/stepSentence.ts";
 import { ROUTES } from "../routes.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -207,14 +209,14 @@ export function PaperReportPage() {
 	// were read at today's price, those written down later included, so the money at the end
 	// of September printed in October was the total of October.
 	const holdings = useQuery({
-		queryKey: ["investments", spaceId, past ? asOf : "now"],
+		queryKey: [HOLDINGS, spaceId, past ? asOf : "now"],
 		enabled: on,
 		queryFn: () => session?.investments.list(spaceId, past ? { onDay: asOf } : undefined) ?? [],
 	});
 	// Whether there is anything owned today, so a month before the first holding says so
 	// rather than leaving the part out as if there were none.
 	const holdingsNow = useQuery({
-		queryKey: ["investments", spaceId, "now"],
+		queryKey: [HOLDINGS, spaceId, "now"],
 		enabled: on && past,
 		queryFn: () => session?.investments.list(spaceId) ?? [],
 	});
@@ -283,10 +285,7 @@ export function PaperReportPage() {
 
 	// The holdings are the household's, so not for somebody who sees only their own records:
 	// beside balances made of their own rows they made a number that was nobody's.
-	const worth: Record<string, number> = {};
-	for (const holding of mine.seesOwnRowsOnly ? [] : (holdings.data ?? [])) {
-		worth[holding.accountId] = (worth[holding.accountId] ?? 0) + holding.value;
-	}
+	const worth = worthByAccount(mine.seesOwnRowsOnly ? [] : (holdings.data ?? []));
 	const counted = { accounts: accounts.data ?? [], balances: balances.data ?? [], worth };
 
 	/**
@@ -717,6 +716,12 @@ export function PaperReportPage() {
 										{pricedLater(one) ? (
 											<span className="block text-quiet text-xs">
 												{t("paper.pricedLater", { day: dayName(one.pricedOn ?? to) })}
+											</span>
+										) : null}
+										{/* An estimate says how far it went, always, on paper as on the screen. */}
+										{one.estimated && one.estimatedThrough ? (
+											<span className="block text-quiet text-xs">
+												{t("investments.estimatedThrough", { day: dayName(one.estimatedThrough) })}
 											</span>
 										) : null}
 									</TableCell>

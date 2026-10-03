@@ -49,6 +49,7 @@ const SCREENS: { name: string; section?: string; at?: string; waitFor: string }[
 	{ name: "lancamentos", section: "Lançamentos", waitFor: "Novo lançamento" },
 	{ name: "mes", at: "/mes", waitFor: "Comparado com um mês comum" },
 	{ name: "relatorio", at: "/relatorio?mes=2026-10", waitFor: "O mês" },
+	{ name: "investimentos", at: "/investimentos", waitFor: "Comparado com o CDI" },
 ];
 
 test.describe("shots", () => {
@@ -193,6 +194,36 @@ test.describe("shots", () => {
 		await expect(notes).toBeVisible();
 		await notes.scrollIntoViewIfNeeded();
 		await page.screenshot({ path: `${SHOTS}lancamento_mais_detalhes.png`, fullPage: true });
+	});
+
+	// The two steps of a new holding, and the menu of one with what it opens, because each of
+	// them is a screen only once somebody has pressed something.
+	test("uma aplicação nova, e o que se faz com ela", async ({ page }) => {
+		await openCofre(page);
+		await page.goto("/investimentos");
+		await page.getByRole("button", { name: "Novo investimento" }).click();
+		const dialog = page.getByRole("dialog");
+		await expect(dialog.getByRole("button", { name: "Caixinha" })).toBeVisible();
+		await page.screenshot({ path: `${SHOTS}investimento_o_que_e.png`, fullPage: true });
+
+		await dialog.getByRole("button", { name: "Caixinha" }).click();
+		await dialog.getByLabel("Nome", { exact: true }).fill("Reserva");
+		await dialog.getByLabel("Quanto colocou").fill("10000,00");
+		await dialog.getByLabel("Quando colocou").fill("2026-09-28");
+		await page.screenshot({ path: `${SHOTS}investimento_caixinha.png`, fullPage: true });
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("dialog")).toHaveCount(0);
+
+		const row = page.getByRole("row").filter({ hasText: "Reserva" }).first();
+		await row.getByRole("button", { name: "O que fazer com Reserva" }).click();
+		await page.screenshot({ path: `${SHOTS}investimento_menu.png`, fullPage: true });
+		await page.getByRole("menuitem", { name: "Resgatar" }).click();
+		await page.getByRole("dialog").getByLabel("Quanto saiu da aplicação").fill("2000,00");
+		await page.screenshot({ path: `${SHOTS}investimento_resgatar.png`, fullPage: true });
+		await page.keyboard.press("Escape");
+
+		await page.setViewportSize({ width: 1280, height: 1400 });
+		await page.screenshot({ path: `${SHOTS}investimentos_com_caixinha.png`, fullPage: true });
 	});
 
 	test("editar uma conta", async ({ page }) => {

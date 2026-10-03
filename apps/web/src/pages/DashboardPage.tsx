@@ -38,6 +38,7 @@ import {
 	splitInvoicesFallingDue,
 	todayIn,
 	USUAL_WINDOW,
+	worthByAccount,
 } from "@cofre/core";
 import type { CardStanding, GoalProgress, Transaction } from "@cofre/storage";
 import { roleSeesOwnRowsOnly } from "@cofre/storage";
@@ -60,6 +61,7 @@ import { Findings } from "../components/Findings.tsx";
 import { MoveDialog, type MoveStart, movesOutOf } from "../components/MoveDialog.tsx";
 import { Value } from "../components/Value.tsx";
 import { VoucherAmount } from "../components/VoucherAmount.tsx";
+import { estimateBehind, HOLDINGS, shortDay } from "../lib/holdings.ts";
 import { intoGoalStart, saveNowStart } from "../lib/putAside.ts";
 import { EVERY_MONTH } from "../lib/recordFilters.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
@@ -218,8 +220,8 @@ export function DashboardPage() {
 	// added up to depended on which space happened to be open.
 	const holdings = useQuery({
 		queryKey: consolidated
-			? ["investments", "everywhere", spaces.map((space) => space.id).join(",")]
-			: ["investments", spaceId],
+			? [HOLDINGS, "everywhere", spaces.map((space) => space.id).join(",")]
+			: [HOLDINGS, spaceId],
 		enabled: Boolean(session && currentSpace),
 		queryFn: async () => {
 			if (!session) return [];
@@ -489,11 +491,16 @@ export function DashboardPage() {
 	 * themselves moved into it.
 	 */
 	const spaceOfAccount = new Map(shownAccounts.map((account) => [account.id, account.spaceId]));
-	const worth: Record<string, number> = {};
-	for (const holding of holdings.data ?? []) {
-		if (narrowedIn(spaceOfAccount.get(holding.accountId) ?? spaceId)) continue;
-		worth[holding.accountId] = (worth[holding.accountId] ?? 0) + holding.value;
-	}
+	const counting = (holdings.data ?? []).filter(
+		(holding) => !narrowedIn(spaceOfAccount.get(holding.accountId) ?? spaceId),
+	);
+	const worth = worthByAccount(counting);
+	/** The oldest day an estimate inside an investment account stops at, when it is behind. */
+	const behindIn = (accountId: string) =>
+		estimateBehind(
+			counting.filter((holding) => holding.accountId === accountId),
+			today,
+		);
 
 	const counted = { accounts: shownAccounts, balances: visible, worth };
 	const have = moneyOnHand(counted);
@@ -1438,7 +1445,19 @@ export function DashboardPage() {
 															known={narrowedIn(account.spaceId) === false}
 														/>
 													) : (
-														<Value amount={amount} currency={account.currency} tone="auto" />
+														<span className="text-right">
+															<Value amount={amount} currency={account.currency} tone="auto" />
+															{account.kind === "investment" && behindIn(account.id) ? (
+																<span className="block text-quiet text-xs">
+																	{t("investments.estimatedThrough", {
+																		day: shortDay(
+																			behindIn(account.id) ?? today,
+																			i18n.resolvedLanguage,
+																		),
+																	})}
+																</span>
+															) : null}
+														</span>
 													)}
 												</Link>
 											</li>
