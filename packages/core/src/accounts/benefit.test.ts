@@ -6,6 +6,7 @@ import {
 	landingsBetween,
 	nextLandingOf,
 	periodOf,
+	type Quota,
 } from "./benefit.ts";
 
 describe("which period a day falls in", () => {
@@ -50,15 +51,32 @@ describe("how many allowances have landed", () => {
 	});
 });
 
+/** A card with one allowance, never changed, written down on a day, with what happened on it. */
+function stateOf(input: {
+	quota: Quota;
+	today: string;
+	openedOn: string;
+	openingBalance: number;
+	spent?: [string, number][];
+}) {
+	return benefitState({
+		versions: [{ ...input.quota, since: null }],
+		start: {
+			on: input.openedOn,
+			amount: input.openingBalance === 0 ? null : input.openingBalance,
+		},
+		movements: (input.spent ?? []).map(([on, amount]) => ({ on, amount, kind: "spent" as const })),
+		today: input.today,
+	});
+}
+
 describe("when the next allowance lands", () => {
 	it("says the day it lands and how many days off it is", () => {
-		const state = benefitState({
+		const state = stateOf({
 			quota: { amount: 90_000, day: 5, carries: true },
 			today: "2026-10-25",
 			openedOn: "2026-08-10",
 			openingBalance: 0,
-			spentSinceOpening: 0,
-			spentThisPeriod: 0,
 		});
 
 		expect(state.landsOn).toBe("2026-11-05");
@@ -76,13 +94,11 @@ describe("when the next allowance lands", () => {
 	});
 
 	it("says a card that does not carry will lose what is left", () => {
-		const fare = benefitState({
+		const fare = stateOf({
 			quota: { amount: 30_000, day: 1, carries: false },
 			today: "2026-11-20",
 			openedOn: "2026-09-10",
 			openingBalance: 0,
-			spentSinceOpening: 0,
-			spentThisPeriod: 0,
 		});
 
 		expect(fare.carries).toBe(false);
@@ -94,13 +110,12 @@ describe("what is left on a card that carries", () => {
 	const meal = { amount: 90_000, day: 5, carries: true };
 
 	it("is what was typed, less what has gone, before the first landing", () => {
-		const state = benefitState({
+		const state = stateOf({
 			quota: meal,
 			today: "2026-09-20",
 			openedOn: "2026-09-10",
 			openingBalance: 64_500,
-			spentSinceOpening: 4_500,
-			spentThisPeriod: 4_500,
+			spent: [["2026-09-15", 4_500]],
 		});
 		expect(state.landed).toBe(0);
 		expect(state.left).toBe(60_000);
@@ -116,41 +131,78 @@ describe("what is left on a card that carries", () => {
 	 * twentieth is not nothing.
 	 */
 	it("counts the allowance of the period it was written down in, when nothing was typed", () => {
-		const state = benefitState({
+		const state = stateOf({
 			quota: meal,
 			today: "2026-09-20",
 			openedOn: "2026-09-10",
 			openingBalance: 0,
-			spentSinceOpening: 12_000,
-			spentThisPeriod: 12_000,
+			spent: [["2026-09-12", 12_000]],
 		});
 		// The one that landed on the fifth, which is the period the tenth falls in.
 		expect(state.landed).toBe(1);
 		expect(state.left).toBe(90_000 - 12_000);
 	});
 
+	// Part 1, B.1 of the request for 2.0.0, with its numbers: written down on the twenty
+	// eighth, credited on the fifth, a lunch of 56 on the twenty fourth. The landing of the
+	// fifth counted and the lunch, before the card was written down, did not: 900 of 900.
+	it("counts the purchases of that period too, from the day the money landed", () => {
+		const lunch: [string, number][] = [["2026-10-24", 5_600]];
+		const now = stateOf({
+			quota: meal,
+			today: "2026-10-28",
+			openedOn: "2026-10-28",
+			openingBalance: 0,
+			spent: lunch,
+		});
+		expect(now.left).toBe(84_400);
+
+		// And the next landing adds to it, on a card that carries.
+		const next = stateOf({
+			quota: meal,
+			today: "2026-11-05",
+			openedOn: "2026-10-28",
+			openingBalance: 0,
+			spent: lunch,
+		});
+		expect(next.left).toBe(174_400);
+	});
+
+	it("leaves out a purchase from before the period it was written down in", () => {
+		const state = stateOf({
+			quota: meal,
+			today: "2026-10-28",
+			openedOn: "2026-10-28",
+			openingBalance: 0,
+			spent: [["2026-10-01", 5_600]],
+		});
+		expect(state.left).toBe(90_000);
+	});
+
 	/** And the next landing adds to it, rather than starting again. */
 	it("goes on adding after that first one", () => {
-		const state = benefitState({
+		const state = stateOf({
 			quota: meal,
 			today: "2026-10-06",
 			openedOn: "2026-09-10",
 			openingBalance: 0,
-			spentSinceOpening: 12_000,
-			spentThisPeriod: 0,
+			spent: [["2026-09-12", 12_000]],
 		});
 		expect(state.landed).toBe(2);
 		expect(state.left).toBe(180_000 - 12_000);
 	});
 
 	it("adds every landing since, and takes off everything spent since", () => {
-		const state = benefitState({
+		const state = stateOf({
 			quota: meal,
 			today: "2026-11-20",
 			openedOn: "2026-09-10",
 			openingBalance: 64_500,
-			spentSinceOpening: 150_000,
-			spentThisPeriod: 30_000,
+			spent: [
+				["2026-09-20", 60_000],
+				["2026-10-20", 60_000],
+				["2026-11-10", 30_000],
+			],
 		});
 		// Two landings, October and November.
 		expect(state.landed).toBe(2);
@@ -158,15 +210,25 @@ describe("what is left on a card that carries", () => {
 	});
 
 	it("goes negative rather than stopping at nothing, because the card did", () => {
-		const state = benefitState({
+		const state = stateOf({
 			quota: meal,
 			today: "2026-09-20",
 			openedOn: "2026-09-10",
 			openingBalance: 10_000,
-			spentSinceOpening: 15_000,
-			spentThisPeriod: 15_000,
+			spent: [["2026-09-11", 15_000]],
 		});
 		expect(state.left).toBe(-5_000);
+	});
+
+	it("leaves out what happens after today", () => {
+		const state = stateOf({
+			quota: meal,
+			today: "2026-09-20",
+			openedOn: "2026-09-10",
+			openingBalance: 10_000,
+			spent: [["2026-09-25", 5_000]],
+		});
+		expect(state.left).toBe(10_000);
 	});
 });
 
@@ -174,37 +236,36 @@ describe("what is left on a card that does not carry", () => {
 	const fare = { amount: 30_000, day: 1, carries: false };
 
 	it("is what was typed, less what has gone, before the first landing", () => {
-		const state = benefitState({
+		const state = stateOf({
 			quota: fare,
 			today: "2026-09-20",
 			openedOn: "2026-09-10",
 			openingBalance: 22_000,
-			spentSinceOpening: 2_000,
-			spentThisPeriod: 2_000,
+			spent: [["2026-09-12", 2_000]],
 		});
 		expect(state.left).toBe(20_000);
 	});
 
 	it("forgets everything before the last landing", () => {
-		const state = benefitState({
+		const state = stateOf({
 			quota: fare,
 			today: "2026-11-20",
 			openedOn: "2026-09-10",
 			openingBalance: 22_000,
-			spentSinceOpening: 500_000,
-			spentThisPeriod: 8_000,
+			spent: [
+				["2026-09-20", 492_000],
+				["2026-11-05", 8_000],
+			],
 		});
 		expect(state.left).toBe(22_000);
 	});
 
 	it("says which period the answer is about", () => {
-		const state = benefitState({
+		const state = stateOf({
 			quota: fare,
 			today: "2026-11-20",
 			openedOn: "2026-09-10",
 			openingBalance: 0,
-			spentSinceOpening: 0,
-			spentThisPeriod: 0,
 		});
 		expect(state.from).toBe("2026-11-01");
 		expect(state.to).toBe("2026-11-30");

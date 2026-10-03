@@ -1,13 +1,13 @@
-import { type BenefitState, benefitState, type CalendarDate, periodOf, todayIn } from "@cofre/core";
+import { type BenefitState, benefitState, type CalendarDate, countingFrom } from "@cofre/core";
 import { accounts, cards } from "@cofre/db";
 import { assertCan, readableSpaceIds, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
-import { happenedBy } from "../happened.ts";
 import { type Account, type AccountKind, type BenefitKind, toAccount } from "../models.ts";
 import { marks } from "../sql.ts";
 import { insertRow, softDeleteRow, updateRow } from "../writer.ts";
 import type { RepositoryContext } from "./context.ts";
+import { movementsOf, startOf, versionsOf } from "./voucherReading.ts";
 
 export type CreateAccountInput = {
 	spaceId: string;
@@ -128,26 +128,6 @@ export function createAccountsRepository(context: RepositoryContext) {
 			[spaceId],
 		);
 		return String(rows[0]?.timezone ?? "America/Sao_Paulo");
-	}
-
-	/**
-	 * What went out of an account between two days, as a positive number.
-	 *
-	 * Only what has happened: a lunch written for next Tuesday has not been eaten, and a
-	 * card that says otherwise is a card that will surprise somebody at the till.
-	 */
-	async function spentBetween(
-		accountId: string,
-		from: CalendarDate,
-		today: CalendarDate,
-	): Promise<number> {
-		const rows = await context.driver.all(
-			`SELECT COALESCE(SUM(-"amount"), 0) AS spent FROM "transactions"
-			 WHERE "account_id" = ? AND "deleted_at" IS NULL AND ${happenedBy(null)}
-			   AND "kind" = 'expense' AND "happened_on" >= ?`,
-			[accountId, today, from],
-		);
-		return asNumber(rows[0]?.spent ?? 0);
 	}
 
 	/**
@@ -385,29 +365,22 @@ export function createAccountsRepository(context: RepositoryContext) {
 			if (account.kind !== "voucher") return null;
 			if (account.quotaAmount === null || account.quotaDay === null) return null;
 
-			const quota = {
-				amount: account.quotaAmount,
-				day: account.quotaDay,
-				carries: account.quotaCarries ?? true,
-			};
-
+			const versions = versionsOf(account);
+			if (!versions) return null;
 			// A day rather than an instant, in the timezone of the space, because the
 			// periods are counted in days and the row remembers a millisecond in UTC.
-			const openedOn = todayIn(await timezoneOf(account.spaceId), new Date(account.createdAt));
-			const period = periodOf(today, quota.day);
-
-			const [spentSinceOpening, spentThisPeriod] = await Promise.all([
-				spentBetween(account.id, openedOn, today),
-				spentBetween(account.id, period.from, today),
-			]);
+			const start = startOf(account, await timezoneOf(account.spaceId));
+			// From the day the core says counting starts, which is the same day the reports
+			// count the allowance from. Spending was read from the day the card was written
+			// down, so a lunch earlier in the same period was left out while the allowance
+			// that paid for it was counted.
+			const { from } = countingFrom(versions, start);
 
 			return benefitState({
-				quota,
+				versions,
+				start,
+				movements: await movementsOf(context.driver, account.id, from, today),
 				today,
-				openedOn,
-				openingBalance: account.initialBalance,
-				spentSinceOpening,
-				spentThisPeriod,
 			});
 		},
 

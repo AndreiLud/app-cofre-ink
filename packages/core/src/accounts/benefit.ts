@@ -7,16 +7,10 @@
 // move. So what is left is worked out rather than read off a balance, and this is where
 // the working out lives.
 //
-// The opening balance of a voucher is what was on the card the day somebody wrote it
-// down. Every landing after that day adds the allowance; the landing of the period the
-// card was written down in does not, because whatever it put there is already inside the
-// number that was typed.
-//
-// Unless nothing was typed, which is every card written down since the form stopped asking
-// for an opening balance. Then there is no number standing in for that period's landing,
-// and the allowance of the period somebody is standing in is what the card holds as far as
-// anybody here knows. Without that a card written down on the twentieth read as empty until
-// the fifth of the next month, which is not what is in somebody's pocket.
+// Where counting starts is decided once, in `countingFrom`, and everything that reads a card
+// reads it from there: what is left on it, and the allowance a report counts as money that
+// came in. A figure somebody gave, on its day, or else the allowance of the period the card
+// was written down in, with every purchase dated in that period.
 
 import {
 	addDays,
@@ -116,84 +110,221 @@ export function landingsBetween(from: CalendarDate, to: CalendarDate, quotaDay: 
 	return (b.year - a.year) * 12 + (b.month - a.month);
 }
 
+/**
+ * One version of an allowance, and the first day it applies from.
+ *
+ * Changing what lands on a card changes it from the next landing onwards, and never one
+ * that already landed: that is decision 4 of 2.0.0. So an allowance is a list of these, and
+ * each landing is worked out with the version in force on its own day.
+ */
+export type QuotaVersion = Quota & {
+	/** The first day it applies from, or nothing when it applies from the start. */
+	since: CalendarDate | null;
+};
+
+/**
+ * Where counting what is on a card starts.
+ *
+ * Somebody either said what was on it on a day, which is the opening balance a card from
+ * release 1.0 carries and the "how much is on the card today" of 2.0.0, or nobody did. Then
+ * the allowance of the period the card was written down in is what it holds, and every
+ * purchase dated in that period counts against it.
+ */
+export type VoucherStart = {
+	/** The day it was said, or the day the card was written down when nothing was. */
+	on: CalendarDate;
+	/** What was on the card that day, or nothing when nobody said. */
+	amount: number | null;
+};
+
+/**
+ * Something that happened on a card, with its day, as a positive amount.
+ *
+ * A purchase is "spent", and a refund of one is a purchase taken back, so it is "spent" with
+ * the amount the other way round. Money moved onto the card by hand, a top up by Pix, is
+ * "added". An income somebody wrote on the card before 2.0.0 is "income": it was usually the
+ * allowance written by hand, so it stands for the allowance of its own month.
+ */
+export type VoucherMovement = {
+	on: CalendarDate;
+	amount: number;
+	kind: "spent" | "added" | "income";
+};
+
 export type BenefitInput = {
-	quota: Quota;
+	/** Every version of the allowance, oldest first. One, for an allowance never changed. */
+	versions: readonly QuotaVersion[];
+	start: VoucherStart;
+	/** What happened on the card, whatever its day: what counts is decided here. */
+	movements: readonly VoucherMovement[];
 	/** The day the question is being asked on. */
 	today: CalendarDate;
-	/** The day the card was written down. */
-	openedOn: CalendarDate;
-	/** What was on the card that day, in minor units. */
-	openingBalance: number;
-	/** Everything spent on the card since it was written down, as a positive number. */
-	spentSinceOpening: number;
-	/** What was spent in the period the question is being asked in, as a positive number. */
-	spentThisPeriod: number;
 };
+
+/** The version of an allowance in force on a day: the last one whose first day has come. */
+export function quotaOn(versions: readonly QuotaVersion[], day: CalendarDate): QuotaVersion {
+	const [first] = versions;
+	if (!first) throw new RangeError("an allowance needs at least one version");
+	let found = first;
+	for (const version of versions) {
+		if (version.since === null || compareCalendarDates(version.since, day) <= 0) found = version;
+	}
+	return found;
+}
+
+/**
+ * Every landing after one day and up to another, each with the amount in force on its day.
+ *
+ * One landing a month, on the day of the version in force by then, so changing the day of
+ * an allowance does not land it twice in the month it changed.
+ */
+export function landingsOf(
+	versions: readonly QuotaVersion[],
+	after: CalendarDate,
+	until: CalendarDate,
+): { on: CalendarDate; amount: number }[] {
+	const found: { on: CalendarDate; amount: number }[] = [];
+	if (compareCalendarDates(until, after) <= 0) return found;
+	const last = monthOf(until);
+	for (let month = monthOf(after); month <= last; month = addMonthsToMonth(month, 1)) {
+		let landing: { on: CalendarDate; amount: number } | null = null;
+		for (const version of versions) {
+			assertQuotaDay(version.day);
+			const on = dateInMonth(month, version.day);
+			if (version.since === null || compareCalendarDates(version.since, on) <= 0) {
+				landing = { on, amount: version.amount };
+			}
+		}
+		if (
+			landing &&
+			compareCalendarDates(landing.on, after) > 0 &&
+			compareCalendarDates(landing.on, until) <= 0
+		) {
+			found.push(landing);
+		}
+	}
+	return found;
+}
+
+/**
+ * From which day a card counts, and with what, which is the one answer every reading of a
+ * card shares: what is left on it, and the allowance a report counts as money that came in.
+ *
+ * With a figure somebody gave, that figure on its day, the landings after it, and what
+ * happened from that day on. With none, the allowance of the period the card was written
+ * down in, and what happened from the first day of that period. That second half is part 1,
+ * item B.1 of 2.0.0: the landing of that period was counted and the purchases of the same
+ * period before the card was written down were not, so a card written down on the
+ * twenty eighth said 900 of 900 with a lunch of 56 from the twenty fourth on it.
+ */
+export function countingFrom(
+	versions: readonly QuotaVersion[],
+	start: VoucherStart,
+): { from: CalendarDate; landingsAfter: CalendarDate; base: number } {
+	if (start.amount !== null) {
+		return { from: start.on, landingsAfter: start.on, base: start.amount };
+	}
+	const period = periodOf(start.on, quotaOn(versions, start.on).day);
+	return { from: period.from, landingsAfter: addDays(period.from, -1), base: 0 };
+}
+
+/**
+ * The landings a card has had up to a day, each with its amount, which is what a report
+ * counts as the benefit that came in.
+ *
+ * A month with an income written on the card has no landing of its own: that income was the
+ * allowance written by hand, before the application worked it out, and counting both would
+ * count the month twice. That is the answer to part 1, item B.7 of 2.0.0.
+ */
+export function voucherLandings(
+	input: Omit<BenefitInput, "today"> & { until: CalendarDate },
+): { on: CalendarDate; amount: number }[] {
+	const { from, landingsAfter } = countingFrom(input.versions, input.start);
+	const written = new Set(
+		input.movements
+			.filter(
+				(movement) =>
+					movement.kind === "income" &&
+					compareCalendarDates(movement.on, from) >= 0 &&
+					compareCalendarDates(movement.on, input.until) <= 0,
+			)
+			.map((movement) => monthOf(movement.on)),
+	);
+	return landingsOf(input.versions, landingsAfter, input.until).filter(
+		(landing) => !written.has(monthOf(landing.on)),
+	);
+}
 
 /**
  * What is on the card today.
  *
- * Two cards, two sums. One that carries is the whole history: what was there at the
- * start, plus every landing since, less everything spent. One that does not is only this
- * period, because the rest was taken back on the landing day, and the opening balance
- * only survives while the card is still in the period it was written down in.
+ * Two cards, two sums. One that carries is the whole history from where counting starts:
+ * that figure, plus every landing since, plus what was added, less what was spent. One that
+ * does not is only this period, because the rest was taken back on the landing day, and the
+ * figure somebody gave only survives while the card is still in the period it was given in.
  */
 export function benefitState(input: BenefitInput): BenefitState {
-	const period = periodOf(input.today, input.quota.day);
+	const current = quotaOn(input.versions, input.today);
+	const period = periodOf(input.today, current.day);
+	const { from, base } = countingFrom(input.versions, input.start);
+	const counted = voucherLandings({ ...input, until: input.today });
 
 	// When the next one lands, and whether this one survives it. A figure with no horizon on
 	// it says nothing: three hundred has to last twenty days or two, and on a card that does
 	// not carry it does not last at all.
-	const landsOn = addDays(period.to, 1);
+	const landsOn =
+		landingsOf(input.versions, input.today, addMonthsToMonthDay(input.today, 2))[0]?.on ??
+		nextLandingOf(input.today, current.day);
 	const until = {
 		landsOn,
 		daysToLanding: daysBetween(input.today, landsOn),
-		carries: input.quota.carries,
+		carries: current.carries,
 	};
 
-	/**
-	 * Whether the landing of the period the card was written down in counts.
-	 *
-	 * It counts only when nobody said what was on the card that day. Somebody who typed a
-	 * number typed what was actually there, and that number already holds whatever that
-	 * period had put on it, so counting the landing as well would count it twice: that is
-	 * the case of every card carried over from a release that asked for an opening balance.
-	 *
-	 * Somebody who typed nothing, which is every card written down since the form stopped
-	 * asking, is telling us only that the card exists. Then the allowance of the period they
-	 * are standing in is the best thing anybody knows about it, and saying nothing is on the
-	 * card is worse than saying the allowance is, because a meal card in the middle of a
-	 * month is not empty. It reads high for whoever had already eaten some of it outside the
-	 * application, and it is exact from the next landing onwards.
-	 */
-	const nobodySaid = input.openingBalance === 0;
-	const countFrom = nobodySaid
-		? addDays(periodOf(input.openedOn, input.quota.day).from, -1)
-		: input.openedOn;
-	const landed = landingsBetween(countFrom, input.today, input.quota.day);
+	/** Everything that happened from a day up to today, added up with its sign. */
+	const movedSince = (day: CalendarDate): number =>
+		input.movements
+			.filter(
+				(movement) =>
+					compareCalendarDates(movement.on, day) >= 0 &&
+					compareCalendarDates(movement.on, input.today) <= 0,
+			)
+			.reduce(
+				(total, movement) =>
+					total + (movement.kind === "spent" ? -movement.amount : movement.amount),
+				0,
+			);
+	const landedSince = (day: CalendarDate): number =>
+		counted
+			.filter((landing) => compareCalendarDates(landing.on, day) >= 0)
+			.reduce((total, landing) => total + landing.amount, 0);
 
-	if (input.quota.carries) {
+	if (current.carries) {
 		return {
 			...period,
 			...until,
-			quota: input.quota.amount,
-			landed,
-			left: input.openingBalance + landed * input.quota.amount - input.spentSinceOpening,
+			quota: current.amount,
+			landed: counted.length,
+			left: base + landedSince(from) + movedSince(from),
 		};
 	}
 
-	// Still inside the period it was written down in: nothing has been taken back yet, so
-	// what was typed is what is there, less what has gone since.
-	const started = landed === 0;
+	// Only this period. The figure somebody gave is still on the card while the card is in
+	// the period it was given in, and was taken back on the next landing otherwise.
+	const inThisPeriod = compareCalendarDates(from, period.from) >= 0;
+	const since = inThisPeriod ? from : period.from;
 	return {
 		...period,
 		...until,
-		quota: input.quota.amount,
-		landed,
-		left: started
-			? input.openingBalance - input.spentSinceOpening
-			: input.quota.amount - input.spentThisPeriod,
+		quota: current.amount,
+		landed: counted.length,
+		left: (inThisPeriod ? base : 0) + landedSince(since) + movedSince(since),
 	};
+}
+
+/** A day some months on, for looking ahead far enough to find the next landing. */
+function addMonthsToMonthDay(day: CalendarDate, months: number): CalendarDate {
+	return dateInMonth(addMonthsToMonth(monthOf(day), months), 28);
 }
 
 /** What the default is for a kind of benefit, which is what the card in somebody's pocket does. */

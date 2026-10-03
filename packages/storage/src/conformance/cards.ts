@@ -10,6 +10,7 @@ import { todayIn } from "@cofre/core";
 import { describe, expect, it } from "vitest";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { migrate } from "../migrate.ts";
+import { openSession } from "../session.ts";
 import { type AdapterUnderTest, LATER, prepare } from "./setup.ts";
 
 export function runCardConformance(adapter: AdapterUnderTest): void {
@@ -51,6 +52,48 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 				expect(state?.landed).toBe(0);
 				expect(state?.left).toBe(60_000);
 				expect(state?.quota).toBe(90_000);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		// Part 1, B.1 of the request for 2.0.0, with its numbers: a card written down on the
+		// twenty eighth, credited on the fifth, and a lunch of 56 on the twenty fourth. The
+		// landing of the fifth counted and the lunch, before the card was written down, did
+		// not, so the card said 900 of 900.
+		it("counts a lunch from earlier in the period the card was written down in", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const onThe28th = await openSession({
+					driver: fixture.driver,
+					userId: fixture.ana.id,
+					deviceId: "deviceAna",
+					now: () => Date.parse("2026-10-28T12:00:00-03:00"),
+				});
+				const space = await onThe28th.spaces.create({ name: "Pessoal", kind: "personal" });
+				const voucher = await onThe28th.accounts.create({
+					spaceId: space.id,
+					kind: "voucher",
+					name: "Vale refeicao",
+					benefit: "meal",
+					quotaAmount: 90_000,
+					quotaDay: 5,
+					quotaCarries: true,
+				});
+				await onThe28th.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 5_600,
+					happenedOn: "2026-10-24",
+					description: "Almoco",
+					accountId: voucher.id,
+				});
+
+				expect((await onThe28th.accounts.benefitLeft(voucher.id, "2026-10-28"))?.left).toBe(84_400);
+				// And after the next landing, on a card that carries.
+				expect((await onThe28th.accounts.benefitLeft(voucher.id, "2026-11-05"))?.left).toBe(
+					174_400,
+				);
 			} finally {
 				await fixture.close();
 			}

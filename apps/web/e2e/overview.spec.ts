@@ -42,6 +42,17 @@ test.describe("the overview", () => {
 		expect(headline).not.toBe("");
 	});
 
+	// Part 1, B.1 of the request for 2.0.0, which named the sample data: the card is written
+	// down on the twenty eighth, the lunch of 56 is from the twenty fourth, and the overview
+	// said 900 of 900, because the lunch came before the day the card was written down.
+	test("takes the lunch from before the card was written down off what is left", async ({
+		page,
+	}) => {
+		await openCofre(page);
+		await expect(page.getByText("R$ 844,00").first()).toBeVisible();
+		await expect(page.getByText("de R$ 900,00").first()).toBeVisible();
+	});
+
 	test("says when a voucher renews, because the figure has to last until then", async ({
 		page,
 	}) => {

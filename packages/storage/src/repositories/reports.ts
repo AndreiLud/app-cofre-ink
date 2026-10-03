@@ -10,20 +10,14 @@
 // spaces is counted in the same number, and it exists because a person with a personal
 // space and a house still has one life.
 
-import {
-	addDays,
-	type CalendarDate,
-	compareCalendarDates,
-	landingsBetween,
-	periodOf,
-	todayIn,
-} from "@cofre/core";
+import { type CalendarDate, compareCalendarDates, todayIn, voucherLandings } from "@cofre/core";
 import { assertCan, readableSpaceIds, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber, type SqlValue } from "../driver.ts";
 import { happenedBy } from "../happened.ts";
-import type { SpendingPriority } from "../models.ts";
+import { type SpendingPriority, toAccount } from "../models.ts";
 import { marks } from "../sql.ts";
 import type { RepositoryContext } from "./context.ts";
+import { startOf, versionsOf } from "./voucherReading.ts";
 
 export type ReportRange = {
 	/** Empty for the consolidated view, which is every space this person can read. */
@@ -148,9 +142,7 @@ export function createReportsRepository(context: RepositoryContext) {
 		// household eight hundred a month in a March before they had the card, and went on
 		// crediting one they had archived.
 		const rows = await context.driver.all(
-			`SELECT a."space_id" AS space_id, a."quota_amount" AS quota_amount,
-			        a."quota_day" AS quota_day, a."created_at" AS created_at,
-			        a."archived_at" AS archived_at, s."timezone" AS timezone
+			`SELECT a.*, s."timezone" AS space_timezone
 			 FROM "accounts" a
 			 JOIN "spaces" s ON s."id" = a."space_id"
 			 WHERE a."space_id" IN (${marks(spaceIds.length)}) AND a."deleted_at" IS NULL
@@ -161,43 +153,37 @@ export function createReportsRepository(context: RepositoryContext) {
 
 		let total = 0;
 		for (const row of rows) {
-			const day = asNumber(row.quota_day);
+			const account = toAccount(row);
+			const versions = versionsOf(account);
+			if (!versions) continue;
 			// A day rather than an instant, in the timezone of its own space, because the
 			// periods are counted in days and the row remembers a millisecond in UTC.
-			const zone = String(row.timezone);
-			const openedOn = todayIn(zone, new Date(asNumber(row.created_at)));
+			const zone = String(row.space_timezone);
 			const closedOn =
-				row.archived_at === null || row.archived_at === undefined
-					? null
-					: todayIn(zone, new Date(asNumber(row.archived_at)));
+				account.archivedAt === null ? null : todayIn(zone, new Date(account.archivedAt));
 
-			/**
-			 * The range, cut to the periods the card was actually there for.
-			 *
-			 * Cut at the start of the period the card was written down in, and not at the day
-			 * it was written down. Somebody who adds a meal card halfway through a month is
-			 * looking at that month, and the lunches they typed are in the same period as the
-			 * landing that paid for them, so the credit belongs beside them. Cut at the day
-			 * instead and their first month closes worse by exactly what they ate, which is
-			 * the thing this figure exists to stop.
-			 *
-			 * Before this there was no cut at all, so a card written down in September paid a
-			 * household an allowance every month back to the beginning of the records, and
-			 * went on paying one after it was archived.
-			 */
-			const since = periodOf(openedOn, day).from;
-			const from = compareCalendarDates(since, range.from) > 0 ? since : range.from;
-			// And never past today. An allowance that lands on the twenty fifth has not landed
-			// on the second, and the month in hand counted it from the first day, while the
-			// line of the card on the overview said it would land in twenty three days.
+			// Never past today. An allowance that lands on the twenty fifth has not landed on
+			// the second, and the month in hand counted it from the first day, while the line
+			// of the card on the overview said it would land in twenty three days. And never
+			// after the card was archived.
 			const today = todayIn(zone);
 			const ends = compareCalendarDates(today, range.to) < 0 ? today : range.to;
-			const to = closedOn !== null && compareCalendarDates(closedOn, ends) < 0 ? closedOn : ends;
-			if (compareCalendarDates(from, to) > 0) continue;
+			const until = closedOn !== null && compareCalendarDates(closedOn, ends) < 0 ? closedOn : ends;
 
-			// A day before the start, because the count is of landings strictly after the
-			// day it is given, and a landing on the first day of the range is inside it.
-			total += asNumber(row.quota_amount) * landingsBetween(addDays(from, -1), to, day);
+			// Where the landings start is the core's answer, the same one the line of the card
+			// reads: the period the card was written down in, or the day somebody said what was
+			// on it. Somebody who adds a meal card halfway through a month is looking at that
+			// month, and the lunches they typed are in the same period as the landing that paid
+			// for them, so the credit belongs beside them.
+			const landings = voucherLandings({
+				versions,
+				start: startOf(account, zone),
+				movements: [],
+				until,
+			});
+			for (const landing of landings) {
+				if (compareCalendarDates(landing.on, range.from) >= 0) total += landing.amount;
+			}
 		}
 		return total;
 	}
