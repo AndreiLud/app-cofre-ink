@@ -285,6 +285,41 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 2, H.2.4 of the request for 2.0.0: a holding becomes a product, and every holding a
+		// release before wrote keeps the value it had, read as the generic product of its kind.
+		it("keeps the value of every holding written before holdings were products", async () => {
+			const driver = await adapter.open();
+			try {
+				await asLeftBy105(driver);
+				const ana = await createUser(driver, { email: "ana@exemplo.com", name: "Ana" });
+				await fillAsOf105(driver, ana.id);
+				await driver.run(
+					`INSERT INTO "accounts" ("id", "space_id", "kind", "name", "currency", "initial_balance",
+					   "created_by", "created_at", "updated_at", "deleted_at", "hlc")
+					 VALUES ('accountBroker', ?, 'investment', 'Corretora', 'BRL', 450000, ?, ?, ?, NULL, 'stamp1')`,
+					[IDS.space, ana.id, WHEN, WHEN],
+				);
+				// 1,5 units at R$ 3.200,00, which cost R$ 4.500,00.
+				await driver.run(
+					`INSERT INTO "holdings" ("id", "space_id", "account_id", "name", "kind", "quantity",
+					   "unit_price", "currency", "cost", "created_by", "created_at", "updated_at",
+					   "deleted_at", "hlc")
+					 VALUES ('holdingOld', ?, 'accountBroker', 'CDB do banco', 'fixedIncome', 150000000,
+					   320000, 'BRL', 450000, ?, ?, ?, NULL, 'stamp1')`,
+					[IDS.space, ana.id, WHEN, WHEN],
+				);
+
+				await migrate(driver);
+				const session = await openSession({ driver, userId: ana.id, deviceId: "deviceAna" });
+				const [holding] = await session.investments.list(IDS.space);
+				expect(holding?.value).toBe(480_000);
+				expect(holding?.cost).toBe(450_000);
+				expect(holding?.product).toBeNull();
+			} finally {
+				await driver.close();
+			}
+		});
+
 		// Releases 1.1.0 to 1.2.1 wrote a record dated ahead, every occurrence of a series and
 		// the payment of the month screen as promises, and nothing ever made one a fact. So a
 		// database those releases wrote is full of promises called late that should have

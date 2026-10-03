@@ -239,11 +239,13 @@ export const SCHEMA: readonly Table[] = [
 	...CATEGORY_TABLES,
 	...RULE_TABLES,
 	...TRANSACTION_TABLES,
+	// These point at accounts, and a movement of a holding at the record that moved the money,
+	// so they come after the records; and a goal and the savings rule point at a holding, so
+	// they come before those. A restore writes the tables in this order.
+	...INVESTMENT_TABLES,
 	// These point at transactions, so they come after them.
 	...PLAN_TABLES,
 	...VIEW_TABLES,
-	// And these point at accounts.
-	...INVESTMENT_TABLES,
 ];
 
 export function tableByName(name: string): Table {

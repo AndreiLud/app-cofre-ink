@@ -332,6 +332,8 @@ export type Goal = {
 	targetAmount: number;
 	targetDate: string | null;
 	accountId: string;
+	/** The holding inside that account the goal is in, or nothing for the whole account. */
+	holdingId: string | null;
 	notes: string | null;
 	achievedAt: number | null;
 	archivedAt: number | null;
@@ -348,6 +350,8 @@ export type SavingsRule = {
 	/** Hundredths of a percent, or minor units, depending on the mode. */
 	value: number;
 	accountId: string | null;
+	/** The holding inside that account the money goes into, or nothing for the whole account. */
+	holdingId: string | null;
 	createdBy: string;
 	createdAt: number;
 	updatedAt: number;
@@ -629,6 +633,7 @@ export function toGoal(row: Row): Goal {
 		targetAmount: asNumber(row.target_amount),
 		targetDate: asOptionalText(row.target_date),
 		accountId: asText(row.account_id),
+		holdingId: asOptionalText(row.holding_id),
 		notes: asOptionalText(row.notes),
 		achievedAt: asOptionalNumber(row.achieved_at),
 		archivedAt: asOptionalNumber(row.archived_at),
@@ -645,6 +650,7 @@ export function toSavingsRule(row: Row): SavingsRule {
 		mode: asText(row.mode) as SavingsMode,
 		value: asNumber(row.value),
 		accountId: asOptionalText(row.account_id),
+		holdingId: asOptionalText(row.holding_id),
 		createdBy: asText(row.created_by),
 		createdAt: asNumber(row.created_at),
 		updatedAt: asNumber(row.updated_at),
@@ -707,6 +713,37 @@ export type Holding = {
 	/** The day the price was last typed in, so a stale number can say it is stale. */
 	pricedOn: string | null;
 	notes: string | null;
+	/** The product of the catalog in packages/core, or nothing for a holding from before 2.0.0. */
+	product: string | null;
+	issuer: string | null;
+	maturesOn: string | null;
+	liquidFrom: string | null;
+	/** The day of the month a poupança is credited on. */
+	anniversaryDay: number | null;
+	indexer: string | null;
+	liquidity: string | null;
+	/** Hundredths of a percentage point: 100% of the CDI is 10000, 12% a year is 1200. */
+	rate: number | null;
+	createdBy: string;
+	createdAt: number;
+	updatedAt: number;
+};
+
+export type HoldingMoveKind = "in" | "out" | "income";
+
+/** Money put into a holding, taken out of it, or paid by it, on a day. */
+export type HoldingMove = {
+	id: string;
+	spaceId: string;
+	holdingId: string;
+	onDay: string;
+	kind: HoldingMoveKind;
+	/** Minor units, always positive: the kind says which way. */
+	amount: number;
+	/** Units bought or sold, scaled by ten to the eighth, when it is counted in units. */
+	quantity: number | null;
+	/** The record that moved the money from or to an account, when one did. */
+	transactionId: string | null;
 	createdBy: string;
 	createdAt: number;
 	updatedAt: number;
@@ -760,6 +797,30 @@ export function toHolding(row: Row): Holding {
 		boughtOn: asOptionalText(row.bought_on),
 		pricedOn: asOptionalText(row.priced_on),
 		notes: asOptionalText(row.notes),
+		product: asOptionalText(row.product),
+		issuer: asOptionalText(row.issuer),
+		maturesOn: asOptionalText(row.matures_on),
+		liquidFrom: asOptionalText(row.liquid_from),
+		anniversaryDay: asOptionalNumber(row.anniversary_day),
+		indexer: asOptionalText(row.indexer),
+		liquidity: asOptionalText(row.liquidity),
+		rate: asOptionalNumber(row.rate),
+		createdBy: asText(row.created_by),
+		createdAt: asNumber(row.created_at),
+		updatedAt: asNumber(row.updated_at),
+	};
+}
+
+export function toHoldingMove(row: Row): HoldingMove {
+	return {
+		id: asText(row.id),
+		spaceId: asText(row.space_id),
+		holdingId: asText(row.holding_id),
+		onDay: asText(row.on_day),
+		kind: asText(row.kind) as HoldingMoveKind,
+		amount: asNumber(row.amount),
+		quantity: asOptionalNumber(row.quantity),
+		transactionId: asOptionalText(row.transaction_id),
 		createdBy: asText(row.created_by),
 		createdAt: asNumber(row.created_at),
 		updatedAt: asNumber(row.updated_at),

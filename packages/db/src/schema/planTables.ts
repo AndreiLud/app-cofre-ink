@@ -45,6 +45,18 @@ export const budgets = defineTable({
 	indexes: [{ name: "budgets_by_space_and_month", columns: ["space_id", "month"] }],
 });
 
+/**
+ * The holding a goal or the savings rule points at, inside the account it names: a caixinha
+ * called Viagem, beside the caixinha Reserva of the same broker. Empty: the whole account.
+ */
+export const HOLDING_POINTER_COLUMNS = [
+	{
+		name: "holding_id",
+		type: "text" as const,
+		references: { table: "holdings", column: "id", onDelete: "setNull" as const },
+	},
+];
+
 export const goals = defineTable({
 	name: "goals",
 	scope: "space",
@@ -65,6 +77,7 @@ export const goals = defineTable({
 		{ name: "notes", type: "text" },
 		{ name: "achieved_at", type: "bigint" },
 		{ name: "archived_at", type: "bigint" },
+		...HOLDING_POINTER_COLUMNS,
 		{
 			name: "created_by",
 			type: "text",
@@ -88,6 +101,7 @@ export const savingsRules = defineTable({
 			type: "text",
 			references: { table: "accounts", column: "id", onDelete: "setNull" },
 		},
+		...HOLDING_POINTER_COLUMNS,
 		{
 			name: "created_by",
 			type: "text",

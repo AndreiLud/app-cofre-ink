@@ -15,8 +15,17 @@ import { addColumnSql, createIndexSql, createSchemaSql, type Dialect } from "./d
 import { AUTH_TABLES } from "./schema/authTables.ts";
 import { CARD_TABLES } from "./schema/cardTables.ts";
 import { CATEGORY_TABLES } from "./schema/categoryTables.ts";
-import { INVESTMENT_TABLES } from "./schema/investmentTables.ts";
-import { MEMBER_INCOME_COLUMNS, PLAN_TABLES } from "./schema/planTables.ts";
+import {
+	HOLDING_PRODUCT_COLUMNS,
+	holdingMoves,
+	INVESTMENT_TABLES,
+	indexDays,
+} from "./schema/investmentTables.ts";
+import {
+	HOLDING_POINTER_COLUMNS,
+	MEMBER_INCOME_COLUMNS,
+	PLAN_TABLES,
+} from "./schema/planTables.ts";
 import { RECURRENCE_CHAIN_COLUMNS, RULE_TABLES, recurrenceSkips } from "./schema/ruleTables.ts";
 import {
 	ACCOUNT_BENEFIT_COLUMNS,
@@ -258,6 +267,29 @@ export const MIGRATIONS: readonly Migration[] = [
 				(column) => !context.hasColumn("recurrences", column.name),
 			).map((column) => addColumnSql("recurrences", column, context.dialect)),
 			...createSchemaSql([recurrenceSkips], context.dialect),
+		],
+	},
+	{
+		/**
+		 * A holding becomes a product: what it is, who issued it, when it matures, the index it
+		 * follows and its rate. The money put in and taken out after it was written down gets a
+		 * table, and so do the days a daily index was published. A goal and the savings rule may
+		 * point at one holding. Every holding that exists keeps what it had: empty product
+		 * columns read as the generic product of its kind, valued as it always was, and nothing
+		 * here writes a row, which would not travel to another device.
+		 */
+		id: "0021_holding_products",
+		statements: (context) => [
+			...HOLDING_PRODUCT_COLUMNS.filter(
+				(column) => !context.hasColumn("holdings", column.name),
+			).map((column) => addColumnSql("holdings", column, context.dialect)),
+			...createSchemaSql([holdingMoves, indexDays], context.dialect),
+			...HOLDING_POINTER_COLUMNS.filter((column) => !context.hasColumn("goals", column.name)).map(
+				(column) => addColumnSql("goals", column, context.dialect),
+			),
+			...HOLDING_POINTER_COLUMNS.filter(
+				(column) => !context.hasColumn("savings_rules", column.name),
+			).map((column) => addColumnSql("savings_rules", column, context.dialect)),
 		],
 	},
 ];

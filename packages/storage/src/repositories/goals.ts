@@ -56,10 +56,10 @@ export type SavingsProgress = {
 };
 
 const SELECT = `SELECT "id", "space_id", "name", "target_amount", "target_date", "account_id",
-	"notes", "achieved_at", "archived_at", "created_by", "created_at", "updated_at"
+	"notes", "achieved_at", "archived_at", "holding_id", "created_by", "created_at", "updated_at"
 	FROM "goals"`;
 
-const RULE_SELECT = `SELECT "id", "space_id", "mode", "value", "account_id", "created_by",
+const RULE_SELECT = `SELECT "id", "space_id", "mode", "value", "account_id", "holding_id", "created_by",
 	"created_at", "updated_at"
 	FROM "savings_rules"`;
 

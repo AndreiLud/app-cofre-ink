@@ -21,7 +21,8 @@ import { insertRow, softDeleteRow, updateRow } from "../writer.ts";
 import type { RepositoryContext } from "./context.ts";
 
 const SELECT = `SELECT "id", "space_id", "account_id", "name", "kind", "ticker", "quantity",
-	"unit_price", "currency", "cost", "bought_on", "priced_on", "notes", "created_by",
+	"unit_price", "currency", "cost", "bought_on", "priced_on", "notes", "product", "issuer",
+	"matures_on", "liquid_from", "anniversary_day", "indexer", "liquidity", "rate", "created_by",
 	"created_at", "updated_at"
 	FROM "holdings"`;
 
