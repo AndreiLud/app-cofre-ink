@@ -340,6 +340,15 @@ export function runArrangementConformance(adapter: AdapterUnderTest): void {
 
 				const standing = await on.invoices.standing(ready.spaceId, "2025-11-05");
 				expect(standing.find((one) => one.account.id === b.id)?.available).toBe(290_000);
+
+				// And a spreadsheet of the records says which invoice of B each part is on.
+				const exported = await on.backup.recordsForExport(ready.spaceId);
+				expect(
+					exported
+						.map((row) => row.originInvoiceMonth)
+						.filter((month) => month !== null)
+						.sort(),
+				).toEqual(["2025-12", "2026-01", "2026-02"]);
 			} finally {
 				await ready.fixture.close();
 			}

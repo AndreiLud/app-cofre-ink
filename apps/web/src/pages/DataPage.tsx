@@ -258,6 +258,7 @@ export function DataPage() {
 				t("data.column.priority"),
 				t("data.column.notes"),
 				t("data.column.invoice"),
+				t("data.column.originInvoice"),
 				t("data.column.installment"),
 			],
 			rows: records.map((record) => [
@@ -282,6 +283,9 @@ export function DataPage() {
 				record.priority === null ? null : t(`priority.${record.priority}`),
 				record.notes,
 				record.invoiceMonth,
+				// A part of paying an invoice with another card, or of splitting one, is a purchase
+				// on an invoice of the card it leaves, which the column before cannot hold.
+				record.originInvoiceMonth,
 				record.installment,
 			]),
 		};

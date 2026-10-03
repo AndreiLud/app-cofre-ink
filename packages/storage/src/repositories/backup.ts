@@ -111,6 +111,8 @@ export type RecordForExport = {
 	priority: string | null;
 	notes: string | null;
 	invoiceMonth: string | null;
+	/** The invoice of the card a transfer leaves, for a part of paying an invoice with another card or of splitting one. */
+	originInvoiceMonth: string | null;
 	installment: string | null;
 	externalId: string | null;
 };
@@ -402,7 +404,7 @@ export function createBackupRepository(context: RepositoryContext) {
 
 			const rows = await context.driver.all(
 				`SELECT t."happened_on", t."description", t."amount", t."currency", t."kind",
-				        t."status", t."notes", t."invoice_month", t."priority", t."external_id",
+				        t."status", t."notes", t."invoice_month", t."origin_invoice_month", t."priority", t."external_id",
 				        t."installment_number", t."installment_count",
 				        a."name" AS account_name, b."name" AS counter_name, b."kind" AS counter_kind,
 				        c."name" AS category_name,
@@ -432,6 +434,10 @@ export function createBackupRepository(context: RepositoryContext) {
 				priority: row.priority === null ? null : String(row.priority),
 				notes: row.notes === null ? null : String(row.notes),
 				invoiceMonth: row.invoice_month === null ? null : String(row.invoice_month),
+				originInvoiceMonth:
+					row.origin_invoice_month === null || row.origin_invoice_month === undefined
+						? null
+						: String(row.origin_invoice_month),
 				installment:
 					row.installment_number === null
 						? null

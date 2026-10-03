@@ -1251,7 +1251,8 @@
 			"priority": "Priority",
 			"notes": "Notes",
 			"invoice": "Invoice",
-			"installment": "Instalment"
+			"installment": "Instalment",
+			"originInvoice": "Invoice of the card it left"
 		},
 		"tooLarge": "That file is over {{megabytes}} MB, which is the limit. A statement of a year is a few kilobytes and a backup of a decade is a few megabytes, so a file that size is almost always something else.",
 		"whereTitle": "Where your data is",
