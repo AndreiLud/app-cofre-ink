@@ -10,17 +10,50 @@
 // had and no more, fills it with the rows that release would have written, and then
 // upgrades it for real and reads the whole thing back through the repositories of today.
 
-import { MIGRATIONS } from "@cofre/db";
+import {
+	columnsQuery,
+	createMigrationsTableSql,
+	MIGRATIONS,
+	MIGRATIONS_TABLE,
+	type ShapeRow,
+	shapeOfRows,
+} from "@cofre/db";
 import { describe, expect, it } from "vitest";
 import type { Driver } from "../driver.ts";
 import { migrate } from "../migrate.ts";
 import { repairEverySpace } from "../repairEverySpace.ts";
 import { createUser } from "../repositories/users.ts";
 import { openSession } from "../session.ts";
+import { MIGRATIONS_OF_1_0_5, SCHEMA_OF_1_0_5 } from "./schemaOf105.ts";
 import type { AdapterUnderTest } from "./setup.ts";
 
 /** The last migration release 1.0.5 carried. */
-const AS_OF_105 = "0012_one_food_benefit";
+const AS_OF_105 = MIGRATIONS_OF_1_0_5[MIGRATIONS_OF_1_0_5.length - 1] ?? "";
+
+/**
+ * The database exactly as release 1.0.5 left it, from its own statements.
+ *
+ * Part 1, G.3 of the request for 2.0.0: running today's migrations up to where 1.0.5
+ * stopped is not that database. The first of them builds the tables of today, with every
+ * column added since, so the migrations of 1.1.0 found nothing to add and the test checked
+ * only that the numbers came back.
+ */
+async function asLeftBy105(driver: Driver): Promise<void> {
+	for (const statement of SCHEMA_OF_1_0_5[driver.dialect]) await driver.run(statement);
+	await driver.run(createMigrationsTableSql(driver.dialect));
+	for (const id of MIGRATIONS_OF_1_0_5) {
+		await driver.run(`INSERT INTO "${MIGRATIONS_TABLE}" ("id", "applied_at") VALUES (?, ?)`, [
+			id,
+			WHEN - DAY,
+		]);
+	}
+}
+
+/** The columns a table has right now. */
+async function columnsOf(driver: Driver, table: string): Promise<Set<string>> {
+	const rows = (await driver.all(columnsQuery(driver.dialect))) as unknown as ShapeRow[];
+	return shapeOfRows(rows).get(table) ?? new Set();
+}
 
 /** Identifiers written by hand, because the rows are written by hand. */
 const IDS = {
@@ -138,10 +171,19 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 		it("carries its rows across the upgrade and reads them all back", async () => {
 			const driver = await adapter.open();
 			try {
-				// The database as 1.0.5 left it.
-				const first = await migrate(driver, { stopAfter: AS_OF_105 });
-				expect(first.at(-1)).toBe(AS_OF_105);
-				expect(first).not.toContain("0013_benefit_quota");
+				// The database as 1.0.5 left it, without a single column of the releases since.
+				await asLeftBy105(driver);
+				const added = [
+					["accounts", "quota_amount"],
+					["accounts", "quota_day"],
+					["accounts", "quota_carries"],
+					["accounts", "quota_since"],
+					["accounts", "balance_known_on"],
+					["transactions", "invoice_month_by_hand"],
+				] as const;
+				for (const [table, column] of added) {
+					expect((await columnsOf(driver, table)).has(column), `${table}.${column}`).toBe(false);
+				}
 
 				const ana = await createUser(driver, { email: "ana@exemplo.com", name: "Ana" });
 				await fillAsOf105(driver, ana.id);
@@ -155,6 +197,10 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 					"0014_invoice_by_hand",
 					"0015_subscriptions_reach_their_invoice",
 				]);
+				// Each of them added what it is there to add.
+				for (const [table, column] of added) {
+					expect((await columnsOf(driver, table)).has(column), `${table}.${column}`).toBe(true);
+				}
 				// Idempotent, which is what a device that syncs and then opens again does.
 				expect(await migrate(driver)).toEqual([]);
 
@@ -246,7 +292,7 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 		it("makes the promises 1.1.0 to 1.2.1 wrote facts, and keeps the ones of 1.0", async () => {
 			const driver = await adapter.open();
 			try {
-				await migrate(driver, { stopAfter: AS_OF_105 });
+				await asLeftBy105(driver);
 				const ana = await createUser(driver, { email: "ana@exemplo.com", name: "Ana" });
 				await fillAsOf105(driver, ana.id);
 				// A promise of release 1.0, written on the first of September.
@@ -379,7 +425,7 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 		it("puts the debt a card was written down with on an invoice of its own", async () => {
 			const driver = await adapter.open();
 			try {
-				await migrate(driver, { stopAfter: AS_OF_105 });
+				await asLeftBy105(driver);
 				const ana = await createUser(driver, { email: "ana@exemplo.com", name: "Ana" });
 				await fillAsOf105(driver, ana.id);
 
@@ -457,7 +503,7 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 		it("repairs every space on a server, as the owner of each", async () => {
 			const driver = await adapter.open();
 			try {
-				await migrate(driver, { stopAfter: AS_OF_105 });
+				await asLeftBy105(driver);
 				const ana = await createUser(driver, { email: "ana@exemplo.com", name: "Ana" });
 				await fillAsOf105(driver, ana.id);
 				await migrate(driver, { stopAfter: AS_OF_121 });
