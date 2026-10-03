@@ -491,7 +491,7 @@
 		"creditLimit": "Card limit",
 		"creditLimitHint": "What the bank allows on this card. With it filled in, the Invoices screen says how much there is left to spend, counting the instalments still to come. It can be left empty.",
 		"invoiceSoFar": "Invoice open today",
-		"invoiceSoFarHint": "Optional. How much is already on this card's open invoice. It goes in as one record dated today on the card, which you can correct or remove later. Leave it empty if the card is new.",
+		"invoiceSoFarHint": "Optional. How much is already on this card's open invoice. It goes in as one purchase dated today on the card, so it counts as spending of today in the budget, the reports and the check up; the day and the amount can be corrected later. Leave it empty if the card is new.",
 		"invoiceSoFarRecord": "Invoice open when the card was written down",
 		"emptyTitle": "No accounts here yet",
 		"emptyBody": "Start with the account your salary lands in. Cards, cash and investments can come later.",
@@ -525,7 +525,10 @@
 		"archiveOwingTitle": "Archive the {{name}} card?",
 		"archiveOwingBody": "It still owes {{amount}}. Archived, it leaves the ways to pay.",
 		"archiveOwingStays": "Its invoices stay on the overview, in the projection and under Invoices until they are paid.",
-		"archiveAnyway": "Archive anyway"
+		"archiveAnyway": "Archive anyway",
+		"closedSoFar": "Invoice already closed, due on {{day}}",
+		"closedSoFarHint": "Optional. The {{month}} invoice has closed and is not due yet. What is still to pay on it goes on that invoice, on its last day of purchases, and not on the open one.",
+		"closedSoFarRecord": "Invoice closed when the card was written down"
 	},
 	"rules": {
 		"notABackup": "That file is not a {{app}} backup. A backup comes from here, from the Download a copy button, and so does the copy this screen saves before it replaces one. A statement from the bank goes in through Import a statement.",

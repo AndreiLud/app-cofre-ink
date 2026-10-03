@@ -1,6 +1,13 @@
 // Accounts of the current space: what exists, how to add one, and how to correct one.
 
-import { carriesByDefault, openingChargeOf, parseMoney, todayIn } from "@cofre/core";
+import {
+	carriesByDefault,
+	closedAndNotDue,
+	closedChargeOf,
+	openingChargeOf,
+	parseMoney,
+	todayIn,
+} from "@cofre/core";
 import type { Account, AccountKind, BenefitKind, Card, CardKind } from "@cofre/storage";
 import {
 	Button,
@@ -70,6 +77,8 @@ export function AccountsPage() {
 	];
 	/** What is already charged to the invoice that is open today, on a card that is not new. */
 	const [invoiceSoFar, setInvoiceSoFar] = useState("");
+	/** What the invoice that closed and is not due yet holds, asked only in that window. */
+	const [closedSoFar, setClosedSoFar] = useState("");
 	// The card that comes with the account, for the two kinds that are a card.
 	const [lastFour, setLastFour] = useState("");
 	const [works, setWorks] = useState<CardKind>("credit");
@@ -83,6 +92,20 @@ export function AccountsPage() {
 
 	const spaceId = currentSpace?.id ?? "";
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
+
+	/** The cycle being typed for a new card, once both of its days are chosen. */
+	const typedCycle =
+		closingDay !== "" && dueDay !== ""
+			? { closingDay: Number(closingDay), dueDay: Number(dueDay) }
+			: null;
+	/** The invoice of that cycle that closed and waits to be paid today, if there is one. */
+	const closedNow = typedCycle ? closedAndNotDue(today, typedCycle) : null;
+	const dayAndMonth = (date: string) => `${date.slice(8)}/${date.slice(5, 7)}`;
+	const monthWord = (month: string) =>
+		new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+			month: "long",
+			timeZone: "UTC",
+		}).format(new Date(`${month}-01T00:00:00Z`));
 
 	const accounts = useQuery({
 		// The archived ones are part of what this screen asks for, so they are part of
@@ -381,6 +404,25 @@ export function AccountsPage() {
 						accountId: account.id,
 					});
 				}
+				// And the one that closed and is not due yet, on its own invoice.
+				const closed = typedCycle
+					? closedChargeOf({
+							charged:
+								closedSoFar.trim() === ""
+									? null
+									: parseMoney(closedSoFar, { currency: currentSpace?.baseCurrency }).amount,
+							today,
+							cycle: typedCycle,
+						})
+					: null;
+				if (closed) {
+					await session.transactions.create({
+						...closed,
+						spaceId,
+						description: t("accounts.closedSoFarRecord"),
+						accountId: account.id,
+					});
+				}
 			}
 			return account;
 		},
@@ -392,6 +434,7 @@ export function AccountsPage() {
 			setLastFour("");
 			setWorks("credit");
 			setInvoiceSoFar("");
+			setClosedSoFar("");
 			// The allowance of the card just written, so the next one does not inherit it.
 			setQuota("");
 			setQuotaDay("");
@@ -1024,6 +1067,21 @@ export function AccountsPage() {
 							hint={t("accounts.invoiceSoFarHint")}
 							value={invoiceSoFar}
 							onChange={(event) => setInvoiceSoFar(event.target.value)}
+							numeric={true}
+							inputMode="decimal"
+							placeholder={t("fields.amountPlaceholder")}
+						/>
+					) : null}
+
+					{/* Between the closing day and the due day the bank shows the invoice that
+					    closed first, and that was the number typed above, which then landed on
+					    the invoice a month later. In that window it has a field of its own. */}
+					{kind === "credit" && makesAnAccount && closedNow ? (
+						<Field
+							label={t("accounts.closedSoFar", { day: dayAndMonth(closedNow.dueOn) })}
+							hint={t("accounts.closedSoFarHint", { month: monthWord(closedNow.month) })}
+							value={closedSoFar}
+							onChange={(event) => setClosedSoFar(event.target.value)}
 							numeric={true}
 							inputMode="decimal"
 							placeholder={t("fields.amountPlaceholder")}

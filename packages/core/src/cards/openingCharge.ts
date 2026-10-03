@@ -10,7 +10,13 @@
 // check. An amount of money is a rule, so it lives here.
 
 import { MoneyError } from "../money/money.ts";
-import type { CalendarDate } from "../time/calendar.ts";
+import {
+	addMonthsToMonth,
+	type CalendarDate,
+	type CalendarMonth,
+	compareCalendarDates,
+} from "../time/calendar.ts";
+import { type CardCycle, invoiceDueDate, invoiceMonthOf, invoicePeriod } from "./invoice.ts";
 
 export type OpeningCharge = {
 	kind: "expense";
@@ -35,11 +41,56 @@ export function openingChargeOf(input: {
 	charged: number | null;
 	today: CalendarDate;
 }): OpeningCharge | null {
-	if (input.charged === null) return null;
-	if (!Number.isSafeInteger(input.charged)) {
+	const amount = chargedAmount(input.charged);
+	if (amount === null) return null;
+	return { kind: "expense", amount, happenedOn: input.today };
+}
+
+function chargedAmount(charged: number | null): number | null {
+	if (charged === null) return null;
+	if (!Number.isSafeInteger(charged)) {
 		throw new MoneyError("what is on an invoice is an integer number of cents");
 	}
-	if (input.charged <= 0) return null;
+	return charged <= 0 ? null : charged;
+}
 
-	return { kind: "expense", amount: input.charged, happenedOn: input.today };
+/** The invoice that closed and waits to be paid, on one day. */
+export type ClosedInvoice = {
+	month: CalendarMonth;
+	dueOn: CalendarDate;
+	/** The last day it took purchases, the day before it closed. */
+	lastDay: CalendarDate;
+};
+
+/**
+ * The invoice that has closed and is not due yet, or nothing.
+ *
+ * Between the closing day and the due day somebody can mean two invoices: the one still
+ * taking purchases, and the one that closed and waits to be paid, which is the one the bank
+ * shows first. The form asked only about the first, so whoever typed the second there saw it
+ * land on the invoice a month later.
+ */
+export function closedAndNotDue(today: CalendarDate, cycle: CardCycle): ClosedInvoice | null {
+	const closed = addMonthsToMonth(invoiceMonthOf(today, cycle), -1);
+	const dueOn = invoiceDueDate(closed, cycle);
+	if (compareCalendarDates(today, dueOn) > 0) return null;
+	return { month: closed, dueOn, lastDay: invoicePeriod(closed, cycle).to };
+}
+
+/**
+ * The record for what the invoice that closed still holds, or nothing.
+ *
+ * Dated on the last day it took purchases and named after it, so it lands there whatever
+ * the cycle says about that day, and counts as spending of those days rather than of today.
+ */
+export function closedChargeOf(input: {
+	charged: number | null;
+	today: CalendarDate;
+	cycle: CardCycle;
+}): (OpeningCharge & { invoiceMonth: CalendarMonth }) | null {
+	const closed = closedAndNotDue(input.today, input.cycle);
+	if (!closed) return null;
+	const amount = chargedAmount(input.charged);
+	if (amount === null) return null;
+	return { kind: "expense", amount, happenedOn: closed.lastDay, invoiceMonth: closed.month };
 }

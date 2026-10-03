@@ -292,6 +292,43 @@ test.describe("accounts", () => {
 		await expect(page.getByRole("cell", { name: "Compra com o cartão novo" })).toBeVisible();
 	});
 
+	// Part 1, D.11 of the request for 2.0.0. On the twenty eighth, a card that closes on the
+	// twenty fifth and falls due on the fifth has two invoices somebody can mean: the open one,
+	// and October's, closed and due on 5 November, which is what the bank shows first. Typed in
+	// the one field there was, it landed on November.
+	test("asks for the invoice that closed and is not due yet, on a card written down", async ({
+		page,
+	}) => {
+		await openCofre(page);
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		const adding = page.getByRole("dialog");
+		await adding.getByLabel("Nome").fill("Cartão da loja");
+		await adding.getByLabel("Tipo").selectOption("credit");
+		await adding.getByLabel("Dia do fechamento").selectOption("25");
+		await adding.getByLabel("Dia do vencimento").selectOption("5");
+		await expect(adding.getByText(/conta como gasto de hoje no orçamento/)).toBeVisible();
+		await adding.getByLabel("Fatura em aberto hoje").fill("300,00");
+		await adding.getByLabel("Fatura fechada, que vence em 05/11").fill("1.200,00");
+		await adding.getByRole("button", { name: "Salvar" }).click();
+		await expect(adding).toHaveCount(0);
+
+		await go(page, "Faturas");
+		await page
+			.getByRole("group", { name: "Cartão" })
+			.getByText("Cartão da loja", { exact: true })
+			.click();
+		await expect(page.getByRole("heading", { level: 1 })).toContainText("novembro");
+		await expect(record(page, "Fatura em aberto quando o cartão foi cadastrado")).toContainText(
+			"300,00",
+		);
+		await page.getByRole("button", { name: "Fatura anterior" }).first().click();
+		await expect(page.getByRole("heading", { level: 1 })).toContainText("outubro");
+		await expect(record(page, "Fatura fechada quando o cartão foi cadastrado")).toContainText(
+			"1.200,00",
+		);
+	});
+
 	test("hides an archived account until it is asked for", async ({ page }) => {
 		await openCofre(page);
 

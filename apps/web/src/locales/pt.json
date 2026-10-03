@@ -491,7 +491,7 @@
 		"creditLimit": "Limite do cartão",
 		"creditLimitHint": "O quanto o banco libera neste cartão. Com ele preenchido, a tela Faturas diz quanto ainda dá para gastar, contando as parcelas que ainda vão cair. Pode deixar em branco.",
 		"invoiceSoFar": "Fatura em aberto hoje",
-		"invoiceSoFarHint": "Opcional. Quanto já está na fatura aberta deste cartão. Entra como um lançamento de hoje no cartão, que você pode corrigir ou apagar depois. Deixe em branco se o cartão é novo.",
+		"invoiceSoFarHint": "Opcional. Quanto já está na fatura aberta deste cartão. Entra como uma compra de hoje no cartão, então conta como gasto de hoje no orçamento, nos relatórios e no diagnóstico; dá para corrigir o dia e o valor depois. Deixe em branco se o cartão é novo.",
 		"invoiceSoFarRecord": "Fatura em aberto quando o cartão foi cadastrado",
 		"emptyTitle": "Nenhuma conta por aqui ainda",
 		"emptyBody": "Comece pela conta onde cai o seu salário. Dá para adicionar cartão, dinheiro e investimento depois.",
@@ -525,7 +525,10 @@
 		"archiveOwingTitle": "Arquivar o cartão {{name}}?",
 		"archiveOwingBody": "Ele ainda deve {{amount}}. Arquivado, ele sai das formas de pagar.",
 		"archiveOwingStays": "As faturas dele continuam no Painel, na projeção e em Faturas até serem pagas.",
-		"archiveAnyway": "Arquivar mesmo assim"
+		"archiveAnyway": "Arquivar mesmo assim",
+		"closedSoFar": "Fatura fechada, que vence em {{day}}",
+		"closedSoFarHint": "Opcional. A fatura de {{month}} já fechou e ainda não venceu. O que falta pagar dela entra nessa fatura, no último dia de compras dela, e não na aberta.",
+		"closedSoFarRecord": "Fatura fechada quando o cartão foi cadastrado"
 	},
 	"rules": {
 		"notABackup": "Esse arquivo não é um backup do {{app}}. Um backup sai daqui mesmo, no botão Baixar cópia, e a cópia que esta tela guarda antes de trocar uma também. Extrato do banco entra por Importar extrato.",
