@@ -13,7 +13,7 @@
 
 import { todayIn } from "@cofre/core";
 import type { Finding, Movement, PlanStep, VitalSign } from "@cofre/storage";
-import { Button, Callout, EmptyState, InsightTitle, Panel, Skeleton } from "@cofre/ui";
+import { buttonClasses, Callout, EmptyState, InsightTitle, Panel, Skeleton } from "@cofre/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
@@ -507,10 +507,15 @@ export function AdvisorPage() {
 												{findingLine(finding, money, t, i18n.resolvedLanguage ?? "pt")}
 											</p>
 											{where ? (
-												<Link to={where.to} className="mt-2 inline-block">
-													<Button size="small" variant="secondary">
-														{t("advisor.goTo", { screen: t(where.label) })}
-													</Button>
+												<Link
+													to={where.to}
+													className={buttonClasses({
+														variant: "secondary",
+														size: "small",
+														className: "mt-2 inline-block",
+													})}
+												>
+													{t("advisor.goTo", { screen: t(where.label) })}
 												</Link>
 											) : null}
 										</li>

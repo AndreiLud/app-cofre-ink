@@ -1085,10 +1085,11 @@ export function DashboardPage() {
 				<Panel
 					title={t("dashboard.attention")}
 					action={
-						<Link to={ROUTES.advisor}>
-							<Button size="small" variant="quiet">
-								{t("dashboard.seeMore")}
-							</Button>
+						<Link
+							to={ROUTES.advisor}
+							className={buttonClasses({ variant: "quiet", size: "small" })}
+						>
+							{t("dashboard.seeMore")}
 						</Link>
 					}
 				>
@@ -1126,10 +1127,11 @@ export function DashboardPage() {
 			<Panel
 				title={t("dashboard.dueSoon")}
 				action={
-					<Link to={ROUTES.transactions}>
-						<Button size="small" variant="quiet">
-							{t("dashboard.seeTransactions")}
-						</Button>
+					<Link
+						to={ROUTES.transactions}
+						className={buttonClasses({ variant: "quiet", size: "small" })}
+					>
+						{t("dashboard.seeTransactions")}
 					</Link>
 				}
 			>
@@ -1324,10 +1326,8 @@ export function DashboardPage() {
 			<Panel
 				title={t("dashboard.whereItIs")}
 				action={
-					<Link to={ROUTES.accounts}>
-						<Button size="small" variant="quiet">
-							{t("dashboard.seeAccounts")}
-						</Button>
+					<Link to={ROUTES.accounts} className={buttonClasses({ variant: "quiet", size: "small" })}>
+						{t("dashboard.seeAccounts")}
 					</Link>
 				}
 			>
@@ -1339,8 +1339,11 @@ export function DashboardPage() {
 						description={mayMakeAnAccount ? t("accounts.emptyBody") : t("accounts.emptyForYou")}
 						action={
 							mayMakeAnAccount ? (
-								<Link to={ROUTES.accounts}>
-									<Button variant="primary">{t("accounts.create")}</Button>
+								<Link
+									to={ROUTES.accounts}
+									className={buttonClasses({ variant: "primary", size: "medium" })}
+								>
+									{t("accounts.create")}
 								</Link>
 							) : null
 						}

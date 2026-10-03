@@ -9,6 +9,7 @@ import { addMonthsToMonth, balanceFlow, monthOf, todayIn } from "@cofre/core";
 import {
 	BarList,
 	Button,
+	buttonClasses,
 	ColumnChart,
 	EmptyState,
 	FlowChart,
@@ -245,10 +246,12 @@ export function ReportsPage() {
 					</Button>
 					{/* The whole month in one file, which is more than this screen shows and in
 					    another order. It is a page of its own, and the browser writes the PDF. */}
-					<Link to={ROUTES.paper} search={{ mes: month }}>
-						<Button size="small" variant="secondary">
-							{t("reports.savePdf")}
-						</Button>
+					<Link
+						to={ROUTES.paper}
+						search={{ mes: month }}
+						className={buttonClasses({ variant: "secondary", size: "small" })}
+					>
+						{t("reports.savePdf")}
 					</Link>
 				</div>
 			</div>

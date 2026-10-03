@@ -26,6 +26,7 @@ import {
 import type { Account } from "@cofre/storage";
 import {
 	Button,
+	buttonClasses,
 	Callout,
 	Dialog,
 	Disclosure,
@@ -403,8 +404,11 @@ export function InvoicePage() {
 						description={mayMakeAnAccount ? t("invoice.noCardBody") : t("invoice.noCardForYou")}
 						action={
 							mayMakeAnAccount ? (
-								<Link to={ROUTES.accounts}>
-									<Button variant="primary">{t("accounts.create")}</Button>
+								<Link
+									to={ROUTES.accounts}
+									className={buttonClasses({ variant: "primary", size: "medium" })}
+								>
+									{t("accounts.create")}
 								</Link>
 							) : null
 						}

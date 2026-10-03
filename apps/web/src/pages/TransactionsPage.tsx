@@ -11,6 +11,7 @@ import {
 } from "@cofre/storage";
 import {
 	Button,
+	buttonClasses,
 	Callout,
 	Dialog,
 	EmptyState,
@@ -430,10 +431,11 @@ export function TransactionsPage() {
 							{/* The screen offered three ways to type a record in and no way to read a
 							    file, which was four clicks away under the settings. This is where
 							    somebody already is when they decide not to type a month by hand. */}
-							<Link to={ROUTES.import}>
-								<Button size="small" variant="secondary">
-									{t("importing.title")}
-								</Button>
+							<Link
+								to={ROUTES.import}
+								className={buttonClasses({ variant: "secondary", size: "small" })}
+							>
+								{t("importing.title")}
 							</Link>
 						</>
 					) : null
@@ -596,8 +598,11 @@ export function TransactionsPage() {
 									{t("transactions.create")}
 								</Button>
 								{/* A quiet month is exactly where somebody reaches for a statement. */}
-								<Link to={ROUTES.import}>
-									<Button variant="secondary">{t("importing.title")}</Button>
+								<Link
+									to={ROUTES.import}
+									className={buttonClasses({ variant: "secondary", size: "medium" })}
+								>
+									{t("importing.title")}
 								</Link>
 							</div>
 						) : null

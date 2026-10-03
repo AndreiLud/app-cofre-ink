@@ -39,6 +39,7 @@ import {
 } from "@cofre/storage";
 import {
 	Button,
+	buttonClasses,
 	Callout,
 	Disclosure,
 	EmptyState,
@@ -675,8 +676,11 @@ export function MonthPage() {
 						title={t("theMonth.noAccountTitle")}
 						description={t("theMonth.noAccountBody")}
 						action={
-							<Link to={ROUTES.accounts}>
-								<Button variant="primary">{t("accounts.create")}</Button>
+							<Link
+								to={ROUTES.accounts}
+								className={buttonClasses({ variant: "primary", size: "medium" })}
+							>
+								{t("accounts.create")}
 							</Link>
 						}
 					/>
