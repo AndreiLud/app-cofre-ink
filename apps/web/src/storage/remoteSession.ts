@@ -573,6 +573,8 @@ export function createRemoteSession(
 						"DELETE",
 					)
 				).removed,
+			removalPreview: (id: string) =>
+				get<{ day: string; amount: number }[]>(`/api/recurrences/${id}/removal`),
 			materialize: async (input: { spaceId: string; until?: string }) =>
 				(
 					await send<{ written: number }>(

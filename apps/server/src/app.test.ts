@@ -2,7 +2,7 @@
 // every request carries it. No network and no listening socket, because Hono answers
 // a plain Request.
 
-import { solveWork } from "@cofre/core";
+import { addDays, solveWork, todayIn } from "@cofre/core";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "./app.ts";
 import { createAuth } from "./auth.ts";
@@ -424,6 +424,50 @@ describe("the api", () => {
 			`/api/spaces/${space.id}/recurrences`,
 		);
 		expect(listed.map((one) => one.cardId)).toEqual([card.id]);
+	});
+
+	it("leaves the days gone out when asked, and says what deleting a series takes back", async () => {
+		const ana = createClient(app);
+		await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+		const space = await ana.json<{ id: string }>("/api/spaces", {
+			method: "POST",
+			body: JSON.stringify({ name: "Casa" }),
+		});
+		const account = await ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+			method: "POST",
+			body: JSON.stringify({ kind: "checking", name: "Conta" }),
+		});
+		const today = todayIn("America/Sao_Paulo");
+		const series = await ana.json<{ id: string; writesFrom: string | null }>(
+			`/api/spaces/${space.id}/recurrences`,
+			{
+				method: "POST",
+				body: JSON.stringify({
+					description: "Academia",
+					kind: "expense",
+					amount: 14_900,
+					accountId: account.id,
+					frequency: "monthly",
+					startsOn: addDays(today, -80),
+					leavePastOut: true,
+				}),
+			},
+		);
+		expect(series.writesFrom).toBe(today);
+
+		await ana.json(`/api/spaces/${space.id}/recurrences/materialize`, { method: "POST" });
+		const going = await ana.json<Array<{ day: string }>>(`/api/recurrences/${series.id}/removal`);
+		const written = await ana.json<Array<{ happenedOn: string }>>(
+			`/api/spaces/${space.id}/transactions?mes=tudo`,
+		);
+		// Nothing before today, and what is after today is what deleting would take back.
+		expect(written.every((one) => one.happenedOn >= today)).toBe(true);
+		expect(going.map((one) => one.day)).toEqual(
+			written
+				.map((one) => one.happenedOn)
+				.filter((day) => day > today)
+				.sort(),
+		);
 	});
 
 	it("keeps the mark a record arrives with", async () => {

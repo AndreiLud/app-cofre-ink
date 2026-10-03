@@ -55,7 +55,194 @@ async function daysOf(on: Session, spaceId: string): Promise<string[]> {
 		.sort();
 }
 
+/** The records of the series of a space, as [day, amount], oldest first. */
+async function amountsOf(on: Session, spaceId: string): Promise<[string, number][]> {
+	return (await on.transactions.list({ spaceId }))
+		.filter((one) => one.recurrenceId !== null)
+		.map((one): [string, number] => [one.happenedOn, one.amount])
+		.sort(([left], [right]) => left.localeCompare(right));
+}
+
 export function runSeriesWritingConformance(adapter: AdapterUnderTest): void {
+	/**
+	 * Part 2, G.4 of the request for 2.0.0: a rent of R$ 1.450,00 on the fifth, written down on
+	 * the first of October, changes to R$ 1.500,00 on the twenty eighth.
+	 */
+	describe("a change to a series, from the next occurrence on", () => {
+		async function writtenOnTheFirst(fixture: Awaited<ReturnType<typeof prepare>>) {
+			const first = await onTheDay(fixture, "2026-10-01");
+			const rent = await aRent(first);
+			await first.recurrences.materialize({ spaceId: rent.spaceId });
+			return rent;
+		}
+
+		it("keeps what happened, and writes the new amount on the days ahead, once", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const { spaceId, series } = await writtenOnTheFirst(fixture);
+				const on = await onTheDay(fixture);
+				await on.recurrences.update(series.id, { amount: 150_000 });
+				await on.recurrences.materialize({ spaceId });
+				expect(await amountsOf(on, spaceId)).toEqual([
+					["2026-10-05", -145_000],
+					["2026-11-05", -150_000],
+					["2026-12-05", -150_000],
+				]);
+				// One line, with the amount it has now.
+				expect((await on.recurrences.list(spaceId)).map((one) => one.amount)).toEqual([150_000]);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("leaves a day somebody changed by hand, and writes nothing else in its month", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const { spaceId, series } = await writtenOnTheFirst(fixture);
+				const on = await onTheDay(fixture);
+				const november = (await on.transactions.list({ spaceId })).find(
+					(one) => one.happenedOn === "2026-11-05",
+				);
+				await on.transactions.update(november?.id ?? "", { amount: 146_000 });
+				await on.recurrences.update(series.id, { amount: 150_000 });
+				await on.recurrences.materialize({ spaceId });
+				expect(await amountsOf(on, spaceId)).toEqual([
+					["2026-10-05", -145_000],
+					["2026-11-05", -146_000],
+					["2026-12-05", -150_000],
+				]);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("moves the day of the month from the next month on", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const { spaceId, series } = await writtenOnTheFirst(fixture);
+				const on = await onTheDay(fixture);
+				await on.recurrences.update(series.id, { dayOfMonth: 10 });
+				await on.recurrences.materialize({ spaceId });
+				expect((await amountsOf(on, spaceId)).map(([day]) => day)).toEqual([
+					"2026-10-05",
+					"2026-11-10",
+					"2026-12-10",
+				]);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("writes nothing for the months it was on hold", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const march = await onTheDay(fixture, "2026-03-05");
+				const space = await march.spaces.create({ name: "Casa" });
+				const account = await march.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Corrente",
+				});
+				const series = await march.recurrences.create({
+					spaceId: space.id,
+					description: "Aluguel",
+					kind: "expense",
+					amount: 145_000,
+					accountId: account.id,
+					frequency: "monthly",
+					startsOn: "2026-03-05" as CalendarDate,
+				});
+				await march.recurrences.materialize({ spaceId: space.id });
+
+				const april = await onTheDay(fixture, "2026-04-10");
+				await april.recurrences.update(series.id, { paused: true });
+
+				const on = await onTheDay(fixture);
+				await on.recurrences.update(series.id, { paused: false });
+				await on.recurrences.materialize({ spaceId: space.id });
+				expect((await amountsOf(on, space.id)).map(([day]) => day)).toEqual([
+					"2026-03-05",
+					"2026-04-05",
+					"2026-11-05",
+					"2026-12-05",
+				]);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("still leaves a day changed by hand after a restore", async () => {
+			// A restore writes the two moments of every row as the moment of the restore, so a
+			// record changed by hand would look untouched to anything that read the moments.
+			const fixture = await prepare(adapter);
+			const driver = adapter.openAnother
+				? await adapter.openAnother("seriesRestoredThenChanged")
+				: await adapter.open();
+			try {
+				const { spaceId, series } = await writtenOnTheFirst(fixture);
+				const first = await onTheDay(fixture, "2026-10-01");
+				const november = (await first.transactions.list({ spaceId })).find(
+					(one) => one.happenedOn === "2026-11-05",
+				);
+				await first.transactions.update(november?.id ?? "", {
+					description: "Aluguel e condominio",
+				});
+				const backup = await first.backup.exportSpace(spaceId);
+
+				await migrate(driver);
+				await applyPeople(driver, [
+					{
+						id: fixture.ana.id,
+						email: fixture.ana.email,
+						name: fixture.ana.name,
+						image: fixture.ana.image,
+						createdAt: fixture.ana.createdAt,
+						updatedAt: fixture.ana.updatedAt,
+					},
+				]);
+				const there = await openSession({
+					driver,
+					userId: fixture.ana.id,
+					deviceId: "restored",
+					now: () => Date.parse("2026-10-28T12:00:00-03:00"),
+				});
+				await there.backup.restore(backup);
+				await there.refresh();
+				await there.recurrences.update(series.id, { amount: 150_000 });
+				await there.recurrences.materialize({ spaceId });
+				const kept = (await there.transactions.list({ spaceId })).filter((one) =>
+					one.happenedOn.startsWith("2026-11"),
+				);
+				expect(kept.map((one) => [one.description, one.amount])).toEqual([
+					["Aluguel e condominio", -145_000],
+				]);
+			} finally {
+				await driver.close();
+				await fixture.close();
+			}
+		});
+
+		it("takes back only what was ahead and untouched when it is deleted, saying which first", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const { spaceId, series } = await writtenOnTheFirst(fixture);
+				const on = await onTheDay(fixture);
+				const head = await on.recurrences.update(series.id, { amount: 150_000 });
+				await on.recurrences.materialize({ spaceId });
+
+				expect(await on.recurrences.removalPreview(head.id)).toEqual([
+					{ day: "2026-11-05", amount: -150_000 },
+					{ day: "2026-12-05", amount: -150_000 },
+				]);
+				expect(await on.recurrences.remove(head.id)).toBe(2);
+				expect(await amountsOf(on, spaceId)).toEqual([["2026-10-05", -145_000]]);
+				expect(await on.recurrences.list(spaceId)).toEqual([]);
+			} finally {
+				await fixture.close();
+			}
+		});
+	});
+
 	describe("who writes a series, and how", () => {
 		it("writes a day once when two writers ask at the same moment", async () => {
 			const fixture = await prepare(adapter);

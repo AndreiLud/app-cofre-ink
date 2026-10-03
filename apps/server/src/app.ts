@@ -227,6 +227,8 @@ const recurrenceInput = z.object({
 	startsOn: calendarDate,
 	endsOn: calendarDate.nullable().optional(),
 	notes: z.string().trim().max(2000).nullable().optional(),
+	// "Deixar de fora": nothing before today is written.
+	leavePastOut: z.boolean().optional(),
 });
 
 const transactionInput = z.object({
@@ -1265,13 +1267,18 @@ export function createApp({ config, database, auth }: AppDependencies) {
 	app.patch("/api/recurrences/:id", async (context) => {
 		const input = recurrenceInput
 			.partial()
-			.omit({ kind: true })
+			.omit({ kind: true, leavePastOut: true })
 			.extend({ paused: z.boolean().optional() })
 			.parse(await context.req.json());
 		return context.json(
 			await context.get("session").recurrences.update(context.req.param("id"), input),
 		);
 	});
+
+	/** What deleting a series would take back, for the question asked before it. */
+	app.get("/api/recurrences/:id/removal", async (context) =>
+		context.json(await context.get("session").recurrences.removalPreview(context.req.param("id"))),
+	);
 
 	app.delete("/api/recurrences/:id", async (context) => {
 		const keepPlanned = context.req.query("keepPlanned") === "true";

@@ -304,6 +304,8 @@ export type CofreSession = {
 		create: (input: CreateRecurrenceInput) => Promise<Recurrence>;
 		update: (id: string, input: UpdateRecurrenceInput) => Promise<Recurrence>;
 		remove: (id: string, options?: { keepPlanned?: boolean }) => Promise<number>;
+		/** What deleting a series would take back: the records ahead nobody touched. */
+		removalPreview: (id: string) => Promise<{ day: string; amount: number }[]>;
 		/** Writes the planned records the series owe. Safe to call on every load. */
 		materialize: (input: { spaceId: string; until?: string }) => Promise<number>;
 	};

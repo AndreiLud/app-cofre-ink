@@ -53,6 +53,8 @@ type ProbeContext = {
 	categoryId: string;
 	/** A purchase in two parts on the card, for the calls that take a whole plan. */
 	groupId: string;
+	/** A rent written down by the owner, for the calls about one series. */
+	recurrenceId: string;
 };
 
 type Probe = {
@@ -343,6 +345,22 @@ const PROBES: Probe[] = [
 		method: "recurrences.materialize",
 		permission: "recurrence.write",
 		run: (session, where) => session.recurrences.materialize({ spaceId: where.spaceId }),
+	},
+	{
+		method: "recurrences.update",
+		permission: "recurrence.write",
+		run: (session, where) =>
+			session.recurrences.update(where.recurrenceId, { description: "Outra" }),
+	},
+	{
+		method: "recurrences.removalPreview",
+		permission: "recurrence.write",
+		run: (session, where) => session.recurrences.removalPreview(where.recurrenceId),
+	},
+	{
+		method: "recurrences.remove",
+		permission: "recurrence.write",
+		run: (session, where) => session.recurrences.remove(where.recurrenceId),
 	},
 	{
 		method: "transactions.reconcile",
@@ -1241,6 +1259,15 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 									})
 								: [record];
 							const [ownPart] = asLogger ? await plan(fixture.asJoao) : [part];
+							const series = await fixture.asAna.recurrences.create({
+								spaceId: space.id,
+								description: "Aluguel",
+								kind: "expense",
+								amount: 145_000,
+								accountId: account.id,
+								frequency: "monthly",
+								startsOn: "2026-09-05",
+							});
 
 							const where = {
 								spaceId: space.id,
@@ -1251,6 +1278,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 								cardAccountId: cardAccount.id,
 								categoryId: category.id,
 								groupId: ownPart?.installmentGroup ?? "",
+								recurrenceId: series.id,
 							};
 
 							if (allowed) {
@@ -1341,6 +1369,15 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 						accountId: cardAccount.id,
 						installments: 2,
 					});
+					const series = await fixture.asAna.recurrences.create({
+						spaceId: space.id,
+						description: "Aluguel",
+						kind: "expense",
+						amount: 145_000,
+						accountId: account.id,
+						frequency: "monthly",
+						startsOn: "2026-09-05",
+					});
 					const where = {
 						spaceId: space.id,
 						accountId: account.id,
@@ -1350,6 +1387,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 						cardAccountId: cardAccount.id,
 						categoryId: category.id,
 						groupId: part?.installmentGroup ?? "",
+						recurrenceId: series.id,
 					};
 
 					for (const probe of PROBES) {

@@ -67,6 +67,10 @@ export const METHOD_PERMISSIONS = {
 	"recurrences.list": "recurrence.read",
 	"recurrences.create": "recurrence.write",
 	"recurrences.materialize": "recurrence.write",
+	// The menu of a series on its own screen, and the question before deleting one.
+	"recurrences.update": "recurrence.write",
+	"recurrences.remove": "recurrence.write",
+	"recurrences.removalPreview": "recurrence.write",
 	"budgets.list": "plan.read",
 	"budgets.create": "plan.write",
 	"sharing.balances": "sharing.read",

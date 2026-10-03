@@ -15,20 +15,22 @@ import {
 	type CardCycle,
 	compareCalendarDates,
 	invoiceMonthOf,
+	isUntouchedOccurrence,
 	monthOf,
 	occurrenceId,
 	occurrencesBetween,
 	parseCalendarDate,
 	type RecurrenceSpec,
+	type SeriesRecord,
 	type SpendingPriority,
 	seriesPeriodOf,
 	todayIn,
+	type WrittenRecord,
 } from "@cofre/core";
 import { recurrences as recurrenceTable, transactions } from "@cofre/db";
 import { assertCan, readableSpaceIds } from "../actor.ts";
 import { asNumber, type SqlValue } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
-import { stillToComeOn } from "../happened.ts";
 import {
 	type Recurrence,
 	type RecurrenceFrequency,
@@ -36,7 +38,13 @@ import {
 	toRecurrence,
 } from "../models.ts";
 import { marks } from "../sql.ts";
-import { insertRow, insertRowIfAbsent, softDeleteRow, updateRow } from "../writer.ts";
+import {
+	insertRow,
+	insertRowIfAbsent,
+	softDeleteRow,
+	updateRow,
+	type WriteContext,
+} from "../writer.ts";
 import type { RepositoryContext } from "./context.ts";
 import { assertAccountRules } from "./transactions.ts";
 
@@ -60,6 +68,12 @@ export type CreateRecurrenceInput = {
 	endsOn?: CalendarDate | null;
 	currency?: string;
 	notes?: string | null;
+	/**
+	 * Writes nothing before today. A series that starts on a day already gone writes the days
+	 * between, and they count in the balance; the person is asked first, and this is the box
+	 * that says to leave them out.
+	 */
+	leavePastOut?: boolean;
 };
 
 export type UpdateRecurrenceInput = Partial<Omit<CreateRecurrenceInput, "spaceId" | "kind">> & {
@@ -268,11 +282,229 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 		return new Set(rows.map((row) => seriesPeriodOf(one.frequency, String(row.happened_on))));
 	}
 
+	/** What a series writes on each of its days, for asking whether a record is still that. */
+	function writtenBy(one: Recurrence): SeriesRecord {
+		return {
+			...specOf(one),
+			kind: one.kind,
+			amount: one.amount,
+			accountId: one.accountId,
+			counterAccountId: one.counterAccountId,
+			cardId: one.cardId,
+			categoryId: one.categoryId,
+			description: one.description,
+		};
+	}
+
+	/** The records of a series dated after a day that nobody touched, oldest first. */
+	async function untouchedAfter(
+		one: Recurrence,
+		day: CalendarDate,
+		driver = context.driver,
+	): Promise<(WrittenRecord & { id: string })[]> {
+		const rows = await driver.all(
+			`SELECT "id", "amount", "account_id", "counter_account_id", "card_id", "category_id",
+			        "description", "happened_on", "reconciled_at"
+			 FROM "transactions"
+			 WHERE "recurrence_id" = ? AND "deleted_at" IS NULL AND "happened_on" > ?
+			 ORDER BY "happened_on"`,
+			[one.id, day],
+		);
+		const text = (value: unknown) => (value === null || value === undefined ? null : String(value));
+		return rows
+			.map((row) => ({
+				id: String(row.id),
+				amount: asNumber(row.amount),
+				accountId: String(row.account_id),
+				counterAccountId: text(row.counter_account_id),
+				cardId: text(row.card_id),
+				categoryId: text(row.category_id),
+				description: String(row.description),
+				happenedOn: String(row.happened_on),
+				reconciledAt: row.reconciled_at === null ? null : asNumber(row.reconciled_at),
+			}))
+			.filter((row) => isUntouchedOccurrence(row, writtenBy(one)));
+	}
+
+	/**
+	 * Takes back what a series wrote after a day and nobody touched. A record somebody changed is
+	 * theirs now and stays: what they said about that day is not the series' to take.
+	 */
+	async function dropUntouchedAfter(
+		write: WriteContext,
+		one: Recurrence,
+		day: CalendarDate,
+	): Promise<number> {
+		const rows = await untouchedAfter(one, day, write.driver);
+		for (const row of rows) {
+			await softDeleteRow(write, { table: transactions, spaceId: one.spaceId, id: row.id });
+		}
+		return rows.length;
+	}
+
+	/** Every series of a chain, the one given and the ones before and after it. */
+	async function wholeChain(one: Recurrence): Promise<Recurrence[]> {
+		const found = new Map<string, Recurrence>([[one.id, one]]);
+		for (const id of await chainBefore(one)) {
+			const rows = await context.driver.all(
+				`${SELECT} WHERE r."id" = ? AND r."deleted_at" IS NULL`,
+				[id],
+			);
+			if (rows[0]) found.set(id, toRecurrence(rows[0]));
+		}
+		let edge = [one.id];
+		while (edge.length > 0 && found.size < 500) {
+			const rows = await context.driver.all(
+				`${SELECT} WHERE r."follows_id" IN (${marks(edge.length)}) AND r."deleted_at" IS NULL`,
+				edge,
+			);
+			edge = [];
+			for (const row of rows.map(toRecurrence)) {
+				if (found.has(row.id)) continue;
+				found.set(row.id, row);
+				edge.push(row.id);
+			}
+		}
+		return [...found.values()];
+	}
+
+	/**
+	 * The day a continuation starts on: its first day on or after a day, in a period where the
+	 * series it follows wrote nothing that stays. The rent of October was paid on the fifth, so
+	 * a rent moved on the twenty eighth to the thirtieth starts in November, not on the thirtieth
+	 * of October as well.
+	 */
+	async function continuationStart(
+		before: Recurrence,
+		rule: SeriesRecord,
+		from: CalendarDate,
+	): Promise<CalendarDate | null> {
+		const rows = await context.driver.all(
+			`SELECT "happened_on" FROM "transactions"
+			 WHERE "recurrence_id" = ? AND "deleted_at" IS NULL AND "happened_on" < ?`,
+			[before.id, from],
+		);
+		const taken = new Set(
+			rows.map((row) => seriesPeriodOf(rule.frequency, String(row.happened_on))),
+		);
+		const candidates = occurrencesBetween(rule, from, addDays(from, 366 * 3));
+		return candidates.find((day) => !taken.has(seriesPeriodOf(rule.frequency, day))) ?? null;
+	}
+
+	/** The columns of a series, the day of the month and the month spelled out. */
+	function columnsOf(one: Recurrence): Record<string, SqlValue> {
+		const start = parseCalendarDate(one.startsOn);
+		return {
+			description: one.description,
+			kind: one.kind,
+			amount: one.amount,
+			currency: one.currency,
+			account_id: one.accountId,
+			counter_account_id: one.counterAccountId,
+			card_id: one.cardId,
+			category_id: one.categoryId,
+			priority: one.priority,
+			frequency: one.frequency,
+			interval_count: one.intervalCount,
+			// Written out, because the continuation starts on another day and a day of the
+			// month read from its start would be that day.
+			day_of_month: one.frequency === "weekly" ? null : (one.dayOfMonth ?? start.day),
+			weekday: null,
+			month_of_year: one.frequency === "yearly" ? (one.monthOfYear ?? start.month) : null,
+			starts_on: one.startsOn,
+			ends_on: one.endsOn,
+			notes: one.notes,
+		};
+	}
+
+	/** A series as it would be with these columns, for working out its days. */
+	function asSeries(one: Recurrence, columns: Record<string, SqlValue>): Recurrence {
+		const text = (name: string, fallback: string | null) =>
+			name in columns ? (columns[name] === null ? null : String(columns[name])) : fallback;
+		const count = (name: string, fallback: number | null) =>
+			name in columns ? (columns[name] === null ? null : Number(columns[name])) : fallback;
+		return {
+			...one,
+			description: text("description", one.description) ?? one.description,
+			amount: count("amount", one.amount) ?? one.amount,
+			accountId: text("account_id", one.accountId) ?? one.accountId,
+			counterAccountId: text("counter_account_id", one.counterAccountId),
+			cardId: text("card_id", one.cardId),
+			categoryId: text("category_id", one.categoryId),
+			frequency: (text("frequency", one.frequency) ?? one.frequency) as Recurrence["frequency"],
+			intervalCount: count("interval_count", one.intervalCount) ?? one.intervalCount,
+			dayOfMonth: count("day_of_month", one.dayOfMonth),
+			monthOfYear: count("month_of_year", one.monthOfYear),
+			startsOn: text("starts_on", one.startsOn) ?? one.startsOn,
+			endsOn: text("ends_on", one.endsOn),
+		};
+	}
+
+	/**
+	 * Ends a series the day before a day and starts the one that continues it, with these
+	 * changes, on its first day from then on in a period the old one left empty. What the old
+	 * one wrote after its end and nobody touched goes; what somebody touched stays.
+	 */
+	async function continueFrom(
+		found: Recurrence,
+		values: Record<string, SqlValue>,
+		from: CalendarDate,
+		resuming: boolean,
+	): Promise<Recurrence> {
+		const columns = { ...columnsOf(found), ...values };
+		const startsOn = await continuationStart(found, writtenBy(asSeries(found, columns)), from);
+		const lastDay = addDays(from, -1);
+
+		const id = await context.driver.transaction(async (tx) => {
+			const write = { ...context.write(), driver: tx };
+			if (found.endsOn === null || compareCalendarDates(found.endsOn, lastDay) > 0) {
+				await updateRow(write, {
+					table: recurrenceTable,
+					spaceId: found.spaceId,
+					id: found.id,
+					values: { ends_on: lastDay },
+				});
+			}
+			await dropUntouchedAfter(write, found, lastDay);
+			if (startsOn === null) {
+				// Nothing left to write: an ended series somebody brings back simply stops being
+				// on hold.
+				if (resuming) {
+					await updateRow(write, {
+						table: recurrenceTable,
+						spaceId: found.spaceId,
+						id: found.id,
+						values: { paused_at: null },
+					});
+				}
+				return found.id;
+			}
+			return insertRow(write, {
+				table: recurrenceTable,
+				spaceId: found.spaceId,
+				values: {
+					...columns,
+					starts_on: startsOn,
+					writes_from: startsOn,
+					follows_id: found.id,
+					paused_at: null,
+					created_by: context.actor().userId,
+				},
+			});
+		});
+		return reachable(id);
+	}
+
 	return {
 		async list(spaceId: string): Promise<Recurrence[]> {
 			assertCan(context.actor(), spaceId, "recurrence.read");
 			const rows = await context.driver.all(
-				`${SELECT} WHERE r."space_id" = ? AND r."deleted_at" IS NULL ORDER BY r."description"`,
+				// One line per chain: a series continued by another is the past of that one.
+				`${SELECT} WHERE r."space_id" = ? AND r."deleted_at" IS NULL
+				   AND NOT EXISTS (
+				     SELECT 1 FROM "recurrences" n WHERE n."follows_id" = r."id" AND n."deleted_at" IS NULL
+				   )
+				 ORDER BY r."description"`,
 				[spaceId],
 			);
 			return rows.map(toRecurrence);
@@ -304,6 +536,9 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 			const cardId = input.cardId
 				? await cardIn(input.spaceId, input.cardId, input.accountId)
 				: null;
+			const writesFrom = input.leavePastOut
+				? todayIn(await timezoneOf(input.spaceId), new Date(context.now()))
+				: null;
 
 			const id = await insertRow(context.write(), {
 				table: recurrenceTable,
@@ -327,15 +562,47 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 					ends_on: input.endsOn ?? null,
 					notes: input.notes ?? null,
 					paused_at: null,
+					writes_from: writesFrom,
 					created_by: context.actor().userId,
 				},
 			});
 			return reachable(id);
 		},
 
+		/**
+		 * A change to a series, from its next occurrence on.
+		 *
+		 * The series ends today and a new one follows it, so what already happened keeps saying
+		 * what it said, and the records ahead that nobody touched are written again by the new
+		 * one. A record somebody changed by hand stays, and the new series writes nothing in its
+		 * period. Deleting the records ahead and writing them again was not an answer: a day
+		 * deleted counts as written, so the series never wrote them back.
+		 *
+		 * A series that has not started yet changes where it is. Pausing takes back what it wrote
+		 * ahead, and coming back ends the paused one the day before and starts its continuation
+		 * on the day of the return, so the months of the pause are not written.
+		 */
 		async update(id: string, input: UpdateRecurrenceInput): Promise<Recurrence> {
 			const found = await reachable(id);
 			assertCan(context.actor(), found.spaceId, "recurrence.write");
+			const today = todayIn(await timezoneOf(found.spaceId), new Date(context.now()));
+
+			if (input.paused === true && found.pausedAt === null) {
+				await context.driver.transaction(async (tx) => {
+					const write = { ...context.write(), driver: tx };
+					await updateRow(write, {
+						table: recurrenceTable,
+						spaceId: found.spaceId,
+						id,
+						values: { paused_at: context.now() },
+					});
+					await dropUntouchedAfter(write, found, today);
+				});
+				return reachable(id);
+			}
+			if (input.paused === false && found.pausedAt !== null) {
+				return continueFrom(found, {}, today, true);
+			}
 
 			const values: Record<string, SqlValue> = {};
 			if (input.description !== undefined) values.description = input.description.trim();
@@ -372,66 +639,66 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 			if (input.priority !== undefined) values.priority = input.priority;
 			if (input.frequency !== undefined) values.frequency = input.frequency;
 			if (input.intervalCount !== undefined) values.interval_count = input.intervalCount;
-			if (input.dayOfMonth !== undefined) values.day_of_month = input.dayOfMonth;
-			if (input.monthOfYear !== undefined) values.month_of_year = input.monthOfYear;
 			if (input.startsOn !== undefined) {
 				parseCalendarDate(input.startsOn);
 				values.starts_on = input.startsOn;
+				// A start moved is a day of the month moved, when nothing else says which.
+				const start = parseCalendarDate(input.startsOn);
+				if (input.dayOfMonth === undefined) values.day_of_month = start.day;
+				if (input.monthOfYear === undefined) values.month_of_year = start.month;
 			}
+			if (input.dayOfMonth !== undefined) values.day_of_month = input.dayOfMonth;
+			if (input.monthOfYear !== undefined) values.month_of_year = input.monthOfYear;
 			if (input.endsOn !== undefined) {
 				if (input.endsOn) parseCalendarDate(input.endsOn);
 				values.ends_on = input.endsOn;
 			}
 			if (input.notes !== undefined) values.notes = input.notes;
-			if (input.paused !== undefined) values.paused_at = input.paused ? context.now() : null;
+			if (Object.keys(values).length === 0) return found;
 
-			await updateRow(context.write(), {
-				table: recurrenceTable,
-				spaceId: found.spaceId,
-				id,
-				values,
-			});
-			return reachable(id);
+			// A series that has not started is continued too, from its own first day: changing it
+			// where it is would leave the days it wrote ahead deleted under its name, and a day
+			// deleted is a day written, so it would never write them again.
+			return continueFrom(found, values, addDays(today, 1), false);
 		},
 
 		/**
-		 * Stops the series. What it already wrote stays, except what is still to come:
-		 * the days it wrote ahead, and a promise from before 1.1.0 nobody answered.
+		 * The records a series and the ones it continues would take back if it were deleted: the
+		 * ones after today that nobody touched. What the question before deleting lists.
+		 */
+		async removalPreview(id: string): Promise<{ day: CalendarDate; amount: number }[]> {
+			const found = await reachable(id);
+			assertCan(context.actor(), found.spaceId, "recurrence.write");
+			const today = todayIn(await timezoneOf(found.spaceId), new Date(context.now()));
+			const going: { day: CalendarDate; amount: number }[] = [];
+			for (const one of await wholeChain(found)) {
+				for (const row of await untouchedAfter(one, today)) {
+					going.push({ day: row.happenedOn, amount: row.amount });
+				}
+			}
+			return going.sort((left, right) => compareCalendarDates(left.day, right.day));
+		},
+
+		/**
+		 * Deletes a series and the ones it continues. What happened stays, and so does every
+		 * record somebody touched; only the records after today that nobody touched go.
 		 *
-		 * This asked for the promises alone, which was the same thing while a series wrote
-		 * promises. It writes facts held back by their day now, and asking for the status
-		 * would have left every day ahead in place after the series was gone.
+		 * This took every record still to come, touched or not, and it found none at all once a
+		 * series wrote facts held back by their day instead of promises.
 		 */
 		async remove(id: string, options: { keepPlanned?: boolean } = {}): Promise<number> {
 			const found = await reachable(id);
 			assertCan(context.actor(), found.spaceId, "recurrence.write");
-			const today = todayIn(await timezoneOf(found.spaceId));
+			const today = todayIn(await timezoneOf(found.spaceId), new Date(context.now()));
+			const chain = await wholeChain(found);
 
 			let removed = 0;
 			await context.driver.transaction(async (tx) => {
 				const write = { ...context.write(), driver: tx };
-
-				if (options.keepPlanned !== true) {
-					const planned = await tx.all(
-						`SELECT "id" FROM "transactions" WHERE "recurrence_id" = ? AND ${stillToComeOn(null)}
-						 AND "deleted_at" IS NULL AND "reconciled_at" IS NULL`,
-						[id, today],
-					);
-					for (const row of planned) {
-						await softDeleteRow(write, {
-							table: transactions,
-							spaceId: found.spaceId,
-							id: String(row.id),
-						});
-						removed += 1;
-					}
+				for (const one of chain) {
+					if (options.keepPlanned !== true) removed += await dropUntouchedAfter(write, one, today);
+					await softDeleteRow(write, { table: recurrenceTable, spaceId: one.spaceId, id: one.id });
 				}
-
-				await softDeleteRow(write, {
-					table: recurrenceTable,
-					spaceId: found.spaceId,
-					id,
-				});
 			});
 			return removed;
 		},
