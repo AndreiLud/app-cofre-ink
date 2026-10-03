@@ -25,6 +25,14 @@ export {
 	windowsOf,
 } from "./bancoCentral.ts";
 export {
+	NOTES_LIMIT,
+	type PublishedRelease,
+	RELEASES_URL,
+	type Releases,
+	readReleases,
+	releasePageOf,
+} from "./github.ts";
+export {
 	mirrorToSheet,
 	type SheetOptions,
 	type SheetResult,

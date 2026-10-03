@@ -103,6 +103,11 @@ export type CallOptions = {
 	where: string;
 	/** Statuses that are an answer rather than a failure, such as a file that is gone. */
 	allow?: number[];
+	/**
+	 * What gives up on a request, such as `AbortSignal.timeout`. A request given up on is a
+	 * place that did not answer, status nought, like any other.
+	 */
+	signal?: AbortSignal;
 };
 
 export async function call(url: string, options: CallOptions): Promise<Response> {
@@ -114,6 +119,7 @@ export async function call(url: string, options: CallOptions): Promise<Response>
 			method: options.method ?? "GET",
 			headers: options.headers,
 			body: (options.body ?? undefined) as BodyInit | undefined,
+			...(options.signal ? { signal: options.signal } : {}),
 		});
 	} catch (reason) {
 		// No answer at all: no connection, a name that does not resolve, a certificate
