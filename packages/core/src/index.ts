@@ -28,6 +28,7 @@ export * from "./ids/uuidV7.ts";
 export * from "./invest/estimate.ts";
 export * from "./invest/products.ts";
 export * from "./invest/tax.ts";
+export * from "./invest/valuation.ts";
 export * from "./language/firstLanguage.ts";
 export * from "./money/index.ts";
 export * from "./plan/interest.ts";
