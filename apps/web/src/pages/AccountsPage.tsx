@@ -30,6 +30,7 @@ import { useTranslation } from "react-i18next";
 import { CardDialog } from "../components/CardDialog.tsx";
 import { CardsSection } from "../components/CardsSection.tsx";
 import { Value } from "../components/Value.tsx";
+import { VoucherAmount } from "../components/VoucherAmount.tsx";
 import { fillAmount, readAmount } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -377,7 +378,7 @@ export function AccountsPage() {
 	 * space, and everything else on this screen is open to an Editor too, so a single
 	 * "may write here" would have been wrong in both directions.
 	 */
-	const { mayCall, ready } = useWhatIMayDo(spaceId);
+	const { mayCall, ready, seesOwnRowsOnly } = useWhatIMayDo(spaceId);
 	const mayCreate = mayCall("accounts.create");
 	const mayUpdate = mayCall("accounts.update");
 	const mayArchive = mayCall("accounts.archive");
@@ -525,7 +526,16 @@ export function AccountsPage() {
 									    balance and was read as the balance, which is the number anybody
 									    comes to this table for. */}
 									<TableCell numeric={true}>
-										<Value amount={worthOf(account)} currency={account.currency} tone="auto" />
+										{account.kind === "voucher" ? (
+											<VoucherAmount
+												accountId={account.id}
+												currency={account.currency}
+												today={today}
+												known={!seesOwnRowsOnly}
+											/>
+										) : (
+											<Value amount={worthOf(account)} currency={account.currency} tone="auto" />
+										)}
 									</TableCell>
 									<TableCell numeric={true}>
 										{/* Nothing to offer is no button, rather than a button that opens

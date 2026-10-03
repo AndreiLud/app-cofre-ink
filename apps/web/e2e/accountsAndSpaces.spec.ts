@@ -121,6 +121,18 @@ test.describe("accounts", () => {
 		);
 	});
 
+	// Part 1, B.2 of the request for 2.0.0: the accounts screen showed the balance of the meal
+	// card, minus 56, where the overview showed what is on it.
+	test("shows on the meal card's row what the overview says is on it", async ({ page }) => {
+		await openCofre(page);
+		await expect(page.getByText("R$ 844,00").first()).toBeVisible();
+
+		await go(page, "Contas");
+		const row = page.getByRole("row").filter({ hasText: "Vale refeição" });
+		await expect(row).toContainText("R$ 844,00");
+		await expect(row).not.toContainText("56,00");
+	});
+
 	test("says what goes nowhere before deleting an account", async ({ page }) => {
 		await openCofre(page);
 		await go(page, "Contas");
