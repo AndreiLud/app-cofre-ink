@@ -10,8 +10,23 @@
 // on purpose with SHOTS=1 when the screens have changed. The comment here used to say
 // `--grep shots`, which on its own still skips every case.
 
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import { go, openCofre } from "./support.ts";
+
+/**
+ * Where the pictures go: apps/web/shots, worked out from this file.
+ *
+ * The paths were relative, so they landed beside whatever folder the camera was started
+ * from, and a run from the root of the clone wrote a second shots folder there.
+ */
+const SHOTS = fileURLToPath(new URL("../shots/", import.meta.url));
+
+// Outside the skip below, so it runs every time: the folder is what keeps the pictures out of
+// the repository, and a path that wanders is a picture that could be committed.
+test("writes the pictures into apps/web/shots", () => {
+	expect(SHOTS.replace(/\\/g, "/")).toMatch(/\/apps\/web\/shots\/$/);
+});
 
 const WIDTHS = [
 	{ name: "largo", width: 1280, height: 1400 },
@@ -33,7 +48,7 @@ const SCREENS: { name: string; section?: string; at?: string; waitFor: string }[
 	{ name: "contas", section: "Contas", waitFor: "Conta" },
 	{ name: "lancamentos", section: "Lançamentos", waitFor: "Novo lançamento" },
 	{ name: "mes", at: "/mes", waitFor: "Comparado com um mês comum" },
-	{ name: "relatorio", at: "/relatorio?mes=2026-09", waitFor: "O mês" },
+	{ name: "relatorio", at: "/relatorio?mes=2026-10", waitFor: "O mês" },
 ];
 
 test.describe("shots", () => {
@@ -57,7 +72,7 @@ test.describe("shots", () => {
 					// The fonts and the panel gradient settle a frame after the layout does.
 					await page.waitForTimeout(500);
 					await page.screenshot({
-						path: `shots/${screen.name}_${size.name}_${theme}.png`,
+						path: `${SHOTS}${screen.name}_${size.name}_${theme}.png`,
 						fullPage: true,
 					});
 				}
@@ -73,13 +88,16 @@ test.describe("shots", () => {
 	 * the two cases differ: the month somebody is living in is read today, and a month already
 	 * over is read as it stood on its last day.
 	 */
+	// The month the fixed day falls in, October, and one already over. "atual" was September,
+	// which on the twenty eighth of October is a month that has gone, so the two pictures were
+	// of the same case.
 	for (const month of [
-		{ name: "atual", at: "/relatorio?mes=2026-09", waitFor: "O mês" },
-		{ name: "passado", at: "/relatorio?mes=2026-08", waitFor: "O mês" },
+		{ name: "atual", at: "/relatorio?mes=2026-10", waitFor: "O mês" },
+		{ name: "passado", at: "/relatorio?mes=2026-09", waitFor: "O mês" },
 		// The same file in the other language, because a document is the one thing here
 		// somebody hands to another person, and the address is what decides which language
 		// opens, which is the first of the four answers in registry 0034.
-		{ name: "english", at: "/relatorio?mes=2026-09&lang=en", waitFor: "The month" },
+		{ name: "english", at: "/relatorio?mes=2026-10&lang=en", waitFor: "The month" },
 	]) {
 		test(`relatorio pdf ${month.name}`, async ({ page }) => {
 			await openCofre(page);
@@ -89,7 +107,7 @@ test.describe("shots", () => {
 			await page.waitForTimeout(1500);
 
 			await page.pdf({
-				path: `shots/cofre_relatorio_${month.name}.pdf`,
+				path: `${SHOTS}cofre_relatorio_${month.name}.pdf`,
 				format: "A4",
 				printBackground: true,
 				margin: { top: "14mm", bottom: "14mm", left: "12mm", right: "12mm" },
@@ -101,7 +119,7 @@ test.describe("shots", () => {
 			// meant to be gone by now.
 			await page.emulateMedia({ media: "print" });
 			await page.screenshot({
-				path: `shots/relatorio_impresso_${month.name}.png`,
+				path: `${SHOTS}relatorio_impresso_${month.name}.png`,
 				fullPage: true,
 			});
 		});
@@ -123,7 +141,7 @@ test.describe("shots", () => {
 		await page.getByRole("button", { name: "Pagar fatura" }).click();
 		const dialog = page.getByRole("dialog");
 		await expect(dialog).toBeVisible();
-		await page.screenshot({ path: "shots/fatura_pagar_dialogo.png", fullPage: true });
+		await page.screenshot({ path: `${SHOTS}fatura_pagar_dialogo.png`, fullPage: true });
 
 		// Part of it, which is the whole reason the amount is a field and not a sentence.
 		await dialog.getByLabel("Valor", { exact: true }).fill("100,00");
@@ -131,7 +149,7 @@ test.describe("shots", () => {
 		await expect(page.getByRole("dialog")).toHaveCount(0);
 
 		await expect(page.getByText("Paga em parte")).toBeVisible();
-		await page.screenshot({ path: "shots/fatura_paga_em_parte.png", fullPage: true });
+		await page.screenshot({ path: `${SHOTS}fatura_paga_em_parte.png`, fullPage: true });
 	});
 
 	test("a fatura com uma compra movida", async ({ page }) => {
@@ -145,11 +163,14 @@ test.describe("shots", () => {
 		const row = page.getByRole("row").filter({ hasText: "Cinema" }).first();
 		await expect(row).toBeVisible();
 		await row.getByRole("button", { name: "Ações do lançamento" }).click();
-		await page.screenshot({ path: "shots/fatura_mover_menu.png", fullPage: true });
+		await page.screenshot({ path: `${SHOTS}fatura_mover_menu.png`, fullPage: true });
 
 		await page.getByRole("menuitem", { name: "Mover para a próxima fatura" }).click();
 		await expect(page.getByRole("menu")).toHaveCount(0);
-		await page.screenshot({ path: "shots/fatura_compra_movida.png", fullPage: true });
+		// Once the purchase has left this invoice. The picture used to be taken as the menu
+		// closed, and showed the purchase still on it with the old total.
+		await expect(page.getByRole("row").filter({ hasText: "Cinema" })).toHaveCount(0);
+		await page.screenshot({ path: `${SHOTS}fatura_compra_movida.png`, fullPage: true });
 	});
 
 	test("o formulário de lançamento", async ({ page }) => {
@@ -163,10 +184,15 @@ test.describe("shots", () => {
 		await dialog.getByLabel("Pago com").selectOption({ index: 0 });
 		await dialog.getByLabel("Valor", { exact: true }).fill("99,90");
 		await dialog.getByLabel("Descrição").fill("Compra no cartão");
-		await page.screenshot({ path: "shots/lancamento_formulario.png", fullPage: true });
+		await page.screenshot({ path: `${SHOTS}lancamento_formulario.png`, fullPage: true });
 
 		await dialog.getByText("Mais detalhes").click();
-		await page.screenshot({ path: "shots/lancamento_mais_detalhes.png", fullPage: true });
+		// The dialog scrolls inside itself, so a picture of the whole page is still of its top:
+		// the fields it was taken for are brought into view first.
+		const notes = dialog.getByLabel("Observação");
+		await expect(notes).toBeVisible();
+		await notes.scrollIntoViewIfNeeded();
+		await page.screenshot({ path: `${SHOTS}lancamento_mais_detalhes.png`, fullPage: true });
 	});
 
 	test("editar uma conta", async ({ page }) => {
@@ -180,7 +206,7 @@ test.describe("shots", () => {
 		await row.getByRole("button", { name: "Ações da conta" }).click();
 		await page.getByRole("menuitem", { name: "Editar conta", exact: true }).click();
 		await expect(page.getByRole("dialog")).toBeVisible();
-		await page.screenshot({ path: "shots/conta_editar_cartao.png", fullPage: true });
+		await page.screenshot({ path: `${SHOTS}conta_editar_cartao.png`, fullPage: true });
 
 		await page.keyboard.press("Escape");
 		await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -190,6 +216,6 @@ test.describe("shots", () => {
 		await voucher.getByRole("button", { name: "Ações da conta" }).click();
 		await page.getByRole("menuitem", { name: "Editar conta", exact: true }).click();
 		await expect(page.getByRole("dialog")).toBeVisible();
-		await page.screenshot({ path: "shots/conta_editar_vale.png", fullPage: true });
+		await page.screenshot({ path: `${SHOTS}conta_editar_vale.png`, fullPage: true });
 	});
 });
