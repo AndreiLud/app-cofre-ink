@@ -16,11 +16,19 @@ import {
 	lazyRouteComponent,
 	Outlet,
 } from "@tanstack/react-router";
+import { readMonth } from "./lib/monthAddress.ts";
 import { readRecordsSearch } from "./lib/recordFilters.ts";
 import { DashboardPage } from "./pages/DashboardPage.tsx";
 import { TransactionsPage } from "./pages/TransactionsPage.tsx";
 import { AppShell } from "./shell/AppShell.tsx";
 
+/**
+ * The month of a screen that picks one, from its address: a month, or nothing for this one.
+ * Anything else is dropped rather than refused, because an address is typed by people.
+ */
+const monthSearch = (search: Record<string, unknown>): { mes?: string } => ({
+	mes: readMonth(search.mes),
+});
 const rootRoute = createRootRoute({
 	component: () => (
 		<AppShell>
@@ -67,6 +75,7 @@ const transactionsRoute = createRoute({
 const monthRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/mes",
+	validateSearch: monthSearch,
 	component: lazyRouteComponent(() => import("./pages/MonthPage.tsx"), "MonthPage"),
 });
 
@@ -76,12 +85,14 @@ const monthRoute = createRoute({
 const paperRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/relatorio",
+	validateSearch: monthSearch,
 	component: lazyRouteComponent(() => import("./pages/PaperReportPage.tsx"), "PaperReportPage"),
 });
 
 const reportsRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/relatorios",
+	validateSearch: monthSearch,
 	component: lazyRouteComponent(() => import("./pages/ReportsPage.tsx"), "ReportsPage"),
 });
 
@@ -94,6 +105,7 @@ const budgetRoute = createRoute({
 const calendarRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/calendario",
+	validateSearch: monthSearch,
 	component: lazyRouteComponent(() => import("./pages/CalendarPage.tsx"), "CalendarPage"),
 });
 

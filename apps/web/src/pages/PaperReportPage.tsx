@@ -36,10 +36,12 @@ import {
 	TableRow,
 } from "@cofre/ui";
 import { useQuery } from "@tanstack/react-query";
+import { useSearch } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
 import { stepSaid, stepTitle } from "../lib/stepSentence.ts";
+import { ROUTES } from "../routes.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
@@ -89,8 +91,9 @@ export function PaperReportPage() {
 	const currency = currentSpace?.baseCurrency ?? "BRL";
 	const mine = useWhatIMayDo(spaceId);
 
-	const asked = new URLSearchParams(window.location.search).get("mes");
-	const month = asked && /^\d{4}-\d{2}$/.test(asked) ? asked : monthOf(todayIn(timezone));
+	// From the route, as every other screen that picks a month: it read the address by hand.
+	const asked = useSearch({ from: ROUTES.paper }).mes;
+	const month = asked ?? monthOf(todayIn(timezone));
 	const from = `${month}-01` as CalendarDate;
 	const to = lastDayOf(month);
 

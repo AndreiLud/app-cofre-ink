@@ -26,10 +26,11 @@ import {
 	TableRow,
 } from "@cofre/ui";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
+import { useMonthInAddress } from "../lib/monthAddress.ts";
 import { ROUTES } from "../routes.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
@@ -56,7 +57,18 @@ export function ReportsPage() {
 	const { session, currentSpace, spaces } = useCofre();
 
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
-	const [month, setMonth] = useState(monthOf(today));
+	// The month is in the address: /relatorios?mes=2026-09 opens September, and the back button
+	// goes back a month rather than out of the screen.
+	const asked = useSearch({ from: ROUTES.reports });
+	const navigate = useNavigate();
+	const [month, setMonth] = useMonthInAddress(
+		asked.mes ?? monthOf(today),
+		(next) =>
+			void navigate({
+				to: ROUTES.reports,
+				search: { mes: next === monthOf(today) ? undefined : next },
+			}),
+	);
 	const [across, setAcross] = useState<"space" | "everything">("space");
 
 	const mine = useWhatIMayDo(currentSpace?.id);
@@ -226,7 +238,9 @@ export function ReportsPage() {
 						<input
 							type="month"
 							value={month}
-							onChange={(event) => setMonth(event.target.value)}
+							onChange={(event) => {
+								if (event.target.value !== "") setMonth(event.target.value);
+							}}
 							className="h-11 rounded-sm border border-lineStrong bg-sunken px-3 text-base text-ink transition-colors duration-150 focus:border-accent focus:bg-panel"
 						/>
 					</label>

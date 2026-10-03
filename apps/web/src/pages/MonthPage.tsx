@@ -58,12 +58,13 @@ import {
 	TableRow,
 } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { type FormEvent, useState } from "react";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
 import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { fillAmount } from "../lib/amounts.ts";
+import { useMonthInAddress } from "../lib/monthAddress.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { accountOptions } from "../lib/wayLabel.ts";
 import { ROUTES } from "../router.tsx";
@@ -193,8 +194,17 @@ export function MonthPage() {
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
 	const currency = currentSpace?.baseCurrency ?? "BRL";
 
-	const [month, setMonth] = useState("");
-	const shown = month === "" ? monthOf(today) : month;
+	// The month is in the address, so a reload, a link and the back button all reopen it.
+	const asked = useSearch({ from: ROUTES.month });
+	const navigate = useNavigate();
+	const [shown, setShown] = useMonthInAddress(
+		asked.mes ?? monthOf(today),
+		(next) =>
+			void navigate({
+				to: ROUTES.month,
+				search: { mes: next === monthOf(today) ? undefined : next },
+			}),
+	);
 
 	// Null is not "empty", it is "nothing typed yet", which is what shows whatever the
 	// month already holds without an effect copying it into the state behind the person.
@@ -209,13 +219,19 @@ export function MonthPage() {
 	const [unreadable, setUnreadable] = useState<string[]>([]);
 
 	function goTo(next: string) {
-		setMonth(next);
+		setShown(next);
+	}
+
+	// What was typed belongs to the month it was typed in. It was cleared only by the arrows of
+	// this screen, so the back button showed October with the figures typed for November.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: the month is what clears them
+	useEffect(() => {
 		setIncome(null);
 		setSpending(null);
 		setInvoices({});
 		setProblem(null);
 		setSaved(null);
-	}
+	}, [shown]);
 
 	const enabled = Boolean(session && currentSpace);
 

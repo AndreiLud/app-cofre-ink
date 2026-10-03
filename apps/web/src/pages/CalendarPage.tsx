@@ -9,11 +9,14 @@ import { addMonthsToMonth, addUpInBase, monthOf, todayIn } from "@cofre/core";
 import { hasHappened, type Transaction } from "@cofre/storage";
 import { Button, InsightTitle, Panel, Skeleton } from "@cofre/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { RecurrencesSection } from "../components/RecurrencesSection.tsx";
 import { Value } from "../components/Value.tsx";
 import { afterRecordsChange } from "../lib/afterRecords.ts";
+import { useMonthInAddress } from "../lib/monthAddress.ts";
+import { ROUTES } from "../routes.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
@@ -41,7 +44,17 @@ export function CalendarPage() {
 
 	const spaceId = currentSpace?.id ?? "";
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
-	const [month, setMonth] = useState(monthOf(today));
+	// The month is in the address, so a reload and the back button keep it.
+	const asked = useSearch({ from: ROUTES.calendar });
+	const navigate = useNavigate();
+	const [month, setMonth] = useMonthInAddress(
+		asked.mes ?? monthOf(today),
+		(next) =>
+			void navigate({
+				to: ROUTES.calendar,
+				search: { mes: next === monthOf(today) ? undefined : next },
+			}),
+	);
 
 	// The series write what they owe before the month is drawn, so a bill that has not
 	// been written yet still shows up on the day it falls due.
