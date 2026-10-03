@@ -55,6 +55,8 @@ export const METHOD_PERMISSIONS = {
 	"invoices.payWithCard": "transaction.create",
 	"invoices.split": "transaction.create",
 	"invoices.undoPlan": "transaction.delete",
+	"imports.existing": "transaction.read",
+	"imports.create": "transaction.create",
 	"categories.list": "category.read",
 	"categories.create": "category.write",
 	"rules.list": "rule.read",

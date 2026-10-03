@@ -213,7 +213,7 @@ export function ImportPage() {
 	 * the columns and mark the repeats, and only refuse at the end, throwing the whole of
 	 * that work away.
 	 */
-	const { mayCall, ready, role } = useWhatIMayDo(spaceId);
+	const { mayCall, ready, role, seesOwnRowsOnly } = useWhatIMayDo(spaceId);
 	const mayWrite = mayCall("transactions.create");
 
 	const accounts = useQuery({
@@ -314,6 +314,9 @@ export function ImportPage() {
 	 * invoice landed on a current account nobody chose.
 	 */
 	const ways = useMemo<Way[]>(() => {
+		// An invoice is the whole of what a card charges, whoever bought: somebody who sees only
+		// their own records is not offered one, which the model refuses them anyway.
+		if (isInvoice && seesOwnRowsOnly) return [];
 		if (!isInvoice) {
 			// A statement or a receipt in PDF is of an account that holds money.
 			const holding =
@@ -349,7 +352,7 @@ export function ImportPage() {
 		return [...open, ...putAway].sort(
 			(left, right) => (order.get(left.accountId) ?? 0) - (order.get(right.accountId) ?? 0),
 		);
-	}, [isInvoice, usable, cards.data, owingPutAway, t, read?.format]);
+	}, [isInvoice, usable, cards.data, owingPutAway, t, read?.format, seesOwnRowsOnly]);
 
 	const reachable: Account[] = useMemo(() => [...usable, ...owingPutAway], [usable, owingPutAway]);
 
@@ -747,6 +750,9 @@ export function ImportPage() {
 	 */
 	const startsOut = (record: MarkedRecord, index: number) =>
 		(isInvoice && record.nature === "payment" && paidAlready) ||
+		// Paying a card is the card's, whoever paid: on the statement of somebody who sees only
+		// their own records it starts out, and kept it is their own money leaving.
+		(!isInvoice && record.nature === "cardPayment" && seesOwnRowsOnly) ||
 		pairedInFile.has(index) ||
 		arranged.has(index) ||
 		// A move or a series already here is proof enough; the amount alone is, on an invoice.
@@ -765,7 +771,10 @@ export function ImportPage() {
 	const waiting = kept.find(
 		({ record, index }) =>
 			(isInvoice && record.nature === "payment" && payerOf(index) === null) ||
-			(!isInvoice && record.nature === "cardPayment" && paidCardOf(record, index) === null),
+			(!isInvoice &&
+				record.nature === "cardPayment" &&
+				!seesOwnRowsOnly &&
+				paidCardOf(record, index) === null),
 	);
 
 	/** Whether the invoice lists more than one card, so each line says which. */
@@ -858,7 +867,9 @@ export function ImportPage() {
 				const payment = isInvoice && record.nature === "payment" && paidMonth !== null;
 				// A card paid from a statement: the transfer that pays the invoice of its day.
 				const paysCard =
-					!isInvoice && record.nature === "cardPayment" ? paidCardOf(record, index) : null;
+					!isInvoice && record.nature === "cardPayment" && !seesOwnRowsOnly
+						? paidCardOf(record, index)
+						: null;
 				const paysInvoice = paysCard ? invoicePaidBy(record, paysCard) : null;
 				const paidName = reachable.find((account) => account.id === paysCard)?.name ?? "";
 				return {
@@ -1031,6 +1042,11 @@ export function ImportPage() {
 			{read === null ? null : (
 				<div className="space-y-5">
 					{read.document ? <WhatItIs document={read.document} /> : null}
+					{isInvoice && seesOwnRowsOnly ? (
+						<Callout tone="attention" title={t("importing.invoiceNotYoursTitle")}>
+							{t("importing.invoiceNotYoursBody")}
+						</Callout>
+					) : null}
 					{/* The file names a card that was put away with nothing owed: nothing is offered
 					    for it, and the way back is where the cards are. */}
 					{putAwayCard ? (
@@ -1369,7 +1385,7 @@ export function ImportPage() {
 													) : null}
 													{/* The card a statement's payment paid, which is a transfer into it
 													    on the invoice of its day. */}
-													{!isInvoice && record.nature === "cardPayment" ? (
+													{!isInvoice && record.nature === "cardPayment" && !seesOwnRowsOnly ? (
 														<select
 															aria-label={t("importing.paidCardOf", {
 																description: record.description,

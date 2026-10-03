@@ -1458,6 +1458,81 @@ describe("the api", () => {
 			expect(known.find((row) => row.externalId === "abc")?.amount).toBe(-4290);
 		});
 
+		// Part 2, E.17.2 of the request for 2.0.0: the check of the request dropped every field it
+		// did not know, so an invoice read on a server lost its month, its natures and its plans.
+		it("keeps every field of an invoice read in, and refuses a month that is not one", async () => {
+			const ana = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			const { space, account } = await spaceWithAccount(ana);
+			const card = await ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+				method: "POST",
+				body: JSON.stringify({ kind: "credit", name: "Cartao", closingDay: 3, dueDay: 10 }),
+			});
+			const [purchase] = await ana.json<Array<{ id: string }>>(
+				`/api/spaces/${space.id}/transactions`,
+				{
+					method: "POST",
+					body: JSON.stringify({
+						kind: "expense",
+						amount: 5000,
+						happenedOn: "2026-09-02",
+						description: "Loja X",
+						accountId: card.id,
+					}),
+				},
+			);
+			const send = (invoiceMonth: string) =>
+				ana.request(`/api/spaces/${space.id}/imports`, {
+					method: "POST",
+					body: JSON.stringify({
+						accountId: card.id,
+						invoiceMonth,
+						records: [
+							{
+								happenedOn: "2026-10-03",
+								amount: 1840,
+								description: "Padaria",
+								nature: "purchase",
+							},
+							{
+								happenedOn: "2026-09-12",
+								amount: 15_000,
+								description: "Geladeira",
+								nature: "installment",
+								installment: { number: 5, count: 10 },
+							},
+							{
+								happenedOn: "2026-09-05",
+								amount: -100_000,
+								description: "Pagamento da fatura de setembro de 2026 (Cartao)",
+								nature: "payment",
+								paymentFrom: account.id,
+							},
+							{
+								happenedOn: "2026-09-14",
+								amount: 5000,
+								description: "Estorno Loja X",
+								nature: "credit",
+								reverses: purchase?.id,
+							},
+						],
+					}),
+				});
+			expect((await send("2026-13")).status).toBe(400);
+
+			const response = await send("2026-10");
+			expect(response.status).toBe(201);
+			const rows = await ana.json<
+				Array<{ description: string; kind: string; invoiceMonth: string | null }>
+			>(`/api/spaces/${space.id}/transactions?accountId=${card.id}&limit=50`);
+			expect(rows.find((row) => row.description === "Padaria")?.invoiceMonth).toBe("2026-10");
+			expect(rows.filter((row) => row.description.startsWith("Geladeira"))).toHaveLength(6);
+			expect(rows.find((row) => row.description.startsWith("Pagamento"))?.invoiceMonth).toBe(
+				"2026-09",
+			);
+			expect(rows.find((row) => row.description === "Loja X")).toBeUndefined();
+		});
+
 		it("refuses the whole file when one line has no day", async () => {
 			const ana = createClient(app);
 			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });

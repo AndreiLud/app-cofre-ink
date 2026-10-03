@@ -1482,7 +1482,9 @@
 		"alreadyHere": "Already here",
 		"paidCardOf": "Card paid by {{description}}",
 		"pickPaidCard": "Pays which card?",
-		"cardPaymentWaits": "\"{{description}}\" paid the invoice of a card. Say which one to write it."
+		"cardPaymentWaits": "\"{{description}}\" paid the invoice of a card. Say which one to write it.",
+		"invoiceNotYoursTitle": "An invoice is the whole card's",
+		"invoiceNotYoursBody": "It holds what everybody spent on the card. Somebody who sees only their own records reads in statements, and not invoices."
 	},
 	"demo": {
 		"notice": "Made up data, for demonstration only."

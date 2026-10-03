@@ -394,6 +394,57 @@ export function runImportingConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// E.17: somebody who sees only their own records read an invoice into the card, which the
+		// invoices themselves refuse to show them.
+		it("refuses an invoice, and paying a card, to somebody who sees only their own records", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const on = fixture.asAna;
+				const house = await on.spaces.create({ name: "Casa" });
+				await on.members.invite({ spaceId: house.id, userId: fixture.joao.id, role: "logger" });
+				await fixture.asJoao.members.accept(house.id);
+				const checking = await on.accounts.create({
+					spaceId: house.id,
+					kind: "checking",
+					name: "Conta",
+				});
+				const card = await on.accounts.create({
+					spaceId: house.id,
+					kind: "credit",
+					name: "Cartao",
+					closingDay: 3,
+					dueDay: 10,
+				});
+				const line = { happenedOn: "2026-10-05", amount: -1000, description: "Cafe" };
+				await expect(
+					fixture.asJoao.imports.create({
+						spaceId: house.id,
+						accountId: card.id,
+						invoiceMonth: "2026-10",
+						records: [{ ...line, nature: "purchase" }],
+					}),
+				).rejects.toMatchObject({ rule: "invoiceBelongsToTheCard" });
+				await expect(
+					fixture.asJoao.imports.create({
+						spaceId: house.id,
+						accountId: checking.id,
+						records: [
+							{ ...line, nature: "cardPayment", paysCard: card.id, paysInvoice: "2026-10" },
+						],
+					}),
+				).rejects.toMatchObject({ rule: "invoiceBelongsToTheCard" });
+				// The statement of the account, without paying the card, is theirs to read in.
+				const written = await fixture.asJoao.imports.create({
+					spaceId: house.id,
+					accountId: checking.id,
+					records: [line],
+				});
+				expect(written.written).toBe(1);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		// E.10.2: the one record a card was written down with for its open invoice is replaced by
 		// the invoice that details it, in the same write.
 		it("removes the record an invoice details, in the same write", async () => {

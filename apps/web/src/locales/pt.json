@@ -1482,7 +1482,9 @@
 		"alreadyHere": "Já está aqui",
 		"paidCardOf": "Cartão pago por {{description}}",
 		"pickPaidCard": "Paga qual cartão?",
-		"cardPaymentWaits": "\"{{description}}\" pagou a fatura de um cartão. Diga qual para gravar."
+		"cardPaymentWaits": "\"{{description}}\" pagou a fatura de um cartão. Diga qual para gravar.",
+		"invoiceNotYoursTitle": "Uma fatura é de todo o cartão",
+		"invoiceNotYoursBody": "Ela traz o que todos gastaram no cartão. Quem vê só os próprios lançamentos importa extratos, e não faturas."
 	},
 	"demo": {
 		"notice": "Dados fictícios, só para demonstração."

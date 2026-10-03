@@ -288,6 +288,19 @@ export function createImportsRepository(context: RepositoryContext) {
 			if (input.records.length === 0) return { written: 0, ids: [] };
 
 			const account = await accountIn(input.spaceId, input.accountId);
+			// An invoice is the whole of what a card will charge, whoever made the purchases, and so
+			// is paying one: somebody who sees only their own records writes neither. The same
+			// reason the invoices themselves give.
+			const narrowed = seesOwnRowsOnly(context.actor(), input.spaceId);
+			if (
+				narrowed &&
+				(account.kind === "credit" || input.records.some((record) => record.paysCard))
+			) {
+				throw new RuleError(
+					"invoiceBelongsToTheCard",
+					"an invoice is the whole of what the card will charge, so it is not read one person at a time",
+				);
+			}
 			const invoiceMonth = input.invoiceMonth ?? null;
 			if (invoiceMonth !== null) {
 				// "2026-13" was written as it came, and every reading of an invoice failed after it.

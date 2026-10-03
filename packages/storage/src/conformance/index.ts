@@ -307,6 +307,22 @@ const PROBES: Probe[] = [
 			}),
 	},
 	{
+		method: "imports.existing",
+		permission: "transaction.read",
+		run: (session, where) =>
+			session.imports.existing(where.spaceId, { accountId: where.accountId }),
+	},
+	{
+		method: "imports.create",
+		permission: "transaction.create",
+		run: (session, where) =>
+			session.imports.create({
+				spaceId: where.spaceId,
+				accountId: where.accountId,
+				records: [{ happenedOn: "2026-10-05", amount: -1000, description: "Cafe" }],
+			}),
+	},
+	{
 		method: "cards.remove",
 		permission: "account.delete",
 		run: (session, where) => session.cards.remove(where.cardId),
