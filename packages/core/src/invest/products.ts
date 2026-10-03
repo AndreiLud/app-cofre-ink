@@ -274,8 +274,15 @@ export function genericProductOf(kind: HoldingKindOfProduct): Product {
 						? "pension"
 						: "other";
 	const product = productOf(id) as Product;
-	// Valued as it always was: by the price typed, whatever the generic product does now.
-	return { ...product, kind, valuation: () => "price" };
+	// Valued as it always was: by the price typed, whatever the generic product does now. Listed
+	// with the fixed income when it was written down as fixed income, and not under "Outro"
+	// because no product of that group is generic. A property stays there: it may be a house.
+	return {
+		...product,
+		kind,
+		group: kind === "fixedIncome" ? "fixedIncome" : product.group,
+		valuation: () => "price",
+	};
 }
 
 /** The product of a holding, what it was written down as, or the generic one of its kind. */

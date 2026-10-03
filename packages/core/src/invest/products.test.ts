@@ -45,6 +45,14 @@ describe("the catalog of products", () => {
 		expect(productOfHolding({ product: "lci", kind: "fixedIncome" }).id).toBe("lci");
 	});
 
+	it("lists a holding from before 2.0.0 with the group of its kind", () => {
+		expect(genericProductOf("fixedIncome").group).toBe("fixedIncome");
+		expect(genericProductOf("stock").group).toBe("exchange");
+		expect(genericProductOf("fund").group).toBe("fund");
+		// A property may be a house, which is no group of the menu.
+		expect(genericProductOf("realEstate").group).toBe("other");
+	});
+
 	it("leaves a house out of the menu", () => {
 		expect(PRODUCTS.some((product) => product.kind === "realEstate")).toBe(false);
 	});
