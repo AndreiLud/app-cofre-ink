@@ -450,7 +450,12 @@
 		"stateOver": "{{amount}} over the limit.",
 		"stateTight": "At this rate the month closes at {{amount}}.",
 		"stateComfortable": "{{amount}} left for the rest of the month.",
-		"emptyBody": "Pick what usually gets away from you, takeaway or going out. One limit on one category already changes the month."
+		"emptyBody": "Pick what usually gets away from you, takeaway or going out. One limit on one category already changes the month.",
+		"state": {
+			"comfortable": "Within the limit",
+			"tight": "Close to the limit",
+			"over": "Over the limit"
+		}
 	},
 	"sharing": {
 		"title": "Who owes whom",

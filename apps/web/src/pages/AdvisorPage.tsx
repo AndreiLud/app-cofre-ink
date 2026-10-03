@@ -18,6 +18,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { findingLine } from "../components/Findings.tsx";
+import { stepSaid, stepTitle } from "../lib/stepSentence.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
@@ -149,19 +150,8 @@ export function AdvisorPage() {
 		return t(`advisor.said.${sign.code}`, values);
 	};
 
-	/** What a step costs, how long it takes and when it lands. */
-	const saidAboutStep = (step: PlanStep) => {
-		// A step with no months is a step with nothing funding it. Saying "at nothing a
-		// month, nought months" is arithmetic that has stopped meaning anything.
-		const undated = step.months === 0 && step.code !== "coverDues" && step.code !== "freeUpMonthly";
-		if (undated) return t("step.said.undated", { amount: money(step.amount) });
-
-		return t(`step.said.${step.code}`, {
-			count: step.months,
-			amount: money(step.amount),
-			everyMonth: money(step.everyMonth),
-		});
-	};
+	/** What a step costs, how long it takes and when it lands, worded as on paper. */
+	const saidAboutStep = (step: PlanStep) => stepSaid(t, step, money);
 
 	/**
 	 * This screen reads a verdict over the money of a household.
@@ -234,9 +224,7 @@ export function AdvisorPage() {
 										<span className="font-mono text-sm text-quiet">{index + 1}</span>
 										<div className="min-w-0 flex-1 space-y-1">
 											<div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-												<h3 className="font-medium text-ink">
-													{step.subject ?? t(`step.${step.code}`)}
-												</h3>
+												<h3 className="font-medium text-ink">{stepTitle(t, step)}</h3>
 												{step.finishesOn ? (
 													<span className="text-sm text-quiet">
 														{t("advisor.until", { month: monthName(step.finishesOn) })}

@@ -450,7 +450,12 @@
 		"stateOver": "Passou {{amount}} do limite.",
 		"stateTight": "Nesse ritmo o mês fecha em {{amount}}.",
 		"stateComfortable": "Sobram {{amount}} para o resto do mês.",
-		"emptyBody": "Escolha o que costuma fugir do controle, como delivery ou lazer. Um limite por categoria já muda o mês."
+		"emptyBody": "Escolha o que costuma fugir do controle, como delivery ou lazer. Um limite por categoria já muda o mês.",
+		"state": {
+			"comfortable": "Dentro do limite",
+			"tight": "Perto do limite",
+			"over": "Passou do limite"
+		}
 	},
 	"sharing": {
 		"title": "Quem deve para quem",

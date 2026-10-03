@@ -39,6 +39,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
+import { stepSaid, stepTitle } from "../lib/stepSentence.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
@@ -630,11 +631,9 @@ export function PaperReportPage() {
 					{reading.data.plan.steps.length > 0 ? (
 						<ol className="list-decimal space-y-1 pl-5 text-sm">
 							{reading.data.plan.steps.map((step) => (
-								<li key={step.code}>
-									{t(`plan.${step.code}`, {
-										amount: money(step.amount),
-										months: step.months,
-									})}
+								<li key={`${step.code}${step.subject ?? ""}`}>
+									<span className="font-medium">{stepTitle(t, step)}.</span>{" "}
+									{stepSaid(t, step, money)}
 								</li>
 							))}
 						</ol>
