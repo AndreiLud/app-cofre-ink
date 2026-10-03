@@ -1004,43 +1004,58 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		return context.body(null, 204);
 	});
 
-	app.get("/api/spaces/:id/transactions", async (context) => {
-		const query = context.req.query();
-		// Which end of the range the page is taken from, and where it starts. Both are new on
-		// the filter and both were dropped here, so the interface asked for what falls due
-		// next and a server answered with the fifty furthest away: the limit is applied by
-		// the database, so the order is not something a caller can put right afterwards.
-		const order = query.order === "oldestFirst" ? "oldestFirst" : undefined;
-		return context.json(
-			await context.get("session").transactions.list({
-				order,
-				offset: query.offset === undefined ? undefined : Number(query.offset),
-				spaceId: context.req.param("id"),
-				accountId: query.accountId,
-				cardId: query.cardId,
-				kind: query.kind as "income" | "expense" | "transfer" | undefined,
-				status: query.status as "planned" | "settled" | undefined,
-				// What has happened and what is still to come, each by a day. Dropped here, the
-				// overview of somebody on a server would list what already happened as coming.
-				happenedBy: query.happenedBy,
-				stillToComeOn: query.stillToComeOn,
-				from: query.from,
-				to: query.to,
-				invoiceMonth: query.invoiceMonth,
-				search: query.search,
-				categoryIds:
-					query.categoryIds === undefined || query.categoryIds === ""
-						? undefined
-						: query.categoryIds.split(","),
-				withoutCategory: query.withoutCategory === "true",
-				externalIds:
-					query.externalIds === undefined || query.externalIds === ""
-						? undefined
-						: query.externalIds.split(","),
-				limit: query.limit === undefined ? undefined : Number(query.limit),
-			}),
-		);
+	/**
+	 * What a list of records asks, read from the address once for the list and for its sum: a
+	 * filter forgotten in one of two copies went missing on a server and nowhere else.
+	 */
+	const recordsFilter = (query: Record<string, string>, spaceId: string) => ({
+		// Which end of the range the page is taken from, and where it starts. Both were dropped
+		// here once, so the interface asked for what falls due next and a server answered with
+		// the fifty furthest away: the limit is applied by the database.
+		order: query.order === "oldestFirst" ? ("oldestFirst" as const) : undefined,
+		offset: query.offset === undefined ? undefined : Number(query.offset),
+		spaceId,
+		accountId: query.accountId,
+		cardId: query.cardId,
+		kind: query.kind as "income" | "expense" | "transfer" | undefined,
+		status: query.status as "planned" | "settled" | undefined,
+		// What has happened and what is still to come, each by a day. Dropped here, the
+		// overview of somebody on a server would list what already happened as coming.
+		happenedBy: query.happenedBy,
+		stillToComeOn: query.stillToComeOn,
+		from: query.from,
+		to: query.to,
+		invoiceMonth: query.invoiceMonth,
+		installmentGroup: query.installmentGroup,
+		search: query.search,
+		categoryIds:
+			query.categoryIds === undefined || query.categoryIds === ""
+				? undefined
+				: query.categoryIds.split(","),
+		withoutCategory: query.withoutCategory === "true",
+		externalIds:
+			query.externalIds === undefined || query.externalIds === ""
+				? undefined
+				: query.externalIds.split(","),
+		limit: query.limit === undefined ? undefined : Number(query.limit),
 	});
+
+	app.get("/api/spaces/:id/transactions", async (context) =>
+		context.json(
+			await context
+				.get("session")
+				.transactions.list(recordsFilter(context.req.query(), context.req.param("id"))),
+		),
+	);
+
+	/** What the list adds up to, every record the filter reaches and not only one page. */
+	app.get("/api/spaces/:id/transactions/summary", async (context) =>
+		context.json(
+			await context
+				.get("session")
+				.transactions.summarize(recordsFilter(context.req.query(), context.req.param("id"))),
+		),
+	);
 
 	app.post("/api/spaces/:id/transactions", async (context) => {
 		const input = transactionInput.parse(await context.req.json());

@@ -36,6 +36,7 @@ export const METHOD_PERMISSIONS = {
 	"cards.create": "account.create",
 	"cards.remove": "account.delete",
 	"transactions.list": "transaction.read",
+	"transactions.summarize": "transaction.read",
 	"transactions.create": "transaction.create",
 	"transactions.update": "transaction.update",
 	"transactions.updateMany": "transaction.update",

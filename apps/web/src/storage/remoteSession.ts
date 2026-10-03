@@ -75,6 +75,7 @@ import type {
 	Transaction,
 	TransactionFilter,
 	TransactionKind,
+	TransactionSummary,
 	UpdateCategoryInput,
 	UpdateGoalInput,
 	UpdateHoldingInput,
@@ -188,6 +189,26 @@ function reportPath(kind: string, range: ReportRange): string {
 	return `/api/reports?${query.toString()}`;
 }
 
+/**
+ * The address of a list of records, or of its sum, with the filter in it: one function for
+ * both, so a filter added to one cannot go missing from the other.
+ */
+function recordsAddress(filter: TransactionFilter, path: string): string {
+	const { spaceId, limit, categoryIds, externalIds, ...rest } = filter;
+	const query = new URLSearchParams();
+	for (const [name, value] of Object.entries(rest)) {
+		if (value !== undefined && value !== "") query.set(name, String(value));
+	}
+	if (categoryIds && categoryIds.length > 0) query.set("categoryIds", categoryIds.join(","));
+	// Taken out of the loop above on purpose: a list that fell into it would be turned into a
+	// string by String(), which works by accident and stops working the day one holds a comma.
+	if (externalIds && externalIds.length > 0) query.set("externalIds", externalIds.join(","));
+	if (limit !== undefined) query.set("limit", String(limit));
+	const search = query.toString();
+	// Without a space the server would have to walk every space of the person, so the
+	// interface always asks about the one that is open.
+	return `/api/spaces/${spaceId ?? ""}/${path}${search === "" ? "" : `?${search}`}`;
+}
 export function createServerClient(server: string) {
 	const get = <T>(path: string) => call<T>(server, path);
 	const send = <T>(path: string, method: string, body?: unknown) =>
@@ -400,25 +421,10 @@ export function createRemoteSession(
 		},
 
 		transactions: {
-			list: (filter: TransactionFilter = {}) => {
-				const { spaceId, limit, categoryIds, externalIds, ...rest } = filter;
-				const query = new URLSearchParams();
-				for (const [name, value] of Object.entries(rest)) {
-					if (value !== undefined && value !== "") query.set(name, String(value));
-				}
-				if (categoryIds && categoryIds.length > 0) query.set("categoryIds", categoryIds.join(","));
-				// Taken out of the loop above on purpose: a list that fell into it would be
-				// turned into a string by String(), which works by accident and stops working
-				// the day one of these holds a comma.
-				if (externalIds && externalIds.length > 0) query.set("externalIds", externalIds.join(","));
-				if (limit !== undefined) query.set("limit", String(limit));
-				const search = query.toString();
-				// Without a space the server would have to walk every space of the person,
-				// so the interface always asks about the one that is open.
-				return get<Transaction[]>(
-					`/api/spaces/${spaceId ?? ""}/transactions${search === "" ? "" : `?${search}`}`,
-				);
-			},
+			list: (filter: TransactionFilter = {}) =>
+				get<Transaction[]>(recordsAddress(filter, "transactions")),
+			summarize: (filter: TransactionFilter = {}) =>
+				get<TransactionSummary>(recordsAddress(filter, "transactions/summary")),
 			create: (input: CreateTransactionInput) => {
 				const { spaceId, ...rest } = input;
 				return send<Transaction[]>(`/api/spaces/${spaceId}/transactions`, "POST", rest);

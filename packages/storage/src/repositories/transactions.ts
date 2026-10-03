@@ -183,6 +183,15 @@ export type TransactionFilter = {
 	offset?: number;
 };
 
+/** What a list adds up to: how many records, money in and money out, and each month of it. */
+export type TransactionSummary = {
+	count: number;
+	income: number;
+	expense: number;
+	/** Newest month first. */
+	byMonth: { month: string; count: number; income: number; expense: number }[];
+};
+
 function signFor(kind: TransactionKind, amount: number): number {
 	if (!Number.isSafeInteger(amount) || amount <= 0) {
 		throw new RuleError(
@@ -407,6 +416,100 @@ export async function writeArrangement(
 }
 
 export function createTransactionsRepository(context: RepositoryContext) {
+	/**
+	 * What a filter asks, as the conditions of a query: one function for the list and for the
+	 * sum of the list, so a filter added to one cannot go missing from the other. Nothing when
+	 * the person reads no space.
+	 */
+	function whereOf(filter: TransactionFilter): { where: string[]; params: SqlValue[] } | null {
+		const actor = context.actor();
+		const spaceIds = filter.spaceId
+			? [filter.spaceId]
+			: readableSpaceIds(actor).filter((id) => context.can(id, "transaction.read"));
+
+		if (filter.spaceId) assertCan(actor, filter.spaceId, "transaction.read");
+		if (spaceIds.length === 0) return null;
+
+		const where: string[] = [`"space_id" IN (${marks(spaceIds.length)})`, `"deleted_at" IS NULL`];
+		const params: SqlValue[] = [...spaceIds];
+
+		// A logger reads their own rows. Every other role reads the whole space.
+		const hidden = spaceIds.filter((id) => seesOwnRowsOnly(actor, id));
+		if (hidden.length > 0) {
+			where.push(`("space_id" NOT IN (${marks(hidden.length)}) OR "created_by" = ?)`);
+			params.push(...hidden, actor.userId);
+		}
+
+		if (filter.accountId && filter.invoiceMonth) {
+			// One invoice of a card, by the rule `touchesOn` states: what the card charged to it,
+			// a transfer out of the card on the invoice of its origin, and what paid it. A part
+			// of paying another card's invoice names that invoice in `invoice_month`, and was
+			// missing from the invoice of this card it is a purchase on.
+			where.push(
+				`(("account_id" = ? AND (CASE WHEN "kind" = 'transfer'
+					     THEN COALESCE("origin_invoice_month", "invoice_month")
+					     ELSE "invoice_month" END) = ?)
+					  OR ("counter_account_id" = ? AND "invoice_month" = ?))`,
+			);
+			params.push(filter.accountId, filter.invoiceMonth, filter.accountId, filter.invoiceMonth);
+		} else if (filter.accountId) {
+			where.push(`("account_id" = ? OR "counter_account_id" = ?)`);
+			params.push(filter.accountId, filter.accountId);
+		}
+		if (filter.cardId) {
+			where.push(`"card_id" = ?`);
+			params.push(filter.cardId);
+		}
+		if (filter.kind) {
+			where.push(`"kind" = ?`);
+			params.push(filter.kind);
+		}
+		if (filter.status) {
+			where.push(`"status" = ?`);
+			params.push(filter.status);
+		}
+		if (filter.happenedBy) {
+			where.push(happenedBy(null));
+			params.push(filter.happenedBy);
+		}
+		if (filter.stillToComeOn) {
+			where.push(stillToComeOn(null));
+			params.push(filter.stillToComeOn);
+		}
+		if (filter.from) {
+			where.push(`"happened_on" >= ?`);
+			params.push(filter.from);
+		}
+		if (filter.to) {
+			where.push(`"happened_on" <= ?`);
+			params.push(filter.to);
+		}
+		if (filter.invoiceMonth && !filter.accountId) {
+			where.push(`"invoice_month" = ?`);
+			params.push(filter.invoiceMonth);
+		}
+		if (filter.installmentGroup) {
+			where.push(`"installment_group" = ?`);
+			params.push(filter.installmentGroup);
+		}
+		if (filter.search && filter.search.trim() !== "") {
+			where.push(`lower("description") LIKE ?`);
+			params.push(`%${filter.search.trim().toLowerCase()}%`);
+		}
+		if (filter.categoryIds && filter.categoryIds.length > 0) {
+			where.push(`"category_id" IN (${marks(filter.categoryIds.length)})`);
+			params.push(...filter.categoryIds);
+		}
+		if (filter.withoutCategory) {
+			where.push(`"category_id" IS NULL`);
+		}
+		if (filter.externalIds && filter.externalIds.length > 0) {
+			where.push(`"external_id" IN (${marks(filter.externalIds.length)})`);
+			params.push(...filter.externalIds);
+		}
+		return { where, params };
+	}
+
 	/**
 	 * A category has to live in the same space as the record that points at it. Without
 	 * this check a mistake, or somebody calling the API by hand, would tie a record in
@@ -921,93 +1024,51 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			return rows.map(toTransaction);
 		},
 
+		/**
+		 * What the list adds up to, every record the filter reaches and not only the page on screen.
+		 *
+		 * The footer added the two hundred records the page had, whatever the list held, and the
+		 * reports could not stand in: they count only what happened and filter nothing. In the
+		 * currency of the space, records ahead included. A move between two accounts, and the
+		 * payment of an invoice, is neither, unless the filter is one account: then what leaves it
+		 * is money out and what reaches it is money in.
+		 */
+		async summarize(filter: TransactionFilter = {}): Promise<TransactionSummary> {
+			const found = whereOf(filter);
+			if (found === null) return { count: 0, income: 0, expense: 0, byMonth: [] };
+			const { where, params } = found;
+			const account = filter.accountId ?? null;
+			const rows = await context.driver.all(
+				`SELECT substr("happened_on", 1, 7) AS "month", COUNT(*) AS "count",
+				        SUM(CASE WHEN "kind" = 'income' THEN "amount_in_base"
+				                 WHEN "kind" = 'transfer' AND "counter_account_id" = ? THEN "amount_in_base"
+				                 ELSE 0 END) AS "income",
+				        SUM(CASE WHEN "kind" = 'expense' THEN -"amount_in_base"
+				                 WHEN "kind" = 'transfer' AND "account_id" = ? THEN "amount_in_base"
+				                 ELSE 0 END) AS "expense"
+				 FROM "transactions" WHERE ${where.join(" AND ")}
+				 GROUP BY substr("happened_on", 1, 7)
+				 ORDER BY substr("happened_on", 1, 7) DESC`,
+				[account, account, ...params],
+			);
+			const byMonth = rows.map((row) => ({
+				month: String(row.month),
+				count: asNumber(row.count),
+				income: asNumber(row.income ?? 0),
+				expense: asNumber(row.expense ?? 0),
+			}));
+			return {
+				count: byMonth.reduce((sum, month) => sum + month.count, 0),
+				income: byMonth.reduce((sum, month) => sum + month.income, 0),
+				expense: byMonth.reduce((sum, month) => sum + month.expense, 0),
+				byMonth,
+			};
+		},
+
 		async list(filter: TransactionFilter = {}): Promise<Transaction[]> {
-			const actor = context.actor();
-			const spaceIds = filter.spaceId
-				? [filter.spaceId]
-				: readableSpaceIds(actor).filter((id) => context.can(id, "transaction.read"));
-
-			if (filter.spaceId) assertCan(actor, filter.spaceId, "transaction.read");
-			if (spaceIds.length === 0) return [];
-
-			const where: string[] = [`"space_id" IN (${marks(spaceIds.length)})`, `"deleted_at" IS NULL`];
-			const params: SqlValue[] = [...spaceIds];
-
-			// A logger reads their own rows. Every other role reads the whole space.
-			const hidden = spaceIds.filter((id) => seesOwnRowsOnly(actor, id));
-			if (hidden.length > 0) {
-				where.push(`("space_id" NOT IN (${marks(hidden.length)}) OR "created_by" = ?)`);
-				params.push(...hidden, actor.userId);
-			}
-
-			if (filter.accountId && filter.invoiceMonth) {
-				// One invoice of a card, by the rule `touchesOn` states: what the card charged to it,
-				// a transfer out of the card on the invoice of its origin, and what paid it. A part
-				// of paying another card's invoice names that invoice in `invoice_month`, and was
-				// missing from the invoice of this card it is a purchase on.
-				where.push(
-					`(("account_id" = ? AND (CASE WHEN "kind" = 'transfer'
-					     THEN COALESCE("origin_invoice_month", "invoice_month")
-					     ELSE "invoice_month" END) = ?)
-					  OR ("counter_account_id" = ? AND "invoice_month" = ?))`,
-				);
-				params.push(filter.accountId, filter.invoiceMonth, filter.accountId, filter.invoiceMonth);
-			} else if (filter.accountId) {
-				where.push(`("account_id" = ? OR "counter_account_id" = ?)`);
-				params.push(filter.accountId, filter.accountId);
-			}
-			if (filter.cardId) {
-				where.push(`"card_id" = ?`);
-				params.push(filter.cardId);
-			}
-			if (filter.kind) {
-				where.push(`"kind" = ?`);
-				params.push(filter.kind);
-			}
-			if (filter.status) {
-				where.push(`"status" = ?`);
-				params.push(filter.status);
-			}
-			if (filter.happenedBy) {
-				where.push(happenedBy(null));
-				params.push(filter.happenedBy);
-			}
-			if (filter.stillToComeOn) {
-				where.push(stillToComeOn(null));
-				params.push(filter.stillToComeOn);
-			}
-			if (filter.from) {
-				where.push(`"happened_on" >= ?`);
-				params.push(filter.from);
-			}
-			if (filter.to) {
-				where.push(`"happened_on" <= ?`);
-				params.push(filter.to);
-			}
-			if (filter.invoiceMonth && !filter.accountId) {
-				where.push(`"invoice_month" = ?`);
-				params.push(filter.invoiceMonth);
-			}
-			if (filter.installmentGroup) {
-				where.push(`"installment_group" = ?`);
-				params.push(filter.installmentGroup);
-			}
-			if (filter.search && filter.search.trim() !== "") {
-				where.push(`lower("description") LIKE ?`);
-				params.push(`%${filter.search.trim().toLowerCase()}%`);
-			}
-			if (filter.categoryIds && filter.categoryIds.length > 0) {
-				where.push(`"category_id" IN (${marks(filter.categoryIds.length)})`);
-				params.push(...filter.categoryIds);
-			}
-			if (filter.withoutCategory) {
-				where.push(`"category_id" IS NULL`);
-			}
-			if (filter.externalIds && filter.externalIds.length > 0) {
-				where.push(`"external_id" IN (${marks(filter.externalIds.length)})`);
-				params.push(...filter.externalIds);
-			}
-
+			const found = whereOf(filter);
+			if (found === null) return [];
+			const { where, params } = found;
 			const limit = Math.min(Math.max(filter.limit ?? 200, 1), 1000);
 			const offset = Math.max(filter.offset ?? 0, 0);
 			// The order belongs in the query and not after it, because the limit is applied
@@ -1017,7 +1078,7 @@ export function createTransactionsRepository(context: RepositoryContext) {
 
 			const rows = await context.driver.all(
 				`${SELECT} WHERE ${where.join(" AND ")}
-				 ORDER BY "happened_on" ${direction}, "created_at" ${direction}
+				 ORDER BY "happened_on" ${direction}, "created_at" ${direction}, "id" ${direction}
 				 LIMIT ${limit} OFFSET ${offset}`,
 				params,
 			);

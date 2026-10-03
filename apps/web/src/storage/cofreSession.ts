@@ -71,6 +71,7 @@ import type {
 	Transaction,
 	TransactionFilter,
 	TransactionKind,
+	TransactionSummary,
 	UpdateCategoryInput,
 	UpdateGoalInput,
 	UpdateHoldingInput,
@@ -252,6 +253,8 @@ export type CofreSession = {
 	};
 	transactions: {
 		list: (filter?: TransactionFilter) => Promise<Transaction[]>;
+		/** What the list adds up to, every record the filter reaches and not only one page. */
+		summarize: (filter?: TransactionFilter) => Promise<TransactionSummary>;
 		create: (input: CreateTransactionInput) => Promise<Transaction[]>;
 		update: (id: string, input: UpdateTransactionInput) => Promise<Transaction>;
 		/** The same change over a selection, all of it or none of it. */

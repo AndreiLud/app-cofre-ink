@@ -30,6 +30,7 @@ import { runFutureConformance } from "./future.ts";
 import { runHappenedConformance } from "./happened.ts";
 import { runImportingConformance } from "./importing.ts";
 import { runInvoiceConformance } from "./invoices.ts";
+import { runListingConformance } from "./listing.ts";
 import { runPlanConformance } from "./plan.ts";
 import { runPlanOfPartsConformance } from "./plans.ts";
 import { runPortabilityConformance } from "./portability.ts";
@@ -305,6 +306,11 @@ const PROBES: Probe[] = [
 				month: "2026-10",
 				today: "2026-10-05",
 			}),
+	},
+	{
+		method: "transactions.summarize",
+		permission: "transaction.read",
+		run: (session, where) => session.transactions.summarize({ spaceId: where.spaceId }),
 	},
 	{
 		method: "imports.existing",
@@ -1128,6 +1134,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 		runArrangementConformance(adapter);
 		runPlanOfPartsConformance(adapter);
 		runImportingConformance(adapter);
+		runListingConformance(adapter);
 		runCategoryConformance(adapter);
 		runRuleConformance(adapter);
 		runRecurrenceRepairConformance(adapter);

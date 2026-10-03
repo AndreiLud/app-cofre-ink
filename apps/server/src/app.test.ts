@@ -1533,6 +1533,34 @@ describe("the api", () => {
 			expect(rows.find((row) => row.description === "Loja X")).toBeUndefined();
 		});
 
+		// Part 2, F.5 of the request for 2.0.0: what a list adds up to, with the same filter.
+		it("adds up the list with the filter the list reads", async () => {
+			const ana = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			const { space, account } = await spaceWithAccount(ana);
+			await ana.json(`/api/spaces/${space.id}/imports`, {
+				method: "POST",
+				body: JSON.stringify({
+					accountId: account.id,
+					records: [
+						{ happenedOn: "2026-10-10", amount: -4290, description: "Cinema" },
+						{ happenedOn: "2026-09-10", amount: -2000, description: "Cinema" },
+						{ happenedOn: "2026-10-05", amount: 612_000, description: "Salario" },
+					],
+				}),
+			});
+			const summary = await ana.json<{
+				count: number;
+				income: number;
+				expense: number;
+				byMonth: { month: string }[];
+			}>(
+				`/api/spaces/${space.id}/transactions/summary?search=cinema&from=2026-01-01&to=2026-12-31`,
+			);
+			expect([summary.count, summary.income, summary.expense]).toEqual([2, 0, 6290]);
+			expect(summary.byMonth.map((month) => month.month)).toEqual(["2026-10", "2026-09"]);
+		});
+
 		it("refuses the whole file when one line has no day", async () => {
 			const ana = createClient(app);
 			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
