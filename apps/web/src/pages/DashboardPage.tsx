@@ -34,7 +34,7 @@ import {
 	splitInvoicesFallingDue,
 	todayIn,
 } from "@cofre/core";
-import type { CardStanding, GoalProgress } from "@cofre/storage";
+import type { CardStanding, GoalProgress, Transaction } from "@cofre/storage";
 import { roleSeesOwnRowsOnly } from "@cofre/storage";
 import {
 	Button,
@@ -129,6 +129,8 @@ export function DashboardPage() {
 	// dialog is not decoration: it is the only stop between the button and the writes.
 	const [askingAll, setAskingAll] = useState(false);
 	const [confirmedAll, setConfirmedAll] = useState(0);
+	/** The record somebody said did not happen, waiting for the question before it goes. */
+	const [dropping, setDropping] = useState<Transaction | null>(null);
 	/**
 	 * Money being moved from here: onto a benefit card, into the account of the savings rule,
 	 * or into the account of a goal. In the space it belongs to, which in "Todos" is the space
@@ -943,7 +945,7 @@ export function DashboardPage() {
 											    today, so this gate agreed with the refusal behind it by
 											    accident, and would have stopped agreeing the day they parted. */}
 											{mayDrop ? (
-												<Button size="small" variant="quiet" onClick={() => drop.mutate(row.id)}>
+												<Button size="small" variant="quiet" onClick={() => setDropping(row)}>
 													{t("dashboard.didNotHappen")}
 												</Button>
 											) : null}
@@ -1310,6 +1312,42 @@ export function DashboardPage() {
 				</p>
 				<p className="mt-2 text-quiet text-sm">{t("dashboard.confirmAllKeepsTheDay")}</p>
 				<p className="mt-2 text-quiet text-sm">{t("dashboard.confirmAllIsFinal")}</p>
+			</Dialog>
+
+			{/* "It did not happen" deletes the record, and it deleted it with nothing asked: one
+			    press beside "It happened" and it was gone, an occurrence of a series for good,
+			    because a series does not write again what somebody removed. The question the list
+			    asks before deleting, in the same words. */}
+			<Dialog
+				open={dropping !== null}
+				onOpenChange={(next) => !next && setDropping(null)}
+				title={t("transactions.deleteTitle")}
+				description={t("transactions.deleteDescription")}
+				closeLabel={t("actions.close")}
+				footer={
+					<>
+						<Button variant="quiet" onClick={() => setDropping(null)}>
+							{t("actions.cancel")}
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={() => {
+								if (dropping) drop.mutate(dropping.id);
+								setDropping(null);
+							}}
+						>
+							{t("actions.delete")}
+						</Button>
+					</>
+				}
+			>
+				<p className="text-sm">
+					{t("transactions.deleteOne", { description: dropping?.description ?? "" })}
+				</p>
+				{dropping?.recurrenceId ? (
+					<p className="mt-2 text-quiet text-sm">{t("transactions.deleteOccurrence")}</p>
+				) : null}
+				<p className="mt-2 text-quiet text-sm">{t("transactions.deleteForever")}</p>
 			</Dialog>
 
 			<MoveDialog

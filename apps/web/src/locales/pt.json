@@ -717,7 +717,8 @@
 		"wasAMove": "Foi para uma conta sua, como a poupança ou o vale? Isso não é gasto:",
 		"useMove": "use Mover entre contas.",
 		"kindMoves": "Pagamentos de fatura e movimentações",
-		"installmentsHintMonth": "Cada parcela conta no mês dela."
+		"installmentsHintMonth": "Cada parcela conta no mês dela.",
+		"deleteOccurrence": "É um lançamento de uma recorrência: só este vai embora, e ele não volta a ser lançado. Os próximos continuam."
 	},
 	"rulesSection": {
 		"title": "Regras que categorizam sozinhas",

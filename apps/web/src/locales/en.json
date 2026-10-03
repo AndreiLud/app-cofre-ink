@@ -717,7 +717,8 @@
 		"wasAMove": "Did it go into an account of yours, like savings or the meal card? That is not spending:",
 		"useMove": "use Move between accounts.",
 		"kindMoves": "Invoice payments and moves",
-		"installmentsHintMonth": "Each part counts in its own month."
+		"installmentsHintMonth": "Each part counts in its own month.",
+		"deleteOccurrence": "This is a record of a series: only this one goes, and it is not written again. The next ones carry on."
 	},
 	"rulesSection": {
 		"title": "Rules that sort on their own",

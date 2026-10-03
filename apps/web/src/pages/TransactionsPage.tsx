@@ -1041,6 +1041,9 @@ export function TransactionsPage() {
 								})
 							: t("transactions.deleteMany", { count: picked.length })}
 				</p>
+				{dropping?.kind === "one" && dropping.row.recurrenceId ? (
+					<p className="mt-2 text-quiet text-sm">{t("transactions.deleteOccurrence")}</p>
+				) : null}
 				<p className="mt-2 text-quiet text-sm">{t("transactions.deleteForever")}</p>
 			</Dialog>
 		</div>

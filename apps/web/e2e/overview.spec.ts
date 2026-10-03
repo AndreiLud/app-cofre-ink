@@ -209,6 +209,35 @@ test.describe("the overview", () => {
 		}
 	});
 
+	// Part 1, D.8 of the request for 2.0.0: "Não aconteceu" deleted the record with nothing
+	// asked, one press beside "Aconteceu", and an occurrence of a series removed that way is
+	// never written again. It asks what the list asks before deleting.
+	test("asks before taking away a promise that did not happen", async ({ browser }) => {
+		const before = await promisesFromBefore(browser, {
+			description: "Academia",
+			amount: "149,00",
+			from: -6,
+		});
+		const page = before.page;
+		try {
+			await go(page, "Painel");
+			const notThis = page.getByRole("button", { name: "Não aconteceu" });
+			await notThis.first().click();
+			const asking = page.getByRole("dialog");
+			await expect(asking.getByText("Vai embora: Academia.")).toBeVisible();
+			await expect(asking.getByText(/não volta a ser lançado/)).toBeVisible();
+			await asking.getByRole("button", { name: "Cancelar" }).click();
+			await expect(asking).toHaveCount(0);
+			await expect(notThis.first()).toBeVisible();
+
+			await notThis.first().click();
+			await asking.getByRole("button", { name: "Apagar" }).click();
+			await expect(notThis).toHaveCount(0);
+		} finally {
+			await before.close();
+		}
+	});
+
 	test("answers a week of late promises in one go", async ({ browser }) => {
 		// Promises from before 1.1.0 that have passed three times, which is what coming back
 		// from a week away looked like. Answering them was one press each.
