@@ -191,18 +191,26 @@ uma máquina virtual barata, o que você tiver.
 ### Sem clonar nada
 
 Toda versão publica uma imagem, construída para Intel e para ARM, então um Raspberry Pi
-roda a mesma:
+roda a mesma. As configurações ficam num arquivo próprio, `cofre.env`, para o segredo nunca
+estar num comando que o shell guarda no histórico e que o `docker inspect` mostra para
+qualquer um:
 
-```bash
-docker run -d --name cofre -p 4321:4321 -v cofre:/data \
-  -e COFRE_SECRET=$(node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))") \
-  -e COFRE_PUBLIC_URL=https://seu.endereco \
-  -e COFRE_WEB_ORIGIN=https://seu.endereco \
-  ghcr.io/andreilud/app-cofre-ink:latest
+```
+COFRE_SECRET=a linha longa que o comando abaixo imprime
+COFRE_PUBLIC_URL=https://seu.endereco
+COFRE_WEB_ORIGIN=https://seu.endereco
 ```
 
-Fixe a versão em vez de seguir o `latest` se quiser decidir quando atualizar. [O
-changelog](../../CHANGELOG.md) diz o que mudou em cada uma.
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+docker run -d --name cofre -p 4321:4321 -v cofre:/data --env-file cofre.env \
+  ghcr.io/andreilud/app-cofre-ink:2
+```
+
+O `:2` segue a linha da versão 2: um pull traz o que a 2.x publica, e nunca uma versão 3,
+que só chega quando você troca esse número depois de ler as notas dela. Fixe uma versão
+inteira, `:2.0.0`, se quiser decidir cada atualização. [O changelog](../../CHANGELOG.md) diz o
+que mudou em cada uma.
 
 ### A partir do código
 
@@ -239,6 +247,13 @@ precisa alcançar: todo link de convite é montado com o primeiro deles.
 
 ```bash
 docker compose up -d
+```
+
+Isso puxa a imagem publicada, na linha da versão 2, que o `COFRE_TAG` no `.env` pode fixar.
+Para construir a imagem a partir desta pasta, acrescente o segundo arquivo:
+
+```bash
+docker compose -f compose.yaml -f compose.build.yaml up -d --build
 ```
 
 A interface e a API sobem juntas, na porta 4321 por padrão. Os dados ficam num volume
@@ -280,8 +295,18 @@ da rede que o Compose cria. Não é `localhost`, que lá dentro é o container p
 para si mesmo.
 
 Repare que a receita de backup mais abaixo copia o volume `cofreData`, que neste caminho
-não tem nada. Um PostgreSQL se copia com `pg_dump`, ou pela própria interface, em Dados,
-que funciona igual com qualquer banco embaixo.
+não tem nada. Um PostgreSQL se copia com `pg_dump`, gravado dentro do container e copiado
+para uma pasta fora do clone:
+
+```bash
+docker compose exec -T database pg_dump -U cofre -f /tmp/cofre.sql cofre
+docker compose cp database:/tmp/cofre.sql ${HOME}/cofreBackups/
+```
+
+Nunca com `>` para um arquivo: no Windows PowerShell o redirecionamento regrava a cópia em
+outra codificação e a restauração falha. O `docker compose cp` não cria a pasta, então crie a
+`cofreBackups` uma vez antes, como a seção de backup mostra. A interface também grava uma
+cópia, em Dados, que funciona igual com qualquer banco embaixo.
 
 ### Como é a primeira visita
 
@@ -329,16 +354,82 @@ interface pelo próprio container dispensa tudo isso.
 
 ### Fazer backup
 
-O arquivo do banco está dentro do volume. Com o container parado:
+O arquivo do banco está dentro do volume. Um backup vai para uma pasta própria, fora do clone,
+para nunca entrar num commit junto com o código. Crie a pasta uma vez, no shell que você usa:
+
+```bash
+mkdir -p ~/cofreBackups
+```
+
+```powershell
+New-Item -ItemType Directory -Force "$HOME/cofreBackups"
+```
+
+Depois, com o container parado:
 
 ```bash
 docker compose stop
-docker run --rm -v cofre_cofreData:/data -v ${PWD}:/saida alpine tar czf /saida/cofre.tar.gz /data
+docker run --rm -v cofre_cofreData:/data -v ${HOME}/cofreBackups:/saida alpine tar czf /saida/cofre.tar.gz /data
 docker compose start
 ```
 
-Também dá para gerar um pela própria interface, em Dados, Cópia manual, Baixar cópia. Ele escreve um arquivo só com os espaços que você marcar, e qualquer instalação
-do Cofre Ink lê ele de volta.
+O `${HOME}` é a mesma pasta no bash e no PowerShell.
+
+Também dá para gerar um pela própria interface, em Dados, Cópia manual, Baixar cópia. Ele
+escreve um arquivo só com os espaços que você marcar, e qualquer instalação do Cofre Ink lê ele
+de volta. Ele não leva as contas com que as pessoas entram, que só existem no servidor, então
+antes de uma atualização a cópia do servidor vem primeiro.
+
+### Atualizar
+
+A tela em Dados, embaixo da zona de risco, diz qual versão é esta e, num servidor, pergunta ao
+GitHub qual é a última só quando você toca no botão, e mostra os comandos do jeito como esta
+cópia foi instalada. Os comandos são estes. Todo jeito começa por uma cópia do servidor em
+`cofreBackups`, fora do clone.
+
+Com o `compose.yaml` e SQLite:
+
+```bash
+docker compose stop
+docker run --rm -v cofre_cofreData:/data -v ${HOME}/cofreBackups:/out alpine tar czf /out/cofre_before_update.tar.gz /data
+docker compose pull
+docker compose up -d
+```
+
+Com `docker run`, como acima: a mesma cópia, sobre o volume `cofre` e com o contêiner parado,
+depois a imagem nova e o mesmo comando da primeira vez. Se o segredo foi escrito no comando e
+não no `cofre.env`, leia ele com `docker inspect cofre` antes de remover o contêiner, senão
+todo mundo sai da conta.
+
+```bash
+docker stop cofre
+docker run --rm -v cofre:/data -v ${HOME}/cofreBackups:/out alpine tar czf /out/cofre_before_update.tar.gz /data
+docker pull ghcr.io/andreilud/app-cofre-ink:2
+docker rm cofre
+docker run -d --name cofre -p 4321:4321 -v cofre:/data --env-file cofre.env ghcr.io/andreilud/app-cofre-ink:2
+```
+
+Com PostgreSQL, em que o volume `cofreData` fica vazio:
+
+```bash
+docker compose stop cofre
+docker compose exec -T database pg_dump -U cofre -f /tmp/cofre_before_update.sql cofre
+docker compose cp database:/tmp/cofre_before_update.sql ${HOME}/cofreBackups/
+docker compose pull
+docker compose up -d
+```
+
+Com uma imagem construída em casa: `git pull`, depois
+`docker compose -f compose.yaml -f compose.build.yaml up -d --build`. Sem container: pare o
+servidor, copie o arquivo do banco para algum lugar fora do clone, `git pull`, `pnpm install`,
+`pnpm build`, e suba de novo.
+
+Para voltar, restaure a cópia do primeiro passo e suba a versão anterior. Nunca suba uma versão
+anterior sobre um banco que uma mais nova já migrou: ela se recusa a subir e diz qual versão
+subir no lugar.
+
+O `:2` nunca chega a uma versão 3. Quando uma for publicada, leia as notas dela e então troque o
+`COFRE_TAG` no `.env`.
 
 ## Onde ficam os dados
 

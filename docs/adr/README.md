@@ -67,6 +67,7 @@ new one.
 | [0058](0058_several_cards_in_the_order_they_are_dealt_with.md) | several cards, in the order they are dealt with | accepted |
 | [0059](0059_a_repair_asked_again_after_rows_arrive.md) | a repair asked again after rows arrive, and the invoice of a series joins them | accepted |
 | [0060](0060_what_the_repository_keeps_and_the_image_carries.md) | what the repository keeps, what git ignores, and what the image carries | accepted |
+| [0061](0061_the_version_on_the_screen_and_who_asks_github.md) | the version on the screen, and who asks GitHub | accepted |
 | [0062](0062_a_month_on_paper_as_it_stood.md) | a month on paper as it stood, and the day a month counts as over | accepted |
 | [0063](0063_an_invoice_paid_with_a_card_or_in_parts.md) | an invoice paid with another card, or in parts | accepted |
 | [0064](0064_a_plan_of_up_to_forty_eight_parts.md) | a plan of up to forty eight parts, refused rather than cut | accepted, the division between people waits for the owner |

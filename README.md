@@ -224,19 +224,21 @@ to be framed. For Nginx, Caddy and Netlify there is a line each in
 Cloudflare Workers is configured by `wrangler.jsonc` at the root. The `name` in it has
 to match the Worker the repository is connected to.
 
-**The server mode is one container.** `docker compose up -d` builds it and runs it, with
-the data in a named volume that survives an update of the image. For PostgreSQL instead
-of SQLite, there are four things to uncomment and two of them are easy to miss, so
-[the guide](docs/en/deploy.md) walks through it.
+**The server mode is one container.** `docker compose up -d` pulls the image every release
+publishes, on the line of version 2, and runs it, with the data in a named volume that
+survives an update of the image. Building it from the source instead is one more file,
+`compose.build.yaml`. For PostgreSQL instead of SQLite, there are four things to uncomment
+and two of them are easy to miss, so [the guide](docs/en/deploy.md) walks through it.
 
-Every release also publishes an image built for Intel and for ARM, so there is nothing
-to clone:
+The image is built for Intel and for ARM, so there is nothing to clone either. The settings,
+the secret among them, go in a file `cofre.env` rather than in the command:
 
 ```bash
-docker run -d -p 4321:4321 -v cofre:/data -e COFRE_SECRET=... ghcr.io/andreilud/app-cofre-ink:latest
+docker run -d --name cofre -p 4321:4321 -v cofre:/data --env-file cofre.env ghcr.io/andreilud/app-cofre-ink:2
 ```
 
-[The changelog](CHANGELOG.md) says what changed in each version.
+[The changelog](CHANGELOG.md) says what changed in each version, and
+[the guide](docs/en/deploy.md#updating) how to update.
 
 ### What is in each folder
 
@@ -528,19 +530,21 @@ linha para cada em [`docs/pt-BR/deploy.md`](docs/pt-BR/deploy.md).
 A Cloudflare Workers é configurada pelo `wrangler.jsonc` na raiz. O `name` dentro dele
 precisa ser o mesmo nome do Worker a que o repositório está conectado.
 
-**O modo servidor é um container.** O `docker compose up -d` constrói e sobe, com os
-dados num volume nomeado que sobrevive a uma atualização da imagem. Para PostgreSQL em
-vez de SQLite, são quatro coisas para descomentar e duas delas passam batido, então
-[o guia](docs/pt-BR/deploy.md) mostra o caminho.
+**O modo servidor é um container.** O `docker compose up -d` puxa a imagem que toda versão
+publica, na linha da versão 2, e sobe, com os dados num volume nomeado que sobrevive a uma
+atualização da imagem. Construir a partir do código é um arquivo a mais, o
+`compose.build.yaml`. Para PostgreSQL em vez de SQLite, são quatro coisas para descomentar e
+duas delas passam batido, então [o guia](docs/pt-BR/deploy.md) mostra o caminho.
 
-Toda versão também publica uma imagem construída para Intel e para ARM, então não há
-nada para clonar:
+A imagem é construída para Intel e para ARM, então também não há nada para clonar. As
+configurações, o segredo entre elas, ficam num arquivo `cofre.env` em vez de no comando:
 
 ```bash
-docker run -d -p 4321:4321 -v cofre:/data -e COFRE_SECRET=... ghcr.io/andreilud/app-cofre-ink:latest
+docker run -d --name cofre -p 4321:4321 -v cofre:/data --env-file cofre.env ghcr.io/andreilud/app-cofre-ink:2
 ```
 
-[O changelog](CHANGELOG.md) diz o que mudou em cada versão.
+[O changelog](CHANGELOG.md) diz o que mudou em cada versão, e [o guia](docs/pt-BR/deploy.md#atualizar)
+como atualizar.
 
 ### O que existe em cada pasta
 

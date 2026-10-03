@@ -190,17 +190,24 @@ cheap virtual machine, whatever you have.
 ### Without cloning anything
 
 Every release publishes an image, built for Intel and for ARM, so a Raspberry Pi runs
-the same one:
+the same one. The settings go in a file of their own, `cofre.env`, so the secret is never
+in a command that the shell keeps in its history and `docker inspect` shows to anybody:
 
-```bash
-docker run -d --name cofre -p 4321:4321 -v cofre:/data \
-  -e COFRE_SECRET=$(node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))") \
-  -e COFRE_PUBLIC_URL=https://your.address \
-  -e COFRE_WEB_ORIGIN=https://your.address \
-  ghcr.io/andreilud/app-cofre-ink:latest
+```
+COFRE_SECRET=the long line the command below prints
+COFRE_PUBLIC_URL=https://your.address
+COFRE_WEB_ORIGIN=https://your.address
 ```
 
-Pin the version rather than following `latest` if you want to decide when to update.
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+docker run -d --name cofre -p 4321:4321 -v cofre:/data --env-file cofre.env \
+  ghcr.io/andreilud/app-cofre-ink:2
+```
+
+The `:2` follows the line of version 2: a pull brings what 2.x publishes, and never a
+version 3, which only arrives when you change that number after reading its notes. Pin a
+whole version, `:2.0.0`, if you want to decide every update yourself.
 [The changelog](../../CHANGELOG.md) says what changed in each one.
 
 ### From the source
@@ -238,6 +245,13 @@ has to reach it: every invitation link is built from the first one.
 
 ```bash
 docker compose up -d
+```
+
+This pulls the published image, on the line of version 2, which `COFRE_TAG` in `.env` can
+pin. To build the image from this folder instead, add the second file:
+
+```bash
+docker compose -f compose.yaml -f compose.build.yaml up -d --build
 ```
 
 The interface and the API come up together, on port 4321 by default. The data lives in
@@ -278,8 +292,18 @@ resolves to from inside the network Compose makes. It is not `localhost`, which 
 is the container asking itself.
 
 Note that the backup recipe below copies the `cofreData` volume, which on this path
-holds nothing. A PostgreSQL database is backed up with `pg_dump`, or from the interface
-under Data, which works the same whichever database is underneath.
+holds nothing. A PostgreSQL database is backed up with `pg_dump`, written inside the
+container and copied out to a folder outside the clone:
+
+```bash
+docker compose exec -T database pg_dump -U cofre -f /tmp/cofre.sql cofre
+docker compose cp database:/tmp/cofre.sql ${HOME}/cofreBackups/
+```
+
+Never with `>` into a file: in Windows PowerShell the redirect writes the dump again in
+another encoding and the restore fails. `docker compose cp` does not create the folder, so
+create `cofreBackups` once first, as the section on backing up shows. The interface can
+also write a copy, under Data, which works the same whichever database is underneath.
 
 ### What the first visit looks like
 
@@ -327,17 +351,82 @@ over https. Serving the interface from the container avoids all of this.
 
 ### Backing up
 
-The database file is inside the volume. With the container stopped:
+The database file is inside the volume. A backup goes to a folder of its own, outside the
+clone, so it can never be committed with the code. Create it once, in the shell you use:
+
+```bash
+mkdir -p ~/cofreBackups
+```
+
+```powershell
+New-Item -ItemType Directory -Force "$HOME/cofreBackups"
+```
+
+Then, with the container stopped:
 
 ```bash
 docker compose stop
-docker run --rm -v cofre_cofreData:/data -v ${PWD}:/out alpine tar czf /out/cofre.tar.gz /data
+docker run --rm -v cofre_cofreData:/data -v ${HOME}/cofreBackups:/out alpine tar czf /out/cofre.tar.gz /data
 docker compose start
 ```
 
+`${HOME}` is the same folder in bash and in PowerShell.
+
 You can also write one from the interface itself, under Data, Manual copy, Download a
 copy. It writes one file with every space you tick, and any Cofre Ink installation
-reads it back.
+reads it back. It does not carry the accounts people sign in with, which live only on the
+server, so before an update the copy of the server comes first.
+
+### Updating
+
+The screen under Data, below the danger zone, says which version this is and, on a server,
+asks GitHub for the latest one only when you press the button, and shows the commands for
+the way this copy was installed. These are the same commands. Every one starts with a copy
+of the server in `cofreBackups`, outside the clone.
+
+With `compose.yaml` and SQLite:
+
+```bash
+docker compose stop
+docker run --rm -v cofre_cofreData:/data -v ${HOME}/cofreBackups:/out alpine tar czf /out/cofre_before_update.tar.gz /data
+docker compose pull
+docker compose up -d
+```
+
+With `docker run`, as above: the same copy, over the volume `cofre` and with the container
+stopped, then the new image and the same command as the first time. If the secret was
+written in the command rather than in `cofre.env`, read it with `docker inspect cofre` before
+the container is removed, or everybody is signed out.
+
+```bash
+docker stop cofre
+docker run --rm -v cofre:/data -v ${HOME}/cofreBackups:/out alpine tar czf /out/cofre_before_update.tar.gz /data
+docker pull ghcr.io/andreilud/app-cofre-ink:2
+docker rm cofre
+docker run -d --name cofre -p 4321:4321 -v cofre:/data --env-file cofre.env ghcr.io/andreilud/app-cofre-ink:2
+```
+
+With PostgreSQL, where the `cofreData` volume is empty:
+
+```bash
+docker compose stop cofre
+docker compose exec -T database pg_dump -U cofre -f /tmp/cofre_before_update.sql cofre
+docker compose cp database:/tmp/cofre_before_update.sql ${HOME}/cofreBackups/
+docker compose pull
+docker compose up -d
+```
+
+With an image built here: `git pull`, then
+`docker compose -f compose.yaml -f compose.build.yaml up -d --build`. Without a container:
+stop the server, copy the database file somewhere outside the clone, `git pull`,
+`pnpm install`, `pnpm build`, and start it again.
+
+To go back, restore the copy of the first step and run the version before. Never run an
+older version over a database a newer one has already migrated: it refuses to start, and
+says which version to run instead.
+
+`:2` never reaches a version 3. When one is published, read its notes, and then change
+`COFRE_TAG` in `.env`.
 
 ## Where the data is
 
