@@ -681,6 +681,9 @@ export function ImportPage() {
 		(isInvoice && record.nature === "payment" && paidAlready) ||
 		pairedInFile.has(index) ||
 		arranged.has(index) ||
+		// A move or a series already here is proof enough; the amount alone is, on an invoice.
+		record.already === "here" ||
+		(record.already === "looksSame" && isInvoice) ||
 		(partMatches.get(index)?.kind ?? "new") !== "new";
 	const isOut = (record: MarkedRecord, index: number) =>
 		(record.certain && record.duplicateOf !== null) || startsOut(record, index) !== left.has(index);
