@@ -147,6 +147,47 @@ export function runArrangementConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 2, C.12.3: a refund on the invoice after it was split is credit, which part 1, A.6
+		// carries to the next invoice; the arrangement does not change.
+		it("carries a refund after the split to the next invoice, and leaves the plan alone", async () => {
+			const ready = await twoCards(adapter);
+			try {
+				const { on, a } = ready;
+				await ready.buy(a.id, 300_000, "2025-09-20");
+				await on.invoices.split({
+					accountId: a.id,
+					month: "2025-10",
+					entry: 50_000,
+					entryFromAccountId: ready.checking.id,
+					parts: 6,
+					amount: 48_000,
+					eachPart: true,
+					agreedOn: "2025-10-10",
+					today: "2025-10-10",
+					...words,
+				});
+				await on.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "income",
+					amount: 10_000,
+					happenedOn: "2025-09-25",
+					description: "Estorno",
+					accountId: a.id,
+				});
+				const states = await on.invoices.list(a.id, "2025-10-15");
+				const october = states.find((one) => one.month === "2025-10");
+				expect(october?.standing).toBe("inParts");
+				expect(october?.carriedOut).toBe(10_000);
+				expect(states.find((one) => one.month === "2025-11")?.left).toBe(38_000);
+				const arranged = (await on.transactions.list({ spaceId: ready.spaceId })).filter(
+					(row) => row.arrangedFor !== null,
+				);
+				expect(arranged).toHaveLength(13);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		it("changes nothing before the day of an agreement still to come", async () => {
 			const ready = await twoCards(adapter);
 			try {
