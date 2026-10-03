@@ -13,6 +13,7 @@ import {
 	type CalendarDate,
 	QUANTITY_SCALE as CORE_QUANTITY_SCALE,
 	type DailySeries,
+	estimateByIndex,
 	type HoldingFacts,
 	type HoldingMoveFact,
 	type IndexDay,
@@ -156,6 +157,12 @@ export type HoldingValue = Holding & {
 	net: { net: number; incomeTax: number; iof: number } | null;
 	/** The product does not pay income tax on what it earns. */
 	exempt: boolean;
+	/**
+	 * What the same money would be worth at 100% of the CDI, each deposit from its own day and
+	 * each withdrawal on its own. Null when the day of the opening is not known, as for every
+	 * holding written down before 2.0.0, which the comparison lists apart.
+	 */
+	atTheCdi: number | null;
 };
 
 /** What deleting a movement or a holding gives back to each account, said before it is deleted. */
@@ -348,10 +355,22 @@ export function createInvestmentsRepository(context: RepositoryContext) {
 				? null
 				: netIfTakenOut({ taxation: product.tax, moves: deposits, value: worth.value, on });
 
+		const atTheCdi = openingKnown
+			? estimateByIndex({
+					indexer: "cdi",
+					rate: 10_000,
+					from: null,
+					moves: deposits,
+					until: on,
+					days: series.cdiDaily,
+				}).value
+			: null;
+
 		return {
 			...holding,
 			unitPrice: shown?.unitPrice ?? holding.unitPrice,
 			pricedOn: shown?.day ?? holding.pricedOn,
+			atTheCdi,
 			value: worth.value,
 			gain,
 			gainPercent: worth.invested <= 0 ? 0 : Math.round((gain / worth.invested) * 10_000),

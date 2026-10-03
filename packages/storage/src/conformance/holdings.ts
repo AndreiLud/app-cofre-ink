@@ -4,7 +4,10 @@
 import { type CalendarDate, moneyOnHand, spendableNow, todayIn, worthByAccount } from "@cofre/core";
 import { describe, expect, it } from "vitest";
 import { RuleError } from "../errors.ts";
+import { migrate } from "../migrate.ts";
+import { saveIndexDays } from "../repositories/indices.ts";
 import { openSession, type Session } from "../session.ts";
+import { applyPeople } from "../sync.ts";
 import { type AdapterUnderTest, prepare } from "./setup.ts";
 
 const SCALE = 100_000_000;
@@ -428,6 +431,115 @@ export function runHoldingsConformance(adapter: AdapterUnderTest): void {
 					before.months.map((month) => month.balance),
 				);
 			} finally {
+				await fixture.close();
+			}
+		});
+	});
+
+	describe("against the CDI, and in a backup", () => {
+		it("puts the same deposits at the CDI from their own days, and leaves out a holding with none", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const on = fixture.asAna;
+				await saveIndexDays(fixture.driver, "cdiDaily", [
+					{ day: "2026-09-28", rate: 5_078_800 },
+					{ day: "2026-09-29", rate: 5_078_800 },
+					{ day: "2026-09-30", rate: 5_078_800 },
+				]);
+				const space = await on.spaces.create({ name: "Casa" });
+				const broker = await on.accounts.create({
+					spaceId: space.id,
+					kind: "investment",
+					name: "Nubank",
+				});
+				const box = await on.investments.create({
+					spaceId: space.id,
+					accountId: broker.id,
+					name: "Reserva",
+					product: "box",
+					rate: 11_000,
+					quantity: SCALE,
+					unitPrice: 1_000_000,
+					boughtOn: "2026-09-28",
+				});
+				// R$ 10.000,00 at 110% of the CDI, and the same at 100%.
+				expect(box.value).toBe(1_001_677);
+				expect(box.estimatedThrough).toBe("2026-09-30");
+				expect(box.atTheCdi).toBe(1_001_524);
+				const old = await on.investments.create({
+					spaceId: space.id,
+					accountId: broker.id,
+					name: "Fundo antigo",
+					kind: "fund",
+					quantity: SCALE,
+					unitPrice: 500_000,
+				});
+				expect(old.atTheCdi).toBeNull();
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		it("carries the movements in a backup, and shows the last value typed without indices", async () => {
+			const fixture = await prepare(adapter);
+			const driver = adapter.openAnother
+				? await adapter.openAnother("holdingsRestored")
+				: await adapter.open();
+			const onThe28th = () => Date.parse("2026-10-28T12:00:00-03:00");
+			try {
+				const on = await openSession({
+					driver: fixture.driver,
+					userId: fixture.ana.id,
+					deviceId: "deviceAna28",
+					now: onThe28th,
+				});
+				const { spaceId, checkingId } = await aHousehold(on);
+				const broker = await on.accounts.create({ spaceId, kind: "investment", name: "Nubank" });
+				const box = await on.investments.create({
+					spaceId,
+					accountId: broker.id,
+					name: "Reserva",
+					product: "box",
+					rate: 10_000,
+					quantity: SCALE,
+					unitPrice: 300_000,
+				});
+				await on.investments.move({
+					holdingId: box.id,
+					kind: "in",
+					onDay: "2026-10-01",
+					amount: 50_000,
+					accountId: checkingId,
+				});
+				// The value of the statement, typed later the same day.
+				await on.investments.price({ id: box.id, unitPrice: 362_000, onDay: "2026-10-28" });
+				const backup = await on.backup.exportSpace(spaceId);
+				expect(backup.spaces[0]?.tables.holding_moves).toHaveLength(1);
+
+				await migrate(driver);
+				await applyPeople(driver, [
+					{
+						id: fixture.ana.id,
+						email: fixture.ana.email,
+						name: fixture.ana.name,
+						image: fixture.ana.image,
+						createdAt: fixture.ana.createdAt,
+						updatedAt: fixture.ana.updatedAt,
+					},
+				]);
+				const there = await openSession({
+					driver,
+					userId: fixture.ana.id,
+					deviceId: "restored",
+					now: onThe28th,
+				});
+				await there.backup.restore(backup);
+				await there.refresh();
+				const [restored] = await there.investments.list(spaceId);
+				expect(restored?.value).toBe(362_000);
+				expect(await there.investments.moves(box.id)).toHaveLength(1);
+			} finally {
+				await driver.close();
 				await fixture.close();
 			}
 		});
