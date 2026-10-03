@@ -81,9 +81,9 @@ export function recogniseReceipt(
 
 	const labelledDate = firstWhere(lines, DATE_LABEL);
 	const day: CalendarDate | null =
-		(labelledDate ? findDate(labelledDate.value, order, year)?.day : null) ??
+		(labelledDate ? findDate(labelledDate.value, order, year, { anywhere: true })?.day : null) ??
 		lines.reduce<CalendarDate | null>(
-			(found, line) => found ?? findDate(line, order, year)?.day ?? null,
+			(found, line) => found ?? findDate(line, order, year, { anywhere: true })?.day ?? null,
 			null,
 		);
 
@@ -118,6 +118,7 @@ export function recogniseReceipt(
 			nature: natureOf(lines.slice(0, 15).join(" "), "statement", {
 				cardBanks: options.cardBanks ?? [],
 			}),
+			installment: null,
 			externalId: identifier ?? null,
 			line: labelledAmount?.index !== undefined ? labelledAmount.index + 1 : 1,
 			source: tidy(lines.join(" ")).slice(0, 200),

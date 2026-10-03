@@ -15,11 +15,13 @@ import { recogniseReceipt } from "./receipt.ts";
 
 export type {
 	DocumentKind,
+	InstallmentMark,
+	InvoiceConvention,
 	RecognisedDocument,
 	RecognisedEntry,
 	RecogniseOptions,
 } from "./document.ts";
-export { kindOf, recogniseStatement } from "./document.ts";
+export { installmentOf, kindOf, recogniseStatement } from "./document.ts";
 export { recogniseReceipt } from "./receipt.ts";
 
 export function recognise(

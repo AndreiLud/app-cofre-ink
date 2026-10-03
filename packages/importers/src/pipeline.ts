@@ -12,9 +12,26 @@ import { type Nature, natureOf } from "./nature.ts";
 import { readOfx } from "./ofx.ts";
 import { looksLikePdf, readPdf } from "./pdf/index.ts";
 import { readQif } from "./qif.ts";
-import { type RecognisedDocument, recognise } from "./recognise/index.ts";
+import {
+	type InstallmentMark,
+	installmentOf,
+	type RecognisedDocument,
+	recognise,
+} from "./recognise/index.ts";
 import { decode, tidy } from "./text.ts";
 import { dayFromSerial, readXlsx } from "./xlsx.ts";
+
+/**
+ * A description from a file with columns, without the mark of a part of a plan, and the mark.
+ * "Loja X Parc 2/10" in a column is the same as on a page.
+ */
+function withoutMark(description: string): {
+	description: string;
+	installment: InstallmentMark | null;
+} {
+	const read = installmentOf(description, { inSection: false, date: null });
+	return { description: read.description, installment: read.mark };
+}
 
 export type SourceFormat = "csv" | "ofx" | "qif" | "xlsx" | "json" | "pdf";
 
@@ -30,6 +47,8 @@ export type DraftRecord = {
 	category: string | null;
 	/** What the line is, apart from the direction. */
 	nature: Nature;
+	/** Which part of a plan the line is, when it carries the mark of one. */
+	installment: InstallmentMark | null;
 	/** The line it came from, so a problem can be pointed at. */
 	line: number;
 	/**
@@ -165,6 +184,7 @@ function fromPdf(bytes: Uint8Array, today?: CalendarDate): ReadFileResult {
 			externalId: entry.externalId,
 			category: null,
 			nature: entry.nature,
+			installment: entry.installment,
 			line: entry.line,
 			confidence: entry.confidence,
 			source: entry.source,
@@ -214,7 +234,7 @@ function fromRows(
 			return;
 		}
 
-		const description = tidy(read.description);
+		const { description, installment } = withoutMark(tidy(read.description));
 		records.push({
 			happenedOn: day,
 			amount: read.amount,
@@ -223,7 +243,10 @@ function fromRows(
 			externalId: read.externalId,
 			category: read.category,
 			// A file whose positive numbers are purchases is an invoice.
-			nature: natureOf(description, mapping.positiveMeans === "expense" ? "invoice" : "statement"),
+			nature: natureOf(description, mapping.positiveMeans === "expense" ? "invoice" : "statement", {
+				installment: installment?.sure === true,
+			}),
+			installment,
 			line,
 			// A table was read rather than understood, so there is nothing to be unsure of.
 			confidence: 1,
@@ -249,7 +272,7 @@ function fromOfx(text: string): ReadFileResult {
 	const skipped: SkippedRow[] = [];
 
 	statement.entries.forEach((entry, index) => {
-		const description = tidy(entry.description);
+		const { description, installment } = withoutMark(tidy(entry.description));
 		records.push({
 			happenedOn: entry.happenedOn,
 			amount: entry.amount,
@@ -257,7 +280,8 @@ function fromOfx(text: string): ReadFileResult {
 			notes: entry.checkNumber === null ? null : `Documento ${entry.checkNumber}`,
 			externalId: entry.externalId,
 			category: null,
-			nature: natureOf(description, "statement"),
+			nature: natureOf(description, "statement", { installment: installment?.sure === true }),
+			installment,
 			line: index + 1,
 			confidence: 1,
 			source: null,
@@ -281,18 +305,22 @@ function fromQif(text: string): ReadFileResult {
 
 	return {
 		format: "qif",
-		records: file.entries.map((entry, index) => ({
-			happenedOn: entry.happenedOn,
-			amount: entry.amount,
-			description: tidy(entry.description) === "" ? "Sem descrição" : tidy(entry.description),
-			notes: entry.memo,
-			externalId: null,
-			category: entry.category,
-			nature: natureOf(entry.description, "statement"),
-			line: index + 1,
-			confidence: 1,
-			source: null,
-		})),
+		records: file.entries.map((entry, index) => {
+			const { description, installment } = withoutMark(tidy(entry.description));
+			return {
+				happenedOn: entry.happenedOn,
+				amount: entry.amount,
+				description: description === "" ? "Sem descrição" : description,
+				notes: entry.memo,
+				externalId: null,
+				category: entry.category,
+				nature: natureOf(description, "statement", { installment: installment?.sure === true }),
+				installment,
+				line: index + 1,
+				confidence: 1,
+				source: null,
+			};
+		}),
 		skipped: [],
 		mapping: null,
 		header: [],
@@ -334,6 +362,8 @@ function fromJson(text: string): ReadFileResult {
 			externalId: typeof row.externalId === "string" ? row.externalId : null,
 			category: typeof row.category === "string" ? row.category : null,
 			nature: natureOf(typeof row.description === "string" ? row.description : "", "statement"),
+			// Our own export writes the number of a part after the name, which is ours to add again.
+			installment: null,
 			line: index + 1,
 			confidence: 1,
 			source: null,

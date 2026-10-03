@@ -16,6 +16,7 @@ export * from "./cards/invoice.ts";
 export * from "./cards/invoiceSplit.ts";
 export * from "./cards/invoiceState.ts";
 export * from "./cards/openingCharge.ts";
+export * from "./cards/printedDay.ts";
 export * from "./cards/touchesOn.ts";
 export * from "./cards/whatFallsDue.ts";
 export * from "./categories/defaults.ts";

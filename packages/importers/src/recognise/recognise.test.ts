@@ -266,6 +266,60 @@ describe("the nature of each line", () => {
 	});
 });
 
+// Part 2, E.4: the day of a line, the year it belongs to, and the mark of a part.
+describe("days and parts", () => {
+	const invoiceDue = (due: string, line: string) =>
+		recogniseStatement(["Fatura do cartao", `Vencimento: ${due}`, line], { today });
+
+	it("takes the day before the name, and the part after it", () => {
+		const read = invoiceDue("10/10/2026", "12 SET Loja X PARC 02/10 150,00");
+		expect(read.entries[0]).toMatchObject({
+			happenedOn: "2026-09-12",
+			description: "Loja X",
+			installment: { number: 2, count: 10, sure: true },
+			nature: "installment",
+		});
+	});
+
+	it("does not take a day printed again after the name for a part", () => {
+		const read = recogniseStatement(["Extrato", "05/09/2026 IFOOD 05/09 32,00"], { today });
+		expect(read.entries[0]?.installment).toBe(null);
+	});
+
+	it("puts a day of December before an invoice due in January", () => {
+		const read = invoiceDue("10/01/2027", "28 DEZ Loja 10,00");
+		expect(read.entries[0]?.happenedOn).toBe("2026-12-28");
+	});
+
+	it("puts the purchase of a twentieth part a year and a half back", () => {
+		const read = invoiceDue("10/10/2026", "12/03 Loja Y PARC 20/24 99,90");
+		expect(read.entries[0]?.happenedOn).toBe("2025-03-12");
+	});
+
+	it("offers a loose mark outside a section of parts, and takes it inside one", () => {
+		const outside = invoiceDue("10/10/2026", "12/09 Loja Z 02/10 50,00");
+		expect(outside.entries[0]?.installment).toEqual({ number: 2, count: 10, sure: false });
+		const inside = recogniseStatement(
+			[
+				"Fatura do cartao",
+				"Vencimento: 10/10/2026",
+				"Compras parceladas",
+				"12/09 Loja Z 02/10 50,00",
+			],
+			{ today },
+		);
+		expect(inside.entries[0]?.installment).toEqual({ number: 2, count: 10, sure: true });
+	});
+
+	it("leaves a line whose day is further in than the second piece unread", () => {
+		const read = recogniseStatement(["Extrato", "Compra no mercado em 10/09/2026 42,90"], {
+			today,
+		});
+		expect(read.entries).toEqual([]);
+		expect(read.unread).toHaveLength(1);
+	});
+});
+
 describe("whatever the lines hold", () => {
 	it("never throws, and never invents a record", () => {
 		fc.assert(

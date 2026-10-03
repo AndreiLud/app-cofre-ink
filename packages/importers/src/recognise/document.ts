@@ -8,7 +8,7 @@
 // Nothing here writes anything, and nothing here decides. Every record it produces goes
 // on a screen next to the line it came from, and a person says yes.
 
-import type { CalendarDate } from "@cofre/core";
+import { type CalendarDate, MAX_INSTALLMENTS, printedDay } from "@cofre/core";
 import { type Nature, natureOf } from "../nature.ts";
 import {
 	fold,
@@ -31,6 +31,8 @@ export type RecognisedEntry = {
 	confidence: number;
 	/** What the line is, apart from the direction: a purchase, a fee, a refund, a payment. */
 	nature: Nature;
+	/** Which part of a plan the line is, when it carries the mark of one. */
+	installment: InstallmentMark | null;
 	/** What the bank called it, when the line carried an identifier. */
 	externalId: string | null;
 	/** The line it came from, so the person can compare. */
@@ -228,53 +230,154 @@ const AMOUNT_TOKEN = new RegExp(
 	"g",
 );
 
-const DATE_TOKEN = /\b(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?\b/;
-const NAMED_DATE = /\b(\d{1,2})\s?(?:de\s)?([a-z]{3})[a-z]*\.?\s?(\d{2,4})?\b/i;
-const ISO_DATE = /\b(\d{4})-(\d{2})-(\d{2})\b/;
+const DATE_TOKEN = /\b(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?\b/g;
+// The year after the name of a month is two digits or four, and never the start of an amount:
+// "05 OUT 150,00" took 150 for a year.
+const NAMED_DATE = /\b(\d{1,2})\s?(?:de\s)?([a-z]{3})[a-z]*\.?(?:\s?(\d{4}|\d{2})(?![\d,.]))?\b/gi;
+const ISO_DATE = /\b(\d{4})-(\d{2})-(\d{2})\b/g;
+/** "PARC 02/10" is a part of a plan, and never a day. */
+const AFTER_PARC = /\bparc(?:ela)?\.?\s*$/i;
 
-export type FoundDate = { day: CalendarDate | null; text: string; at: number; sure: boolean };
+export type FoundDate = {
+	day: CalendarDate | null;
+	text: string;
+	at: number;
+	sure: boolean;
+	/** The day and the month as written, when the line gave no year, so the year can be placed. */
+	written: { day: number; month: number } | null;
+};
 
-/** The first date a line names, in whatever shape the bank wrote it. */
+/** Where the second piece of a line begins: a day further in than that is not the day of the line. */
+function secondPieceAt(line: string): number {
+	const pieces = [...line.matchAll(/\S+/g)];
+	return pieces[1]?.index ?? pieces[0]?.index ?? 0;
+}
+
+/**
+ * The day a line names, in whatever shape the bank wrote it.
+ *
+ * The leftmost one, in the first two pieces of the line, and never the one after "parc". It
+ * preferred a day and month anywhere to a month by name, so "12 SET Loja X PARC 02/10" was a
+ * purchase of the second of October. A label and its value, which a due date or a receipt is
+ * written as, may hold the day anywhere.
+ */
 export function findDate(
 	line: string,
 	order: Parameters<typeof readDate>[1],
 	year: number,
+	options: { anywhere?: boolean } = {},
 ): FoundDate | null {
-	const iso = ISO_DATE.exec(line);
-	if (iso) {
-		return { day: readDate(iso[0]), text: iso[0], at: iso.index, sure: true };
+	const found: FoundDate[] = [];
+
+	for (const iso of line.matchAll(ISO_DATE)) {
+		found.push({ day: readDate(iso[0]), text: iso[0], at: iso.index, sure: true, written: null });
 	}
 
-	const separated = DATE_TOKEN.exec(line);
-	if (separated) {
-		const written = separated[3]
-			? separated[0]
-			: `${separated[1]}/${separated[2]}/${String(year).slice(-4)}`;
-		return {
-			day: readDate(written, order),
+	for (const separated of line.matchAll(DATE_TOKEN)) {
+		const first = Number(separated[1]);
+		const second = Number(separated[2]);
+		if (separated[3]) {
+			found.push({
+				day: readDate(separated[0], order),
+				text: separated[0],
+				at: separated.index,
+				sure: true,
+				written: null,
+			});
+			continue;
+		}
+		// A day with no year in it is a day that needed the document to say which.
+		const written =
+			order === "monthFirst" ? { day: second, month: first } : { day: first, month: second };
+		found.push({
+			day: readDate(`${written.day}/${written.month}/${year}`, "dayFirst"),
 			text: separated[0],
 			at: separated.index,
-			// A day with no year in it is a day that needed the document to say which.
-			sure: Boolean(separated[3]),
-		};
+			sure: false,
+			written,
+		});
 	}
 
-	const named = NAMED_DATE.exec(line);
-	if (named) {
+	for (const named of line.matchAll(NAMED_DATE)) {
 		const month = MONTHS[fold(named[2] ?? "").slice(0, 3)];
-		if (month !== undefined) {
-			const written = `${named[1]}/${month}/${named[3] ?? String(year)}`;
-			return {
-				day: readDate(written, "dayFirst"),
-				text: named[0],
-				at: named.index,
-				sure: Boolean(named[3]),
-			};
-		}
+		if (month === undefined) continue;
+		const day = Number(named[1]);
+		found.push({
+			day: readDate(`${day}/${month}/${named[3] ?? String(year)}`, "dayFirst"),
+			text: named[0].trim(),
+			at: named.index,
+			sure: Boolean(named[3]),
+			written: named[3] ? null : { day, month },
+		});
 	}
 
-	return null;
+	const limit = options.anywhere ? Number.POSITIVE_INFINITY : secondPieceAt(line);
+	return (
+		found
+			.filter((date) => date.at <= limit && !AFTER_PARC.test(line.slice(0, date.at)))
+			.sort((left, right) => left.at - right.at)[0] ?? null
+	);
 }
+
+/** The mark of a part of a plan: which part, of how many, and whether it is surely one. */
+export type InstallmentMark = {
+	number: number;
+	count: number;
+	/**
+	 * A loose "2/10" at the end of a line is also how some banks print the day. Outside a
+	 * section of parts it is offered, not taken.
+	 */
+	sure: boolean;
+};
+
+const PARC_MARK = /\bparc(?:ela)?\.?\s*(\d{1,3})\s*(?:\/|de)\s*(\d{1,3})\b/i;
+const LOOSE_MARK = /(?:^|\s)(\d{1,2})\/(\d{1,2})$/;
+
+/**
+ * The part of a plan a line is, and the description without the mark: the number after the
+ * name is the application's to add, "Loja X 2/10", so the bank's way of writing it comes off.
+ *
+ * A plan of more parts than the application writes stays one record, for the person to look
+ * at, rather than a plan cut short.
+ */
+export function installmentOf(
+	description: string,
+	context: { inSection: boolean; date: FoundDate | null },
+): { mark: InstallmentMark | null; description: string; overTheCeiling: boolean } {
+	const parc = PARC_MARK.exec(description);
+	const loose = parc ? null : LOOSE_MARK.exec(description);
+	const found = parc ?? loose;
+	if (!found) return { mark: null, description, overTheCeiling: false };
+
+	const number = Number(found[1]);
+	const count = Number(found[2]);
+	if (number < 1 || count < 2 || number > count)
+		return { mark: null, description, overTheCeiling: false };
+	// "IFOOD 05/09" on the fifth of September is the day printed again, not a part.
+	const written = context.date?.written ?? null;
+	const day = context.date?.day ?? null;
+	if (
+		loose &&
+		((written && written.day === number && written.month === count) ||
+			(day !== null && Number(day.slice(8)) === number && Number(day.slice(5, 7)) === count))
+	) {
+		return { mark: null, description, overTheCeiling: false };
+	}
+	if (count > MAX_INSTALLMENTS) return { mark: null, description, overTheCeiling: true };
+
+	return {
+		mark: { number, count, sure: Boolean(parc) || context.inSection },
+		description: tidy(description.replace(found[0], " ")),
+		overTheCeiling: false,
+	};
+}
+
+/** A heading under which the lines are parts of plans. */
+const INSTALLMENT_SECTION =
+	/^(?:compras parceladas|parcelados|parceladas|parcelamentos|lancamentos parcelados)\b/;
+/** Any other heading, or a new page, which ends the one before. */
+const OTHER_SECTION =
+	/^(?:lancamentos|compras|despesas|pagamentos|creditos|encargos|outros|servicos|saques|transacoes|movimentacoes|resumo|cartao|titular|adicional|pagina|page)\b/;
 
 export type FoundAmount = {
 	value: number;
@@ -478,6 +581,40 @@ export function recogniseStatement(
 	const order =
 		options.order ?? guessDateOrder(lines.flatMap((line) => line.match(/\d[\d/.-]{5,}/g) ?? []));
 
+	// What places a day printed without its year: when the invoice falls due, and the days the
+	// document covers. Read before the lines, which need them.
+	const due = labelled(lines, /vencimento|vence em|pagar ate|due date|payment due/);
+	const dueOn = due ? (findDate(due.line, order, year, { anywhere: true })?.day ?? null) : null;
+
+	const periodLine = labelled(lines, /periodo|per[ií]odo|de .* (a|ate) |from .* to /);
+	let period: RecognisedDocument["period"] = null;
+	if (periodLine) {
+		const days = [
+			...(periodLine.line.match(/\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{4}-\d{2}-\d{2}/g) ?? []),
+		]
+			.map((token) => readDate(token, order))
+			.filter((day): day is CalendarDate => day !== null);
+		const from = days[0];
+		const to = days[days.length - 1];
+		if (days.length >= 2 && from !== undefined && to !== undefined) {
+			period = { from, to };
+		}
+	}
+	const anchor = dueOn ?? period?.to ?? null;
+
+	/** The day of a line, its year placed by the document when the line did not print one. */
+	const dayOf = (date: FoundDate, mark: InstallmentMark | null): CalendarDate | null =>
+		date.written === null
+			? date.day
+			: printedDay({
+					day: date.written.day,
+					month: date.written.month,
+					anchor,
+					period,
+					fallbackYear: year,
+					part: mark?.sure ? mark.number : null,
+				});
+
 	const entries: RecognisedEntry[] = [];
 	const unread: { line: number; text: string }[] = [];
 	/** The lines of an invoice, kept until its convention is known. */
@@ -488,18 +625,27 @@ export function recogniseStatement(
 		sure: boolean;
 		chosen: FoundAmount;
 		description: string;
+		mark: InstallmentMark | null;
+		overTheCeiling: boolean;
 	}[] = [];
 
 	// A running balance in the last column is the surest thing in a statement: the
 	// direction of an entry is the direction the balance moved. An invoice has none.
 	let previousBalance: number | null = null;
+	/** Under a heading of parts, where a loose "2/10" is surely a part and not a day. */
+	let inSection = false;
 
 	lines.forEach((text, index) => {
 		const line = tidy(text);
 		if (line === "") return;
 
 		const amounts = findAmounts(line);
-		if (amounts.length === 0) return;
+		if (amounts.length === 0) {
+			const heading = fold(line).trim();
+			if (INSTALLMENT_SECTION.test(heading)) inSection = true;
+			else if (OTHER_SECTION.test(heading)) inSection = false;
+			return;
+		}
 
 		if (isFurniture(line)) {
 			// The balance a statement opens with is not an entry, and it is exactly what
@@ -512,9 +658,10 @@ export function recogniseStatement(
 
 		const date = findDate(line, order, year);
 		if (!date || date.day === null) {
-			// It held money and named no day. Worth telling the person about, because a
-			// statement where these pile up is one this reader did not understand.
-			if (!isFurniture(line)) unread.push({ line: index + 1, text: line });
+			// It held money and named no day where a day is written. Worth telling the person
+			// about, because a statement where these pile up is one this reader did not
+			// understand.
+			unread.push({ line: index + 1, text: line });
 			return;
 		}
 
@@ -526,13 +673,24 @@ export function recogniseStatement(
 		if (kind === "invoice") {
 			if (!chosen) return;
 			const start = Math.max(date.at + date.text.length, 0);
+			const read = installmentOf(tidy(line.slice(start, chosen.at).replace(/^[\s|:;.-]+/, "")), {
+				inSection,
+				date,
+			});
+			const day = dayOf(date, read.mark);
+			if (day === null) {
+				unread.push({ line: index + 1, text: line });
+				return;
+			}
 			charges.push({
 				index,
 				line,
-				day: date.day,
+				day,
 				sure: date.sure,
 				chosen,
-				description: tidy(line.slice(start, chosen.at).replace(/^[\s|:;.-]+/, "")),
+				description: read.description,
+				mark: read.mark,
+				overTheCeiling: read.overTheCeiling,
 			});
 			return;
 		}
@@ -558,7 +716,16 @@ export function recogniseStatement(
 		if (!chosen) return;
 
 		const start = Math.max(date.at + date.text.length, 0);
-		const description = tidy(line.slice(start, chosen.at).replace(/^[\s|:;.-]+/, ""));
+		const read = installmentOf(tidy(line.slice(start, chosen.at).replace(/^[\s|:;.-]+/, "")), {
+			inSection,
+			date,
+		});
+		const description = read.description;
+		const day = dayOf(date, read.mark);
+		if (day === null) {
+			unread.push({ line: index + 1, text: line });
+			return;
+		}
 		const said = directionOf(description === "" ? line : description, "statement");
 
 		let amount = chosen.value;
@@ -583,6 +750,7 @@ export function recogniseStatement(
 
 		if (date.sure) confidence += 0.03;
 		if (description.length >= 4) confidence += 0.02;
+		if (read.overTheCeiling) confidence = Math.min(confidence, 0.6);
 
 		if (balance) previousBalance = balance.value;
 
@@ -592,13 +760,15 @@ export function recogniseStatement(
 		}
 
 		entries.push({
-			happenedOn: date.day,
+			happenedOn: day,
 			amount,
 			description: description === "" ? tidy(line) : description,
 			confidence: Math.min(0.99, confidence),
 			nature: natureOf(description === "" ? line : description, "statement", {
 				cardBanks: options.cardBanks ?? [],
+				installment: read.mark?.sure === true,
 			}),
+			installment: read.mark,
 			externalId: findIdentifier(line),
 			line: index + 1,
 			source: line,
@@ -625,41 +795,28 @@ export function recogniseStatement(
 		let confidence = read.confidence;
 		if (charge.sure) confidence += 0.03;
 		if (charge.description.length >= 4) confidence += 0.02;
+		if (charge.overTheCeiling) confidence = Math.min(confidence, 0.6);
 		entries.push({
 			happenedOn: charge.day,
 			amount: read.direction * Math.abs(charge.chosen.value),
 			description: charge.description === "" ? charge.line : charge.description,
 			confidence: Math.min(0.99, confidence),
-			nature: natureOf(charge.description === "" ? charge.line : charge.description, "invoice"),
+			nature: natureOf(charge.description === "" ? charge.line : charge.description, "invoice", {
+				installment: charge.mark?.sure === true,
+			}),
+			installment: charge.mark,
 			externalId: findIdentifier(charge.line),
 			line: charge.index + 1,
 			source: charge.line,
 		});
 	}
 	entries.sort((left, right) => left.line - right.line);
-
-	const due = labelled(lines, /vencimento|vence em|pagar ate|due date|payment due/);
-	const dueOn = due ? (findDate(due.line, order, year)?.day ?? null) : null;
+	unread.sort((left, right) => left.line - right.line);
 
 	const totalLine = labelled(lines, /total desta fatura|total da fatura|valor total|total a pagar/);
 	const totalAmounts = totalLine ? findAmounts(totalLine.line) : [];
 	const total =
 		totalAmounts.length > 0 ? Math.abs(totalAmounts[totalAmounts.length - 1]?.value ?? 0) : null;
-
-	const periodLine = labelled(lines, /periodo|per[ií]odo|de .* (a|ate) |from .* to /);
-	let period: RecognisedDocument["period"] = null;
-	if (periodLine) {
-		const days = [
-			...(periodLine.line.match(/\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{4}-\d{2}-\d{2}/g) ?? []),
-		]
-			.map((token) => readDate(token, order))
-			.filter((day): day is CalendarDate => day !== null);
-		const from = days[0];
-		const to = days[days.length - 1];
-		if (days.length >= 2 && from !== undefined && to !== undefined) {
-			period = { from, to };
-		}
-	}
 
 	const average =
 		entries.length === 0
