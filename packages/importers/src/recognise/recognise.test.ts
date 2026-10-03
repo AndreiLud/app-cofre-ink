@@ -136,6 +136,22 @@ describe("a receipt", () => {
 		expect(read.entries[0]?.description).toBe("Carlos Souza");
 	});
 
+	// Part 2, E.16 of the request for 2.0.0: the receipt of an invoice paid was money spent.
+	it("knows the receipt of an invoice paid for the payment of a card", () => {
+		const read = recogniseReceipt(
+			[
+				"Comprovante de pagamento",
+				"Pagamento de fatura Nubank",
+				"Valor",
+				"R$ 1.234,56",
+				"Data do pagamento",
+				"10/10/2026",
+			],
+			{ today },
+		);
+		expect(read.entries[0]).toMatchObject({ amount: -123_456, nature: "cardPayment" });
+	});
+
 	it("says it could not read a receipt with no amount on it", () => {
 		const read = recogniseReceipt(["Comprovante", "obrigado pela preferencia"], { today });
 		expect(read.entries).toEqual([]);
