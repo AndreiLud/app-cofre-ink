@@ -166,6 +166,32 @@ describe("what it is not sure about", () => {
 	});
 });
 
+// Part 2, E.1 of the request for 2.0.0: the recogniser read amounts with an expression of its
+// own, and lost signs the reader of a column knew.
+describe("an amount read once", () => {
+	it("reads every way a statement writes money leaving", () => {
+		for (const written of ["50,00-", "-R$ 50,00", "−50,00"]) {
+			const read = recogniseStatement(["Extrato", `10/09/2026 Loja ${written}`], { today });
+			expect(read.entries.map((entry) => entry.amount)).toEqual([-5000]);
+			// Read from the sign the bank wrote, and not from the guess that most lines are out.
+			expect(read.entries[0]?.confidence).toBeGreaterThan(0.85);
+		}
+	});
+
+	it("does not take the C of the next word for a credit", () => {
+		const read = recogniseStatement(
+			["Fatura do cartao", "Vencimento 10/10/2026", "10/09/2026 Restaurante 18,40 Centro"],
+			{ today },
+		);
+		expect(read.entries.map((entry) => entry.amount)).toEqual([-1840]);
+	});
+
+	it("reads a large amount written without the thousands", () => {
+		const read = recogniseStatement(["Extrato", "10/09/2026 TED 12345,67"], { today });
+		expect(read.entries.map((entry) => Math.abs(entry.amount))).toEqual([1_234_567]);
+	});
+});
+
 describe("whatever the lines hold", () => {
 	it("never throws, and never invents a record", () => {
 		fc.assert(

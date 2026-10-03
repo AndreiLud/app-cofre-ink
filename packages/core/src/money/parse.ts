@@ -19,6 +19,12 @@ export type ParseMoneyOptions = {
 };
 
 const NEGATIVE_WRAPPED = /^\((.*)\)$/;
+/**
+ * The symbol written in front of an amount. A sign can sit on either side of it, "-R$ 50,00"
+ * and "R$ -50,00", and the second was read as fifty reais coming in: the minus was not at the
+ * start, and nothing looked past the symbol for it.
+ */
+const CURRENCY_IN_FRONT = /^(?:R\$|US\$|BRL|USD|EUR|€|\$)\s*/i;
 
 function detectSign(text: string): { sign: number; rest: string } {
 	let rest = text.trim();
@@ -27,9 +33,16 @@ function detectSign(text: string): { sign: number; rest: string } {
 	const wrapped = rest.match(NEGATIVE_WRAPPED);
 	if (wrapped?.[1] !== undefined) {
 		sign = -1;
-		rest = wrapped[1];
+		rest = wrapped[1].trim();
 	}
+	let signed = false;
 	if (rest.startsWith("-") || rest.startsWith("+")) {
+		if (rest.startsWith("-")) sign = -sign;
+		rest = rest.slice(1).trim();
+		signed = true;
+	}
+	rest = rest.replace(CURRENCY_IN_FRONT, "");
+	if (!signed && (rest.startsWith("-") || rest.startsWith("+"))) {
 		if (rest.startsWith("-")) sign = -sign;
 		rest = rest.slice(1);
 	}

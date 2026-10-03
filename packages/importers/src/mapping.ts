@@ -5,7 +5,7 @@
 // and whatever it decides is shown to the person before anything is written, because a
 // column read as the wrong thing is money in the wrong place.
 
-import { type DateOrder, guessDateOrder, readAmount, readDate } from "./text.ts";
+import { type DateOrder, guessDateOrder, readAmountValue, readDate } from "./text.ts";
 
 export type FieldName =
 	| "happenedOn"
@@ -95,7 +95,7 @@ function fromValues(values: readonly string[]): FieldName {
 	const dates = filled.filter((value) => readDate(value) !== null).length;
 	if (dates >= filled.length * 0.8) return "happenedOn";
 
-	const amounts = filled.filter((value) => readAmount(value) !== null).length;
+	const amounts = filled.filter((value) => readAmountValue(value) !== null).length;
 	if (amounts >= filled.length * 0.8) return "amount";
 
 	const words = filled.filter((value) => /[a-z]/i.test(value)).length;
@@ -153,7 +153,7 @@ function guessSign(fields: readonly FieldName[], rows: readonly string[][]): Sig
 	if (fields.includes("debit") || fields.includes("credit")) return "asWritten";
 
 	const amounts = rows
-		.map((row) => readAmount(row[column] ?? ""))
+		.map((row) => readAmountValue(row[column] ?? ""))
 		.filter((amount): amount is number => amount !== null && amount !== 0);
 
 	if (amounts.length < 3) return "asWritten";
@@ -176,9 +176,9 @@ export function applyMapping(row: readonly string[], mapping: ColumnMapping): Ma
 		return index < 0 ? "" : (row[index] ?? "");
 	};
 
-	const debit = readAmount(value("debit"));
-	const credit = readAmount(value("credit"));
-	const plain = readAmount(value("amount"));
+	const debit = readAmountValue(value("debit"));
+	const credit = readAmountValue(value("credit"));
+	const plain = readAmountValue(value("amount"));
 
 	// Two columns means the direction is the column, not the sign somebody typed.
 	const amount =

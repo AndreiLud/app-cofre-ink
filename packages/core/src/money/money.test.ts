@@ -95,6 +95,10 @@ describe("parseMoney", () => {
 		["1.234,56-", -123456],
 		["12,3456", 1235],
 		["R$ 1.000,00", 100000],
+		// Part 2, E.1 of the request for 2.0.0: the minus after the symbol was not looked for.
+		["R$ -50,00", -5000],
+		["-R$ 50,00", -5000],
+		["(R$ 50,00)", -5000],
 	];
 
 	for (const [input, expected] of cases) {

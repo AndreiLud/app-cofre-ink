@@ -9,7 +9,7 @@
 // on a screen next to the line it came from, and a person says yes.
 
 import type { CalendarDate } from "@cofre/core";
-import { guessDateOrder, readAmount, readDate, tidy } from "../text.ts";
+import { guessDateOrder, readAmount, readDate, tidy, type WrittenSign } from "../text.ts";
 
 export type DocumentKind = "statement" | "invoice" | "receipt" | "unknown";
 
@@ -171,8 +171,25 @@ export function fold(text: string): string {
 	return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
-const AMOUNT_TOKEN =
-	/(?:R\$|BRL|US\$|USD|\$|€)?\s?-?\(?\d{1,3}(?:\.\d{3})*,\d{2}\)?(?:\s?[DC])?|(?:R\$|USD|\$|€)?\s?-?\(?\d{1,3}(?:,\d{3})*\.\d{2}\)?(?:\s?[DC])?/g;
+/** A sign, written by a keyboard or a typesetter. Escaped, so it can be read here. */
+const SIGN = "[-+\\u2212\\u2013\\u2014]";
+const MARK = "(?:R\\$|US\\$|BRL|USD|EUR|\\u20ac|\\$)";
+/**
+ * The digits of an amount: grouped by thousands or not, with two decimals. "TED 12345,67"
+ * was read as 345,67, because only a number grouped in threes was looked for and the reading
+ * began wherever three digits were left.
+ */
+const DIGITS =
+	"(?:\\d{1,3}(?:\\.\\d{3})+,\\d{2}|\\d+,\\d{2}|\\d{1,3}(?:,\\d{3})+\\.\\d{2}|\\d+\\.\\d{2})(?![.,]?\\d)";
+/**
+ * A C or a D is a direction only alone at the end of the line or before another amount.
+ * Against the next word it read "18,40 Centro" as eighteen reais forty coming in.
+ */
+const LETTER = `(?:\\s?[DCdc](?=\\s*$|\\s+(?:${SIGN}|\\(|${MARK}|\\d)))`;
+const AMOUNT_TOKEN = new RegExp(
+	`(?<![\\w.,])(?:\\(\\s?)?(?:${SIGN}\\s?)?(?:${MARK}\\s?)?(?:${SIGN}\\s?)?${DIGITS}(?:\\s?\\))?(?:[-\\u2212](?!\\d))?${LETTER}?`,
+	"g",
+);
 
 const DATE_TOKEN = /\b(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?\b/;
 const NAMED_DATE = /\b(\d{1,2})\s?(?:de\s)?([a-z]{3})[a-z]*\.?\s?(\d{2,4})?\b/i;
@@ -222,7 +239,15 @@ export function findDate(
 	return null;
 }
 
-export type FoundAmount = { value: number; text: string; at: number; signed: boolean };
+export type FoundAmount = {
+	value: number;
+	text: string;
+	at: number;
+	/** Whether the text carried a direction at all. */
+	signed: boolean;
+	/** How it carried it, which decides how far it is trusted. */
+	sign: WrittenSign;
+};
 
 export function findAmounts(line: string): FoundAmount[] {
 	AMOUNT_TOKEN.lastIndex = 0;
@@ -231,13 +256,14 @@ export function findAmounts(line: string): FoundAmount[] {
 	let match = AMOUNT_TOKEN.exec(line);
 	while (match) {
 		const text = match[0].trim();
-		const value = readAmount(text);
-		if (value !== null) {
+		const read = readAmount(text);
+		if (read !== null) {
 			found.push({
-				value,
+				value: read.value,
 				text,
-				at: match.index,
-				signed: /^[-(]|^R?\$?\s?-|[DC]$/.test(text),
+				at: match.index + (match[0].length - match[0].trimStart().length),
+				signed: read.sign !== "none",
+				sign: read.sign,
 			});
 		}
 		match = AMOUNT_TOKEN.exec(line);
@@ -428,6 +454,10 @@ export function recogniseStatement(
 		if (fromBalance && balance && previousBalance !== null) {
 			amount = balance.value >= previousBalance ? Math.abs(chosen.value) : -Math.abs(chosen.value);
 			confidence = 0.95;
+		} else if (chosen.sign === "spacedMinus") {
+			// " - " is also what separates two words, so a minus with a space after it is read
+			// and shown to be checked.
+			confidence = 0.6;
 		} else if (chosen.signed) {
 			confidence = 0.9;
 		} else if (said !== 0) {

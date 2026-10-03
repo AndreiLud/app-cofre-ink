@@ -1,7 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { guessDelimiter, readCsv } from "./csv.ts";
-import { readAmount } from "./text.ts";
+import { readAmountValue } from "./text.ts";
 import { writeAmount, writeCsv } from "./writer.ts";
 
 describe("writing an amount", () => {
@@ -16,7 +16,7 @@ describe("writing an amount", () => {
 	it("gives back the same number when read again", () => {
 		fc.assert(
 			fc.property(fc.integer({ min: -1_000_000_000, max: 1_000_000_000 }), (cents) => {
-				expect(readAmount(writeAmount(cents))).toBe(cents);
+				expect(readAmountValue(writeAmount(cents))).toBe(cents);
 			}),
 			{ numRuns: 300 },
 		);
@@ -49,6 +49,6 @@ describe("writing a table", () => {
 		const table = readCsv(text);
 		expect(table.header).toEqual(["Data", "Descrição", "Valor"]);
 		expect(table.rows).toHaveLength(2);
-		expect(readAmount(table.rows[1]?.[2] ?? "")).toBe(500_000);
+		expect(readAmountValue(table.rows[1]?.[2] ?? "")).toBe(500_000);
 	});
 });

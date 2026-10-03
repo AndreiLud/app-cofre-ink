@@ -90,28 +90,120 @@ function build(year: number, month: number, day: number): CalendarDate | null {
 }
 
 /**
- * An amount in minor units, signed, or nothing.
+ * How the direction of an amount was written, which is not the same as which way it went.
+ *
+ * A minus against the number is the bank saying so. A minus with a space after it may be
+ * the dash that separates two words, " - ", so it counts and is not trusted. Parentheses, a
+ * minus after the number and a letter are the shapes the exports here use.
+ */
+export type WrittenSign =
+	| "none"
+	| "minus"
+	| "spacedMinus"
+	| "plus"
+	| "parentheses"
+	| "trailingMinus"
+	| "letter";
+
+export type ReadAmount = {
+	/** Signed minor units, by what the text says. */
+	value: number;
+	sign: WrittenSign;
+};
+
+/** The minus a keyboard writes, the one a typesetter writes, and the two dashes that pass for it. */
+const MINUS = "[-\\u2212\\u2013\\u2014]";
+const ANY_MINUS = new RegExp(`^${MINUS}$`);
+const CURRENCY_MARK = "(?:R\\$|US\\$|BRL|USD|EUR|\\u20ac|\\$)";
+const TRAILING_MARK = new RegExp(`\\s*${CURRENCY_MARK}$`, "i");
+/** What stands in front of the digits: a sign, a symbol, either order, and the spaces between. */
+const LEADING = new RegExp(
+	`^(${MINUS}|\\+)?(\\s*)(${CURRENCY_MARK})?(\\s*)(${MINUS}|\\+)?(\\s*)(?=\\d)`,
+	"i",
+);
+
+/**
+ * An amount in minor units with how its sign was written, or nothing.
  *
  * Banks write a withdrawal as a negative number, as a positive number in a column
  * called debit, or with a letter beside it. The sign here is only what the text says;
- * which column it came from is decided by whoever maps the columns.
+ * which column it came from is decided by whoever maps the columns, and what a positive
+ * number means is decided by what kind of document it is.
+ *
+ * Read once, here. The recogniser had a second reading of its own, and the two disagreed:
+ * it lost the minus at the end, the plus, the typeset minus, the minus in front of the
+ * symbol, and a lowercase letter.
  */
-export function readAmount(value: string, currency = "BRL"): number | null {
-	const text = value.trim();
+export function readAmount(value: string, currency = "BRL"): ReadAmount | null {
+	let text = value.trim();
 	if (text === "") return null;
 
+	let sign: WrittenSign = "none";
+	let negative = false;
+
 	// A trailing D or C is how some Brazilian exports say debit and credit.
-	const letter = /([dc])$/i.exec(text);
-	const withoutLetter = letter ? text.slice(0, -1).trim() : text;
+	const lettered = /^(.*[\d)\-−])\s?([dc])$/i.exec(text);
+	if (lettered?.[1] !== undefined && lettered[2] !== undefined) {
+		text = lettered[1].trim();
+		sign = "letter";
+		negative = lettered[2].toLowerCase() === "d";
+	}
+
+	const wrapped = /^\((.*)\)$/.exec(text);
+	if (wrapped?.[1] !== undefined) {
+		text = wrapped[1].trim();
+		if (sign === "none") {
+			sign = "parentheses";
+			negative = true;
+		}
+	}
+
+	const last = text.slice(-1);
+	if (ANY_MINUS.test(last) && /\d/.test(text.slice(-2, -1))) {
+		text = text.slice(0, -1).trim();
+		if (sign === "none") {
+			sign = "trailingMinus";
+			negative = true;
+		}
+	}
+
+	// A symbol after the number, "42,90 BRL", says nothing about the direction.
+	text = text.replace(TRAILING_MARK, "");
+
+	const lead = LEADING.exec(text);
+	if (!lead) return null;
+	const [whole, before, gapBefore, , , after, gapAfter] = lead;
+	const mark = before ?? after;
+	const gap = before === undefined ? (gapAfter ?? "") : (gapBefore ?? "");
+	if (mark !== undefined && sign === "none") {
+		if (mark === "+") {
+			sign = "plus";
+		} else if (gap === "") {
+			sign = "minus";
+			negative = true;
+		} else if (mark === "-") {
+			// A typeset minus or a dash counts only against the number or the symbol: with a
+			// space after it, it is the dash between two words, and the amount has no sign.
+			// The minus of a keyboard with a space after it counts, and is not trusted.
+			sign = "spacedMinus";
+			negative = true;
+		}
+	}
+
+	const digits = text.slice(whole.length);
+	if (!/^\d[\d.,]*$/.test(digits)) return null;
 
 	try {
-		const money = parseMoney(withoutLetter, { currency });
-		if (letter && letter[1]?.toLowerCase() === "d") return -Math.abs(money.amount);
-		if (letter && letter[1]?.toLowerCase() === "c") return Math.abs(money.amount);
-		return money.amount;
+		const amount = Math.abs(parseMoney(digits, { currency }).amount);
+		return { value: negative ? -amount : amount, sign };
 	} catch {
 		return null;
 	}
+}
+
+/** Just the signed value, for the places that read a column and not a document. */
+export function readAmountValue(value: string, currency = "BRL"): number | null {
+	return readAmount(value, currency)?.value ?? null;
 }
 
 /** Collapses the spacing banks leave behind, without touching what the words say. */

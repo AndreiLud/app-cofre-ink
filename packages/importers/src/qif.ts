@@ -6,7 +6,7 @@
 // rather than on the file to avoid writing the same thing twice.
 
 import type { CalendarDate } from "@cofre/core";
-import { type DateOrder, guessDateOrder, readAmount, readDate, tidy } from "./text.ts";
+import { type DateOrder, guessDateOrder, readAmountValue, readDate, tidy } from "./text.ts";
 
 export type QifEntry = {
 	happenedOn: CalendarDate;
@@ -62,7 +62,7 @@ export function readQif(text: string, order?: DateOrder): QifFile {
 			}
 			case "T":
 			case "U": {
-				const amount = readAmount(value);
+				const amount = readAmountValue(value);
 				if (amount !== null) current.amount = amount;
 				break;
 			}

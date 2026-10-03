@@ -4,7 +4,7 @@ import { guessDelimiter, readCsv, splitLine } from "./csv.ts";
 import { guessMapping } from "./mapping.ts";
 import { readOfx } from "./ofx.ts";
 import { readQif } from "./qif.ts";
-import { decode, guessDateOrder, readAmount, readDate } from "./text.ts";
+import { decode, guessDateOrder, readAmount, readAmountValue, readDate } from "./text.ts";
 import { dayFromSerial, readXlsx } from "./xlsx.ts";
 
 describe("turning bytes into text", () => {
@@ -46,21 +46,36 @@ describe("reading a day", () => {
 
 describe("reading an amount", () => {
 	it("reads both ways of writing one", () => {
-		expect(readAmount("1.234,56")).toBe(123_456);
-		expect(readAmount("1,234.56")).toBe(123_456);
-		expect(readAmount("-42,90")).toBe(-4290);
-		expect(readAmount("R$ 42,90")).toBe(4290);
-		expect(readAmount("(42,90)")).toBe(-4290);
+		expect(readAmountValue("1.234,56")).toBe(123_456);
+		expect(readAmountValue("1,234.56")).toBe(123_456);
+		expect(readAmountValue("-42,90")).toBe(-4290);
+		expect(readAmountValue("R$ 42,90")).toBe(4290);
+		expect(readAmountValue("(42,90)")).toBe(-4290);
 	});
 
 	it("reads the letter some banks put after it", () => {
-		expect(readAmount("42,90 D")).toBe(-4290);
-		expect(readAmount("42,90 C")).toBe(4290);
+		expect(readAmountValue("42,90 D")).toBe(-4290);
+		expect(readAmountValue("42,90 C")).toBe(4290);
 	});
 
 	it("gives nothing back for what is not a number", () => {
-		expect(readAmount("")).toBe(null);
-		expect(readAmount("saldo")).toBe(null);
+		expect(readAmountValue("")).toBe(null);
+		expect(readAmountValue("saldo")).toBe(null);
+	});
+
+	// Part 2, E.1 of the request for 2.0.0: one reading, which says how the sign was written.
+	it("says how the sign was written, whichever side of the symbol it is on", () => {
+		expect(readAmount("R$ -50,00")).toEqual({ value: -5000, sign: "minus" });
+		expect(readAmount("-R$ 50,00")).toEqual({ value: -5000, sign: "minus" });
+		expect(readAmount("−50,00")).toEqual({ value: -5000, sign: "minus" });
+		expect(readAmount("50,00-")).toEqual({ value: -5000, sign: "trailingMinus" });
+		expect(readAmount("+50,00")).toEqual({ value: 5000, sign: "plus" });
+		expect(readAmount("50,00 d")).toEqual({ value: -5000, sign: "letter" });
+		expect(readAmount("(50,00)")).toEqual({ value: -5000, sign: "parentheses" });
+		expect(readAmount("- 50,00")).toEqual({ value: -5000, sign: "spacedMinus" });
+		// A dash with a space after it is the one between two words.
+		expect(readAmount("– 50,00")).toEqual({ value: 5000, sign: "none" });
+		expect(readAmount("42,90 BRL")).toEqual({ value: 4290, sign: "none" });
 	});
 });
 
