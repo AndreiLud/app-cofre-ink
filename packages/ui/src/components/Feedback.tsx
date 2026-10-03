@@ -54,10 +54,20 @@ const TONES: Record<CalloutTone, string> = {
 	problem: "border-seal/40 bg-seal/10",
 };
 
-/** A short message about the state of things, never decorative. */
+/**
+ * A short message about the state of things, never decorative.
+ *
+ * Said out loud when it changes, which is what a message of a result is for (WCAG 4.1.3): a
+ * problem at once, as an alert, and anything else when the reader is free, as a status. It
+ * had no role at all, so a save that was refused told only whoever was looking at the bottom
+ * of the dialog.
+ */
 export function Callout({ tone = "neutral", title, children, action, className }: CalloutProps) {
 	return (
-		<div className={cn("rounded-md border px-4 py-3", TONES[tone], className)}>
+		<div
+			role={tone === "problem" ? "alert" : "status"}
+			className={cn("rounded-md border px-4 py-3", TONES[tone], className)}
+		>
 			{title ? <p className="text-sm font-semibold text-ink">{title}</p> : null}
 			<div className="text-sm leading-relaxed text-quiet">{children}</div>
 			{action ? <div className="mt-3">{action}</div> : null}

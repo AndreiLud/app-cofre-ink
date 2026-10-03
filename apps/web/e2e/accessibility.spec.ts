@@ -20,6 +20,19 @@ test.describe("the keyboard and the screen reader", () => {
 		await expect(page.locator("main")).toBeFocused();
 	});
 
+	// Part 1, E.6.1 of the request for 2.0.0 (WCAG 4.1.3): no message of a result was announced.
+	// The callout had no role and nothing in the application used a live region, so a save that
+	// was refused said so only to whoever was looking at the bottom of the dialog.
+	test("announces what a press came to", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByLabel("Valor", { exact: true }).fill("10,00");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(dialog.getByRole("alert")).toContainText(/descrição/i);
+	});
+
 	test("calls the tab after the screen, the space and the product", async ({ page }) => {
 		await openCofre(page);
 		await expect(page).toHaveTitle("Painel | Pessoal | Cofre Ink");
