@@ -351,6 +351,49 @@ export function runImportingConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// E.16: the payment of a card on the statement of the account it left was money spent.
+		it("writes a card paid from a statement as the transfer that pays its invoice", async () => {
+			const setup = await ready(adapter);
+			try {
+				const { on, spaceId } = setup;
+				const written = await on.imports.create({
+					spaceId,
+					accountId: setup.checking.id,
+					records: [
+						{
+							happenedOn: "2026-10-10",
+							amount: -123_456,
+							description: "Pagamento da fatura de outubro de 2026 (Itau)",
+							nature: "cardPayment",
+							paysCard: setup.card.id,
+							paysInvoice: "2026-10",
+						},
+					],
+				});
+				const payment = await on.transactions.get(written.ids[0] ?? "");
+				expect([
+					payment.kind,
+					payment.amount,
+					payment.accountId,
+					payment.counterAccountId,
+					payment.invoiceMonth,
+				]).toEqual(["transfer", 123_456, setup.checking.id, setup.card.id, "2026-10"]);
+				const october = await on.invoices.get(setup.card.id, "2026-10", "2026-10-28");
+				expect(october.paid).toBe(123_456);
+				// And the statement read again finds it, as money that left the account.
+				const known = await on.imports.existing(spaceId, {
+					from: "2026-10-10",
+					to: "2026-10-10",
+					accountId: setup.checking.id,
+				});
+				expect(known.map((row) => [row.id, row.amount, row.moved])).toEqual([
+					[payment.id, -123_456, true],
+				]);
+			} finally {
+				await setup.fixture.close();
+			}
+		});
+
 		// E.10.2: the one record a card was written down with for its open invoice is replaced by
 		// the invoice that details it, in the same write.
 		it("removes the record an invoice details, in the same write", async () => {

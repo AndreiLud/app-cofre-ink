@@ -1345,7 +1345,7 @@
 		"explain": "Escolha o arquivo, confira o que o {{app}} entendeu e só então grave. Nada é escrito antes disso.",
 		"pick": "Arquivo do banco",
 		"cannotWriteBody": "Importar um extrato é escrever lançamentos, e o seu papel neste espaço não escreve nenhum. Peça a quem cuida do espaço para mudar o seu papel, se você precisa importar aqui.",
-		"pickHint": "PDF de fatura ou comprovante, CSV, OFX, QIF, XLSX ou JSON. Um backup do {{app}} não entra por aqui: ele volta em Dados, em Restaurar de um arquivo. O arquivo não sai deste dispositivo.",
+		"pickHint": "PDF de extrato, de fatura ou de comprovante, CSV, OFX, QIF, XLSX ou JSON. Um backup do {{app}} não entra por aqui: ele volta em Dados, em Restaurar de um arquivo. O arquivo não sai deste dispositivo.",
 		"kind": {
 			"statement": "Isto parece um extrato",
 			"invoice": "Isto parece uma fatura de cartão",
@@ -1479,7 +1479,10 @@
 		"partElsewhere": "A parcela {{number}} de {{count}} de {{description}} já está no app, na fatura de {{month}}. Mover essa e as seguintes para a fatura de {{to}}.",
 		"arrangedHere": "Já está no app: é do parcelamento da fatura, ou do pagamento com outro cartão, que você gravou.",
 		"arrangedElsewhere": "Isto é de um parcelamento de fatura ou de um pagamento com outro cartão. Grave em Faturas, com Parcelar a fatura ou Pagar com outro cartão: como saída contaria duas vezes.",
-		"alreadyHere": "Já está aqui"
+		"alreadyHere": "Já está aqui",
+		"paidCardOf": "Cartão pago por {{description}}",
+		"pickPaidCard": "Paga qual cartão?",
+		"cardPaymentWaits": "\"{{description}}\" pagou a fatura de um cartão. Diga qual para gravar."
 	},
 	"demo": {
 		"notice": "Dados fictícios, só para demonstração."

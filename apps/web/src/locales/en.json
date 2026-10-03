@@ -1345,7 +1345,7 @@
 		"explain": "Pick the file, check what {{app}} understood, and only then write it down. Nothing is written before that.",
 		"pick": "File from the bank",
 		"cannotWriteBody": "Importing a statement is writing records, and your role in this space writes none. Ask whoever runs the space to change your role, if you need to import here.",
-		"pickHint": "A PDF invoice or receipt, CSV, OFX, QIF, XLSX or JSON. A {{app}} backup does not come in here: it goes back through Data, Restore from a file. The file does not leave this device.",
+		"pickHint": "A PDF statement, invoice or receipt, CSV, OFX, QIF, XLSX or JSON. A {{app}} backup does not come in here: it goes back through Data, Restore from a file. The file does not leave this device.",
 		"kind": {
 			"statement": "This looks like a statement",
 			"invoice": "This looks like a card invoice",
@@ -1479,7 +1479,10 @@
 		"partElsewhere": "Part {{number}} of {{count}} of {{description}} is already here, on the invoice of {{month}}. Move it and the ones after it to the invoice of {{to}}.",
 		"arrangedHere": "Already here: it belongs to the split of an invoice, or the payment with another card, that you wrote.",
 		"arrangedElsewhere": "This belongs to a split invoice or a payment with another card. Write it under Invoices, with Split the invoice or Pay with another card: as money out it would count twice.",
-		"alreadyHere": "Already here"
+		"alreadyHere": "Already here",
+		"paidCardOf": "Card paid by {{description}}",
+		"pickPaidCard": "Pays which card?",
+		"cardPaymentWaits": "\"{{description}}\" paid the invoice of a card. Say which one to write it."
 	},
 	"demo": {
 		"notice": "Made up data, for demonstration only."

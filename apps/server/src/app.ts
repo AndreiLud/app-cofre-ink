@@ -325,6 +325,9 @@ const importedRecord = z.object({
 		.optional(),
 	paymentFrom: z.string().min(1).max(64).nullable().optional(),
 	reverses: z.string().min(1).max(64).nullable().optional(),
+	// The card a statement's line paid, and its invoice.
+	paysCard: z.string().min(1).max(64).nullable().optional(),
+	paysInvoice: existingMonth.nullable().optional(),
 	// The part of a plan the line is. More parts than a plan may have is the repository's to
 	// refuse, with its own sentence, and not a check here that would say nothing.
 	installment: z

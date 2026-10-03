@@ -309,6 +309,46 @@ test.describe("reading a card invoice in", () => {
 		await expect(page.getByRole("button", { name: "Nada para gravar" })).toBeDisabled();
 	});
 
+	// E.16: the payment of a card on the statement of the bank was money spent.
+	test("writes a card paid from a statement as its invoice paid, and knows it the next time", async ({
+		page,
+	}) => {
+		await twoCards(page);
+		const statement = [
+			"Banco Exemplo",
+			"Extrato de conta corrente",
+			"Agencia 0001 Conta 12345-6",
+			"01/10/2026 Saldo anterior 5.000,00",
+			"10/10/2026 PAG FATURA NUBANK 1.234,56 3.765,44",
+		];
+		const open = async () => {
+			await go(page, "Dados");
+			await page.getByRole("button", { name: "Abrir a importação" }).click();
+			await page.getByLabel("Arquivo do banco").setInputFiles({
+				name: "extrato.pdf",
+				mimeType: "application/pdf",
+				buffer: Buffer.from(buildPdf({ content: drawLines(statement), compress: true })),
+			});
+			await expect(page.getByText("Isto parece um extrato")).toBeVisible();
+		};
+		await open();
+		await expect(page.getByLabel("Cartão pago por PAG FATURA NUBANK")).toHaveValue(/.+/);
+		await page.getByRole("button", { name: "Gravar 1 lançamento" }).click();
+		await expect(page.getByText("1 lançamento gravado")).toBeVisible();
+
+		await go(page, "Lançamentos");
+		await page.getByLabel("Mês", { exact: true }).fill("2026-10");
+		await expect(
+			page.getByRole("row").filter({ hasText: "Pagamento da fatura de outubro de 2026 (Nubank)" }),
+		).toBeVisible();
+
+		await open();
+		await expect(
+			page.getByRole("checkbox", { name: "Gravar PAG FATURA NUBANK" }),
+		).not.toBeChecked();
+		await expect(page.getByRole("cell", { name: "Já está aqui" })).toBeVisible();
+	});
+
 	// E.10.2: the card written down with what its open invoice held, and that invoice read in
 	// line by line, counted the same purchases twice.
 	test("takes out the record a card was written down with when its invoice comes in", async ({

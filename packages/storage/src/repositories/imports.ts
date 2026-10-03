@@ -82,6 +82,12 @@ export type ImportedRecord = {
 	 * invoice after the one before, counted by number and never by the day.
 	 */
 	installment?: { number: number; count: number } | null;
+	/**
+	 * On a statement of an account: the card a line paid, and the invoice of it. The line is the
+	 * transfer an invoice is paid with, from this account into the card, and not money spent.
+	 */
+	paysCard?: string | null;
+	paysInvoice?: CalendarMonth | null;
 };
 
 export type ImportInput = {
@@ -420,6 +426,37 @@ export function createImportsRepository(context: RepositoryContext) {
 				}
 			}
 
+			// The cards the statement's payments paid: each a credit card of this space, each payment
+			// leaving an account of money, on an invoice that is a month.
+			const paidCards = [
+				...new Set(
+					input.records.filter((record) => record.paysCard).map((record) => record.paysCard ?? ""),
+				),
+			];
+			if (paidCards.length > 0) {
+				if (!["checking", "savings", "cash"].includes(account.kind)) {
+					throw new RuleError(
+						"paymentFromMoney",
+						"an invoice is paid from a current account, a savings account or cash",
+					);
+				}
+				for (const record of input.records) {
+					if (record.paysCard && record.paysInvoice) parseCalendarMonth(record.paysInvoice);
+				}
+				const rows = await context.driver.all(
+					`SELECT "id" FROM "accounts"
+					 WHERE "id" IN (${marks(paidCards.length)}) AND "space_id" = ? AND "deleted_at" IS NULL
+					   AND "kind" = 'credit' AND "currency" = ?`,
+					[...paidCards, input.spaceId, account.currency],
+				);
+				if (rows.length !== paidCards.length) {
+					throw new RuleError(
+						"invoiceIsOfACard",
+						"an invoice is read into a credit card, and this account is not one",
+					);
+				}
+			}
+
 			// What the file replaces, each one on this account and removable by this person, checked
 			// before anything is written.
 			const removes = [...new Set(input.removes ?? [])];
@@ -507,6 +544,41 @@ export function createImportsRepository(context: RepositoryContext) {
 				}
 
 				for (const record of input.records) {
+					// The payment of a card on a statement: the transfer that pays its invoice.
+					if (record.paysCard) {
+						const amount = Math.abs(record.amount);
+						written.push(
+							await insertRow(write, {
+								table: transactions,
+								spaceId: input.spaceId,
+								values: {
+									kind: "transfer",
+									status: "settled",
+									amount,
+									currency: account.currency,
+									fx_rate: null,
+									amount_in_base: amount,
+									happened_on: record.happenedOn,
+									description: record.description.trim(),
+									account_id: input.accountId,
+									counter_account_id: record.paysCard,
+									notes: record.notes ?? null,
+									reconciled_at: null,
+									installment_group: null,
+									installment_number: null,
+									installment_count: null,
+									invoice_month: record.paysInvoice ?? null,
+									invoice_month_by_hand: record.paysInvoice ? 1 : null,
+									category_id: null,
+									priority: null,
+									external_id: record.externalId ?? null,
+									card_id: null,
+									created_by: context.actor().userId,
+								},
+							}),
+						);
+						continue;
+					}
 					// A part of a plan: the parts from it to the last, a group of their own.
 					const part = record.installment;
 					if (part && part.count >= 2) {

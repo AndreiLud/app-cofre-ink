@@ -28,6 +28,7 @@ import type {
 	SignMeaning,
 } from "@cofre/importers";
 import {
+	fold,
 	guessAccount,
 	markDuplicates,
 	matchArrangements,
@@ -36,6 +37,7 @@ import {
 	readFile,
 	refundedPurchase,
 	refundsInFile,
+	saysWord,
 	shapeOf,
 } from "@cofre/importers";
 import type { Account, ImportedRecord } from "@cofre/storage";
@@ -230,6 +232,21 @@ export function ImportPage() {
 
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
 
+	/**
+	 * The names of the cards written down and of the banks behind them, which a statement names
+	 * when it pays one: "FATURA NUBANK" is the Nubank card paid, not money spent.
+	 */
+	const cardBanks = useMemo(
+		() =>
+			[
+				...(cards.data ?? []).map((card) => card.name),
+				...(accounts.data ?? [])
+					.filter((account) => account.kind === "credit")
+					.flatMap((account) => [account.name, account.institution ?? ""]),
+			].filter((name) => name.trim() !== ""),
+		[cards.data, accounts.data],
+	);
+
 	// Reading the file again with a corrected mapping is cheap and keeps one path:
 	// whatever is on screen is exactly what the reader produced. The correction can
 	// come from this screen or from the last time a file of this shape was read.
@@ -238,6 +255,7 @@ export function ImportPage() {
 		const said = {
 			...(documentKind === null ? {} : { kind: documentKind }),
 			...(convention === null ? {} : { convention }),
+			cardBanks,
 		};
 		const first = readFile(picked.bytes, { fileName: picked.name, today, ...said });
 		if (!first.mapping) return first;
@@ -264,7 +282,7 @@ export function ImportPage() {
 				positiveMeans: chosenSign ?? first.mapping.positiveMeans,
 			},
 		});
-	}, [picked, fields, sign, today, spaceId, documentKind, convention]);
+	}, [picked, fields, sign, today, spaceId, documentKind, convention, cardBanks]);
 
 	const usable = (accounts.data ?? []).filter((account) => account.archivedAt === null);
 
@@ -297,7 +315,17 @@ export function ImportPage() {
 	 */
 	const ways = useMemo<Way[]>(() => {
 		if (!isInvoice) {
-			return accountOptions(usable, t).map((option) => ({
+			// A statement or a receipt in PDF is of an account that holds money.
+			const holding =
+				read?.format === "pdf"
+					? usable.filter(
+							(account) =>
+								account.kind === "checking" ||
+								account.kind === "savings" ||
+								account.kind === "cash",
+						)
+					: usable;
+			return accountOptions(holding, t).map((option) => ({
 				...option,
 				value: `:${option.value}`,
 				cardId: null,
@@ -321,7 +349,7 @@ export function ImportPage() {
 		return [...open, ...putAway].sort(
 			(left, right) => (order.get(left.accountId) ?? 0) - (order.get(right.accountId) ?? 0),
 		);
-	}, [isInvoice, usable, cards.data, owingPutAway, t]);
+	}, [isInvoice, usable, cards.data, owingPutAway, t, read?.format]);
 
 	const reachable: Account[] = useMemo(() => [...usable, ...owingPutAway], [usable, owingPutAway]);
 
@@ -509,6 +537,46 @@ export function ImportPage() {
 				record.counterAccountId === chosen?.id &&
 				moneyAccounts.some((account) => account.id === record.accountId),
 		)?.accountId ?? null;
+	/** The cards a statement's payment of an invoice can have paid. */
+	const creditAccounts = usable.filter((account) => account.kind === "credit");
+	/** The card the person said a statement's payment paid, by the place of its line. */
+	const [paidCards, setPaidCards] = useState<Map<number, string>>(new Map());
+	/**
+	 * The card a statement's payment paid: the one the person chose, the one whose digits the
+	 * line is under, the one whose name or bank the line says, or the only card there is.
+	 */
+	const paidCardOf = (record: DraftRecord, index: number): string | null => {
+		const said = paidCards.get(index);
+		if (said) return said;
+		if (record.cardDigits) {
+			const plastic = (cards.data ?? []).find(
+				(card) => card.lastFour === record.cardDigits && card.creditAccountId !== null,
+			);
+			if (plastic?.creditAccountId) return plastic.creditAccountId;
+		}
+		const words = fold(record.description);
+		const named = creditAccounts.filter((account) =>
+			[
+				account.name,
+				account.institution ?? "",
+				...(cards.data ?? [])
+					.filter((card) => card.creditAccountId === account.id)
+					.map((card) => card.name),
+			].some((name) => name.trim() !== "" && saysWord(words, fold(name))),
+		);
+		if (named.length === 1) return named[0]?.id ?? null;
+		return creditAccounts.length === 1 ? (creditAccounts[0]?.id ?? null) : null;
+	};
+	/** The invoice a statement's payment paid: the one whose due date is nearest its day. */
+	const invoicePaidBy = (record: DraftRecord, cardAccountId: string): string => {
+		const paid = reachable.find((account) => account.id === cardAccountId);
+		const cycleOfIt =
+			paid && paid.closingDay !== null && paid.dueDay !== null
+				? { closingDay: paid.closingDay, dueDay: paid.dueDay }
+				: null;
+		return invoiceMonthForDue(record.happenedOn as CalendarDate, cycleOfIt);
+	};
+
 	/** The account the person said a payment came from, by the place of its line. */
 	const [payers, setPayers] = useState<Map<number, string>>(new Map());
 	const payerOf = (index: number): string | null => payers.get(index) ?? lastPayer;
@@ -695,7 +763,9 @@ export function ImportPage() {
 	const keeping = kept.map(({ record }) => record);
 	/** A payment kept with no account to say where its money came from, which holds the write. */
 	const waiting = kept.find(
-		({ record, index }) => isInvoice && record.nature === "payment" && payerOf(index) === null,
+		({ record, index }) =>
+			(isInvoice && record.nature === "payment" && payerOf(index) === null) ||
+			(!isInvoice && record.nature === "cardPayment" && paidCardOf(record, index) === null),
 	);
 
 	/** Whether the invoice lists more than one card, so each line says which. */
@@ -757,6 +827,7 @@ export function ImportPage() {
 		setPayers(new Map());
 		setKeepPurchase(new Set());
 		setMoveParts(new Set());
+		setPaidCards(new Map());
 
 		try {
 			setPicked({ name: file.name, bytes: await readPickedFile(file) });
@@ -785,16 +856,24 @@ export function ImportPage() {
 				const card = lineCards.get(index) ?? cardOfLine(record);
 				// A payment is the invoice before paid, named the way the invoices name one.
 				const payment = isInvoice && record.nature === "payment" && paidMonth !== null;
+				// A card paid from a statement: the transfer that pays the invoice of its day.
+				const paysCard =
+					!isInvoice && record.nature === "cardPayment" ? paidCardOf(record, index) : null;
+				const paysInvoice = paysCard ? invoicePaidBy(record, paysCard) : null;
+				const paidName = reachable.find((account) => account.id === paysCard)?.name ?? "";
 				return {
 					happenedOn: record.happenedOn,
 					amount: record.amount,
 					description: payment
 						? t("invoice.paymentOf", { month: monthName(paidMonth), card: chosen.name })
-						: record.description,
+						: paysCard && paysInvoice
+							? t("invoice.paymentOf", { month: monthName(paysInvoice), card: paidName })
+							: record.description,
 					notes: record.notes,
 					externalId: record.externalId,
 					nature: record.nature,
 					...(payment ? { paymentFrom: payerOf(index) } : {}),
+					...(paysCard ? { paysCard, paysInvoice } : {}),
 					...(takesBack.has(index) && !keepPurchase.has(index)
 						? { reverses: takesBack.get(index)?.id ?? null }
 						: {}),
@@ -1288,6 +1367,31 @@ export function ImportPage() {
 															))}
 														</select>
 													) : null}
+													{/* The card a statement's payment paid, which is a transfer into it
+													    on the invoice of its day. */}
+													{!isInvoice && record.nature === "cardPayment" ? (
+														<select
+															aria-label={t("importing.paidCardOf", {
+																description: record.description,
+															})}
+															value={paidCardOf(record, index) ?? ""}
+															onChange={(event) =>
+																setPaidCards((current) =>
+																	new Map(current).set(index, event.target.value),
+																)
+															}
+															className="rounded-sm border border-line bg-sunken px-1 py-0.5 text-xs text-ink"
+														>
+															{paidCardOf(record, index) === null ? (
+																<option value="">{t("importing.pickPaidCard")}</option>
+															) : null}
+															{creditAccounts.map((account) => (
+																<option key={account.id} value={account.id}>
+																	{account.name}
+																</option>
+															))}
+														</select>
+													) : null}
 													{/* A payment on an invoice is the one before it paid from an
 													    account of money: which one, starting on the one that paid this
 													    card last time. */}
@@ -1469,7 +1573,12 @@ export function ImportPage() {
 					{problem ? <Callout tone="problem">{problem}</Callout> : null}
 					{waiting ? (
 						<p className="text-sm text-ochre">
-							{t("importing.paymentWaits", { description: waiting.record.description })}
+							{t(
+								waiting.record.nature === "cardPayment"
+									? "importing.cardPaymentWaits"
+									: "importing.paymentWaits",
+								{ description: waiting.record.description },
+							)}
 						</p>
 					) : null}
 
