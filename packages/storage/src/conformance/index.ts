@@ -818,6 +818,30 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 				}
 			});
 
+			// Part 1, D.10 of the request for 2.0.0: an account is refused a name of nothing when
+			// it is written, and the edit took one, in browser mode where nothing else stood in front.
+			it("refuses to rename an account to nothing", async () => {
+				const fixture = await prepare(adapter);
+				try {
+					const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+					const account = await fixture.asAna.accounts.create({
+						spaceId: space.id,
+						kind: "cash",
+						name: "Dinheiro",
+					});
+					for (const name of ["", "   "]) {
+						await expect(fixture.asAna.accounts.update(account.id, { name })).rejects.toMatchObject(
+							{
+								rule: "nameIsRequired",
+							},
+						);
+					}
+					expect((await fixture.asAna.accounts.get(account.id)).name).toBe("Dinheiro");
+				} finally {
+					await fixture.close();
+				}
+			});
+
 			it("hides an archived account until it is asked for", async () => {
 				const fixture = await prepare(adapter);
 				try {

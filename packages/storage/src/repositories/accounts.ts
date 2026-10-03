@@ -396,7 +396,14 @@ export function createAccountsRepository(context: RepositoryContext) {
 			assertCan(context.actor(), account.spaceId, "account.update");
 
 			const values: Record<string, string | number | null> = {};
-			if (input.name !== undefined) values.name = input.name.trim();
+			if (input.name !== undefined) {
+				// The rule of `create`. In browser mode nothing else stood in front of it, and an
+				// account with no name is a row in every list that nobody can tell apart.
+				if (input.name.trim() === "") {
+					throw new RuleError("nameIsRequired", "an account needs a name to be found later");
+				}
+				values.name = input.name.trim();
+			}
 			if (input.institution !== undefined) values.institution = input.institution;
 			if (input.initialBalance !== undefined) {
 				if (!Number.isSafeInteger(input.initialBalance)) {
