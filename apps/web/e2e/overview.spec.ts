@@ -91,6 +91,25 @@ test.describe("the overview", () => {
 		await expect(page.getByText("R$ 1.000,00").first()).toBeVisible();
 	});
 
+	// Part 1, B.8 of the request for 2.0.0: the line of a meal card said "no monthly amount
+	// written down" while its figure was loading, so every owner saw it flash on a card that
+	// has one. A watcher installed before the page loads sees every text that is ever drawn.
+	test("never says a card with an allowance has none, not even while loading", async ({ page }) => {
+		await page.addInitScript(() => {
+			const seen = { noQuota: false };
+			(window as unknown as { cofreSeen: typeof seen }).cofreSeen = seen;
+			new MutationObserver(() => {
+				if (document.body?.innerText.includes("Sem valor mensal cadastrado")) seen.noQuota = true;
+			}).observe(document, { childList: true, subtree: true, characterData: true });
+		});
+		await openCofre(page);
+		await expect(page.getByText("R$ 844,00").first()).toBeVisible();
+		const seen = await page.evaluate(
+			() => (window as unknown as { cofreSeen: { noQuota: boolean } }).cofreSeen.noQuota,
+		);
+		expect(seen).toBe(false);
+	});
+
 	test("says when a voucher renews, because the figure has to last until then", async ({
 		page,
 	}) => {

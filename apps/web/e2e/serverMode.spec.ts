@@ -485,6 +485,51 @@ test.describe("server mode", () => {
 		await expect(bia.getByRole("heading", { name: "O mês", exact: true })).toBeVisible();
 	});
 
+	// Part 1, B.8 of the request for 2.0.0. In "Todos", a meal card from a space where this
+	// person is a Registrador said its allowance was missing, because the overview read the
+	// role of the space that happened to be open.
+	test("decides a meal card by the role in its own space, in every space", async ({ browser }) => {
+		const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
+		await openSetting(ana, "Gerenciar espaços");
+		await ana.getByRole("button", { name: "Novo espaço" }).click();
+		await ana.getByLabel("Nome do espaço").fill("Casa");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(ana.getByRole("banner")).toContainText("Casa");
+
+		await go(ana, "Contas");
+		await ana.getByRole("button", { name: "Nova conta" }).first().click();
+		const dialog = ana.getByRole("dialog");
+		await dialog.getByLabel("Nome").fill("Vale da casa");
+		await dialog.getByLabel("Tipo").selectOption("voucher");
+		await dialog.getByLabel("Valor por mês").fill("900,00");
+		await dialog.getByLabel("Dia do crédito").selectOption("5");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(ana.getByRole("cell", { name: "Vale da casa", exact: true })).toBeVisible();
+
+		await openSetting(ana, "Gerenciar espaços");
+		await ana.getByRole("button", { name: "Convidar" }).first().click();
+		await ana.getByLabel("Papel").selectOption({ label: "Registrador" });
+		await ana.getByRole("button", { name: "Gerar link" }).click();
+		const link = await ana.getByRole("dialog").locator("p.font-mono").innerText();
+		await ana.keyboard.press("Escape");
+
+		const bia = await arrive(browser, { name: "Bia", email: uniqueEmail("bia") });
+		await bia.goto(link);
+		await bia.getByRole("button", { name: "Entrar no espaço" }).click();
+		await expect(bia.getByRole("banner")).toContainText("Casa");
+
+		// From her own space, where she is the owner, across every space.
+		await bia.getByRole("button", { name: "Você está no espaço" }).click();
+		await bia.getByRole("menuitem", { name: "Pessoal" }).click();
+		await go(bia, "Painel");
+		await bia.getByText("Todos", { exact: true }).click();
+		await expect(bia.getByText("Você tem", { exact: true })).toBeVisible();
+		await expect(bia.getByText("Sem valor mensal cadastrado")).toHaveCount(0);
+		// The card is still listed where the money is, with no figure, which is what a
+		// Registrador is told about a card made of everybody's lunches.
+		await expect(bia.getByText("Vale da casa").first()).toBeVisible();
+	});
+
 	/**
 	 * Two shared spaces with different people in them, which is the ordinary shape of a
 	 * life: a house with one person and a trip with another. The division used to offer

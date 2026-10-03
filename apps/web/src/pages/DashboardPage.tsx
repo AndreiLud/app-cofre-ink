@@ -163,20 +163,27 @@ export function DashboardPage() {
 		queryFn: () => session?.transactions.balances(spaceId, today) ?? [],
 	});
 
-	// Whether any of the spaces being added together shows this person only their own
-	// records. The role is held per space and the space row does not carry it, so the
-	// member lists are what answers, and only while the consolidated view is open.
+	// Which spaces show this person only their own records. The role is held per space and
+	// the space row does not carry it, so the member lists are what answers. Read for every
+	// space, because a benefit card is decided by the role in its own space: in "Todos", a
+	// card from a space where this person is a Registrador said its allowance was missing,
+	// because the role read was the one of the space that happened to be open.
 	const narrowed = useQuery({
 		queryKey: ["narrowedEverywhere", spaces.map((space) => space.id).join(","), user?.id],
-		enabled: Boolean(session && user) && consolidated,
-		queryFn: async () => {
-			if (!session) return false;
+		enabled: Boolean(session && user),
+		queryFn: async (): Promise<Record<string, boolean>> => {
+			if (!session) return {};
 			const lists = await Promise.all(spaces.map((space) => session.members.list(space.id)));
-			return lists.some((list) =>
-				roleSeesOwnRowsOnly(list.find((one) => one.userId === user?.id)?.role ?? null),
+			return Object.fromEntries(
+				spaces.map((space, index) => [
+					space.id,
+					roleSeesOwnRowsOnly(lists[index]?.find((one) => one.userId === user?.id)?.role ?? null),
+				]),
 			);
 		},
 	});
+	/** Whether a space shows this person only their own rows, or nothing while it is not known. */
+	const narrowedIn = (id: string): boolean | undefined => narrowed.data?.[id];
 
 	// What the investment accounts are actually worth, which is the price somebody typed
 	// and not the money that was moved into them.
@@ -421,12 +428,14 @@ export function DashboardPage() {
 	// so there is no line to draw for somebody who can see none of them. The model answers
 	// nothing for them, and drawing the line anyway would say the allowance is not written
 	// down when it is.
-	const vouchers = mine.seesOwnRowsOnly
-		? []
-		: shownAccounts.filter((account) => account.kind === "voucher");
+	// Decided by the space of each card, and only once that is known: nothing is drawn while
+	// the roles are on their way, rather than a line that may be wrong for a moment.
+	const vouchers = shownAccounts.filter(
+		(account) => account.kind === "voucher" && narrowedIn(account.spaceId) === false,
+	);
 
 	/** Whether any of the spaces being added together is narrowed to this person's rows. */
-	const narrowedSomewhere = narrowed.data ?? false;
+	const narrowedSomewhere = Object.values(narrowed.data ?? {}).some(Boolean);
 
 	/** Money still to arrive and still to leave before the month ends. */
 	const rest = consolidated ? (restEverywhere.data ?? []) : (restOfMonth.data ?? []);
@@ -1083,7 +1092,7 @@ export function DashboardPage() {
 														accountId={account.id}
 														currency={account.currency}
 														today={today}
-														known={!mine.seesOwnRowsOnly}
+														known={narrowedIn(account.spaceId) === false}
 													/>
 												) : (
 													<Value amount={amount} currency={account.currency} tone="auto" />
@@ -1395,16 +1404,20 @@ function VoucherLine({
 		<div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
 			<div className="min-w-0">
 				<p className="truncate">{name}</p>
-				<p className="text-quiet text-sm">
-					{state.data ? (
-						<>
-							<Value amount={state.data.left} currency={currency} /> {t("dashboard.ofQuota")}{" "}
-							<Value amount={state.data.quota} currency={currency} /> {t("dashboard.thisPeriod")}
-						</>
-					) : (
-						t("dashboard.noQuota")
-					)}
-				</p>
+				{/* Nothing while the answer is on its way. The sentence about a missing allowance
+				    was drawn while it was, so every owner saw it flash on a card that has one. */}
+				{state.isPending ? null : (
+					<p className="text-quiet text-sm">
+						{state.data ? (
+							<>
+								<Value amount={state.data.left} currency={currency} /> {t("dashboard.ofQuota")}{" "}
+								<Value amount={state.data.quota} currency={currency} /> {t("dashboard.thisPeriod")}
+							</>
+						) : (
+							t("dashboard.noQuota")
+						)}
+					</p>
+				)}
 				{/* When the next allowance lands, because the figure above has to last until that
 				    day and said nothing about how far off it is. A card that does not carry loses
 				    what is left on that day, which is the opposite of reassuring, so it gets a
