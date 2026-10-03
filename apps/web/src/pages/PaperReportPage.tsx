@@ -225,6 +225,13 @@ export function PaperReportPage() {
 		enabled: on,
 		queryFn: () => session?.budgets.progress({ spaceId, month, today: asOf }) ?? [],
 	});
+	// The names of the categories, for the limits. They were read from the spending of the
+	// month, so a limit on a category with nothing spent in it had no name at all.
+	const categories = useQuery({
+		queryKey: ["categories", spaceId],
+		enabled: on,
+		queryFn: () => session?.categories.list(spaceId) ?? [],
+	});
 	const savings = useQuery({
 		queryKey: ["savings", spaceId, month],
 		enabled: on,
@@ -549,9 +556,8 @@ export function PaperReportPage() {
 											? t("budget.everything")
 											: limit.scope === "priority"
 												? t(`priority.${limit.priority ?? "important"}`)
-												: ((byCategory.data ?? []).find(
-														(one) => one.categoryId === limit.categoryId,
-													)?.name ?? "")}
+												: ((categories.data ?? []).find((one) => one.id === limit.categoryId)
+														?.name ?? t("reports.noCategory"))}
 									</TableCell>
 									<TableCell numeric={true}>
 										<Value amount={limit.progress.spent} currency={currency} />
