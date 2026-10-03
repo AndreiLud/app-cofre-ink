@@ -28,6 +28,7 @@ import { runCategoryConformance } from "./categories.ts";
 import { runErasureConformance } from "./erasure.ts";
 import { runFutureConformance } from "./future.ts";
 import { runHappenedConformance } from "./happened.ts";
+import { runHoldingsConformance } from "./holdings.ts";
 import { runImportingConformance } from "./importing.ts";
 import { runInvoiceConformance } from "./invoices.ts";
 import { runListingConformance } from "./listing.ts";
@@ -55,6 +56,9 @@ type ProbeContext = {
 	groupId: string;
 	/** A rent written down by the owner, for the calls about one series. */
 	recurrenceId: string;
+	/** A holding in a broker account, and money put into it, for the calls about holdings. */
+	holdingId: string;
+	holdingMoveId: string;
 };
 
 type Probe = {
@@ -542,6 +546,52 @@ const PROBES: Probe[] = [
 				quantity: 100_000_000,
 				unitPrice: 10_000,
 			}),
+	},
+	{
+		method: "investments.update",
+		permission: "investment.write",
+		run: (session, where) => session.investments.update(where.holdingId, { name: "Outro" }),
+	},
+	{
+		method: "investments.price",
+		permission: "investment.write",
+		run: (session, where) => session.investments.price({ id: where.holdingId, unitPrice: 2_000 }),
+	},
+	{
+		method: "investments.prices",
+		permission: "investment.read",
+		run: (session, where) => session.investments.prices(where.holdingId),
+	},
+	{
+		method: "investments.move",
+		permission: "investment.write",
+		run: (session, where) =>
+			session.investments.move({
+				holdingId: where.holdingId,
+				kind: "in",
+				onDay: "2026-09-10",
+				amount: 10_000,
+			}),
+	},
+	{
+		method: "investments.moves",
+		permission: "investment.read",
+		run: (session, where) => session.investments.moves(where.holdingId),
+	},
+	{
+		method: "investments.goingBack",
+		permission: "investment.write",
+		run: (session, where) => session.investments.goingBack({ holdingId: where.holdingId }),
+	},
+	{
+		method: "investments.removeMove",
+		permission: "investment.write",
+		run: (session, where) => session.investments.removeMove(where.holdingMoveId),
+	},
+	{
+		method: "investments.remove",
+		permission: "investment.write",
+		run: (session, where) => session.investments.remove(where.holdingId),
 	},
 	{
 		// Writing through the change log as somebody, so only somebody who may change the
@@ -1176,6 +1226,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 		runReportConformance(adapter);
 		runSavedFilterConformance(adapter);
 		runFutureConformance(adapter);
+		runHoldingsConformance(adapter);
 		runAdviceConformance(adapter);
 		runPortabilityConformance(adapter);
 		runErasureConformance(adapter);
@@ -1282,6 +1333,25 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 								frequency: "monthly",
 								startsOn: "2026-09-05",
 							});
+							const broker = await fixture.asAna.accounts.create({
+								spaceId: space.id,
+								kind: "investment",
+								name: "Corretora",
+							});
+							const holding = await fixture.asAna.investments.create({
+								spaceId: space.id,
+								accountId: broker.id,
+								name: "Fundo",
+								kind: "fund",
+								quantity: 100_000_000,
+								unitPrice: 10_000,
+							});
+							const holdingMove = await fixture.asAna.investments.move({
+								holdingId: holding.id,
+								kind: "in",
+								onDay: "2026-09-10",
+								amount: 5_000,
+							});
 
 							const where = {
 								spaceId: space.id,
@@ -1293,6 +1363,8 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 								categoryId: category.id,
 								groupId: ownPart?.installmentGroup ?? "",
 								recurrenceId: series.id,
+								holdingId: holding.id,
+								holdingMoveId: holdingMove.id,
 							};
 
 							if (allowed) {
@@ -1392,6 +1464,25 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 						frequency: "monthly",
 						startsOn: "2026-09-05",
 					});
+					const broker = await fixture.asAna.accounts.create({
+						spaceId: space.id,
+						kind: "investment",
+						name: "Corretora",
+					});
+					const holding = await fixture.asAna.investments.create({
+						spaceId: space.id,
+						accountId: broker.id,
+						name: "Fundo",
+						kind: "fund",
+						quantity: 100_000_000,
+						unitPrice: 10_000,
+					});
+					const holdingMove = await fixture.asAna.investments.move({
+						holdingId: holding.id,
+						kind: "in",
+						onDay: "2026-09-10",
+						amount: 5_000,
+					});
 					const where = {
 						spaceId: space.id,
 						accountId: account.id,
@@ -1402,6 +1493,8 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 						categoryId: category.id,
 						groupId: part?.installmentGroup ?? "",
 						recurrenceId: series.id,
+						holdingId: holding.id,
+						holdingMoveId: holdingMove.id,
 					};
 
 					for (const probe of PROBES) {

@@ -84,6 +84,15 @@ export const METHOD_PERMISSIONS = {
 	"backup.restore": "backup.restore",
 	"investments.list": "investment.read",
 	"investments.create": "investment.write",
+	// Each control of a holding by the call it makes (part 2, H.11.2 of 2.0.0).
+	"investments.update": "investment.write",
+	"investments.remove": "investment.write",
+	"investments.price": "investment.write",
+	"investments.prices": "investment.read",
+	"investments.move": "investment.write",
+	"investments.moves": "investment.read",
+	"investments.goingBack": "investment.write",
+	"investments.removeMove": "investment.write",
 	"repairs.run": "space.update",
 } as const satisfies Record<string, Permission>;
 

@@ -302,10 +302,29 @@ const transactionPatch = z.object({
 /** A selection, kept small enough that one request cannot lock the database. */
 const selection = z.array(z.string().min(1)).min(1).max(500);
 
+/**
+ * What a holding is, as the catalog of products says it. Each field dropped here was a field a
+ * holding made on a server did not have, so each has a test beside the others (part 2, H.11.1).
+ */
+const holdingProductFields = {
+	product: z.string().trim().max(40).nullable().optional(),
+	issuer: z.string().trim().max(120).nullable().optional(),
+	maturesOn: calendarDate.nullable().optional(),
+	liquidFrom: calendarDate.nullable().optional(),
+	anniversaryDay: z.number().int().min(1).max(31).nullable().optional(),
+	indexer: z.enum(["cdi", "prefixed", "ipca", "selic", "savings"]).nullable().optional(),
+	liquidity: z.string().trim().max(40).nullable().optional(),
+	/** Hundredths of a percentage point: 100% of the CDI is 10000. */
+	rate: z.number().int().nonnegative().nullable().optional(),
+};
+
 const holdingInput = z.object({
 	accountId: z.string().min(1),
-	name: z.string().trim().min(1).max(120),
-	kind: z.enum(["fixedIncome", "fund", "stock", "realEstate", "crypto", "pension", "other"]),
+	// A product with a code names itself by it, so the name may come empty.
+	name: z.string().trim().max(120),
+	kind: z
+		.enum(["fixedIncome", "fund", "stock", "realEstate", "crypto", "pension", "other"])
+		.optional(),
 	/** Scaled by ten to the eighth, so a fund can have fractions of a unit. */
 	quantity: z.number().int().nonnegative(),
 	unitPrice: z.number().int().nonnegative(),
@@ -314,6 +333,20 @@ const holdingInput = z.object({
 	cost: z.number().int().nonnegative().optional(),
 	boughtOn: calendarDate.nullable().optional(),
 	notes: z.string().trim().max(2000).nullable().optional(),
+	fromAccountId: z.string().min(1).nullable().optional(),
+	keepBalanceAsCash: z.boolean().optional(),
+	...holdingProductFields,
+});
+
+/** Guardar, Resgatar, Comprar, Vender and Proventos. */
+const holdingMoveInput = z.object({
+	kind: z.enum(["in", "out", "income"]),
+	onDay: calendarDate,
+	amount: z.number().int().positive(),
+	quantity: z.number().int().positive().nullable().optional(),
+	unitPrice: z.number().int().positive().nullable().optional(),
+	accountId: z.string().min(1).nullable().optional(),
+	arrived: z.number().int().positive().nullable().optional(),
 });
 
 const scenarioInput = z.object({
@@ -1712,10 +1745,6 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		);
 	});
 
-	app.get("/api/spaces/:id/holdings/total", async (context) =>
-		context.json(await context.get("session").investments.total(context.req.param("id"))),
-	);
-
 	app.post("/api/spaces/:id/holdings", async (context) => {
 		const input = holdingInput.parse(await context.req.json());
 		const created = await context
@@ -1725,9 +1754,11 @@ export function createApp({ config, database, auth }: AppDependencies) {
 	});
 
 	app.patch("/api/holdings/:id", async (context) => {
+		// The product and the account change here; the kind follows the product, and the price
+		// is typed with its day on its own route.
 		const input = holdingInput
 			.partial()
-			.omit({ accountId: true, kind: true, unitPrice: true })
+			.omit({ kind: true, unitPrice: true, fromAccountId: true, keepBalanceAsCash: true })
 			.parse(await context.req.json());
 		return context.json(
 			await context.get("session").investments.update(context.req.param("id"), input),
@@ -1749,6 +1780,33 @@ export function createApp({ config, database, auth }: AppDependencies) {
 
 	app.delete("/api/holdings/:id", async (context) => {
 		await context.get("session").investments.remove(context.req.param("id"));
+		return context.body(null, 204);
+	});
+
+	app.post("/api/holdings/:id/moves", async (context) => {
+		const input = holdingMoveInput.parse(await context.req.json());
+		const move = await context
+			.get("session")
+			.investments.move({ holdingId: context.req.param("id"), ...input });
+		return context.json(move, 201);
+	});
+
+	app.get("/api/holdings/:id/moves", async (context) =>
+		context.json(await context.get("session").investments.moves(context.req.param("id"))),
+	);
+
+	/** What deleting a holding, or one of its movements, gives back to each account. */
+	app.get("/api/holdings/:id/goingBack", async (context) => {
+		const moveId = context.req.query("moveId");
+		return context.json(
+			await context
+				.get("session")
+				.investments.goingBack(moveId ? { moveId } : { holdingId: context.req.param("id") }),
+		);
+	});
+
+	app.delete("/api/holdingMoves/:id", async (context) => {
+		await context.get("session").investments.removeMove(context.req.param("id"));
 		return context.body(null, 204);
 	});
 

@@ -209,6 +209,11 @@ export type Transaction = {
 	arrangedFor: string | null;
 	/** Which arrangement: a split of the invoice, or its payment with another card. */
 	arrangedBy: "parts" | "card" | null;
+	/**
+	 * The holding this money went into or came out of, when a movement of one wrote it. It is
+	 * changed and removed with the movement, on the investments screen, and nowhere else.
+	 */
+	heldBy: string | null;
 	categoryId: string | null;
 	/** Empty means the priority of its category, which is the usual case. */
 	priority: SpendingPriority | null;
@@ -537,6 +542,7 @@ export function toTransaction(row: Row): Transaction {
 		originInvoiceMonth: asOptionalText(row.origin_invoice_month),
 		arrangedFor: asOptionalText(row.arranged_for),
 		arrangedBy: row.arranged_by === "parts" || row.arranged_by === "card" ? row.arranged_by : null,
+		heldBy: asOptionalText(row.held_by),
 		categoryId: asOptionalText(row.category_id),
 		priority: asOptionalText(row.priority) as SpendingPriority | null,
 		recurrenceId: asOptionalText(row.recurrence_id),

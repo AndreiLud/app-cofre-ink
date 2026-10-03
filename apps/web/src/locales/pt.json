@@ -684,7 +684,11 @@
 		"paymentNeedsItsAccount": "O pagamento da fatura precisa da conta de onde o dinheiro saiu.",
 		"paymentFromMoney": "Uma fatura se paga de uma conta corrente, de uma poupança ou do dinheiro em espécie.",
 		"refundedPurchaseIsNotHere": "Cada estorno desfaz uma compra desta conta, do valor inteiro dela.",
-		"importChangedSince": "Parte do que esta importação gravou já foi mudada ou apagada, então ela não é desfeita."
+		"importChangedSince": "Parte do que esta importação gravou já foi mudada ou apagada, então ela não é desfeita.",
+		"keptInAHolding": "Esse dinheiro entrou numa aplicação ou saiu dela. Mude ou apague em Investimentos, que desfaz as duas pontas juntas.",
+		"holdingNeedsAnInvestmentAccount": "Uma aplicação fica numa conta de investimento. Escolha uma ou crie uma.",
+		"holdingMovesWithMoney": "O dinheiro de uma aplicação sai de uma conta que tem dinheiro e volta para uma. Cartão, vale e outra conta de investimento não servem.",
+		"unknownProduct": "Esse tipo de aplicação não existe aqui. Escolha um da lista."
 	},
 	"transactions": {
 		"title": "Lançamentos",

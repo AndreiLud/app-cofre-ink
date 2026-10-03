@@ -59,7 +59,9 @@ const SELECT = `SELECT "id", "space_id", "kind", "status", "amount", "currency",
 	(SELECT MAX(CASE WHEN p."account_id" = p."counter_account_id" THEN 'parts' ELSE 'card' END)
 	 FROM "transactions" p
 	 WHERE p."installment_group" = "t"."installment_group" AND p."space_id" = "t"."space_id"
-	   AND p."origin_invoice_month" IS NOT NULL AND p."deleted_at" IS NULL) AS "arranged_by"
+	   AND p."origin_invoice_month" IS NOT NULL AND p."deleted_at" IS NULL) AS "arranged_by",
+	(SELECT MAX(m."holding_id") FROM "holding_moves" m
+	 WHERE m."transaction_id" = "t"."id" AND m."deleted_at" IS NULL) AS "held_by"
 	FROM "transactions" "t"`;
 
 export type CreateTransactionInput = {
@@ -705,6 +707,14 @@ export function createTransactionsRepository(context: RepositoryContext) {
 	 * removes or turns a row into another kind asks here, which is why the lock lives here.
 	 */
 	function assertChangeable(found: Transaction, verb: "changing" | "removing"): void {
+		// Money put into a holding or taken out of one moved with it, and changing one half
+		// would leave the other saying something else (part 2, H.3.3 of 2.0.0).
+		if (found.heldBy !== null) {
+			throw new RuleError(
+				"keptInAHolding",
+				"this money went into or came out of a holding, change it on the investments screen",
+			);
+		}
 		if (found.arrangedFor !== null) {
 			throw new RuleError(
 				"partOfAnArrangement",

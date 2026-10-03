@@ -444,8 +444,10 @@ export function runFutureConformance(adapter: AdapterUnderTest): void {
 				// Two thousand on twenty eight thousand is a bit over seven per cent.
 				expect(holding.gainPercent).toBe(714);
 
-				const total = await fixture.asAna.investments.total(space.id);
-				expect(total).toEqual({ value: 30_000_00, cost: 28_000_00, gain: 2000_00 });
+				// The total of the portfolio is the sum of what the list says, which is the one reading
+				// of a holding in packages/core; the call that added it up by itself is gone.
+				const listed = await fixture.asAna.investments.list(space.id);
+				expect(listed.reduce((sum, one) => sum + one.value, 0)).toBe(30_000_00);
 			} finally {
 				await fixture.close();
 			}
@@ -514,10 +516,12 @@ export function runFutureConformance(adapter: AdapterUnderTest): void {
 					onDay: "2026-09-30",
 				});
 
+				// The price it was written down with is today's, the newest, and a price typed for a day
+				// before it goes into the line without replacing it (part 2, H.9.2 of 2.0.0): this
+				// read 12_000, the last typed, whatever its day.
 				const now = await fixture.asAna.investments.get(holding.id);
-				expect(now.unitPrice).toBe(12_000);
-				expect(now.pricedOn).toBe("2026-09-30");
-				expect(now.value).toBe(12_000);
+				expect(now.unitPrice).toBe(10_000);
+				expect(now.value).toBe(10_000);
 
 				// The price it was written down with is the first of them, on the day it was.
 				const line = await fixture.asAna.investments.prices(holding.id);

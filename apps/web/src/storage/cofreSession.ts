@@ -37,6 +37,9 @@ import type {
 	Finding,
 	Goal,
 	GoalProgress,
+	GoingBack,
+	HoldingMove,
+	HoldingMoveInput,
 	HoldingPrice,
 	HoldingValue,
 	ImportInput,
@@ -400,13 +403,18 @@ export type CofreSession = {
 	investments: {
 		/** With `onDay`, what was owned on that day at the last price up to it. */
 		list: (spaceId: string, options?: { onDay?: CalendarDate }) => Promise<HoldingValue[]>;
-		total: (spaceId: string) => Promise<{ value: number; cost: number; gain: number }>;
 		create: (input: CreateHoldingInput) => Promise<HoldingValue>;
 		update: (id: string, input: UpdateHoldingInput) => Promise<HoldingValue>;
 		/** A new price on a day. The old one is kept, so a portfolio has a line. */
 		price: (input: { id: string; unitPrice: number; onDay?: string }) => Promise<HoldingValue>;
 		prices: (id: string) => Promise<HoldingPrice[]>;
 		remove: (id: string) => Promise<void>;
+		/** Guardar, Resgatar, Comprar, Vender and Proventos, with the record that moved the money. */
+		move: (input: HoldingMoveInput) => Promise<HoldingMove>;
+		moves: (holdingId: string) => Promise<HoldingMove[]>;
+		/** What deleting a holding, or one movement, gives back to each account. */
+		goingBack: (input: { holdingId?: string; moveId?: string }) => Promise<GoingBack>;
+		removeMove: (id: string) => Promise<void>;
 	};
 	indices: {
 		list: (series: IndexSeries, range?: { from?: string; to?: string }) => Promise<IndexRate[]>;

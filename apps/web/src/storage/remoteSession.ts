@@ -42,6 +42,9 @@ import type {
 	Finding,
 	Goal,
 	GoalProgress,
+	GoingBack,
+	HoldingMove,
+	HoldingMoveInput,
 	HoldingPrice,
 	HoldingValue,
 	ImportInput,
@@ -730,8 +733,6 @@ export function createRemoteSession(
 				get<HoldingValue[]>(
 					`/api/spaces/${spaceId}/holdings${options.onDay ? `?onDay=${options.onDay}` : ""}`,
 				),
-			total: (spaceId: string) =>
-				get<{ value: number; cost: number; gain: number }>(`/api/spaces/${spaceId}/holdings/total`),
 			create: (input: CreateHoldingInput) => {
 				const { spaceId, ...rest } = input;
 				return send<HoldingValue>(`/api/spaces/${spaceId}/holdings`, "POST", rest);
@@ -744,6 +745,18 @@ export function createRemoteSession(
 			},
 			prices: (id: string) => get<HoldingPrice[]>(`/api/holdings/${id}/prices`),
 			remove: (id: string) => send<void>(`/api/holdings/${id}`, "DELETE"),
+			move: (input: HoldingMoveInput) => {
+				const { holdingId, ...rest } = input;
+				return send<HoldingMove>(`/api/holdings/${holdingId}/moves`, "POST", rest);
+			},
+			moves: (holdingId: string) => get<HoldingMove[]>(`/api/holdings/${holdingId}/moves`),
+			goingBack: (input: { holdingId?: string; moveId?: string }) =>
+				get<GoingBack>(
+					input.moveId
+						? `/api/holdings/move/goingBack?moveId=${encodeURIComponent(input.moveId)}`
+						: `/api/holdings/${input.holdingId ?? ""}/goingBack`,
+				),
+			removeMove: (id: string) => send<void>(`/api/holdingMoves/${id}`, "DELETE"),
 		},
 
 		indices: {

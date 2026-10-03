@@ -817,6 +817,72 @@ describe("the api", () => {
 		expect((await ana.json<unknown[]>(`/api/spaces/${space.id}/holdings`)).length).toBe(1);
 	});
 
+	// Part 2, H.11.1 of the request for 2.0.0: the schema of a holding dropped every field it did
+	// not name, so a product made on a server lost what it is, and its money could not move.
+	it("keeps what a holding is, and moves its money with it", async () => {
+		const ana = createClient(app);
+		await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+		const space = await ana.json<{ id: string }>("/api/spaces", {
+			method: "POST",
+			body: JSON.stringify({ name: "Casa" }),
+		});
+		const checking = await ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+			method: "POST",
+			body: JSON.stringify({ kind: "checking", name: "Conta", initialBalance: 500_000 }),
+		});
+		const broker = await ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+			method: "POST",
+			body: JSON.stringify({ kind: "investment", name: "Banco" }),
+		});
+		const today = todayIn("America/Sao_Paulo");
+		const cdb = await ana.json<Record<string, unknown>>(`/api/spaces/${space.id}/holdings`, {
+			method: "POST",
+			body: JSON.stringify({
+				accountId: broker.id,
+				name: "CDB",
+				product: "cdb",
+				issuer: "Banco",
+				indexer: "cdi",
+				rate: 11_000,
+				maturesOn: "2028-10-28",
+				liquidFrom: "2027-10-28",
+				liquidity: "atMaturity",
+				quantity: 100_000_000,
+				unitPrice: 100_000,
+				boughtOn: today,
+				fromAccountId: checking.id,
+			}),
+		});
+		expect(cdb).toMatchObject({
+			product: "cdb",
+			issuer: "Banco",
+			indexer: "cdi",
+			rate: 11_000,
+			maturesOn: "2028-10-28",
+			liquidFrom: "2027-10-28",
+			liquidity: "atMaturity",
+			value: 100_000,
+		});
+
+		const moved = await ana.json<{ id: string; kind: string }>(
+			`/api/holdings/${String(cdb.id)}/moves`,
+			{
+				method: "POST",
+				body: JSON.stringify({ kind: "in", onDay: today, amount: 50_000, accountId: checking.id }),
+			},
+		);
+		expect(moved.kind).toBe("in");
+		const moves = await ana.json<unknown[]>(`/api/holdings/${String(cdb.id)}/moves`);
+		expect(moves.length).toBe(2);
+		const back = await ana.json<Array<{ accountId: string; amount: number }>>(
+			`/api/holdings/move/goingBack?moveId=${moved.id}`,
+		);
+		expect(back).toEqual(expect.arrayContaining([{ accountId: checking.id, amount: 50_000 }]));
+		const removed = await ana.request(`/api/holdingMoves/${moved.id}`, { method: "DELETE" });
+		expect(removed.status).toBe(204);
+		expect((await ana.json<unknown[]>(`/api/holdings/${String(cdb.id)}/moves`)).length).toBe(1);
+	});
+
 	// Part 2, A.4 of the request for 2.0.0: "Era entre contas suas" on a server, with the other
 	// half taken away in the same request, and a month that does not exist refused.
 	it("turns a record into a move and takes away the other half", async () => {

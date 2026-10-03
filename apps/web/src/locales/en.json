@@ -684,7 +684,11 @@
 		"paymentNeedsItsAccount": "The payment of the invoice needs the account the money came from.",
 		"paymentFromMoney": "An invoice is paid from a current account, a savings account or cash.",
 		"refundedPurchaseIsNotHere": "Each refund takes back one purchase of this account, of its whole amount.",
-		"importChangedSince": "Some of what this import wrote was already changed or removed, so it is not undone."
+		"importChangedSince": "Some of what this import wrote was already changed or removed, so it is not undone.",
+		"keptInAHolding": "This money went into a holding or came out of one. Change or delete it in Investments, which undoes both ends together.",
+		"holdingNeedsAnInvestmentAccount": "A holding lives in an investment account. Pick one or create one.",
+		"holdingMovesWithMoney": "The money of a holding comes from an account that holds money and goes back to one. A card, a benefit card or another investment account will not do.",
+		"unknownProduct": "That kind of holding does not exist here. Pick one from the list."
 	},
 	"transactions": {
 		"title": "Records",
