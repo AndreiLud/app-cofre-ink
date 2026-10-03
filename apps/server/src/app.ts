@@ -140,6 +140,8 @@ const goalInput = z.object({
 	name: z.string().trim().min(1).max(80),
 	targetAmount: z.number().int().positive(),
 	accountId: z.string().min(1),
+	/** One holding inside that account, a caixinha of its own. */
+	holdingId: z.string().min(1).nullable().optional(),
 	targetDate: calendarDate.nullable().optional(),
 	notes: z.string().trim().max(2000).nullable().optional(),
 });
@@ -149,6 +151,7 @@ const savingsInput = z.object({
 	/** Hundredths of a percent, or minor units, depending on the mode. */
 	value: z.number().int().positive(),
 	accountId: z.string().min(1).nullable().optional(),
+	holdingId: z.string().min(1).nullable().optional(),
 });
 
 const splitInput = z.object({
@@ -1406,7 +1409,7 @@ export function createApp({ config, database, auth }: AppDependencies) {
 	app.patch("/api/goals/:id", async (context) => {
 		const input = goalInput
 			.partial()
-			.omit({ accountId: true })
+			.omit({ accountId: true, holdingId: true })
 			.extend({ archived: z.boolean().optional() });
 		return context.json(
 			await context

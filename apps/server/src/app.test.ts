@@ -881,6 +881,28 @@ describe("the api", () => {
 		const removed = await ana.request(`/api/holdingMoves/${moved.id}`, { method: "DELETE" });
 		expect(removed.status).toBe(204);
 		expect((await ana.json<unknown[]>(`/api/holdings/${String(cdb.id)}/moves`)).length).toBe(1);
+
+		// A goal and the savings rule in that holding keep it too.
+		const goal = await ana.json<{ holdingId: string | null }>(`/api/spaces/${space.id}/goals`, {
+			method: "POST",
+			body: JSON.stringify({
+				name: "Viagem",
+				targetAmount: 500_000,
+				accountId: broker.id,
+				holdingId: cdb.id,
+			}),
+		});
+		expect(goal.holdingId).toBe(cdb.id);
+		const rule = await ana.json<{ holdingId: string | null }>(`/api/spaces/${space.id}/savings`, {
+			method: "POST",
+			body: JSON.stringify({
+				mode: "fixed",
+				value: 50_000,
+				accountId: broker.id,
+				holdingId: cdb.id,
+			}),
+		});
+		expect(rule.holdingId).toBe(cdb.id);
 	});
 
 	// Part 2, A.4 of the request for 2.0.0: "Era entre contas suas" on a server, with the other
