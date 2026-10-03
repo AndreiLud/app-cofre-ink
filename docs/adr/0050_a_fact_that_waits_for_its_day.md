@@ -1,4 +1,4 @@
-# 0047. A fact that waits for its day, and one rule for what has happened
+# 0050. A fact that waits for its day, and one rule for what has happened
 
 Date: 3 October 2026
 

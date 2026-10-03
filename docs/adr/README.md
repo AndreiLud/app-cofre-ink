@@ -47,3 +47,13 @@ new one.
 | [0038](0038_a_month_in_three_numbers.md) | a month in three numbers, for whoever will not keep a ledger | accepted, the payment added by 0039 |
 | [0039](0039_the_invoice_is_also_paid.md) | the invoice is also paid, so the accounts stop drifting | accepted |
 | [0040](0040_a_server_is_not_a_destination.md) | a server of theirs is not a place the automatic backup writes | accepted |
+| [0041](0041_one_question_asked_in_one_place.md) | one question asked in one place, and a check that keeps it so | accepted |
+| [0042](0042_what_money_is_and_when_it_counts.md) | what money is, and the day it counts on | accepted |
+| [0043](0043_an_allowance_with_a_day_on_it.md) | an allowance with a day on it | accepted |
+| [0044](0044_four_figures_on_one_line.md) | four figures on one line | accepted |
+| [0045](0045_money_is_not_a_setting.md) | money is not a setting | accepted |
+| [0046](0046_a_month_in_a_file.md) | a month in a file, written by the browser | accepted |
+| [0047](0047_a_list_is_an_address.md) | a list is an address | accepted |
+| [0048](0048_the_day_a_test_runs_on.md) | the day a test runs on | accepted |
+| [0049](0049_reading_a_month_of_three_numbers_back.md) | reading a month of three numbers back | accepted |
+| [0050](0050_a_fact_that_waits_for_its_day.md) | a fact that waits for its day, and one rule for what has happened | accepted |
