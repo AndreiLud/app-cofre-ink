@@ -9,6 +9,7 @@ import {
 	type CalendarDate,
 	type CurrencyCode,
 	compareCalendarDates,
+	countsAsMoney,
 	invoiceDueDate,
 	invoiceMonthOf,
 } from "@cofre/core";
@@ -199,6 +200,27 @@ export function TransactionForm({
 		if (found) setAccountId(found.accountId);
 	}
 
+	/**
+	 * Changing the kind changes where the money is.
+	 *
+	 * The way to pay stayed behind when somebody moved from a spend to money coming in, so a
+	 * form that opened on the card wrote the salary on the card, under a field that offered
+	 * the card. Money comes in to an account that holds money, the current account first, and
+	 * a spend goes back to the way that was chosen for it.
+	 */
+	function changeKind(next: TransactionKind) {
+		setKind(next);
+		if (next === "expense") {
+			if (chosenWay) setAccountId(chosenWay.accountId);
+			return;
+		}
+		if (chosen && countsAsMoney(chosen.kind)) return;
+		const landing =
+			usable.find((account) => account.kind === "checking") ??
+			usable.find((account) => countsAsMoney(account.kind));
+		setAccountId(landing?.id ?? "");
+	}
+
 	// Opening the form is what resets it, so a half typed record is never inherited.
 	useEffect(() => {
 		if (!open) return;
@@ -266,9 +288,10 @@ export function TransactionForm({
 			const sorting = {
 				categoryId: kind === "transfer" || categoryId === "" ? null : categoryId,
 				priority: priority === "" ? null : (priority as SpendingPriority),
-				// A transfer between your own accounts is not a card purchase, whatever
-				// piece of plastic happened to be in the hand.
-				cardId: kind === "transfer" ? null : (chosenWay?.cardId ?? null),
+				// Only a spend is paid with a card. A transfer between your own accounts is not
+				// a card purchase, whatever piece of plastic happened to be in the hand, and
+				// money coming in was sent with the card of the last spend.
+				cardId: kind === "expense" ? (chosenWay?.cardId ?? null) : null,
 			};
 
 			if (editing) {
@@ -322,12 +345,14 @@ export function TransactionForm({
 
 	const accountOptions = usable.map((account) => ({ value: account.id, label: account.name }));
 	/**
-	 * Where money comes in, or where a move starts: never a benefit card, which takes no
-	 * income and lets nothing out, so offering one was offering a refusal. The record's own
-	 * account stays, so an income written on a card before 2.0.0 still opens to be corrected.
+	 * Where money comes in, or where a move starts: an account that holds money. Never a
+	 * benefit card, which takes no income and lets nothing out, and never a credit card,
+	 * whose balance is a debt: a salary landed there whenever the form opened on the card.
+	 * The record's own account stays, so an income written on a card before 2.0.0 still
+	 * opens to be corrected.
 	 */
 	const sourceOptions = usable
-		.filter((account) => account.kind !== "voucher" || account.id === editing?.accountId)
+		.filter((account) => countsAsMoney(account.kind) || account.id === editing?.accountId)
 		.map((account) => ({ value: account.id, label: account.name }));
 
 	// The list reads as the tree it is: a category, then the ones under it, set in from
@@ -368,7 +393,7 @@ export function TransactionForm({
 					<Segmented
 						label={t("transactions.kind")}
 						value={kind}
-						onChange={setKind}
+						onChange={changeKind}
 						options={[
 							{ value: "expense", label: t("transactionKind.expense") },
 							{ value: "income", label: t("transactionKind.income") },

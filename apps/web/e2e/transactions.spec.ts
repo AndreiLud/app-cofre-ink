@@ -203,6 +203,34 @@ test.describe("records", () => {
 		).toHaveCount(1);
 	});
 
+	// Part 1, D.1 of the request for 2.0.0: the form opens on the last way somebody paid, and
+	// changing to money coming in kept the account of that way. After a purchase on the card
+	// "Entrou em" offered the card, already chosen, and saving wrote the salary on it.
+	test("writes money coming in to an account after a purchase on the card", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = page.getByRole("dialog");
+		await form.getByLabel("Pago com").selectOption({ label: "Cartão do banco (Crédito)" });
+		await form.getByLabel("Valor", { exact: true }).fill("30,00");
+		await form.getByLabel("Descrição").fill("Padaria");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(record(page, "Padaria")).toBeVisible();
+
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		await form.getByText("Receita", { exact: true }).click();
+		const landing = form.getByLabel("Entrou em");
+		await expect(landing.locator("option:checked")).toHaveText("Conta corrente");
+		await expect(landing.locator("option", { hasText: "Cartão de crédito" })).toHaveCount(0);
+		await expect(landing.locator("option", { hasText: "Vale refeição" })).toHaveCount(0);
+		await form.getByLabel("Valor", { exact: true }).fill("500,00");
+		await form.getByLabel("Descrição").fill("Bico");
+		await page.getByRole("button", { name: "Salvar" }).click();
+
+		await expect(record(page, "Bico")).toContainText("Conta corrente");
+		await expect(record(page, "Bico")).not.toContainText("Cartão");
+	});
+
 	test("asks what it was paid with, once, and says which invoice it lands on", async ({ page }) => {
 		await openCofre(page);
 
