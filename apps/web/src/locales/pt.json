@@ -1600,6 +1600,11 @@
 		"fromHere": "Mover dinheiro daqui",
 		"topUp": "Recarregar",
 		"topUpTitle": "Recarregar {{name}}",
-		"topUpDescription": "Recarga"
+		"topUpDescription": "Recarga",
+		"saveNow": "Guardar agora",
+		"saveNowDescription": "Guardar",
+		"intoGoal": "Pôr na meta",
+		"intoGoalTitle": "Pôr na meta {{name}}",
+		"intoGoalDescription": "Para a meta {{name}}"
 	}
 }

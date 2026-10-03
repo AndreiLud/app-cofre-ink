@@ -9,7 +9,7 @@
 // on the twenty eighth, and this screen says which one it is.
 
 import { monthOf, todayIn } from "@cofre/core";
-import type { BudgetWithProgress, SpendingPriority } from "@cofre/storage";
+import type { BudgetWithProgress, GoalProgress, SpendingPriority } from "@cofre/storage";
 import {
 	Button,
 	Callout,
@@ -28,8 +28,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { MoveDialog, type MoveStart } from "../components/MoveDialog.tsx";
 import { Value } from "../components/Value.tsx";
 import { readAmount, readPercent } from "../lib/amounts.ts";
+import { intoGoalStart, saveNowStart } from "../lib/putAside.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
@@ -69,6 +71,8 @@ export function BudgetPage() {
 	const [goalAmount, setGoalAmount] = useState("");
 	const [goalAccount, setGoalAccount] = useState("");
 	const [goalDate, setGoalDate] = useState("");
+	/** Money being put aside, opened from the rule or from a goal. */
+	const [moving, setMoving] = useState<MoveStart | null>(null);
 
 	const enabled = Boolean(session && currentSpace);
 
@@ -111,6 +115,9 @@ export function BudgetPage() {
 	// records are the ones who set it.
 	const mine = useWhatIMayDo(spaceId);
 	const mayWrite = mine.may("plan.write");
+	// Putting money aside is writing a record, which is a question of its own: a Registrador
+	// may not change the plan and may still move money into the savings account.
+	const mayMove = mine.mayCall("transactions.create");
 
 	const saveLimit = useMutation({
 		mutationFn: async () =>
@@ -194,6 +201,9 @@ export function BudgetPage() {
 	const currency = currentSpace.baseCurrency;
 	const usable = (accounts.data ?? []).filter((account) => account.archivedAt === null);
 	const sorted = (categories.data ?? []).filter((category) => category.kind === "expense");
+	const saveNow = mayMove ? saveNowStart(savings.data, usable, i18n.resolvedLanguage, t) : null;
+	const intoGoalOf = (goal: GoalProgress) =>
+		mayMove ? intoGoalStart(goal, usable, i18n.resolvedLanguage, t) : null;
 
 	const nameOfLimit = (limit: BudgetWithProgress) => {
 		if (limit.scope === "total") return t("budget.everything");
@@ -278,11 +288,18 @@ export function BudgetPage() {
 								? t("budget.savingsDone")
 								: t("budget.savingsBehind")}
 						</p>
-						{mayWrite ? (
-							<Button size="small" variant="quiet" onClick={() => clearRule.mutate()}>
-								{t("budget.clearRule")}
-							</Button>
-						) : null}
+						<div className="flex flex-wrap gap-2">
+							{saveNow ? (
+								<Button size="small" variant="secondary" onClick={() => setMoving(saveNow)}>
+									{t("move.saveNow")}
+								</Button>
+							) : null}
+							{mayWrite ? (
+								<Button size="small" variant="quiet" onClick={() => clearRule.mutate()}>
+									{t("budget.clearRule")}
+								</Button>
+							) : null}
+						</div>
 					</div>
 				) : null}
 			</Panel>
@@ -322,6 +339,15 @@ export function BudgetPage() {
 										{" / "}
 										<Value amount={goal.targetAmount} currency={currency} tone="neutral" />
 									</span>
+									{intoGoalOf(goal) ? (
+										<Button
+											size="small"
+											variant="quiet"
+											onClick={() => setMoving(intoGoalOf(goal))}
+										>
+											{t("move.intoGoal")}
+										</Button>
+									) : null}
 									{mayWrite ? (
 										<Menu
 											align="end"
@@ -654,6 +680,15 @@ export function BudgetPage() {
 					{problem ? <Callout tone="problem">{problem}</Callout> : null}
 				</form>
 			</Dialog>
+
+			<MoveDialog
+				open={moving !== null}
+				onOpenChange={(next) => !next && setMoving(null)}
+				spaceId={spaceId}
+				accounts={usable}
+				today={today}
+				start={moving ?? undefined}
+			/>
 		</div>
 	);
 }

@@ -1600,6 +1600,11 @@
 		"fromHere": "Move money from here",
 		"topUp": "Top up",
 		"topUpTitle": "Top up {{name}}",
-		"topUpDescription": "Top up"
+		"topUpDescription": "Top up",
+		"saveNow": "Put aside now",
+		"saveNowDescription": "Put aside",
+		"intoGoal": "Add to the goal",
+		"intoGoalTitle": "Add to the goal {{name}}",
+		"intoGoalDescription": "For the goal {{name}}"
 	}
 }

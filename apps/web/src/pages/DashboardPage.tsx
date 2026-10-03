@@ -31,7 +31,7 @@ import {
 	splitInvoicesFallingDue,
 	todayIn,
 } from "@cofre/core";
-import type { Account, CardStanding } from "@cofre/storage";
+import type { CardStanding, GoalProgress } from "@cofre/storage";
 import { roleSeesOwnRowsOnly } from "@cofre/storage";
 import {
 	Button,
@@ -48,9 +48,10 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Findings } from "../components/Findings.tsx";
-import { MoveDialog, movesOutOf } from "../components/MoveDialog.tsx";
+import { MoveDialog, type MoveStart, movesOutOf } from "../components/MoveDialog.tsx";
 import { Value } from "../components/Value.tsx";
 import { VoucherAmount } from "../components/VoucherAmount.tsx";
+import { intoGoalStart, saveNowStart } from "../lib/putAside.ts";
 import { EVERY_MONTH } from "../lib/recordFilters.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { ROUTES } from "../router.tsx";
@@ -124,8 +125,12 @@ export function DashboardPage() {
 	// dialog is not decoration: it is the only stop between the button and the writes.
 	const [askingAll, setAskingAll] = useState(false);
 	const [confirmedAll, setConfirmedAll] = useState(0);
-	/** The benefit card money is being put on, by Pix from one of the accounts. */
-	const [toppingUp, setToppingUp] = useState<Account | null>(null);
+	/**
+	 * Money being moved from here: onto a benefit card, into the account of the savings rule,
+	 * or into the account of a goal. In the space it belongs to, which in "Todos" is the space
+	 * of the card and not the one that happens to be open.
+	 */
+	const [moving, setMoving] = useState<{ spaceId: string; start: MoveStart } | null>(null);
 
 	const mine = useWhatIMayDo(spaceId);
 	const mayUpdate = mine.mayCall("transactions.settle");
@@ -437,6 +442,16 @@ export function DashboardPage() {
 	const vouchers = shownAccounts.filter(
 		(account) => account.kind === "voucher" && narrowedIn(account.spaceId) === false,
 	);
+
+	// Putting money aside from here, in the space that is open: the rule and the goals are
+	// read for it alone, and so are the accounts the money may come from.
+	const mayMoveHere = mine.mayCall("transactions.create");
+	const accountsHere = shownAccounts.filter((account) => account.spaceId === spaceId);
+	const saveNow = mayMoveHere
+		? saveNowStart(savings.data, accountsHere, i18n.resolvedLanguage, t)
+		: null;
+	const putIntoGoal = (goal: GoalProgress) =>
+		mayMoveHere ? intoGoalStart(goal, accountsHere, i18n.resolvedLanguage, t) : null;
 
 	/** Whether any of the spaces being added together is narrowed to this person's rows. */
 	const narrowedSomewhere = Object.values(narrowed.data ?? {}).some(Boolean);
@@ -792,7 +807,15 @@ export function DashboardPage() {
 									shownAccounts.some(
 										(account) => account.spaceId === voucher.spaceId && movesOutOf(account),
 									)
-										? () => setToppingUp(voucher)
+										? () =>
+												setMoving({
+													spaceId: voucher.spaceId,
+													start: {
+														toId: voucher.id,
+														title: t("move.topUpTitle", { name: voucher.name }),
+														description: t("move.topUpDescription"),
+													},
+												})
 										: undefined
 								}
 							/>
@@ -1043,17 +1066,44 @@ export function DashboardPage() {
 					) : (
 						<p className="text-quiet text-sm">{t("dashboard.noRule")}</p>
 					)}
+					{saveNow ? (
+						<Button
+							size="small"
+							variant="secondary"
+							className="mt-2"
+							onClick={() => setMoving({ spaceId, start: saveNow })}
+						>
+							{t("move.saveNow")}
+						</Button>
+					) : null}
 					{(goals.data ?? []).length > 0 ? (
 						<ul className="mt-3 divide-y divide-line border-line border-t">
-							{(goals.data ?? []).slice(0, 3).map((goal) => (
-								<li key={goal.id} className="flex items-baseline justify-between gap-4 py-2">
-									<span className="min-w-0 truncate">{goal.name}</span>
-									<span className="text-quiet text-sm">
-										<Value amount={goal.saved} currency={currency} /> {t("dashboard.ofTarget")}{" "}
-										<Value amount={goal.targetAmount} currency={currency} />
-									</span>
-								</li>
-							))}
+							{(goals.data ?? []).slice(0, 3).map((goal) => {
+								const intoGoal = putIntoGoal(goal);
+								return (
+									<li
+										key={goal.id}
+										className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2"
+									>
+										<span className="min-w-0 truncate">{goal.name}</span>
+										<span className="flex items-baseline gap-3">
+											<span className="text-quiet text-sm">
+												<Value amount={goal.saved} currency={currency} /> {t("dashboard.ofTarget")}{" "}
+												<Value amount={goal.targetAmount} currency={currency} />
+											</span>
+											{intoGoal ? (
+												<Button
+													size="small"
+													variant="quiet"
+													onClick={() => setMoving({ spaceId, start: intoGoal })}
+												>
+													{t("move.intoGoal")}
+												</Button>
+											) : null}
+										</span>
+									</li>
+								);
+							})}
 						</ul>
 					) : null}
 				</Panel>
@@ -1171,20 +1221,12 @@ export function DashboardPage() {
 			</Dialog>
 
 			<MoveDialog
-				open={toppingUp !== null}
-				onOpenChange={(next) => !next && setToppingUp(null)}
-				spaceId={toppingUp?.spaceId ?? spaceId}
-				accounts={shownAccounts.filter((account) => account.spaceId === toppingUp?.spaceId)}
+				open={moving !== null}
+				onOpenChange={(next) => !next && setMoving(null)}
+				spaceId={moving?.spaceId ?? spaceId}
+				accounts={shownAccounts.filter((account) => account.spaceId === moving?.spaceId)}
 				today={today}
-				start={
-					toppingUp
-						? {
-								toId: toppingUp.id,
-								title: t("move.topUpTitle", { name: toppingUp.name }),
-								description: t("move.topUpDescription"),
-							}
-						: undefined
-				}
+				start={moving?.start}
 			/>
 		</div>
 	);

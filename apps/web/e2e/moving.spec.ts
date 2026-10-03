@@ -17,6 +17,61 @@ async function balanceOf(page: Page, name: string): Promise<number> {
 }
 
 test.describe("moving money between accounts", () => {
+	// Part 2, A.3.2 of the request for 2.0.0: the rule counts only money moved into its
+	// account, so its shortcut is a move with the account and what is missing already in it,
+	// and so is the one of a goal.
+	test("puts aside what the rule asks for, and adds to a goal, from their own lines", async ({
+		page,
+	}) => {
+		await openCofre(page);
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		await page.getByRole("dialog").getByLabel("Nome").fill("Reserva");
+		await page.getByRole("dialog").getByLabel("Tipo").selectOption("savings");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Reserva", exact: true })).toBeVisible();
+
+		await go(page, "Orçamento");
+		await page.getByRole("button", { name: "Definir a regra" }).click();
+		const rule = page.getByRole("dialog");
+		await rule.getByText("Um valor fixo", { exact: true }).click();
+		await rule.getByLabel("Valor por mês").fill("500,00");
+		await rule.getByLabel("Vai para").selectOption({ label: "Reserva" });
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(rule).toHaveCount(0);
+
+		await go(page, "Painel");
+		await page.getByRole("button", { name: "Guardar agora" }).click();
+		const move = page.getByRole("dialog");
+		await expect(move.getByLabel("Para", { exact: true }).locator("option:checked")).toHaveText(
+			"Reserva",
+		);
+		await expect(move.getByLabel("Valor", { exact: true })).toHaveValue("500,00");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(move).toHaveCount(0);
+		await expect(page.getByText(/Guardados R\$/)).toContainText("Guardados R$ 500,00");
+		await expect(page.getByRole("button", { name: "Guardar agora" })).toHaveCount(0);
+
+		await go(page, "Orçamento");
+		await page.getByRole("button", { name: "Nova meta" }).click();
+		const goal = page.getByRole("dialog");
+		await goal.getByLabel("Nome").fill("Viagem");
+		await goal.getByLabel("Quanto", { exact: true }).fill("2.000,00");
+		await goal.getByLabel("Onde o dinheiro fica").selectOption({ label: "Reserva" });
+		await page.getByRole("button", { name: "Salvar" }).click();
+		const line = page.getByRole("listitem").filter({ hasText: "Viagem" });
+		await expect(line).toContainText("R$ 500,00");
+
+		await line.getByRole("button", { name: "Pôr na meta" }).click();
+		await expect(move.getByLabel("Para", { exact: true }).locator("option:checked")).toHaveText(
+			"Reserva",
+		);
+		await move.getByLabel("Valor", { exact: true }).fill("300,00");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(move).toHaveCount(0);
+		await expect(line).toContainText("R$ 800,00");
+	});
+
 	// Part 2, A.8.3 of the request for 2.0.0: a top up by Pix is money moved onto the card,
 	// which raises what is left on it and is neither spending nor money coming in.
 	test("tops up a benefit card from its line, and the reports stay as they were", async ({
