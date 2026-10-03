@@ -23,7 +23,7 @@ import {
 	planInstallments,
 	uuidV7,
 } from "@cofre/core";
-import { transactions } from "@cofre/db";
+import { recurrenceSkips, transactions } from "@cofre/db";
 import { assertCan, readableSpaceIds, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber, type Row, type SqlValue } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
@@ -413,6 +413,27 @@ export async function writeArrangement(
 		);
 	}
 	return ids;
+}
+
+/**
+ * A day a series wrote, deleted: somebody said it did not happen, so the series is not to write
+ * it again.
+ *
+ * The deleted record was the whole answer, and a deleted row is not in a backup, so restoring
+ * one brought the day back. The answer is a row of its own that a backup and the change log
+ * carry. Nothing for a record no series wrote, or one whose series is not in this database.
+ */
+export async function refuseTheDay(write: WriteContext, row: Transaction): Promise<void> {
+	if (row.recurrenceId === null) return;
+	const series = await write.driver.all(`SELECT "id" FROM "recurrences" WHERE "id" = ?`, [
+		row.recurrenceId,
+	]);
+	if (series.length === 0) return;
+	await insertRow(write, {
+		table: recurrenceSkips,
+		spaceId: row.spaceId,
+		values: { recurrence_id: row.recurrenceId, day: row.happenedOn },
+	});
 }
 
 export function createTransactionsRepository(context: RepositoryContext) {
@@ -1232,6 +1253,7 @@ export function createTransactionsRepository(context: RepositoryContext) {
 						spaceId: row.spaceId,
 						id: row.id,
 					});
+					await refuseTheDay(write, row);
 				}
 			});
 			return found.length;
@@ -1603,10 +1625,10 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			const found = await reachable(id);
 			assertCan(context.actor(), found.spaceId, "transaction.delete");
 			assertChangeable(found, "removing");
-			await softDeleteRow(context.write(), {
-				table: transactions,
-				spaceId: found.spaceId,
-				id,
+			await context.driver.transaction(async (tx) => {
+				const write = { ...context.write(), driver: tx };
+				await softDeleteRow(write, { table: transactions, spaceId: found.spaceId, id });
+				await refuseTheDay(write, found);
 			});
 		},
 

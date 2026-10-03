@@ -5,7 +5,7 @@
 // the situations that make that hard, which are two people writing at once, a deletion
 // crossing an edit, and an entry that tries to grant itself a role.
 
-import { addMonthsToMonth, stampAt, uuidV7 } from "@cofre/core";
+import { addMonthsToMonth, stampAt, todayIn, uuidV7 } from "@cofre/core";
 import { describe, expect, it } from "vitest";
 import { keepMine, keepTheirs, runBackup } from "../backupRun.ts";
 import type { Driver } from "../driver.ts";
@@ -1345,6 +1345,65 @@ export function runSyncConformance(adapter: AdapterUnderTest): void {
 				expect(await invoicesOf(one.asAna, spaceId)).toEqual(stamped);
 			} finally {
 				await one.close();
+			}
+		});
+	});
+
+	/**
+	 * Part 2, G.5.3 of the request for 2.0.0: a series writes its days on every device that
+	 * opens the space. Each device named the record of a day at random, so the two copies of
+	 * one day arrived as two records, and a day deleted on one device came back the moment the
+	 * other one's copy arrived.
+	 */
+	describe("a day a series wrote on two devices", () => {
+		it("is one record, and stays deleted here when the other copy arrives", async () => {
+			const one = await prepare(adapter);
+			const two = await otherDevice(one.ana, "deviceTwo");
+			try {
+				const space = await one.asAna.spaces.create({ name: "Casa" });
+				const account = await one.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Corrente",
+				});
+				await one.asAna.recurrences.create({
+					spaceId: space.id,
+					description: "Aluguel",
+					kind: "expense",
+					amount: 145_000,
+					accountId: account.id,
+					frequency: "monthly",
+					startsOn: todayIn("America/Sao_Paulo"),
+				});
+				// The series reaches the other device before either of them has written a day,
+				// and then each writes the days on its own.
+				await carry(one.driver, two.driver, space.id);
+				await two.session.spaces.adopt(space.id);
+				await two.session.refresh();
+				await one.asAna.recurrences.materialize({ spaceId: space.id });
+				await two.session.recurrences.materialize({ spaceId: space.id });
+
+				const written = await one.asAna.transactions.list({ spaceId: space.id });
+				const last = written[0];
+				expect(last).toBeDefined();
+				await one.asAna.transactions.remove(last?.id ?? "");
+
+				await carry(two.driver, one.driver, space.id);
+				const live = await one.driver.all(
+					`SELECT "happened_on" FROM "transactions"
+					 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "recurrence_id" IS NOT NULL`,
+					[space.id],
+				);
+				// Every other day once, and the deleted one not at all.
+				expect(live.map((row) => String(row.happened_on)).sort()).toEqual(
+					written
+						.slice(1)
+						.map((row) => row.happenedOn)
+						.sort(),
+				);
+			} finally {
+				await one.close();
+				await two.close();
 			}
 		});
 	});

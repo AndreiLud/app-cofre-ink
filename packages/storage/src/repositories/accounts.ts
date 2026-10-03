@@ -6,7 +6,7 @@ import {
 	nextLandingOf,
 	todayIn,
 } from "@cofre/core";
-import { accounts, cards } from "@cofre/db";
+import { accounts, cards, recurrences } from "@cofre/db";
 import { assertCan, readableSpaceIds, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
@@ -644,6 +644,25 @@ export function createAccountsRepository(context: RepositoryContext) {
 					table: cards,
 					spaceId: account.spaceId,
 					id: String(row.id),
+				});
+			}
+
+			// The series of the account end today. They went on writing on an account that was
+			// gone, records nobody could see on any screen or take away.
+			const today = todayIn(await timezoneOf(account.spaceId), new Date(context.now()));
+			const series = await context.driver.all(
+				`SELECT "id" FROM "recurrences"
+				 WHERE "space_id" = ? AND "deleted_at" IS NULL
+				   AND ("account_id" = ? OR "counter_account_id" = ?)
+				   AND ("ends_on" IS NULL OR "ends_on" > ?)`,
+				[account.spaceId, id, id, today],
+			);
+			for (const row of series) {
+				await updateRow(context.write(), {
+					table: recurrences,
+					spaceId: account.spaceId,
+					id: String(row.id),
+					values: { ends_on: today },
 				});
 			}
 

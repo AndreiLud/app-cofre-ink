@@ -193,23 +193,6 @@ const ruleInput = z.object({
 	disabled: z.boolean().optional(),
 });
 
-const recurrenceInput = z.object({
-	description: z.string().trim().min(1).max(200),
-	kind: z.enum(["income", "expense", "transfer"]),
-	amount: z.number().int().positive(),
-	accountId: z.string().min(1),
-	counterAccountId: z.string().min(1).nullable().optional(),
-	categoryId: z.string().min(1).nullable().optional(),
-	priority: priority.nullable().optional(),
-	frequency: z.enum(["weekly", "monthly", "yearly"]),
-	intervalCount: z.number().int().min(1).max(60).optional(),
-	dayOfMonth: z.number().int().min(1).max(31).nullable().optional(),
-	monthOfYear: z.number().int().min(1).max(12).nullable().optional(),
-	startsOn: calendarDate,
-	endsOn: calendarDate.nullable().optional(),
-	notes: z.string().trim().max(2000).nullable().optional(),
-});
-
 /**
  * Which piece of plastic, or none.
  *
@@ -225,6 +208,26 @@ const cardIdentifier = z
 	.nullable()
 	.optional()
 	.transform((given) => (given === "" ? null : given));
+
+const recurrenceInput = z.object({
+	description: z.string().trim().min(1).max(200),
+	kind: z.enum(["income", "expense", "transfer"]),
+	amount: z.number().int().positive(),
+	accountId: z.string().min(1),
+	counterAccountId: z.string().min(1).nullable().optional(),
+	// The card a series of purchases is charged to. Dropped by this schema, a series made on a
+	// server charged no card while the same series in a browser charged it.
+	cardId: cardIdentifier,
+	categoryId: z.string().min(1).nullable().optional(),
+	priority: priority.nullable().optional(),
+	frequency: z.enum(["weekly", "monthly", "yearly"]),
+	intervalCount: z.number().int().min(1).max(60).optional(),
+	dayOfMonth: z.number().int().min(1).max(31).nullable().optional(),
+	monthOfYear: z.number().int().min(1).max(12).nullable().optional(),
+	startsOn: calendarDate,
+	endsOn: calendarDate.nullable().optional(),
+	notes: z.string().trim().max(2000).nullable().optional(),
+});
 
 const transactionInput = z.object({
 	kind: z.enum(["income", "expense", "transfer"]),

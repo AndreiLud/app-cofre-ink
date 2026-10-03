@@ -60,8 +60,12 @@ export type InsertInput = {
 	id?: string;
 };
 
-export async function insertRow(context: WriteContext, input: InsertInput): Promise<string> {
-	const id = input.id ?? uuidV7();
+/** The row as it is written, with the bookkeeping replication needs. */
+function rowToInsert(
+	context: WriteContext,
+	input: InsertInput,
+	id: string,
+): { row: Values; stamp: string } {
 	const stamp = context.clock.next();
 	const moment = context.now();
 
@@ -74,6 +78,12 @@ export async function insertRow(context: WriteContext, input: InsertInput): Prom
 		row.deleted_at = null;
 		row.hlc = stamp;
 	}
+	return { row, stamp };
+}
+
+export async function insertRow(context: WriteContext, input: InsertInput): Promise<string> {
+	const id = input.id ?? uuidV7();
+	const { row, stamp } = rowToInsert(context, input, id);
 
 	const columns = Object.keys(row);
 	await context.driver.run(
@@ -86,6 +96,33 @@ export async function insertRow(context: WriteContext, input: InsertInput): Prom
 		await recordChange(context, input.spaceId, input.table.name, id, "insert", row, stamp);
 	}
 	return id;
+}
+
+/**
+ * An insert that leaves a row already there alone, for an identifier two writers can reach at
+ * the same moment: the record a series writes for a day. Says whether it wrote, and enters the
+ * change log only when it did, so the second writer leaves no trace.
+ */
+export async function insertRowIfAbsent(
+	context: WriteContext,
+	input: InsertInput & { id: string },
+): Promise<boolean> {
+	const { row, stamp } = rowToInsert(context, input, input.id);
+
+	const columns = Object.keys(row);
+	const written = await context.driver.all(
+		`INSERT INTO ${quoted(input.table.name)} (${columns.map(quoted).join(", ")})
+		 VALUES (${placeholders(columns.length)})
+		 ON CONFLICT ("id") DO NOTHING
+		 RETURNING "id"`,
+		columns.map((column) => row[column] ?? null),
+	);
+	if (written.length === 0) return false;
+
+	if (input.table.replicated) {
+		await recordChange(context, input.spaceId, input.table.name, input.id, "insert", row, stamp);
+	}
+	return true;
 }
 
 export type UpdateInput = {

@@ -124,7 +124,13 @@ function fold(history: readonly Change[]): Record<string, SqlValue> {
 			if (change.actorId !== null) values.updated_by = change.actorId;
 			continue;
 		}
+		// An insert after a delete is a second writer that had not heard of the delete, and
+		// not somebody bringing the row back. Only the record a series writes for a day can be
+		// written twice under one name, by two devices, and a day somebody deleted on one of
+		// them came back the moment the other one's copy arrived.
+		const deleted = change.operation === "insert" && values.deleted_at != null;
 		for (const [column, value] of Object.entries(change.payload)) {
+			if (deleted && column === "deleted_at") continue;
 			values[column] = value as SqlValue;
 		}
 	}

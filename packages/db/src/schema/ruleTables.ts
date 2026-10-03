@@ -49,6 +49,26 @@ export const categorizationRules = defineTable({
 	indexes: [{ name: "rules_by_space_and_position", columns: ["space_id", "position"] }],
 });
 
+/**
+ * What 2.0.0 added to a series.
+ *
+ * The card a series of purchases is charged to, which every occurrence carries, as a record
+ * written by hand does. The first day it may write, which used to be worked out from the
+ * moment the row was created and moved whenever a restore wrote that moment again. And the
+ * series it continues: a change applies from the next occurrence on, so the old series ends
+ * and a new one follows it, and the two are one line on the screen. Not a reference, because
+ * a series and the one it follows may arrive in either order from another device.
+ */
+export const RECURRENCE_CHAIN_COLUMNS = [
+	{
+		name: "card_id",
+		type: "text" as const,
+		references: { table: "cards", column: "id", onDelete: "setNull" as const },
+	},
+	{ name: "writes_from", type: "text" as const },
+	{ name: "follows_id", type: "text" as const },
+];
+
 export const recurrences = defineTable({
 	name: "recurrences",
 	scope: "space",
@@ -98,11 +118,34 @@ export const recurrences = defineTable({
 			notNull: true,
 			references: { table: "users", column: "id", onDelete: "restrict" },
 		},
+		...RECURRENCE_CHAIN_COLUMNS,
 	],
 	indexes: [{ name: "recurrences_by_space", columns: ["space_id", "starts_on"] }],
+});
+
+/**
+ * A day a series is not to write, because somebody said it did not happen.
+ *
+ * Deleting the record of that day was the whole answer, and a deleted row is not in a backup:
+ * restoring one brought the day back. This travels in the backup and in the change log like
+ * any row of the space.
+ */
+export const recurrenceSkips = defineTable({
+	name: "recurrence_skips",
+	scope: "space",
+	columns: [
+		{
+			name: "recurrence_id",
+			type: "text",
+			notNull: true,
+			references: { table: "recurrences", column: "id", onDelete: "cascade" },
+		},
+		{ name: "day", type: "text", notNull: true },
+	],
+	indexes: [{ name: "recurrence_skips_by_series", columns: ["recurrence_id", "day"] }],
 });
 
 // The column that ties a written record back to the recurrence that wrote it lives in
 // the transactions file, so that this one can keep importing from it without a circle.
 
-export const RULE_TABLES = [recurrences, categorizationRules] as const;
+export const RULE_TABLES = [recurrences, categorizationRules, recurrenceSkips] as const;

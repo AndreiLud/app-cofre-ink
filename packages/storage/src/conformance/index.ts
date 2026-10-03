@@ -37,6 +37,7 @@ import { runPortabilityConformance } from "./portability.ts";
 import { runReportConformance } from "./reports.ts";
 import { runRecurrenceRepairConformance, runRuleConformance } from "./rules.ts";
 import { runSavedFilterConformance } from "./savedFilters.ts";
+import { runSeriesWritingConformance } from "./seriesWriting.ts";
 import { type AdapterUnderTest, type Fixture, prepare } from "./setup.ts";
 import { runSyncConformance } from "./sync.ts";
 import { runTransactionConformance } from "./transactions.ts";
@@ -1138,6 +1139,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 		runCategoryConformance(adapter);
 		runRuleConformance(adapter);
 		runRecurrenceRepairConformance(adapter);
+		runSeriesWritingConformance(adapter);
 		runPlanConformance(adapter);
 		runReportConformance(adapter);
 		runSavedFilterConformance(adapter);

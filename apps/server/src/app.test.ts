@@ -381,6 +381,51 @@ describe("the api", () => {
 		}
 	});
 
+	it("keeps the card a series is charged to", async () => {
+		// Part 2, G.3 of the request for 2.0.0: the schema of a series dropped every field it
+		// did not name, so the card of a subscription made on a server was lost on the way in.
+		const ana = createClient(app);
+		await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+		const space = await ana.json<{ id: string }>("/api/spaces", {
+			method: "POST",
+			body: JSON.stringify({ name: "Casa" }),
+		});
+		const credit = await ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+			method: "POST",
+			body: JSON.stringify({ kind: "credit", name: "Nubank", closingDay: 3, dueDay: 10 }),
+		});
+		const card = await ana.json<{ id: string }>(`/api/spaces/${space.id}/cards`, {
+			method: "POST",
+			body: JSON.stringify({
+				kind: "credit",
+				name: "Adicional",
+				lastFour: "2291",
+				creditAccountId: credit.id,
+			}),
+		});
+
+		const series = await ana.json<{ id: string; cardId: string | null }>(
+			`/api/spaces/${space.id}/recurrences`,
+			{
+				method: "POST",
+				body: JSON.stringify({
+					description: "Streaming",
+					kind: "expense",
+					amount: 2_790,
+					accountId: credit.id,
+					cardId: card.id,
+					frequency: "monthly",
+					startsOn: "2026-10-22",
+				}),
+			},
+		);
+		expect(series.cardId).toBe(card.id);
+		const listed = await ana.json<Array<{ cardId: string | null }>>(
+			`/api/spaces/${space.id}/recurrences`,
+		);
+		expect(listed.map((one) => one.cardId)).toEqual([card.id]);
+	});
+
 	it("keeps the mark a record arrives with", async () => {
 		// The month screen finds the three records it wrote by this mark. A schema that
 		// dropped it would leave that screen writing three more every time somebody typed

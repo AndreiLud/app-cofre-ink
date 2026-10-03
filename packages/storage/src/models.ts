@@ -288,6 +288,20 @@ export type Recurrence = {
 	endsOn: string | null;
 	notes: string | null;
 	pausedAt: number | null;
+	/** The card a series of purchases is charged to, which every occurrence carries. */
+	cardId: string | null;
+	/**
+	 * The first day the series may write. Empty until it first writes, for a series from
+	 * before 2.0.0, and then the first day of the month it was written down in.
+	 */
+	writesFrom: string | null;
+	/** The series this one continues, when a change or a pause split one in two. */
+	followsId: string | null;
+	/**
+	 * Why it writes nothing any more, when an account or the card it uses was deleted or put
+	 * away: it stopped, and the screen says so instead of leaving a series that does nothing.
+	 */
+	stoppedBy: "account" | "card" | null;
 	createdBy: string;
 	createdAt: number;
 	updatedAt: number;
@@ -582,6 +596,10 @@ export function toRecurrence(row: Row): Recurrence {
 		endsOn: asOptionalText(row.ends_on),
 		notes: asOptionalText(row.notes),
 		pausedAt: asOptionalNumber(row.paused_at),
+		cardId: asOptionalText(row.card_id),
+		writesFrom: asOptionalText(row.writes_from),
+		followsId: asOptionalText(row.follows_id),
+		stoppedBy: asOptionalText(row.stopped_by) as Recurrence["stoppedBy"],
 		createdBy: asText(row.created_by),
 		createdAt: asNumber(row.created_at),
 		updatedAt: asNumber(row.updated_at),

@@ -17,7 +17,7 @@ import { CARD_TABLES } from "./schema/cardTables.ts";
 import { CATEGORY_TABLES } from "./schema/categoryTables.ts";
 import { INVESTMENT_TABLES } from "./schema/investmentTables.ts";
 import { MEMBER_INCOME_COLUMNS, PLAN_TABLES } from "./schema/planTables.ts";
-import { RULE_TABLES } from "./schema/ruleTables.ts";
+import { RECURRENCE_CHAIN_COLUMNS, RULE_TABLES, recurrenceSkips } from "./schema/ruleTables.ts";
 import {
 	ACCOUNT_BENEFIT_COLUMNS,
 	ACCOUNT_KNOWN_BALANCE_COLUMNS,
@@ -244,6 +244,21 @@ export const MIGRATIONS: readonly Migration[] = [
 			TRANSACTION_ORIGIN_INVOICE_COLUMNS.filter(
 				(column) => !context.hasColumn("transactions", column.name),
 			).map((column) => addColumnSql("transactions", column, context.dialect)),
+	},
+	{
+		/**
+		 * A series gets its card, the first day it may write and the series it continues, and
+		 * the days somebody said did not happen get a table. Empty on every series that exists:
+		 * the first day is written by the series itself the first time it writes, through the
+		 * change log, so a restore or another device cannot undo it.
+		 */
+		id: "0020_recurrence_chain",
+		statements: (context) => [
+			...RECURRENCE_CHAIN_COLUMNS.filter(
+				(column) => !context.hasColumn("recurrences", column.name),
+			).map((column) => addColumnSql("recurrences", column, context.dialect)),
+			...createSchemaSql([recurrenceSkips], context.dialect),
+		],
 	},
 ];
 

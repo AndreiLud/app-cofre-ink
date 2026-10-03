@@ -16,9 +16,12 @@ import {
 	compareCalendarDates,
 	invoiceMonthOf,
 	monthOf,
+	occurrenceId,
 	occurrencesBetween,
 	parseCalendarDate,
+	type RecurrenceSpec,
 	type SpendingPriority,
+	seriesPeriodOf,
 	todayIn,
 } from "@cofre/core";
 import { recurrences as recurrenceTable, transactions } from "@cofre/db";
@@ -33,7 +36,7 @@ import {
 	toRecurrence,
 } from "../models.ts";
 import { marks } from "../sql.ts";
-import { insertRow, softDeleteRow, updateRow } from "../writer.ts";
+import { insertRow, insertRowIfAbsent, softDeleteRow, updateRow } from "../writer.ts";
 import type { RepositoryContext } from "./context.ts";
 import { assertAccountRules } from "./transactions.ts";
 
@@ -45,6 +48,8 @@ export type CreateRecurrenceInput = {
 	amount: number;
 	accountId: string;
 	counterAccountId?: string | null;
+	/** The card a series of purchases is charged to, as "Pago com" says of a record. */
+	cardId?: string | null;
 	categoryId?: string | null;
 	priority?: SpendingPriority | null;
 	frequency: RecurrenceFrequency;
@@ -61,11 +66,29 @@ export type UpdateRecurrenceInput = Partial<Omit<CreateRecurrenceInput, "spaceId
 	paused?: boolean;
 };
 
-const SELECT = `SELECT "id", "space_id", "description", "kind", "amount", "currency",
-	"account_id", "counter_account_id", "category_id", "priority", "frequency",
-	"interval_count", "day_of_month", "weekday", "month_of_year", "starts_on", "ends_on",
-	"notes", "paused_at", "created_by", "created_at", "updated_at"
-	FROM "recurrences"`;
+/**
+ * A series, with why it stopped when it did: an account or the card it uses deleted or put
+ * away. Every condition on it is written against `r`.
+ */
+const SELECT = `SELECT r."id", r."space_id", r."description", r."kind", r."amount", r."currency",
+	r."account_id", r."counter_account_id", r."category_id", r."priority", r."frequency",
+	r."interval_count", r."day_of_month", r."weekday", r."month_of_year", r."starts_on",
+	r."ends_on", r."notes", r."paused_at", r."card_id", r."writes_from", r."follows_id",
+	r."created_by", r."created_at", r."updated_at",
+	CASE
+		WHEN a."id" IS NULL OR a."deleted_at" IS NOT NULL OR a."archived_at" IS NOT NULL
+			THEN 'account'
+		WHEN r."counter_account_id" IS NOT NULL
+			AND (o."id" IS NULL OR o."deleted_at" IS NOT NULL OR o."archived_at" IS NOT NULL)
+			THEN 'account'
+		WHEN r."card_id" IS NOT NULL
+			AND (c."id" IS NULL OR c."deleted_at" IS NOT NULL OR c."archived_at" IS NOT NULL)
+			THEN 'card'
+	END AS "stopped_by"
+	FROM "recurrences" r
+	LEFT JOIN "accounts" a ON a."id" = r."account_id"
+	LEFT JOIN "accounts" o ON o."id" = r."counter_account_id"
+	LEFT JOIN "cards" c ON c."id" = r."card_id"`;
 
 /** How far ahead the planned records are written, counted from today. */
 export const DEFAULT_HORIZON_DAYS = 62;
@@ -75,7 +98,7 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 		const spaceIds = readableSpaceIds(context.actor());
 		if (spaceIds.length === 0) throw new NotFoundError("recurrence", id);
 		const rows = await context.driver.all(
-			`${SELECT} WHERE "id" = ? AND "space_id" IN (${marks(spaceIds.length)}) AND "deleted_at" IS NULL`,
+			`${SELECT} WHERE r."id" = ? AND r."space_id" IN (${marks(spaceIds.length)}) AND r."deleted_at" IS NULL`,
 			[id, ...spaceIds],
 		);
 		const first = rows[0];
@@ -123,6 +146,27 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 		if (!first || String(first.kind) !== "credit") return undefined;
 		if (first.closing_day === null || first.due_day === null) return undefined;
 		return { closingDay: asNumber(first.closing_day), dueDay: asNumber(first.due_day) };
+	}
+
+	/** A card of the space, in use, that spends from the account of the series. */
+	async function cardIn(spaceId: string, cardId: string, accountId: string): Promise<string> {
+		const rows = await context.driver.all(
+			`SELECT "credit_account_id", "debit_account_id", "archived_at"
+			 FROM "cards" WHERE "id" = ? AND "space_id" = ? AND "deleted_at" IS NULL`,
+			[cardId, spaceId],
+		);
+		const card = rows[0];
+		if (!card) throw new NotFoundError("card", cardId);
+		if (card.archived_at !== null) {
+			throw new RuleError("cardIsArchived", "this card is archived, bring it back before using it");
+		}
+		if (card.credit_account_id !== accountId && card.debit_account_id !== accountId) {
+			throw new RuleError(
+				"cardDoesNotReachAccount",
+				"this card does not spend from the account the series is charged to",
+			);
+		}
+		return cardId;
 	}
 
 	async function categoryIn(spaceId: string, categoryId: string): Promise<string> {
@@ -178,11 +222,57 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 		return String(rows[0]?.timezone ?? "America/Sao_Paulo");
 	}
 
+	/** The rule of a series, as the schedule reads it. */
+	function specOf(one: Recurrence): RecurrenceSpec {
+		return {
+			frequency: one.frequency,
+			intervalCount: one.intervalCount,
+			startsOn: one.startsOn,
+			endsOn: one.endsOn,
+			dayOfMonth: one.dayOfMonth,
+			monthOfYear: one.monthOfYear,
+		};
+	}
+
+	/** The series a series continues, the one just before it first, up the chain. */
+	async function chainBefore(one: Recurrence): Promise<string[]> {
+		const ids: string[] = [];
+		let next = one.followsId;
+		// A chain that loops is a chain somebody wrote by hand, and it ends here.
+		while (next !== null && !ids.includes(next) && ids.length < 500) {
+			ids.push(next);
+			const rows = await context.driver.all(
+				`SELECT "follows_id" FROM "recurrences" WHERE "id" = ?`,
+				[next],
+			);
+			const above = rows[0]?.follows_id;
+			next = above === null || above === undefined ? null : String(above);
+		}
+		return ids;
+	}
+
+	/**
+	 * The periods, from its start on, where a series it continues still has a record: one changed
+	 * by hand, which a change of the series leaves where it is. The continuation writes nothing
+	 * in them, so the rent of a month is not paid twice.
+	 */
+	async function periodsKeptBefore(one: Recurrence): Promise<Set<string>> {
+		const before = await chainBefore(one);
+		if (before.length === 0) return new Set();
+		const rows = await context.driver.all(
+			`SELECT "happened_on" FROM "transactions"
+			 WHERE "recurrence_id" IN (${marks(before.length)}) AND "deleted_at" IS NULL
+			   AND "happened_on" >= ?`,
+			[...before, one.startsOn],
+		);
+		return new Set(rows.map((row) => seriesPeriodOf(one.frequency, String(row.happened_on))));
+	}
+
 	return {
 		async list(spaceId: string): Promise<Recurrence[]> {
 			assertCan(context.actor(), spaceId, "recurrence.read");
 			const rows = await context.driver.all(
-				`${SELECT} WHERE "space_id" = ? AND "deleted_at" IS NULL ORDER BY "description"`,
+				`${SELECT} WHERE r."space_id" = ? AND r."deleted_at" IS NULL ORDER BY r."description"`,
 				[spaceId],
 			);
 			return rows.map(toRecurrence);
@@ -211,6 +301,9 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 			}
 			if (input.counterAccountId) await accountIn(input.spaceId, input.counterAccountId);
 			if (input.categoryId) await categoryIn(input.spaceId, input.categoryId);
+			const cardId = input.cardId
+				? await cardIn(input.spaceId, input.cardId, input.accountId)
+				: null;
 
 			const id = await insertRow(context.write(), {
 				table: recurrenceTable,
@@ -222,6 +315,7 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 					currency,
 					account_id: input.accountId,
 					counter_account_id: input.counterAccountId ?? null,
+					card_id: cardId,
 					category_id: input.categoryId ?? null,
 					priority: input.priority ?? null,
 					frequency: input.frequency,
@@ -256,6 +350,19 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 			if (input.counterAccountId !== undefined) {
 				if (input.counterAccountId) await accountIn(found.spaceId, input.counterAccountId);
 				values.counter_account_id = input.counterAccountId;
+			}
+			// The account and the card keep agreeing: a series moved to an account its card does
+			// not reach loses the card rather than charging it somewhere it cannot.
+			if (input.cardId !== undefined) {
+				values.card_id = input.cardId
+					? await cardIn(found.spaceId, input.cardId, input.accountId ?? found.accountId)
+					: null;
+			} else if (input.accountId !== undefined && found.cardId !== null) {
+				const still = await context.driver.all(
+					`SELECT "id" FROM "cards" WHERE "id" = ? AND ("credit_account_id" = ? OR "debit_account_id" = ?)`,
+					[found.cardId, input.accountId, input.accountId],
+				);
+				if (still.length === 0) values.card_id = null;
 			}
 			if (input.categoryId !== undefined) {
 				values.category_id = input.categoryId
@@ -330,17 +437,21 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 		},
 
 		/**
-		 * Writes the planned records this series owes, up to the horizon. Safe to call on
-		 * every load: what already exists for a day is never written twice.
+		 * Writes the records this series owes, up to the horizon. Safe to call on every load and
+		 * from two places at once: the record of a day is named by the series and the day, so a
+		 * second writer finds it there and writes nothing.
 		 */
 		async materialize(input: { spaceId: string; until?: CalendarDate }): Promise<number> {
 			assertCan(context.actor(), input.spaceId, "recurrence.write");
 
-			const today = todayIn(await timezoneOf(input.spaceId));
+			const timezone = await timezoneOf(input.spaceId);
+			// The moment of the context and not of the machine, so the day is the one every
+			// other reading of this request is about.
+			const today = todayIn(timezone, new Date(context.now()));
 			const until = input.until ?? addDays(today, DEFAULT_HORIZON_DAYS);
 
 			const rows = await context.driver.all(
-				`${SELECT} WHERE "space_id" = ? AND "deleted_at" IS NULL AND "paused_at" IS NULL`,
+				`${SELECT} WHERE r."space_id" = ? AND r."deleted_at" IS NULL AND r."paused_at" IS NULL`,
 				[input.spaceId],
 			);
 			const series = rows.map(toRecurrence);
@@ -349,74 +460,81 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 			let written = 0;
 
 			for (const one of series) {
+				// An account or the card of the series was deleted or put away. It has stopped,
+				// and its screen says so: writing on an account that is gone made records nobody
+				// could see or remove.
+				if (one.stoppedBy !== null) continue;
+
 				// Never earlier than the month the series was written down in.
 				//
-				// A household writing down a rent that has been paid since 2019 was handed
-				// six years of promises nobody had made, every one of them a bill the
-				// overview said was still to come. What is behind that is history, and
-				// history is written by saying what happened rather than by a rule inventing
-				// it afterwards.
+				// A household writing down a rent that has been paid since 2019 was handed six
+				// years of promises nobody had made. What is behind that is history, and history
+				// is written by saying what happened rather than by a rule inventing it.
 				//
-				// The month itself is kept rather than the day, because a day earlier this
-				// month that has already passed is exactly the thing somebody has to answer:
-				// it lands as a promise, the overview puts it under what is late, and the two
-				// buttons there are the answer.
-				const bornOn = todayIn(await timezoneOf(input.spaceId), new Date(one.createdAt));
-				const earliest = `${monthOf(bornOn)}-01` as CalendarDate;
-				const from = compareCalendarDates(one.startsOn, earliest) > 0 ? one.startsOn : earliest;
+				// The first day was worked out from the moment the row was created, every time,
+				// and a restore writes that moment again: a series restored in December wrote
+				// from December. So it is worked out once, the first time the series writes, and
+				// written on the series through the change log, where nothing undoes it.
+				let from = one.writesFrom;
+				if (from === null) {
+					from = `${monthOf(todayIn(timezone, new Date(one.createdAt)))}-01` as CalendarDate;
+					await updateRow(context.write(), {
+						table: recurrenceTable,
+						spaceId: one.spaceId,
+						id: one.id,
+						values: { writes_from: from },
+					});
+				}
+				const start = compareCalendarDates(one.startsOn, from) > 0 ? one.startsOn : from;
 
-				const days = occurrencesBetween(
-					{
-						frequency: one.frequency,
-						intervalCount: one.intervalCount,
-						startsOn: one.startsOn,
-						endsOn: one.endsOn,
-						dayOfMonth: one.dayOfMonth,
-						monthOfYear: one.monthOfYear,
-					},
-					from,
-					until,
-				);
+				const days = occurrencesBetween(specOf(one), start, until);
 				if (days.length === 0) continue;
 
-				// Deleted days count as written. A day this series wrote and somebody then
-				// deleted is a day they said no to, and reading only the rows that are still
-				// there made every one of those come back the next time the calendar opened.
-				// Somebody deleting the same occurrence every month is somebody being argued
-				// with by an application.
+				// Deleted days count as written, and so do the days somebody said did not happen.
+				// A day this series wrote and somebody then deleted is a day they said no to, and
+				// reading only the rows still there brought it back every time. A deleted row is
+				// not in a backup, so the answer is also kept where a backup carries it.
 				const already = await context.driver.all(
 					`SELECT "happened_on" FROM "transactions" WHERE "recurrence_id" = ?`,
 					[one.id],
 				);
-				const seen = new Set(already.map((row) => String(row.happened_on)));
-				const missing = days.filter((day) => !seen.has(day));
+				const skipped = await context.driver.all(
+					`SELECT "day" FROM "recurrence_skips" WHERE "recurrence_id" = ? AND "deleted_at" IS NULL`,
+					[one.id],
+				);
+				const seen = new Set([
+					...already.map((row) => String(row.happened_on)),
+					...skipped.map((row) => String(row.day)),
+				]);
+				const taken = await periodsKeptBefore(one);
+				const missing = days.filter(
+					(day) => !seen.has(day) && !taken.has(seriesPeriodOf(one.frequency, day)),
+				);
 				if (missing.length === 0) continue;
 
 				const amount = one.kind === "expense" ? -one.amount : one.amount;
 
-				// A subscription charged to a credit card lands on an invoice, like every
-				// other purchase on that card. This wrote nothing here, so the card showed
-				// less than it would charge and the subscription was on no invoice at all.
+				// A subscription charged to a credit card lands on an invoice, like every other
+				// purchase on that card.
 				const cycle = await cycleOfAccount(one.accountId);
 
 				await context.driver.transaction(async (tx) => {
 					const write = { ...context.write(), driver: tx };
 					for (const day of missing) {
-						await insertRow(write, {
+						const inserted = await insertRowIfAbsent(write, {
 							table: transactions,
 							spaceId: one.spaceId,
+							id: occurrenceId(one.id, day),
 							values: {
 								kind: one.kind,
 								// A fact, held back by its day until the day arrives, and then
-								// counted by itself. It used to be a promise that only counted
-								// once somebody said it happened, so a rent nobody answered was
-								// late every month and never in the balance.
+								// counted by itself.
 								status: "settled",
 								amount,
 								currency: one.currency,
 								fx_rate: null,
-								// The currency of a series is the currency of its space, so
-								// the amount is already the one reports add up.
+								// The currency of a series is the currency of its space, so the
+								// amount is already the one reports add up.
 								amount_in_base: amount,
 								happened_on: day,
 								description: one.description,
@@ -431,10 +549,13 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 								category_id: one.categoryId,
 								priority: one.priority,
 								recurrence_id: one.id,
+								// The card a series of purchases is charged to, on every one of
+								// them, as on a purchase written by hand. It wrote none.
+								card_id: one.cardId,
 								created_by: context.actor().userId,
 							},
 						});
-						written += 1;
+						if (inserted) written += 1;
 					}
 				});
 			}
