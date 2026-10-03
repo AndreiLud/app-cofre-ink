@@ -63,6 +63,41 @@ export function runSyncConformance(adapter: AdapterUnderTest): void {
 		return applyChanges(to, await changesToPush(from, spaceId, null), { spaceId });
 	}
 
+	// Part 2, H.11.4 of the request for 2.0.0: a change written by a later version carries
+	// columns this database does not have, and it is applied with what this database knows.
+	describe("a change written by a later version", () => {
+		it("is applied with the columns this database knows, and the rest left out", async () => {
+			const fixture = await prepare(adapter);
+			const two = await otherDevice(fixture.ana, "deviceOfALaterVersion");
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta da casa",
+					initialBalance: 100_000,
+				});
+				const changes = (await changesToPush(fixture.driver, space.id, null)).map((change) => ({
+					...change,
+					payload: { ...change.payload, column_from_a_later_version: "something new" },
+				}));
+				await applyPeople(two.driver, await peopleInSpace(fixture.driver, space.id));
+				const done = await applyChanges(two.driver, changes, { spaceId: space.id });
+				expect(done.rejected).toEqual([]);
+				const accounts = await two.driver.all(
+					`SELECT "name", "initial_balance" FROM "accounts" WHERE "space_id" = ?`,
+					[space.id],
+				);
+				expect(accounts.map((one) => [String(one.name), Number(one.initial_balance)])).toEqual([
+					["Conta da casa", 100_000],
+				]);
+			} finally {
+				await two.close();
+				await fixture.close();
+			}
+		});
+	});
+
 	/**
 	 * A copy that keeps itself up to date.
 	 *
