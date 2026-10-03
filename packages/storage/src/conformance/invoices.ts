@@ -236,6 +236,65 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 1, A.5 of the request for 2.0.0, answered by decision 2 of part 2: a transfer
+		// out of a credit card is a purchase on its invoice. Release 1.2.1 added it the other
+		// way round, so 500 taken out of the card made its invoice 500 smaller and its limit
+		// 500 larger, while the balance of the card owed 500 more. Both written before 2.0.0,
+		// by hand, because nothing new writes one.
+		it("reads a transfer out of a card as a purchase, as the balance of the card does", async () => {
+			const ready = await readyCard(adapter);
+			try {
+				const other = await ready.fixture.asAna.accounts.create({
+					spaceId: ready.spaceId,
+					kind: "credit",
+					name: "Outro cartao",
+					closingDay: 20,
+					dueDay: 27,
+				});
+				const old = (
+					id: string,
+					from: string,
+					to: string,
+					amount: number,
+					day: string,
+					month: string,
+				) =>
+					ready.fixture.driver.run(
+						`INSERT INTO "transactions" ("id", "space_id", "kind", "status", "amount", "currency",
+						   "amount_in_base", "happened_on", "description", "account_id", "counter_account_id",
+						   "invoice_month", "created_by", "created_at", "updated_at", "hlc")
+						 VALUES (?, ?, 'transfer', 'settled', ?, 'BRL', ?, ?, 'Antiga', ?, ?, ?, ?, 0, 0, 'stamp1')`,
+						[id, ready.spaceId, amount, amount, day, from, to, month, ready.fixture.ana.id],
+					);
+				// 500 taken out of the card into the current account on the tenth.
+				await old("withdrawal", ready.card.id, ready.checking.id, 50_000, "2026-09-10", "2026-10");
+				// 300 paid into it from the other card on the fifteenth, which named the invoice
+				// of the other card, September's, because the row was charged to that one.
+				await old("fromOtherCard", other.id, ready.card.id, 30_000, "2026-09-15", "2026-09");
+
+				const invoices = await ready.fixture.asAna.invoices.list(ready.card.id, TODAY);
+				expect(invoices.map((one) => [one.month, one.charged, one.paid, one.left])).toEqual([
+					["2026-10", 50_000, 30_000, 20_000],
+				]);
+
+				const balances = await ready.fixture.asAna.transactions.balances(ready.spaceId, TODAY);
+				const of = (id: string) => balances.find((one) => one.accountId === id)?.settled;
+				expect(of(ready.card.id)).toBe(-20_000);
+				expect(of(other.id)).toBe(-30_000);
+
+				const [standing] = (
+					await ready.fixture.asAna.invoices.standing(ready.spaceId, TODAY)
+				).filter((one) => one.account.id === ready.card.id);
+				expect(standing?.available).toBe(500_000 - 20_000);
+
+				// And on the card it left, it is a purchase on the invoice it named.
+				const theirs = await ready.fixture.asAna.invoices.list(other.id, TODAY);
+				expect(theirs.map((one) => [one.month, one.charged])).toEqual([["2026-09", 30_000]]);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		it("lets a payment with no invoice named on it pay down the oldest one owing", async () => {
 			const ready = await readyCard(adapter);
 			try {

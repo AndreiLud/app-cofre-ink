@@ -158,27 +158,39 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 	 * transfer into the card counted at once, whatever its day, and paying on the due day,
 	 * which is what the payment dialog suggests, took the invoice off what falls due a week
 	 * before the bank lost the money.
+	 *
+	 * A transfer that leaves the card is a purchase on it, with the sign of a purchase, which
+	 * is decision 2 of 2.0.0. It was added the other way round, so taking 500 out of a credit
+	 * card made its invoice 500 smaller and its limit 500 larger while the balance of the
+	 * card owed 500 more. And a transfer that arrives from another card is not a payment of
+	 * the invoice its row names, because that invoice is the one of the card it left, so it
+	 * is a payment with no invoice named, like one written by hand.
 	 */
 	async function sums(
 		accountId: string,
 		baseCurrency: string,
 		today: CalendarDate,
 	): Promise<Map<CalendarMonth, InvoiceSum>> {
+		const payment = `t."counter_account_id" = ? AND COALESCE(src."kind", '') <> 'credit'`;
 		const rows = await context.driver.all(
-			`SELECT "invoice_month" AS month,
-			   COALESCE(SUM(CASE WHEN "account_id" = ? THEN -"amount_in_base" ELSE 0 END), 0) AS charged,
-			   COALESCE(SUM(CASE WHEN "counter_account_id" = ? AND ${happenedBy(null)}
-			     THEN "amount_in_base" ELSE 0 END), 0) AS paid,
-			   COALESCE(SUM(CASE WHEN "counter_account_id" = ? AND ${stillToComeOn(null)}
-			     THEN "amount_in_base" ELSE 0 END), 0) AS scheduled,
-			   MAX(CASE WHEN "counter_account_id" = ? AND ${stillToComeOn(null)}
-			     THEN "happened_on" ELSE NULL END) AS scheduled_on,
-			   COALESCE(SUM(CASE WHEN "currency" <> ? THEN 1 ELSE 0 END), 0) AS in_other_currencies,
-			   COALESCE(SUM(CASE WHEN "currency" <> ? AND "fx_rate" IS NULL THEN 1 ELSE 0 END), 0) AS without_rate
-			 FROM "transactions"
-			 WHERE "deleted_at" IS NULL AND "invoice_month" IS NOT NULL
-			   AND ("account_id" = ? OR "counter_account_id" = ?)
-			 GROUP BY "invoice_month"`,
+			`SELECT t."invoice_month" AS month,
+			   COALESCE(SUM(CASE WHEN t."account_id" = ?
+			     THEN CASE WHEN t."kind" = 'transfer' THEN t."amount_in_base" ELSE -t."amount_in_base" END
+			     ELSE 0 END), 0) AS charged,
+			   COALESCE(SUM(CASE WHEN ${payment} AND ${happenedBy("t")}
+			     THEN t."amount_in_base" ELSE 0 END), 0) AS paid,
+			   COALESCE(SUM(CASE WHEN ${payment} AND ${stillToComeOn("t")}
+			     THEN t."amount_in_base" ELSE 0 END), 0) AS scheduled,
+			   MAX(CASE WHEN ${payment} AND ${stillToComeOn("t")}
+			     THEN t."happened_on" ELSE NULL END) AS scheduled_on,
+			   COALESCE(SUM(CASE WHEN t."currency" <> ? THEN 1 ELSE 0 END), 0) AS in_other_currencies,
+			   COALESCE(SUM(CASE WHEN t."currency" <> ? AND t."fx_rate" IS NULL THEN 1 ELSE 0 END), 0)
+			     AS without_rate
+			 FROM "transactions" t
+			 LEFT JOIN "accounts" src ON src."id" = t."account_id"
+			 WHERE t."deleted_at" IS NULL AND t."invoice_month" IS NOT NULL
+			   AND (t."account_id" = ? OR ${payment})
+			 GROUP BY t."invoice_month"`,
 			[
 				accountId,
 				accountId,
@@ -214,14 +226,19 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 	/**
 	 * A transfer into the card that names no invoice, oldest first, once its day has come.
 	 * Until then it is money still in the bank, and it pays nothing down.
+	 *
+	 * A transfer from another card names an invoice, and it is the invoice of the card it
+	 * left, so for this card it names none.
 	 */
 	async function unmarkedPayments(accountId: string, today: CalendarDate): Promise<Transaction[]> {
 		const rows = await context.driver.all(
 			// In the currency of the space, like the sums it pays down.
-			`SELECT "id", "amount_in_base" AS "amount", "happened_on" FROM "transactions"
-			 WHERE "counter_account_id" = ? AND "deleted_at" IS NULL AND "kind" = 'transfer'
-			   AND "invoice_month" IS NULL AND ${happenedBy(null)}
-			 ORDER BY "happened_on", "created_at"`,
+			`SELECT t."id", t."amount_in_base" AS "amount", t."happened_on" FROM "transactions" t
+			 LEFT JOIN "accounts" src ON src."id" = t."account_id"
+			 WHERE t."counter_account_id" = ? AND t."deleted_at" IS NULL AND t."kind" = 'transfer'
+			   AND (t."invoice_month" IS NULL OR COALESCE(src."kind", '') = 'credit')
+			   AND ${happenedBy("t")}
+			 ORDER BY t."happened_on", t."created_at"`,
 			[accountId, today],
 		);
 		return rows as unknown as Transaction[];
