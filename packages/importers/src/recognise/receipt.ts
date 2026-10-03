@@ -138,6 +138,7 @@ export function recogniseReceipt(
 		total: chosen ? Math.abs(chosen.value) : null,
 		convention: null,
 		cards: [],
+		check: null,
 		entries,
 		unread,
 		confidence: entries[0]?.confidence ?? 0,

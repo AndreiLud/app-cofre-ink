@@ -94,8 +94,14 @@ const SURE_ENOUGH = 0.67;
  * because a due date read as a purchase is visible here and nowhere else.
  */
 function WhatItIs({ document }: { document: RecognisedDocument }) {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const { amountsHidden } = useCofre();
+	// Inside a sentence, where the component that draws an amount cannot go.
+	const asMoney = (cents: number) =>
+		new Intl.NumberFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+			style: "currency",
+			currency: document.currency,
+		}).format(cents / 100);
 
 	const facts = [
 		document.institution,
@@ -105,21 +111,37 @@ function WhatItIs({ document }: { document: RecognisedDocument }) {
 		document.dueOn ? t("importing.dueOn", { day: document.dueOn }) : null,
 	].filter((fact): fact is string => fact !== null);
 
+	const check = document.check;
 	return (
-		<Callout tone="neutral" title={t(`importing.kind.${document.kind}`)}>
-			<p>
-				{facts.join(" · ")}
-				{document.total === null ? null : (
-					<>
-						{facts.length > 0 ? " · " : ""}
-						{t("importing.saysTotal")}{" "}
-						<span className={amountsHidden ? "blur-sm" : undefined}>
-							<Value amount={document.total} tone="neutral" />
-						</span>
-					</>
-				)}
-			</p>
-		</Callout>
+		<>
+			<Callout tone="neutral" title={t(`importing.kind.${document.kind}`)}>
+				<p>
+					{facts.join(" · ")}
+					{document.total === null ? null : (
+						<>
+							{facts.length > 0 ? " · " : ""}
+							{t("importing.saysTotal")}{" "}
+							<span className={amountsHidden ? "blur-sm" : undefined}>
+								<Value amount={document.total} tone="neutral" />
+							</span>
+						</>
+					)}
+				</p>
+				{check?.matches ? (
+					<p>{check.flipped ? t("importing.checkFlipped") : t("importing.checkMatches")}</p>
+				) : null}
+			</Callout>
+			{/* The lines do not come to what the document says: by how much, so somebody can look
+			    for the sign the wrong way round or the line left out. */}
+			{check && !check.matches ? (
+				<Callout tone="attention" title={t("importing.checkDiffersTitle")}>
+					{t(check.difference > 0 ? "importing.checkOver" : "importing.checkUnder", {
+						amount: amountsHidden ? "R$ •••" : asMoney(Math.abs(check.difference)),
+					})}{" "}
+					{t("importing.checkDiffersBody")}
+				</Callout>
+			) : null}
+		</>
 	);
 }
 

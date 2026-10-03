@@ -21,7 +21,9 @@ const INVOICE = [
 	"Nubank",
 	"Fatura do cartao de credito",
 	"Vencimento: 10/10/2026",
-	"Total desta fatura R$ 1.234,56",
+	// What the two purchases come to, so the invoice adds up (part 2, E.20.3 of the request for
+	// 2.0.0): it said 1.234,56, which nothing on it added up to.
+	"Total desta fatura R$ 40,30",
 	"Data Descricao Valor",
 	"12 SET Padaria da esquina 18,40",
 	"13 SET Assinatura de musica 21,90",
@@ -79,11 +81,14 @@ describe("a card invoice", () => {
 		expect(read.kind).toBe("invoice");
 		expect(read.institution).toBe("Nubank");
 		expect(read.dueOn).toBe("2026-10-10");
-		expect(read.total).toBe(123_456);
+		expect(read.total).toBe(4030);
 
 		expect(read.entries.map((entry) => entry.amount)).toEqual([-1840, -2190, 50_000]);
-		// The one that says what it is arrives surer than the ones that do not.
-		expect(read.entries[2]?.confidence).toBeGreaterThan(read.entries[0]?.confidence ?? 1);
+		// The invoice adds up to its total, so every line is as sure as a sign would make it.
+		// It said the line naming itself was surer than the others, which is true only when
+		// nothing checks them (part 2, E.9).
+		expect(read.check).toEqual({ matches: true, difference: 0, flipped: false });
+		expect(read.entries.every((entry) => entry.confidence >= 0.9)).toBe(true);
 	});
 
 	it("reads a day written with the name of the month", () => {
@@ -429,6 +434,47 @@ describe("the cards of an invoice", () => {
 			["Padaria", "1234"],
 			["Mercado", "5678"],
 		]);
+	});
+});
+
+// Part 2, E.9: the document checks itself against its own total, and its balances.
+describe("the check of a document", () => {
+	it("turns round the one line that keeps an invoice from adding up", () => {
+		const read = recogniseStatement(
+			[
+				"Fatura do cartao",
+				"Vencimento: 10/10/2026",
+				"Total desta fatura R$ 130,00",
+				"12/09/2026 Padaria -18,40",
+				"13/09/2026 Mercado -131,60",
+				"13/09/2026 Farmacia -30,00",
+				"14/09/2026 Estorno Loja X -50,00",
+			],
+			{ today },
+		);
+		expect(read.convention).toBe("chargesNegative");
+		expect(read.check).toEqual({ matches: true, difference: 0, flipped: true });
+		expect(read.entries.map((entry) => entry.amount)).toEqual([-1840, -13_160, -3000, 5000]);
+	});
+
+	it("says by how much an invoice does not add up, and trusts no line without a sign", () => {
+		const read = recogniseStatement(
+			[
+				"Fatura do cartao",
+				"Vencimento: 10/10/2026",
+				"Total desta fatura R$ 100,00",
+				"12/09/2026 Padaria 18,40",
+				"13/09/2026 Mercado 131,60",
+			],
+			{ today },
+		);
+		expect(read.check).toEqual({ matches: false, difference: 5000, flipped: false });
+		expect(read.entries.every((entry) => entry.confidence < 2 / 3)).toBe(true);
+	});
+
+	it("checks a statement by the balance it opens and closes with", () => {
+		const read = recogniseStatement(STATEMENT, { today });
+		expect(read.check).toEqual({ matches: true, difference: 0, flipped: false });
 	});
 });
 

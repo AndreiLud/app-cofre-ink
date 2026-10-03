@@ -14,6 +14,7 @@ import {
 import { recogniseReceipt } from "./receipt.ts";
 
 export type {
+	DocumentCheck,
 	DocumentKind,
 	InstallmentMark,
 	InvoiceConvention,

@@ -47,6 +47,14 @@ export type RecognisedEntry = {
 	source: string;
 };
 
+export type DocumentCheck = {
+	matches: boolean;
+	/** What the lines come to less what the document says, in minor units. */
+	difference: number;
+	/** It added up only once a line, or the way the invoice writes a purchase, was turned round. */
+	flipped: boolean;
+};
+
 export type RecognisedDocument = {
 	kind: DocumentKind;
 	/** The name of the bank, when the document says it plainly. */
@@ -61,6 +69,11 @@ export type RecognisedDocument = {
 	convention: InvoiceConvention | null;
 	/** The last four digits of every card the document names, in the order it names them. */
 	cards: string[];
+	/**
+	 * Whether the document adds up: an invoice to its total, a statement from the balance it
+	 * opens with to the one it closes with. Nothing when it says neither.
+	 */
+	check: DocumentCheck | null;
 	entries: RecognisedEntry[];
 	/** Lines that looked like they held money and could not be read. */
 	unread: { line: number; text: string }[];
@@ -766,6 +779,11 @@ export function recogniseStatement(
 	/** The cards the document names, and the one the lines below belong to. */
 	const cards: string[] = [];
 	let card: string | null = null;
+	/** The balance a statement opens with and the last one it shows, to check it by. */
+	let opening: number | null = null;
+	let closing: number | null = null;
+	/** The lines of a statement whose direction nothing on them said. */
+	const plainLines = new Set<RecognisedEntry>();
 
 	lines.forEach((text, index) => {
 		const line = tidy(text);
@@ -803,7 +821,14 @@ export function recogniseStatement(
 			// The balance a statement opens with is not an entry, and it is exactly what
 			// the first real entry needs to have its direction read from.
 			if (amounts.length === 1 && /saldo|balance/.test(fold(line))) {
-				previousBalance = amounts[0]?.value ?? previousBalance;
+				const value = amounts[0]?.value ?? null;
+				previousBalance = value ?? previousBalance;
+				if (value !== null) {
+					// The first balance is what the statement opens with, and the last one what
+					// it closes with, which is how it checks itself.
+					if (opening === null && entries.length === 0) opening = value;
+					else closing = value;
+				}
 			}
 			// A line put aside that names a day and holds money, and is not a balance or a
 			// total, is shown as one not read, rather than going nowhere.
@@ -921,14 +946,17 @@ export function recogniseStatement(
 		if (description.length >= 4) confidence += 0.02;
 		if (read.overTheCeiling) confidence = Math.min(confidence, 0.6);
 
-		if (balance) previousBalance = balance.value;
+		if (balance) {
+			previousBalance = balance.value;
+			closing = balance.value;
+		}
 
 		if (amount === 0) {
 			unread.push({ line: index + 1, text: line });
 			return;
 		}
 
-		entries.push({
+		const entry: RecognisedEntry = {
 			happenedOn: day,
 			amount,
 			description: description === "" ? tidy(line) : description,
@@ -943,53 +971,130 @@ export function recogniseStatement(
 			externalId: findIdentifier(line),
 			line: index + 1,
 			source: line,
-		});
+		};
+		if (!fromBalance && !chosen.signed && said === 0) plainLines.add(entry);
+		entries.push(entry);
 	});
-
-	// The sign written on an invoice means what its convention says it means, so the lines wait
-	// for it. It was read the same way on every document: a refund written as a negative number
-	// on an invoice that writes purchases as positive ones became a purchase.
-	const convention =
-		kind === "invoice"
-			? (options.convention ?? conventionOf(charges.map((charge) => charge.chosen)))
-			: null;
-	for (const charge of charges) {
-		if (charge.chosen.value === 0) {
-			unread.push({ line: charge.index + 1, text: charge.line });
-			continue;
-		}
-		const said = directionOf(
-			charge.description === "" ? charge.line : charge.description,
-			"invoice",
-		);
-		const read = invoiceDirection(charge.chosen, convention ?? "chargesPositive", said);
-		let confidence = read.confidence;
-		if (charge.sure) confidence += 0.03;
-		if (charge.description.length >= 4) confidence += 0.02;
-		if (charge.overTheCeiling) confidence = Math.min(confidence, 0.6);
-		entries.push({
-			happenedOn: charge.day,
-			amount: read.direction * Math.abs(charge.chosen.value),
-			description: charge.description === "" ? charge.line : charge.description,
-			confidence: Math.min(0.99, confidence),
-			nature: natureOf(charge.description === "" ? charge.line : charge.description, "invoice", {
-				installment: charge.mark?.sure === true,
-			}),
-			installment: charge.mark,
-			notes: charge.notes,
-			cardDigits: charge.card,
-			externalId: findIdentifier(charge.line),
-			line: charge.index + 1,
-			source: charge.line,
-		});
-	}
-	entries.sort((left, right) => left.line - right.line);
-	unread.sort((left, right) => left.line - right.line);
 
 	const totalLine = labelled(lines, /total desta fatura|total da fatura|valor total|total a pagar/);
 	const totalAmounts = totalLine ? findAmounts(totalLine.line) : [];
 	const total =
 		totalAmounts.length > 0 ? Math.abs(totalAmounts[totalAmounts.length - 1]?.value ?? 0) : null;
+
+	// The sign written on an invoice means what its convention says it means, so the lines wait
+	// for it. It was read the same way on every document: a refund written as a negative number
+	// on an invoice that writes purchases as positive ones became a purchase.
+	const written = charges.filter((charge) => {
+		if (charge.chosen.value !== 0) return true;
+		unread.push({ line: charge.index + 1, text: charge.line });
+		return false;
+	});
+	const chargesUnder = (under: InvoiceConvention) =>
+		written.map((charge) => {
+			const said = directionOf(
+				charge.description === "" ? charge.line : charge.description,
+				"invoice",
+			);
+			const read = invoiceDirection(charge.chosen, under, said);
+			let confidence = read.confidence;
+			if (charge.sure) confidence += 0.03;
+			if (charge.description.length >= 4) confidence += 0.02;
+			if (charge.overTheCeiling) confidence = Math.min(confidence, 0.6);
+			const entry: RecognisedEntry = {
+				happenedOn: charge.day,
+				amount: read.direction * Math.abs(charge.chosen.value),
+				description: charge.description === "" ? charge.line : charge.description,
+				confidence: Math.min(0.99, confidence),
+				nature: natureOf(charge.description === "" ? charge.line : charge.description, "invoice", {
+					installment: charge.mark?.sure === true,
+				}),
+				installment: charge.mark,
+				notes: charge.notes,
+				cardDigits: charge.card,
+				externalId: findIdentifier(charge.line),
+				line: charge.index + 1,
+				source: charge.line,
+			};
+			return { entry, plain: charge.chosen.sign === "none" };
+		});
+
+	let convention: InvoiceConvention | null = null;
+	let check: DocumentCheck | null = null;
+	if (kind === "invoice") {
+		convention = options.convention ?? conventionOf(written.map((charge) => charge.chosen));
+		let read = chargesUnder(convention);
+		// The document checks itself. What an invoice charges, purchases and fees less refunds and
+		// with no payment, is its total; when that adds up, it decides how the invoice writes a
+		// purchase, and when only one line turned round makes it add up, that line was wrong.
+		if (total !== null && read.length > 0) {
+			const owed = (list: typeof read) =>
+				list
+					.filter(({ entry }) => entry.nature !== "payment")
+					.reduce((sum, { entry }) => sum - entry.amount, 0);
+			const fits = (list: typeof read) => Math.abs(owed(list) - total) <= 1;
+			const other: InvoiceConvention =
+				convention === "chargesPositive" ? "chargesNegative" : "chargesPositive";
+			if (fits(read)) {
+				check = { matches: true, difference: 0, flipped: false };
+			} else if (options.convention === undefined && fits(chargesUnder(other))) {
+				convention = other;
+				read = chargesUnder(other);
+				check = { matches: true, difference: 0, flipped: true };
+			} else {
+				const turning = read
+					.map((_line, index) => index)
+					.filter(
+						(index) =>
+							read[index]?.entry.nature !== "payment" &&
+							fits(
+								read.map((line, at) =>
+									at === index
+										? { ...line, entry: { ...line.entry, amount: -line.entry.amount } }
+										: line,
+								),
+							),
+					);
+				const only = turning.length === 1 ? read[turning[0] ?? -1] : undefined;
+				if (only) {
+					only.entry.amount = -only.entry.amount;
+					only.entry.confidence = Math.max(only.entry.confidence, 0.9);
+					check = { matches: true, difference: 0, flipped: true };
+				} else {
+					check = { matches: false, difference: owed(read) - total, flipped: false };
+				}
+			}
+			// A line with no sign of its own is as sure as the check: sure when the invoice adds
+			// up, and shown to be checked when it does not.
+			for (const { entry, plain } of read) {
+				if (!plain) continue;
+				entry.confidence = check.matches
+					? Math.max(entry.confidence, 0.9)
+					: Math.min(entry.confidence, 0.65);
+			}
+		}
+		entries.push(...read.map(({ entry }) => entry));
+	}
+
+	// A statement checks itself by its balances: the one it opens with, plus every entry, is
+	// the one it closes with.
+	// Read through a name of their own: the two are set inside the reading of the lines, which
+	// the compiler does not follow.
+	const openedWith = opening as number | null;
+	const closedWith = closing as number | null;
+	if (kind !== "invoice" && openedWith !== null && closedWith !== null && entries.length > 0) {
+		const reached = entries.reduce((sum, entry) => sum + entry.amount, openedWith);
+		const matches = Math.abs(reached - closedWith) <= 1;
+		check = { matches, difference: matches ? 0 : reached - closedWith, flipped: false };
+		for (const entry of entries) {
+			if (!plainLines.has(entry)) continue;
+			entry.confidence = matches
+				? Math.max(entry.confidence, 0.9)
+				: Math.min(entry.confidence, 0.65);
+		}
+	}
+
+	entries.sort((left, right) => left.line - right.line);
+	unread.sort((left, right) => left.line - right.line);
 
 	const average =
 		entries.length === 0
@@ -1006,6 +1111,7 @@ export function recogniseStatement(
 		total,
 		convention,
 		cards,
+		check,
 		entries,
 		unread,
 		confidence: Math.max(0, average - penalty),

@@ -1452,7 +1452,13 @@
 			"payment": "Payment of the invoice",
 			"cardPayment": "Payment of a card"
 		},
-		"howToWrite": "How to write it"
+		"howToWrite": "How to write it",
+		"checkMatches": "The lines add up to what the document says.",
+		"checkFlipped": "The lines add up to what the document says only with one sign turned round, and that is how they were read. Look at the lines marked.",
+		"checkDiffersTitle": "The lines do not add up to what the document says",
+		"checkOver": "They come to {{amount}} more than the document says.",
+		"checkUnder": "They come to {{amount}} less than the document says.",
+		"checkDiffersBody": "Look at the signs and at the lines left out before writing."
 	},
 	"demo": {
 		"notice": "Made up data, for demonstration only."

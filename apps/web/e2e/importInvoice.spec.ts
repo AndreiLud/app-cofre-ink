@@ -87,8 +87,11 @@ test.describe("reading a card invoice in", () => {
 		await twoCards(page);
 		await importPdf(page, SEPTEMBER);
 		await expect(page.getByRole("cell", { name: "-R$ 50,00" })).toBeVisible();
+		// E.9: the invoice checks itself against its total.
+		await expect(page.getByText("As linhas somam o que o documento diz.")).toBeVisible();
 		await page.getByRole("button", { name: "Inverter todos os sinais" }).click();
 		await expect(page.getByRole("cell", { name: "R$ 50,00", exact: true })).toBeVisible();
+		await expect(page.getByText("Somam R$ 300,00 a menos do que o documento diz.")).toBeVisible();
 		await page.getByLabel("Sentido de Padaria").selectOption({ label: "Saída" });
 		await expect(page.getByRole("cell", { name: "-R$ 50,00" })).toBeVisible();
 		await expect(page.getByLabel("O que é Padaria")).toHaveValue("purchase");

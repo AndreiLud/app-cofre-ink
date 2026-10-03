@@ -1452,7 +1452,13 @@
 			"payment": "Pagamento da fatura",
 			"cardPayment": "Pagamento de cartão"
 		},
-		"howToWrite": "Como gravar"
+		"howToWrite": "Como gravar",
+		"checkMatches": "As linhas somam o que o documento diz.",
+		"checkFlipped": "As linhas só somam o que o documento diz com um sinal virado, e foi assim que li. Confira as linhas marcadas.",
+		"checkDiffersTitle": "As linhas não somam o que o documento diz",
+		"checkOver": "Somam {{amount}} a mais do que o documento diz.",
+		"checkUnder": "Somam {{amount}} a menos do que o documento diz.",
+		"checkDiffersBody": "Confira os sinais e as linhas que ficaram de fora antes de gravar."
 	},
 	"demo": {
 		"notice": "Dados fictícios, só para demonstração."
