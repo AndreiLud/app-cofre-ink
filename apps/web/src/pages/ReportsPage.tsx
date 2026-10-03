@@ -129,13 +129,23 @@ export function ReportsPage() {
 	const income = incomeByCategory.data ?? [];
 	const nothing = spending.length === 0 && income.length === 0;
 
-	// The two sides of the picture, balanced so that nothing is quietly lost.
+	const period = totals.data ?? { income: 0, expense: 0, benefits: 0, left: 0 };
+
+	// The two sides of the picture, balanced so that nothing is quietly lost. The benefit is a
+	// source of its own: the lunches it paid for are on the other side, and without it the
+	// difference was drawn as money taken from the reserves, under a sentence that says what
+	// came in counts the benefits.
 	const flow = balanceFlow(
-		income.map((one) => ({
-			key: one.categoryId ?? "noCategoryIncome",
-			label: one.name ?? t("reports.noCategory"),
-			amount: one.total,
-		})),
+		[
+			...income.map((one) => ({
+				key: one.categoryId ?? "noCategoryIncome",
+				label: one.name ?? t("reports.noCategory"),
+				amount: one.total,
+			})),
+			...(period.benefits > 0
+				? [{ key: "benefits", label: t("dashboard.group.benefits"), amount: period.benefits }]
+				: []),
+		],
 		spending.map((one) => ({
 			key: one.categoryId ?? "noCategory",
 			label: one.name ?? t("reports.noCategory"),
@@ -152,8 +162,6 @@ export function ReportsPage() {
 					? t("reports.fromReserves")
 					: item.label,
 	});
-
-	const period = totals.data ?? { income: 0, expense: 0, benefits: 0, left: 0 };
 	const biggest = spending[0];
 
 	return (

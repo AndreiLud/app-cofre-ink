@@ -86,6 +86,17 @@ test.describe("the month on paper", () => {
 		await expect(twelve.getByRole("row").filter({ hasText: /^out/ })).toContainText(october);
 	});
 
+	// Part 1, C.2 of the request for 2.0.0: the flow of the reports took the income without the
+	// benefit against spending that held the lunches, and drew the difference as money taken
+	// from the reserves, under a sentence saying what came in counts the benefits.
+	test("draws the benefit as a source of what came in", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Relatórios");
+		const flow = page.locator("section").filter({ hasText: "Para onde o dinheiro foi" }).last();
+		// In the drawing on a wide screen and in the lists on a narrow one.
+		await expect(flow.getByText("Benefícios", { exact: true })).not.toHaveCount(0);
+	});
+
 	test("asks the browser to call the file what it is", async ({ page }) => {
 		await openCofre(page);
 		await page.goto("/relatorio?mes=2026-09");
