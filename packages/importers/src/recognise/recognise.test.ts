@@ -320,6 +320,55 @@ describe("days and parts", () => {
 	});
 });
 
+// Part 2, E.5: what an invoice says about itself, its sections and its currency.
+describe("the summary, the sections and the currency", () => {
+	it("reads the due date off its line, and makes no purchase of it", () => {
+		const read = recogniseStatement(
+			["Fatura do cartao", "Vencimento 10/10/2026 R$ 1.234,56", "12/09/2026 Padaria 18,40"],
+			{ today },
+		);
+		expect(read.dueOn).toBe("2026-10-10");
+		expect(read.entries.map((entry) => entry.description)).toEqual(["Padaria"]);
+	});
+
+	it("keeps a shop whose name begins like a total", () => {
+		const read = recogniseStatement(
+			["Fatura do cartao", "Vencimento 10/10/2026", "12/09/2026 TOTALPASS 99,90"],
+			{ today },
+		);
+		expect(read.entries.map((entry) => entry.amount)).toEqual([-9990]);
+	});
+
+	it("takes the amount in reais of a purchase abroad, and keeps the other", () => {
+		const read = recogniseStatement(
+			["Fatura do cartao", "Vencimento 10/10/2026", "15/09/2026 AMAZON US$ 10,00 R$ 52,30"],
+			{ today },
+		);
+		expect(read.currency).toBe("BRL");
+		expect(read.entries[0]).toMatchObject({
+			amount: -5230,
+			description: "AMAZON",
+			notes: "US$ 10,00",
+		});
+	});
+
+	it("reads nothing under the heading of what later invoices will charge", () => {
+		const read = recogniseStatement(
+			[
+				"Fatura do cartao",
+				"Vencimento 10/10/2026",
+				"12/09/2026 Padaria 18,40",
+				"Parcelas a vencer",
+				"12/10/2026 Loja X PARC 03/10 150,00",
+				"Pagina 2 de 2",
+				"13/09/2026 Mercado 20,00",
+			],
+			{ today },
+		);
+		expect(read.entries.map((entry) => entry.description)).toEqual(["Padaria", "Mercado"]);
+	});
+});
+
 describe("whatever the lines hold", () => {
 	it("never throws, and never invents a record", () => {
 		fc.assert(

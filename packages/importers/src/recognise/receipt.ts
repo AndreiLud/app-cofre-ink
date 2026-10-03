@@ -119,6 +119,7 @@ export function recogniseReceipt(
 				cardBanks: options.cardBanks ?? [],
 			}),
 			installment: null,
+			notes: null,
 			externalId: identifier ?? null,
 			line: labelledAmount?.index !== undefined ? labelledAmount.index + 1 : 1,
 			source: tidy(lines.join(" ")).slice(0, 200),

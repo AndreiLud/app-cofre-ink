@@ -33,6 +33,8 @@ export type RecognisedEntry = {
 	nature: Nature;
 	/** Which part of a plan the line is, when it carries the mark of one. */
 	installment: InstallmentMark | null;
+	/** What else the line said: the price abroad of a purchase paid in reais. */
+	notes: string | null;
 	/** What the bank called it, when the line carried an identifier. */
 	externalId: string | null;
 	/** The line it came from, so the person can compare. */
@@ -200,6 +202,7 @@ const FURNITURE_AT_START = [
 	"saldo",
 	"valor total",
 	"total a pagar",
+	"total de",
 	"total",
 	"subtotal",
 	"data descricao",
@@ -208,6 +211,16 @@ const FURNITURE_AT_START = [
 	"date description",
 	"pagina",
 	"page",
+	// What an invoice says about itself: when it falls due and what it owes, and the parts of
+	// it still to come. "Vencimento 10/10/2026 R$ 1.234,56" was a purchase.
+	"vencimento",
+	"fatura anterior",
+	"pagamentos e creditos",
+	"saldo de parcelas",
+	"parcelas a vencer",
+	"proximas faturas",
+	"compras parceladas",
+	"limite",
 ];
 
 /** A sign, written by a keyboard or a typesetter. Escaped, so it can be read here. */
@@ -437,10 +450,23 @@ export function institutionOf(lines: readonly string[]): string | null {
 	return null;
 }
 
+/**
+ * The currency of a document, by the money it writes most. One line in dollars made a whole
+ * invoice in reais a document in dollars: a purchase abroad prints both.
+ */
 export function currencyOf(lines: readonly string[]): string {
-	const all = lines.join(" ");
-	if (/US\$|USD/.test(all)) return "USD";
-	if (/€|EUR/.test(all)) return "EUR";
+	let reais = 0;
+	let dollars = 0;
+	let euros = 0;
+	for (const line of lines) {
+		for (const amount of findAmounts(line)) {
+			if (/US\$|USD/i.test(amount.text)) dollars += 1;
+			else if (/R\$|BRL/i.test(amount.text)) reais += 1;
+			else if (/€|EUR/i.test(amount.text)) euros += 1;
+		}
+	}
+	if (dollars > reais && dollars >= euros) return "USD";
+	if (euros > reais && euros > dollars) return "EUR";
 	return "BRL";
 }
 
@@ -448,7 +474,7 @@ export function yearOf(lines: readonly string[], today: CalendarDate): number {
 	for (const line of lines) {
 		const withYear = /\b\d{1,2}[/.-]\d{1,2}[/.-](\d{4})\b/.exec(line);
 		if (withYear?.[1]) return Number(withYear[1]);
-		const iso = ISO_DATE.exec(line);
+		const iso = /\b(\d{4})-\d{2}-\d{2}\b/.exec(line);
 		if (iso?.[1]) return Number(iso[1]);
 	}
 	return Number(today.slice(0, 4));
@@ -465,15 +491,34 @@ export function labelled(
 	return null;
 }
 
-/** True for the lines of a statement that are about the page rather than about money. */
+/**
+ * True for the lines of a statement that are about the page rather than about money.
+ *
+ * The words at the start are whole words: "TOTALPASS" began with "total" and went with
+ * the totals, without a trace.
+ */
 export function isFurniture(line: string): boolean {
 	const folded = fold(line).trim();
 	// A balance keeps the day in front of it, so the date is stepped over first.
 	const afterTheDate = folded.replace(/^\d{1,2}[/.-]\d{1,2}(?:[/.-]\d{2,4})?\s*/, "").trim();
 
-	if (FURNITURE_ANYWHERE.some((word) => folded.includes(word))) return true;
-	return FURNITURE_AT_START.some((word) => afterTheDate.startsWith(word) || afterTheDate === word);
+	if (FURNITURE_ANYWHERE.some((word) => saysWord(folded, word))) return true;
+	return FURNITURE_AT_START.some((word) => opensWith(afterTheDate, word));
 }
+
+/** Whether a folded line opens with a phrase, as whole words. */
+function opensWith(folded: string, phrase: string): boolean {
+	return new RegExp(`^${phrase.replace(/ /g, "\\s+")}(?![a-z0-9])`).test(folded);
+}
+
+/** A total or a balance, which is furniture with a reason to be there. */
+function isTotalOrBalance(line: string): boolean {
+	return /\b(?:saldo|total|subtotal|balance)\b/.test(fold(line));
+}
+
+/** A heading after which the lines are what is still to come, and none is an entry. */
+const FUTURE_SECTION =
+	/^(?:parcelas a vencer|proximas faturas|proximos lancamentos|lancamentos futuros|compras futuras|parcelas futuras)\b/;
 
 /**
  * What the description says about the direction, when it says anything, in the words of
@@ -625,6 +670,7 @@ export function recogniseStatement(
 		sure: boolean;
 		chosen: FoundAmount;
 		description: string;
+		notes: string | null;
 		mark: InstallmentMark | null;
 		overTheCeiling: boolean;
 	}[] = [];
@@ -634,24 +680,43 @@ export function recogniseStatement(
 	let previousBalance: number | null = null;
 	/** Under a heading of parts, where a loose "2/10" is surely a part and not a day. */
 	let inSection = false;
+	/** Under a heading of what is still to come, where nothing is an entry yet. */
+	let ahead = false;
 
 	lines.forEach((text, index) => {
 		const line = tidy(text);
 		if (line === "") return;
 
-		const amounts = findAmounts(line);
-		if (amounts.length === 0) {
-			const heading = fold(line).trim();
-			if (INSTALLMENT_SECTION.test(heading)) inSection = true;
-			else if (OTHER_SECTION.test(heading)) inSection = false;
+		const heading = fold(line).trim();
+		if (FUTURE_SECTION.test(heading)) {
+			ahead = true;
 			return;
 		}
+		const amounts = findAmounts(line);
+		if (amounts.length === 0) {
+			if (INSTALLMENT_SECTION.test(heading)) {
+				inSection = true;
+				ahead = false;
+			} else if (OTHER_SECTION.test(heading)) {
+				inSection = false;
+				ahead = false;
+			}
+			return;
+		}
+		// The parts of later invoices are listed so the person knows them, and are charged
+		// when their invoice comes, not by this one.
+		if (ahead) return;
 
 		if (isFurniture(line)) {
 			// The balance a statement opens with is not an entry, and it is exactly what
 			// the first real entry needs to have its direction read from.
 			if (amounts.length === 1 && /saldo|balance/.test(fold(line))) {
 				previousBalance = amounts[0]?.value ?? previousBalance;
+			}
+			// A line put aside that names a day and holds money, and is not a balance or a
+			// total, is shown as one not read, rather than going nowhere.
+			if (!isTotalOrBalance(line) && findDate(line, order, year, { anywhere: true }) !== null) {
+				unread.push({ line: index + 1, text: line });
 			}
 			return;
 		}
@@ -671,9 +736,19 @@ export function recogniseStatement(
 		let fromBalance = false;
 
 		if (kind === "invoice") {
+			// A purchase abroad prints what it cost there and what it costs here. The invoice is
+			// paid in reais, so that one is the entry and the other one goes in its notes. The
+			// last amount on the line was taken, whichever it was.
+			const inReais = amounts.find((amount) => /R\$|BRL/i.test(amount.text));
+			chosen = inReais ?? chosen;
 			if (!chosen) return;
+			const elsewhere = inReais
+				? amounts.filter((amount) => amount !== inReais).map((amount) => amount.text)
+				: [];
 			const start = Math.max(date.at + date.text.length, 0);
-			const read = installmentOf(tidy(line.slice(start, chosen.at).replace(/^[\s|:;.-]+/, "")), {
+			// The description ends at the first amount, so the price abroad is not part of it.
+			const end = Math.min(...amounts.map((amount) => amount.at));
+			const read = installmentOf(tidy(line.slice(start, end).replace(/^[\s|:;.-]+/, "")), {
 				inSection,
 				date,
 			});
@@ -689,6 +764,7 @@ export function recogniseStatement(
 				sure: date.sure,
 				chosen,
 				description: read.description,
+				notes: elsewhere.length > 0 ? elsewhere.join(" ") : null,
 				mark: read.mark,
 				overTheCeiling: read.overTheCeiling,
 			});
@@ -769,6 +845,7 @@ export function recogniseStatement(
 				installment: read.mark?.sure === true,
 			}),
 			installment: read.mark,
+			notes: null,
 			externalId: findIdentifier(line),
 			line: index + 1,
 			source: line,
@@ -805,6 +882,7 @@ export function recogniseStatement(
 				installment: charge.mark?.sure === true,
 			}),
 			installment: charge.mark,
+			notes: charge.notes,
 			externalId: findIdentifier(charge.line),
 			line: charge.index + 1,
 			source: charge.line,

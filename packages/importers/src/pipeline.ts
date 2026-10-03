@@ -180,7 +180,7 @@ function fromPdf(bytes: Uint8Array, today?: CalendarDate): ReadFileResult {
 			happenedOn: entry.happenedOn,
 			amount: entry.amount,
 			description: entry.description,
-			notes: null,
+			notes: entry.notes,
 			externalId: entry.externalId,
 			category: null,
 			nature: entry.nature,
