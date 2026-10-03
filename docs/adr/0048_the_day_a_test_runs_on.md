@@ -38,10 +38,13 @@ whoever reads the suite that red is weather, and the next real failure is read a
 **The browser suite runs on one fixed day**, set in `apps/web/e2e/support.ts` and applied by
 the browser clock before the first page load, inside `openCofre`, which is the door most
 flows walk through. The ones that load the page by themselves still read the real day: the
-front door flows, the installed build, server mode, which has its own way in, and one of the
-language flows. That is about twenty nine of the flows that run, and it is a gap rather than
-a decision: those flows are the ones least sensitive to the day, which is why they have not
-been moved, and moving them is the right next step rather than an open question.
+four front door flows, the five of the installed build, the thirteen of server mode, which has
+its own way in, nine of the ten language flows and the first of the recovery flows. That is
+thirty two of the flows that run, counted at 2.0.0, and it is a gap rather than a decision:
+those flows are the ones least sensitive to the day, which is why they have not been moved,
+and moving them is the right next step rather than an open question. (Corrected in 2.0.0: this
+said one of the language flows and about twenty nine, and left out nine of the ten language
+flows and the first recovery flow.)
 The day is 28 October 2026, chosen so that two things hold at once: the demonstration records
 of the current block, which reach sixteen days back, all land in the month the screens open
 on, and the open invoice of the sample card falls due thirteen days later, which is inside the

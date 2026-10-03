@@ -132,6 +132,16 @@ four roles that are not the owner. The owner is not walked, so a row whose permi
 owner does not hold is proved one role short. There is one such permission, `space.leave`,
 which belongs to everybody except the owner, and the call behind it is `members.leave`.
 
+(Corrected in 2.0.0: until then this paragraph said more than was true. A logger was probed on
+a record somebody else wrote, so the answer was "there is no such thing" before the permission
+was ever read, the probes accepted that as a refusal, and a wrong refusal of a logger's own
+record could not have shown. And eight calls the screens make were in no row at all: settling,
+changing and removing several records, changing a plan onwards, removing a plan, marking the
+earlier invoices as paid, moving a purchase to another invoice and saying which day an invoice
+closed. Since 2.0.0 the logger is probed on a record and a plan of its own, every refusal has to
+be a refusal of permission, the eight have rows and probes, and a test reads the screens and
+fails on a call about a record or an invoice that has no row.)
+
 What stays a judgement nobody checks is where `seesOwnRowsOnly` is applied. The predicate
 itself gained unit tests in the same release, in `packages/storage/src/actor.test.ts`, over
 every role and over an actor. It is not a permission and is in no matrix, deliberately,

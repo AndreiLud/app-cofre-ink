@@ -50,6 +50,12 @@ a kind of spending: counted in, the block's top line says that ninety per cent o
 on nothing in particular, which is the typed total looking at itself. They are named apart
 instead, as the amount of the month this ranking cannot see, and only when there is one.
 
+(Corrected in 2.0.0: this said the shares add up over the lines that are drawn. The screen drew
+five lines, and each share is of every line, so a month that went on more than five things
+showed shares that added up to less than the whole with nothing said about the rest. Since
+2.0.0 what is past the fifth line is one more line, "o resto", so the lines drawn add up to the
+whole they are shares of.)
+
 Money nobody sorted still gets a line of its own, as it does on the reports screen. A household
 that has not sorted half its month should be told that rather than have it folded away.
 

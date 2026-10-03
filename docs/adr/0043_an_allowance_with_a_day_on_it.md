@@ -42,9 +42,16 @@ that has one. Then there is no typed number standing in for the landing of the p
 somebody is in, and that landing counts. Without that half of the rule a card added on the
 twentieth read as holding nothing until the fifth of the next month, which is not what is in
 the pocket. It reads high for somebody who had already eaten part of that month outside the
-application, and it is exact from the next landing onwards, which is the smallest wrong
-answer available: the alternative was to be wrong by the whole allowance, every time, for
-anybody who did not add their card on the day it was credited.
+application, which is the smallest wrong answer available: the alternative was to be wrong by
+the whole allowance, every time, for anybody who did not add their card on the day it was
+credited.
+
+(Corrected in 2.0.0: this said the reading is exact from the next landing onwards. It is, on a
+card that does not carry, because the next landing starts the count again. On a card that
+carries it is not: what was eaten outside the application before the card was written down
+stays in what carried, so the reading stays high by that much for as long as the card is used.
+2.0.0 asks a card that carries for what is on it today, which is registry 0054, and that is
+what makes it exact.)
 
 A card that does not carry forgets everything before the last landing, and its opening
 balance survives only while the card is still in the period it was written down in.

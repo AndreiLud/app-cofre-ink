@@ -17,11 +17,16 @@ release: a month holding a dinner in dollars and a market in reais came back as 
 currency at all, with the currency of the space printed beside it. It sums the figure worked out
 at the rate of each day now, like every other total.
 
-**A benefit card told a Registrador that its allowance was not filled in.** The model answers
+**A benefit card told a logger that its allowance was not filled in.** The model answers
 nothing about a benefit card to somebody who only sees their own records, on purpose, and the row
 read that silence as a missing allowance. It is the exact harm the line at the top of the same
 screen avoids by drawing nothing at all. That row now draws nothing either, and nothing while the
 answer is still on its way.
+
+(Corrected in 2.0.0: it did not end there. The overview decided by the role in the space that
+was open, so in "Todos" a card from a space where somebody is a logger still said it, and the
+sentence still showed while the member list was being read. 2.0.0 decides by the role in the
+space of the card itself, and says nothing until that role is known.)
 
 **A sentence about limits could not appear in the case it was written for.** When every limit of a
 month is on a category, none of them can see a typed total, so none is ever near breaking, so the
@@ -33,7 +38,9 @@ total that includes the line for money nobody sorted. The words changed rather t
 arithmetic, because the line for unsorted money is deliberate.
 
 Also: the check up and the month screen share the constant for when a month is far enough along
-to be compared, and now share the comparison too. They differed by one day a month.
+to be compared, and now share the comparison too. They differed on the twenty fourth of a month
+of thirty days, the one day four fifths of a month falls on exactly, and on no day of the others.
+(Corrected in 2.0.0: this said one day a month.)
 
 Registries 0041, 0048 and 0049 carried four claims the same audit refuted, about what the probes
 prove, which flows run on the fixed day, what registry 0023 says, and how many records three
@@ -45,12 +52,15 @@ Released on 2 October 2026. The release that finished 1.1.0.
 
 1.1.0 shipped with a list of what it had not done, written down rather than quietly carried.
 This is that list, worked through, plus six things the working through found on its way past
-and one that found itself: two days after the tag, three tests of 1.1.0 were red with nobody
-having touched a line of the code, because they had been written against the day they were
-run on.
+and one that found itself: the day after the tag, one conformance case and at least eight
+browser flows of 1.1.0 were red with nobody having touched a line of the code, because they had
+been written against the day they were run on. Registry 0048 tells it.
 
-Every correction here carries a test that fails against the code before it, and each one was
-run against that code to prove it.
+Every correction here but three carries a test that fails against the code before it, and each
+of those was run against that code to prove it. The three are the gate of the button that
+deletes a record, the line of a benefit card in the list of accounts, and the invoice holding a
+purchase with no rate, whose branch only a restore can reach. (Corrected in 2.0.0: this said
+every correction, and the report of this release named the three.)
 
 > **If you are updating from 1.1.0, four figures will read differently.**
 >
@@ -79,8 +89,10 @@ run against that code to prove it.
 **A month of three numbers says something back.** Somebody who will not keep a ledger types
 what came in, what went out and what the card charged, and the screen answered with those
 three numbers and their difference. It now reads the month against the middle of the closed
-months before it, ranks what the month went on out of the records that carry a category, and
-says which limits the month has broken. The comparison waits: a month three days old has spent
+months before it, ranks what the month went on, with the money nobody sorted as a line of its
+own, and says which limits the month has broken or is close to breaking. (Corrected in 2.0.0:
+this said the ranking held only what carries a category, and only the broken limits.) The
+comparison waits: a month three days old has spent
 almost nothing, and a screen that calls that thrift tells a household it is winning on the
 third and leaves it to find out on the thirtieth.
 
@@ -131,20 +143,24 @@ screen whose only subject is that card.
 
 **A benefit card in the list of accounts shows what is on it.**
 
-**The habit of a projection is read from whole months.** A report made in September about the
-months from November read its habit from September alone, eleven days old.
+**The habit of a projection is read from whole months.** The month on paper for September, made
+on the eleventh, reads the months ahead from October, and counted September, eleven days old,
+among the months its habit is the middle of, as a cheap month that dragged the habit down.
+(Corrected in 2.0.0: this said the habit came from September alone.)
 
 **Saying a promise did not happen asks for the permission it needs**, which is the delete one
 and not the update one. It agreed with the refusal behind it by accident, because the two hold
 the same roles today.
 
-**The month screen says which invoice it pays**, and an account form that writes a card's
-opening invoice does it through a rule in the core rather than seven lines inside a screen.
+**An account form that writes a card's opening invoice does it through a rule in the core**
+rather than seven lines inside a screen. (Corrected in 2.0.0: this entry also listed the month
+screen saying which invoice it pays, which 1.1.0 did.)
 
 ### Fixed in the suite, which is where this release started
 
-**The browser suite runs on one fixed day.** Three tests of 1.1.0 passed on the thirtieth of
-September and failed on the first of October without a line of code changing: a series never
+**The browser suite runs on one fixed day.** One conformance case and at least eight browser
+flows of 1.1.0 passed on the thirtieth of September and failed on the first of October without
+a line of code changing (corrected in 2.0.0: this said three tests): a series never
 writes a record for a month before the one it was written down in, so "six days ago" produced
 no overdue promise at all in the first days of a month. A test that is red with no cause is
 worse than a test that is missing, because it teaches whoever reads the suite that red is
@@ -207,8 +223,61 @@ code this release had not actually written. All of it is below.
 >    balance of that card keeps counting: it is what was on the card the day you wrote it
 >    down, and it is the starting point of the sum.
 >
-> Nothing is asked of you and nothing is converted. Open Painel and Faturas once, and fill
-> in the monthly allowance of any benefit card under Contas.
+> Nothing is converted. Four things are asked of you, which this note used to say were none
+> (corrected in 2.0.0):
+>
+> 1. **Mark the old invoices as paid.** Every invoice from before 1.1.0 opens as unpaid, because
+>    nothing ever said it had been paid. Under Faturas, the button that marks the earlier
+>    invoices as paid ("Marcar as 3 faturas anteriores como pagas", with the number it found)
+>    writes one payment for each, on its due day, out of the account you choose.
+> 2. **Write down the monthly allowance of each benefit card, and its day**, under Contas, in
+>    the edit of the card.
+> 3. **Answer the late records.** What release 1.0 wrote as a promise and nobody confirmed is at
+>    the top of Painel as late: "Aconteceu" and "Não aconteceu" answer one, and "Confirmar os 3",
+>    with the number there is, answers all of them at once.
+> 4. **If you run a server, update the server and the browser together.** The browser of 1.1.0
+>    sends fields a server of 1.0 does not know and drops.
+>
+> **Em português:**
+>
+> Seu arquivo vem junto e nada é apagado. Quatro coisas vão ler diferente depois, e nas quatro
+> a leitura antiga é que estava errada.
+>
+> 1. **O que você tem e o que você deve são dois números agora.** O Painel tirava a fatura do
+>    cartão do número de cima, então o dinheiro no banco parecia menor do que era e um cartão
+>    sem nada parecia dinheiro. O que você tem são as contas correntes, as poupanças, o dinheiro
+>    e os investimentos. Os cartões e os cartões de benefício ficam em linhas próprias embaixo.
+> 2. **Uma assinatura no cartão de crédito chega à fatura dela.** Uma recorrência nunca dizia em
+>    que fatura caía, então tudo o que uma recorrência lançou num cartão ficava fora de qualquer
+>    fatura, e o cartão mostrava menos do que ia cobrar. A atualização conserta esses
+>    lançamentos, então uma fatura sua pode ficar maior do que era ontem. Esse número sempre foi
+>    o que o banco ia cobrar.
+> 3. **Os próximos meses contam as faturas, e começam do saldo que o Painel mostra.** A projeção
+>    contava só lançamentos esperando confirmação, o que uma compra no cartão nunca é, então nada
+>    do que os cartões iam cobrar estava nela. Ela também tratava pagar uma fatura como dinheiro
+>    que não se mexeu, e abria acima por toda fatura já paga. As duas coisas foram corrigidas, e
+>    os próximos meses em geral vão ler mais baixo.
+> 4. **Um cartão de benefício precisa do valor mensal anotado.** VR, VA, VT, cultura e mobilidade
+>    são um valor que cai num dia de cada mês e vai sendo gasto, e nada é lançado quando ele cai,
+>    então o que sobra tem de ser calculado a partir desse valor. Enquanto ele não está anotado,
+>    o cartão diz isso em vez de adivinhar. O que você digitou como saldo de abertura desse
+>    cartão continua contando: é o que havia nele no dia em que você o cadastrou, e é o ponto de
+>    partida da conta.
+>
+> Nada é convertido. Quatro coisas são pedidas de você, que esta nota dizia serem nenhuma
+> (corrigido na 2.0.0):
+>
+> 1. **Marque as faturas antigas como pagas.** Toda fatura de antes da 1.1.0 abre como não paga,
+>    porque nada dizia que ela tinha sido paga. Em Faturas, o botão que marca as faturas
+>    anteriores como pagas ("Marcar as 3 faturas anteriores como pagas", com o número que ele
+>    achou) lança um pagamento para cada uma, no dia do vencimento, da conta que você escolher.
+> 2. **Anote o valor mensal de cada cartão de benefício, e o dia em que ele cai**, em Contas, na
+>    edição do cartão.
+> 3. **Responda os atrasados.** O que a versão 1.0 lançou como previsto e ninguém confirmou
+>    aparece no alto do Painel como atrasado: "Aconteceu" e "Não aconteceu" respondem um, e
+>    "Confirmar os 3", com o número que houver, responde todos de uma vez.
+> 4. **Se você usa um servidor, atualize o servidor e o navegador juntos.** O navegador da 1.1.0
+>    manda campos que um servidor da 1.0 não conhece e descarta.
 
 ### Added
 

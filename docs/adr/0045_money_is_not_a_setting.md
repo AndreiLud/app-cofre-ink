@@ -26,8 +26,15 @@ The third of those three only became true late: the model took a name, a place, 
 balance and an allowance, and not the closing day, the due day or the limit, so this
 sentence described a screen that did not exist yet. The sweep before the tag found the
 sentence rather than the gap, which is the right way round: the closing day is the field on
-that form most likely to have been a guess, every invoice of the card is worked out from it,
-and a bank moves it. It can be corrected now.
+that form most likely to have been a guess, the invoice a new purchase lands on is worked out
+from it, and a bank moves it. It can be corrected now.
+
+(Corrected in 2.0.0: this said every invoice of the card is worked out from the closing day.
+Only the invoice of a purchase written from then on is. A purchase carries the invoice it was
+stamped with when it was written, so correcting the closing day leaves every purchase already
+written where it is, and an invoice chosen by hand, the one a payment names or a purchase moved
+to, does not read the closing day at all. "Esta fatura fechou em", on the invoice screen, is
+what moves the purchases of the days between.)
 
 ## Decision
 
