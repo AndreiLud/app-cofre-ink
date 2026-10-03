@@ -431,6 +431,8 @@ export type ExistingRecord = {
 	kind?: "expense" | "income" | "transfer";
 	/** The invoice it is on, so a part printed on an invoice finds the part already written. */
 	invoiceMonth?: string | null;
+	/** The invoice a transfer out of a card is a purchase on, for a split or another card. */
+	originInvoiceMonth?: string | null;
 	/** The plan it is a part of, and which part. */
 	installment?: { group: string; number: number; count: number } | null;
 	/** The other end of a move, the plastic, and the series that wrote it. */

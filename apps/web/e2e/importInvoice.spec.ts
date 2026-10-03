@@ -3,7 +3,7 @@
 
 import { buildPdf, drawLines } from "@cofre/importers";
 import { expect, type Page, test } from "@playwright/test";
-import { go, openCofre } from "./support.ts";
+import { fourCards, go, openCofre } from "./support.ts";
 
 /** A bank account and two cards that close on the third and fall due on the tenth. */
 async function twoCards(page: Page): Promise<void> {
@@ -272,6 +272,41 @@ test.describe("reading a card invoice in", () => {
 		await expect(page.getByRole("row").filter({ hasText: "Loja X" })).toHaveCount(1);
 		await page.getByLabel("Mês", { exact: true }).fill("2027-02");
 		await expect(page.getByRole("row").filter({ hasText: "Loja X 10/10" })).toBeVisible();
+	});
+
+	// E.14: the bank prints a split invoice as charges on the invoices after it, and read in as
+	// purchases they counted the split twice.
+	test("writes nothing of a split already written when the bank's invoice prints it", async ({
+		page,
+	}) => {
+		await fourCards(page);
+		await go(page, "Faturas");
+		await page.getByRole("group", { name: "Cartão" }).getByText("Itaú", { exact: true }).click();
+		await page.getByRole("button", { name: "Fatura anterior", exact: true }).click();
+		await expect(page.getByRole("heading", { level: 1 })).toContainText("outubro");
+		await page.getByRole("button", { name: "Pagar fatura" }).click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByText("Parcelando", { exact: true }).click();
+		await dialog.getByLabel("Entrada", { exact: true }).fill("300,00");
+		await dialog.getByLabel("Parcelas", { exact: true }).selectOption({ label: "6 vezes" });
+		await dialog.getByText("O valor é de cada parcela", { exact: true }).click();
+		await dialog.getByLabel("Valor das parcelas").fill("110,00");
+		await dialog.getByLabel("Dia do acordo").fill("2026-10-28");
+		await dialog.getByRole("button", { name: "Parcelar" }).click();
+		await expect(dialog).toHaveCount(0);
+
+		await importPdf(page, [
+			"Fatura do cartao",
+			"Vencimento: 05/12/2026",
+			"28/10/2026 Parcelamento de fatura 1/6 100,00",
+			"28/10/2026 Encargos de parcelamento 7,00",
+			"28/10/2026 IOF de financiamento 3,00",
+		]);
+		await page.getByLabel("Cartão", { exact: true }).selectOption({ label: "Itaú" });
+		await expect(
+			page.getByText("Já está no app: é do parcelamento da fatura", { exact: false }),
+		).toHaveCount(3);
+		await expect(page.getByRole("button", { name: "Nada para gravar" })).toBeDisabled();
 	});
 
 	// E.10.2: the card written down with what its open invoice held, and that invoice read in

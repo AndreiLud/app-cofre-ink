@@ -1476,7 +1476,9 @@
 		"takesBack": "Tirar a compra {{description}} de {{day}}, que este estorno desfaz, em vez de gravar o estorno.",
 		"partHere": "Já está no app: parcela {{number}} de {{count}} de {{description}}.",
 		"partLooksSame": "Parece o mesmo que {{description}}, pelo valor.",
-		"partElsewhere": "A parcela {{number}} de {{count}} de {{description}} já está no app, na fatura de {{month}}. Mover essa e as seguintes para a fatura de {{to}}."
+		"partElsewhere": "A parcela {{number}} de {{count}} de {{description}} já está no app, na fatura de {{month}}. Mover essa e as seguintes para a fatura de {{to}}.",
+		"arrangedHere": "Já está no app: é do parcelamento da fatura, ou do pagamento com outro cartão, que você gravou.",
+		"arrangedElsewhere": "Isto é de um parcelamento de fatura ou de um pagamento com outro cartão. Grave em Faturas, com Parcelar a fatura ou Pagar com outro cartão: como saída contaria duas vezes."
 	},
 	"demo": {
 		"notice": "Dados fictícios, só para demonstração."

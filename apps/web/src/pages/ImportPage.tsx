@@ -30,6 +30,7 @@ import type {
 import {
 	guessAccount,
 	markDuplicates,
+	matchArrangements,
 	matchPart,
 	type PartMatch,
 	readFile,
@@ -601,11 +602,24 @@ export function ImportPage() {
 	 * another invoice, one that only looks the same, or the first of a new plan. A loose mark
 	 * counts once the person said it is a part.
 	 */
+	/**
+	 * The lines of an invoice split into parts or paid with another card, against what was
+	 * written for it: already here, or to be written on the invoices screen rather than here,
+	 * where as money out they would count twice.
+	 */
+	const arranged = useMemo(
+		() =>
+			isInvoice
+				? matchArrangements(lines, existing.data ?? [], invoiceMonth)
+				: new Map<number, "here" | "elsewhere">(),
+		[lines, existing.data, isInvoice, invoiceMonth],
+	);
+
 	const partMatches = useMemo(() => {
 		const found = new Map<number, PartMatch>();
 		lines.forEach((record, index) => {
 			const mark = record.installment;
-			if (!mark || (!mark.sure && !asParts.has(index))) return;
+			if (!mark || (!mark.sure && !asParts.has(index)) || arranged.has(index)) return;
 			found.set(
 				index,
 				matchPart(
@@ -616,7 +630,7 @@ export function ImportPage() {
 			);
 		});
 		return found;
-	}, [lines, asParts, existing.data, isInvoice, invoiceMonth]);
+	}, [lines, asParts, existing.data, isInvoice, invoiceMonth, arranged]);
 	/** Parts on another invoice the person said to move to this one, with the ones after them. */
 	const [moveParts, setMoveParts] = useState<Set<number>>(new Set());
 
@@ -659,6 +673,7 @@ export function ImportPage() {
 	const startsOut = (record: MarkedRecord, index: number) =>
 		(isInvoice && record.nature === "payment" && paidAlready) ||
 		pairedInFile.has(index) ||
+		arranged.has(index) ||
 		(partMatches.get(index)?.kind ?? "new") !== "new";
 	const isOut = (record: MarkedRecord, index: number) =>
 		(record.certain && record.duplicateOf !== null) || startsOut(record, index) !== left.has(index);
@@ -1325,7 +1340,14 @@ export function ImportPage() {
 												) : null}
 												{/* A loose "2/10" may be the day printed again, so it is offered and not
 												    taken. A part says what it is against the plans already written. */}
-												{record.installment && !record.installment.sure ? (
+												{arranged.has(index) ? (
+													<span className="block text-xs text-quiet">
+														{arranged.get(index) === "here"
+															? t("importing.arrangedHere")
+															: t("importing.arrangedElsewhere")}
+													</span>
+												) : null}
+												{record.installment && !record.installment.sure && !arranged.has(index) ? (
 													<label className="flex items-center gap-2 text-xs text-quiet">
 														<input
 															type="checkbox"

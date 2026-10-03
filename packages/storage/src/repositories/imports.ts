@@ -133,6 +133,11 @@ export type KnownRecord = {
 	cardId: string | null;
 	/** The invoice it is on, so a part printed on an invoice finds the part already written. */
 	invoiceMonth: string | null;
+	/**
+	 * The invoice of the card a transfer leaves that it is a purchase on: a part of a split invoice
+	 * or of a payment with another card, which the bank's invoice prints as a charge.
+	 */
+	originInvoiceMonth: string | null;
 	/** The series that wrote it, which a statement line of the same amount is. */
 	recurrenceId: string | null;
 	/** The plan it is a part of, and which part. */
@@ -211,7 +216,7 @@ export function createImportsRepository(context: RepositoryContext) {
 			// cut off the records of the days the file is about.
 			const columns = `"id", "happened_on", "amount", "description", "external_id", "kind",
 			        "account_id", "counter_account_id", "card_id", "invoice_month", "recurrence_id",
-			        "installment_group", "installment_number", "installment_count"`;
+			        "installment_group", "installment_number", "installment_count", "origin_invoice_month"`;
 			const rows = await context.driver.all(
 				`SELECT ${columns} FROM "transactions" WHERE ${where.join(" AND ")}
 				 ORDER BY "happened_on" DESC LIMIT 5000`,
@@ -222,11 +227,15 @@ export function createImportsRepository(context: RepositoryContext) {
 				const plans = await context.driver.all(
 					`SELECT ${columns} FROM "transactions"
 					 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "account_id" = ?
-					   AND "installment_group" IS NOT NULL AND "invoice_month" >= ? AND "invoice_month" <= ?
+					   AND "installment_group" IS NOT NULL
+					   AND (("invoice_month" >= ? AND "invoice_month" <= ?)
+					     OR ("origin_invoice_month" >= ? AND "origin_invoice_month" <= ?))
 					   ${seesOwnRowsOnly(actor, spaceId) ? `AND "created_by" = ?` : ""}`,
 					[
 						spaceId,
 						range.accountId,
+						addMonthsToMonth(range.invoiceMonth, -3),
+						addMonthsToMonth(range.invoiceMonth, 3),
 						addMonthsToMonth(range.invoiceMonth, -3),
 						addMonthsToMonth(range.invoiceMonth, 3),
 						...(seesOwnRowsOnly(actor, spaceId) ? [actor.userId] : []),
@@ -252,6 +261,8 @@ export function createImportsRepository(context: RepositoryContext) {
 					counterAccountId: row.counter_account_id === null ? null : String(row.counter_account_id),
 					cardId: row.card_id === null ? null : String(row.card_id),
 					invoiceMonth: row.invoice_month === null ? null : String(row.invoice_month),
+					originInvoiceMonth:
+						row.origin_invoice_month === null ? null : String(row.origin_invoice_month),
 					recurrenceId: row.recurrence_id === null ? null : String(row.recurrence_id),
 					installment:
 						row.installment_group === null || row.installment_number === null

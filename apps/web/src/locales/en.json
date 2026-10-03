@@ -1476,7 +1476,9 @@
 		"takesBack": "Take out the purchase {{description}} of {{day}}, which this refund undoes, instead of writing the refund.",
 		"partHere": "Already here: part {{number}} of {{count}} of {{description}}.",
 		"partLooksSame": "Looks like {{description}}, by the amount.",
-		"partElsewhere": "Part {{number}} of {{count}} of {{description}} is already here, on the invoice of {{month}}. Move it and the ones after it to the invoice of {{to}}."
+		"partElsewhere": "Part {{number}} of {{count}} of {{description}} is already here, on the invoice of {{month}}. Move it and the ones after it to the invoice of {{to}}.",
+		"arrangedHere": "Already here: it belongs to the split of an invoice, or the payment with another card, that you wrote.",
+		"arrangedElsewhere": "This belongs to a split invoice or a payment with another card. Write it under Invoices, with Split the invoice or Pay with another card: as money out it would count twice."
 	},
 	"demo": {
 		"notice": "Made up data, for demonstration only."
