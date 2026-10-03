@@ -124,6 +124,8 @@ export function DashboardPage() {
 	const [across, setAcross] = useState<"space" | "everything">("space");
 	const [problem, setProblem] = useState<string | null>(null);
 	const consolidated = across === "everything" && spaces.length > 1;
+	/** The currencies the spaces count in, which "Todos" adds together. */
+	const currencies = [...new Set(spaces.map((space) => space.baseCurrency))].sort();
 
 	// Answering the whole overdue block at once. There is no undoing a confirmation, so the
 	// dialog is not decoration: it is the only stop between the button and the writes.
@@ -203,10 +205,19 @@ export function DashboardPage() {
 
 	// What the investment accounts are actually worth, which is the price somebody typed
 	// and not the money that was moved into them.
+	// In "Todos", the holdings of every space: read from the open one only, what everything
+	// added up to depended on which space happened to be open.
 	const holdings = useQuery({
-		queryKey: ["investments", spaceId],
+		queryKey: consolidated
+			? ["investments", "everywhere", spaces.map((space) => space.id).join(",")]
+			: ["investments", spaceId],
 		enabled: Boolean(session && currentSpace),
-		queryFn: () => session?.investments.list(spaceId) ?? [],
+		queryFn: async () => {
+			if (!session) return [];
+			if (!consolidated) return session.investments.list(spaceId);
+			const lists = await Promise.all(spaces.map((space) => session.investments.list(space.id)));
+			return lists.flat();
+		},
 	});
 
 	const cards = useQuery({
@@ -760,6 +771,15 @@ export function DashboardPage() {
 						/>
 					) : null}
 				</div>
+
+				{/* Every figure below is written in the currency of the open space. Spaces that
+				    count in different ones add numbers that are not one amount, and that is
+				    said rather than left to be read as euros and reais together. */}
+				{consolidated && currencies.length > 1 ? (
+					<Callout tone="problem">
+						{t("dashboard.currenciesDiffer", { list: currencies.join(", ") })}
+					</Callout>
+				) : null}
 
 				{/* The four questions the product brief promises an answer to, on one line. */}
 				{balances.isPending ? (

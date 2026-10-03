@@ -14,6 +14,7 @@ import {
 	moveBetween,
 	onTheDay,
 	openCofre,
+	openSetting,
 	promisesFromBefore,
 	record,
 	total,
@@ -262,6 +263,47 @@ test.describe("the overview", () => {
 		} finally {
 			await before.close();
 		}
+	});
+
+	// Part 1, E.4 of the request for 2.0.0: "Todos" read the holdings of the open space only, so
+	// what everything adds up to depended on which space was open; and it wrote every figure
+	// in the currency of the open space without asking whether the others counted in it.
+	test("adds up everything the same whichever space is open, and says when currencies differ", async ({
+		page,
+	}) => {
+		await openCofre(page);
+		await go(page, "Painel");
+		const everything = async () => {
+			await page
+				.getByRole("group", { name: "Mostrar" })
+				.getByText("Todos", { exact: true })
+				.click();
+			await expect(figure(page, "Você tem")).toBeVisible();
+			return figure(page, "Você tem").innerText();
+		};
+		const fromThePersonalSpace = await everything();
+
+		await openSetting(page, "Gerenciar espaços");
+		await page
+			.getByRole("listitem")
+			.filter({ hasText: "Casa" })
+			.getByRole("button", { name: "Entrar" })
+			.click();
+		await expect(page.getByRole("banner")).toContainText("Casa");
+		await go(page, "Painel");
+		await expect.poll(everything).toBe(fromThePersonalSpace);
+		await expect(page.getByText(/moedas diferentes/)).toHaveCount(0);
+
+		await openSetting(page, "Gerenciar espaços");
+		await page.getByRole("button", { name: "Novo espaço" }).click();
+		const making = page.getByRole("dialog");
+		await making.getByLabel("Nome do espaço").fill("Viagem");
+		await making.getByLabel("Moeda").selectOption("EUR");
+		await making.getByRole("button", { name: "Salvar" }).click();
+		await expect(making).toHaveCount(0);
+		await go(page, "Painel");
+		await everything();
+		await expect(page.getByText(/moedas diferentes \(BRL, EUR\)/)).toBeVisible();
 	});
 
 	// Part 1, E.2 of the request for 2.0.0. With no rule, "Guardar e metas" said "A regra pede

@@ -368,7 +368,8 @@
 		"cardsTotal": "Ao todo: {{open}} abertos e {{owed}} devidos.",
 		"cardWithoutCycle": "Sem dia de fechamento e de vencimento. Preencha em Contas.",
 		"showEachCard": "Ver cada um",
-		"hideEachCard": "Esconder"
+		"hideEachCard": "Esconder",
+		"currenciesDiffer": "Os espaços somados aqui usam moedas diferentes ({{list}}). Os totais de Todos juntam números de moedas diferentes, então não são um valor só: veja cada espaço em separado."
 	},
 	"notice": {
 		"budgetOver": "{{name}} passou do limite em {{over}}.",
