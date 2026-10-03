@@ -201,6 +201,25 @@ test.describe("the overview", () => {
 		});
 	});
 
+	// Part 1, A.11 of the request for 2.0.0. The fixed day of the suite, the twenty eighth,
+	// never falls between a closing day and a due day, which is where this lived: every
+	// month, for that week, the invoice that had just closed was drawn in red as overdue.
+	test("calls an invoice that closed and is not due yet owed, and not overdue", async ({
+		page,
+	}) => {
+		await openCofre(page);
+		// The sample card closes on the third and falls due on the tenth.
+		await page.clock.setFixedTime(new Date("2026-11-05T12:00:00-03:00"));
+		await page.reload();
+
+		await expect(page.getByText("da fatura que fechou, vence em 10/11")).toBeVisible({
+			timeout: 45_000,
+		});
+		await expect(page.getByText("A fatura anterior fechou e vence em 10/11")).toBeVisible();
+		await expect(page.getByText(/venceu em 10\/11/)).toHaveCount(0);
+		await expect(page.getByText(/já venceram/)).toHaveCount(0);
+	});
+
 	test("puts a card invoice whose due day has gone with the things to answer", async ({ page }) => {
 		await openCofre(page);
 

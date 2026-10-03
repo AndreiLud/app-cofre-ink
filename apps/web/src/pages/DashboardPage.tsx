@@ -20,6 +20,7 @@ import {
 	type CalendarDate,
 	canSpendThisMonth,
 	dateInMonth,
+	type InvoiceState,
 	lastDayOfMonth,
 	moneyOnHand,
 	monthOf,
@@ -737,19 +738,10 @@ export function DashboardPage() {
 									    above it is about the one still open. Every one of them, summed:
 									    answering with the newest hid the older debt while the headroom of
 									    the card went on counting it. */}
-									{card.owing.length > 0 ? (
-										<p className="text-sm text-seal">
-											<Value
-												amount={card.owing.reduce((total, state) => total + state.left, 0)}
-												currency={currency}
-											/>{" "}
-											{card.owing.length === 1
-												? t("dashboard.invoiceStillOwed", {
-														day: dayAndMonth(card.owing[0]?.dueOn ?? ""),
-													})
-												: t("dashboard.invoicesStillOwed", { count: card.owing.length })}
-										</p>
-									) : null}
+									{/* Late only once the due day has gone. Between the closing day and
+									    the due day an invoice is closed and owed and nothing is wrong
+									    yet, and it was drawn in red as overdue every month in that week. */}
+									<OwedLines owing={card.owing} currency={currency} />
 								</div>
 								<Link to={ROUTES.invoices}>
 									<Button size="small" variant="secondary">
@@ -1222,14 +1214,18 @@ function CardStandingBlock({
 			    says how many and sums them, because a household two invoices behind used to
 			    be shown the newer one and left to wonder about the figure above. */}
 			{card.unpaid && card.unpaid.left > 0 ? (
-				<p className="mt-1 text-seal text-sm">
-					{t("dashboard.oneBefore", {
-						state: t(`invoice.standing.${card.unpaid.standing}`),
-						day: dayAndMonth(card.unpaid.dueOn),
-					})}{" "}
+				<p className={`mt-1 text-sm ${card.unpaid.late ? "text-seal" : "text-quiet"}`}>
+					{card.unpaid.late
+						? t("dashboard.oneBefore", {
+								state: t(`invoice.standing.${card.unpaid.standing}`),
+								day: dayAndMonth(card.unpaid.dueOn),
+							})
+						: t("dashboard.oneBeforeDue", { day: dayAndMonth(card.unpaid.dueOn) })}{" "}
 					<Value amount={card.unpaid.left} currency={currency} />
 					{card.owing.length > 1 ? (
-						<>
+						// The older ones fell due before this one did, so they are late even while
+						// this one is not.
+						<span className="text-seal">
 							{". "}
 							{t("dashboard.andOlderOnes", {
 								count: card.owing.length - 1,
@@ -1238,7 +1234,7 @@ function CardStandingBlock({
 								amount={card.owing.slice(0, -1).reduce((total, state) => total + state.left, 0)}
 								currency={currency}
 							/>
-						</>
+						</span>
 					) : null}
 				</p>
 			) : null}
@@ -1333,6 +1329,41 @@ function VoucherAmount({
 	if (!known || state.isPending) return null;
 	if (!state.data) return <span className="text-quiet text-sm">{t("dashboard.quotaMissing")}</span>;
 	return <Value amount={state.data.left} currency={currency} tone="auto" />;
+}
+
+/**
+ * What a card still owes on invoices that have closed, on its line at the top.
+ *
+ * Two lines and two tones. What fell due and was not paid is the one thing about a card
+ * that is already wrong, so it is drawn in the colour of a problem, every invoice of it
+ * summed. The invoice that has closed and is not due yet is simply owed, so it is said in
+ * the ordinary colour with the day it falls due.
+ */
+function OwedLines({ owing, currency }: { owing: readonly InvoiceState[]; currency: string }) {
+	const { t } = useTranslation();
+	const late = owing.filter((state) => state.late);
+	const waiting = owing.filter((state) => !state.late);
+	return (
+		<>
+			{late.length > 0 ? (
+				<p className="text-sm text-seal">
+					<Value
+						amount={late.reduce((total, state) => total + state.left, 0)}
+						currency={currency}
+					/>{" "}
+					{late.length === 1
+						? t("dashboard.invoiceStillOwed", { day: dayAndMonth(late[0]?.dueOn ?? "") })
+						: t("dashboard.invoicesStillOwed", { count: late.length })}
+				</p>
+			) : null}
+			{waiting.map((state) => (
+				<p key={state.month} className="text-quiet text-sm">
+					<Value amount={state.left} currency={currency} />{" "}
+					{t("dashboard.invoiceClosedNotDue", { day: dayAndMonth(state.dueOn) })}
+				</p>
+			))}
+		</>
+	);
 }
 
 function DueRow({

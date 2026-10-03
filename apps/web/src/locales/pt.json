@@ -360,7 +360,9 @@
 		"quotaMissing": "cota não preenchida",
 		"invoiceWithoutRate": "Sem total: uma compra desta fatura está em outra moeda e sem cotação. Esta fatura ficou de fora do que falta gastar no mês.",
 		"limitInAnotherCurrency": "O limite deste cartão está em outra moeda, então não dá para dizer quanto sobra dele sem inventar uma cotação.",
-		"paymentScheduled": "pagamento agendado para {{day}}"
+		"paymentScheduled": "pagamento agendado para {{day}}",
+		"invoiceClosedNotDue": "da fatura que fechou, vence em {{day}}",
+		"oneBeforeDue": "A fatura anterior fechou e vence em {{day}}. Falta"
 	},
 	"notice": {
 		"budgetOver": "{{name}} passou do limite em {{over}}.",

@@ -360,7 +360,9 @@
 		"quotaMissing": "allowance not filled in",
 		"invoiceWithoutRate": "No total: a purchase on this invoice is in another currency with no rate. This invoice is left out of what is still there to spend this month.",
 		"limitInAnotherCurrency": "The limit of this card is in another currency, so how much of it is left cannot be said without inventing a rate.",
-		"paymentScheduled": "payment scheduled for {{day}}"
+		"paymentScheduled": "payment scheduled for {{day}}",
+		"invoiceClosedNotDue": "of the invoice that closed, due on {{day}}",
+		"oneBeforeDue": "The invoice before it closed and falls due on {{day}}. Still to pay"
 	},
 	"notice": {
 		"budgetOver": "{{name}} went over its limit by {{over}}.",
