@@ -347,6 +347,83 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 1, A.4 of the request for 2.0.0. A card from release 1.0 carries the debt it had
+		// the day it was written down as an opening balance, and the invoices never read it:
+		// the payment that settled that debt, written by hand with no invoice named, paid the
+		// newest purchases instead, and their invoice came out paid without having been.
+		it("puts the debt a card was written down with on an invoice of its own", async () => {
+			const driver = await adapter.open();
+			try {
+				await migrate(driver, { stopAfter: AS_OF_105 });
+				const ana = await createUser(driver, { email: "ana@exemplo.com", name: "Ana" });
+				await fillAsOf105(driver, ana.id);
+
+				// Written down on the first of September owing 1,500, which a payment of 1,500 on
+				// the fourth settled, and a purchase of 400 on the tenth since.
+				const card = async (id: string, opening: number) =>
+					driver.run(
+						`INSERT INTO "accounts" ("id", "space_id", "kind", "name", "currency",
+						   "initial_balance", "closing_day", "due_day", "created_by", "created_at",
+						   "updated_at", "deleted_at", "hlc")
+						 VALUES (?, ?, 'credit', ?, 'BRL', ?, 28, 5, ?, ?, ?, NULL, 'stamp1')`,
+						[id, IDS.space, id, opening, ana.id, WHEN, WHEN],
+					);
+				await card("cardWithPayment", -150_000);
+				await card("cardStillOwing", -50_000);
+				await driver.run(
+					`INSERT INTO "transactions" ("id", "space_id", "kind", "status", "amount", "currency",
+					   "amount_in_base", "happened_on", "description", "account_id",
+					   "counter_account_id", "created_by", "created_at", "updated_at", "hlc")
+					 VALUES ('paymentByHand', ?, 'transfer', 'settled', 150000, 'BRL', 150000,
+					   '2026-09-04', 'Pagamento do cartão', ?, 'cardWithPayment', ?, ?, ?, 'stamp1')`,
+					[IDS.space, IDS.checking, ana.id, WHEN, WHEN],
+				);
+				await driver.run(
+					`INSERT INTO "transactions" ("id", "space_id", "kind", "status", "amount", "currency",
+					   "amount_in_base", "happened_on", "description", "account_id", "invoice_month",
+					   "created_by", "created_at", "updated_at", "hlc")
+					 VALUES ('purchase', ?, 'expense', 'settled', -40000, 'BRL', -40000, '2026-09-10',
+					   'Mercado', 'cardWithPayment', '2026-09', ?, ?, ?, 'stamp1')`,
+					[IDS.space, ana.id, WHEN, WHEN],
+				);
+
+				await migrate(driver);
+				const session = await openSession({ driver, userId: ana.id, deviceId: "deviceAna" });
+
+				// The debt is the invoice that had closed on the day the card was written down,
+				// August's, and the payment by hand settled it. September's purchase is still owed.
+				const invoices = await session.invoices.list("cardWithPayment", "2026-09-30");
+				expect(
+					invoices.map((one) => [one.month, one.charged, one.opening, one.paid, one.left]),
+				).toEqual([
+					["2026-08", 150_000, 150_000, 150_000, 0],
+					["2026-09", 40_000, 0, 0, 40_000],
+				]);
+
+				// Which is what the balance of the card has said all along.
+				const balances = await session.transactions.balances(IDS.space, "2026-09-30");
+				expect(balances.find((one) => one.accountId === "cardWithPayment")?.settled).toBe(-40_000);
+
+				// And a debt nobody paid is owed, in what falls due and in the months ahead.
+				const standing = await session.invoices.standing(IDS.space, "2026-09-30");
+				const owing = standing.find((one) => one.account.id === "cardStillOwing")?.owing;
+				expect(owing?.map((one) => [one.month, one.left, one.late])).toEqual([
+					["2026-08", 50_000, true],
+				]);
+				const ahead = await session.projections.monthsAhead({
+					spaceId: IDS.space,
+					from: "2026-10",
+					months: 1,
+					today: "2026-09-30",
+				});
+				// The debt still owed, September's purchase on the first card, and the invoice of
+				// the card from the first test, all due by October.
+				expect(ahead.months[0]?.expenseFrom.written).toBe(50_000 + 40_000 + 3990 + 12_000);
+			} finally {
+				await driver.close();
+			}
+		});
+
 		// A server has nobody in front of it, so it repairs each space as its owner when it
 		// starts, from a device that says it is the server.
 		it("repairs every space on a server, as the owner of each", async () => {

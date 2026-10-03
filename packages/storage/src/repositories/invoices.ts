@@ -11,6 +11,7 @@
 // of the subtraction.
 
 import {
+	addMonthsToMonth,
 	amountToPay,
 	type CalendarDate,
 	type CalendarMonth,
@@ -20,6 +21,7 @@ import {
 	invoiceMonthOf,
 	invoiceStateOf,
 	limitLeftOf,
+	todayIn,
 } from "@cofre/core";
 import { assertCan, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber } from "../driver.ts";
@@ -84,6 +86,44 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 			[spaceId],
 		);
 		return String(rows[0]?.base_currency ?? "BRL");
+	}
+
+	async function timezoneOf(spaceId: string): Promise<string> {
+		const rows = await context.driver.all(
+			`SELECT "timezone" FROM "spaces" WHERE "id" = ? AND "deleted_at" IS NULL`,
+			[spaceId],
+		);
+		return String(rows[0]?.timezone ?? "America/Sao_Paulo");
+	}
+
+	/**
+	 * The debt a card already had when it was written down, as an invoice of its own.
+	 *
+	 * A card from release 1.0 carries what it owed that day as an opening balance, and
+	 * nothing in this file read it: the balance of the card counted the debt while the
+	 * invoices, and everything made from them, did not. Worse, the payment that settled that
+	 * debt, written by hand with no invoice named, paid down the oldest invoice there was
+	 * instead, so recent invoices came out paid without having been.
+	 *
+	 * So the opening balance is an invoice, closed and owed: the last one that had closed on
+	 * the day the card was written down, which is the one that debt was on. It is the first
+	 * thing a payment with no invoice named pays down. A positive opening balance is money
+	 * the card held in its favour, which is an invoice in credit.
+	 */
+	async function openingOf(
+		account: Account,
+		cycle: CardCycle,
+		baseCurrency: string,
+	): Promise<{ month: CalendarMonth; amount: number; withoutRate: number } | null> {
+		if (account.initialBalance === 0) return null;
+		const writtenOn = todayIn(await timezoneOf(account.spaceId), new Date(account.createdAt));
+		return {
+			month: addMonthsToMonth(invoiceMonthOf(writtenOn, cycle), -1),
+			amount: -account.initialBalance,
+			// An opening balance in another currency has no rate stored with it, so the invoice
+			// it opens says it does not know rather than adding minor units of two currencies.
+			withoutRate: account.currency === baseCurrency ? 0 : 1,
+		};
 	}
 
 	type InvoiceSum = {
@@ -224,12 +264,23 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 	 * A payment with no invoice named on it, which is what a transfer made by hand or
 	 * brought in from a statement is, pays down the oldest invoice still owing. That is
 	 * what a bank does with an unexplained payment and it is the only answer that does not
-	 * ask somebody to remember which month they meant.
+	 * ask somebody to remember which month they meant. The debt the card was written down
+	 * with comes before every other, because it is older than anything charged since.
 	 */
 	async function statesOf(accountId: string, today: CalendarDate): Promise<InvoiceState[]> {
 		const { account, cycle } = await cardAccount(accountId);
 		const baseCurrency = await baseCurrencyOf(account.spaceId);
 		const totals = await sums(account.id, baseCurrency, today);
+
+		const opening = await openingOf(account, cycle, baseCurrency);
+		if (opening) {
+			const sum = totals.get(opening.month) ?? emptySum();
+			totals.set(opening.month, {
+				...sum,
+				charged: sum.charged + opening.amount,
+				withoutRate: sum.withoutRate + opening.withoutRate,
+			});
+		}
 
 		let loose = 0;
 		for (const payment of await unmarkedPayments(account.id, today)) {
@@ -237,16 +288,12 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 		}
 
 		const months = [...totals.keys()].sort();
-		const states: InvoiceState[] = [];
-		for (const month of months) {
-			const sum = totals.get(month) ?? {
-				charged: 0,
-				paid: 0,
-				scheduled: 0,
-				scheduledOn: null,
-				inOtherCurrencies: 0,
-				withoutRate: 0,
-			};
+		const inTurn = opening
+			? [opening.month, ...months.filter((month) => month !== opening.month)]
+			: months;
+		const paidOf = new Map<CalendarMonth, number>();
+		for (const month of inTurn) {
+			const sum = totals.get(month) ?? emptySum();
 			let paid = sum.paid;
 			if (loose > 0) {
 				const owed = Math.max(0, sum.charged - paid);
@@ -254,21 +301,35 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 				paid += used;
 				loose -= used;
 			}
-			states.push(
-				invoiceStateOf({
-					month,
-					cycle,
-					charged: sum.charged,
-					paid,
-					scheduled: sum.scheduled,
-					scheduledOn: sum.scheduledOn,
-					today,
-					inOtherCurrencies: sum.inOtherCurrencies,
-					withoutRate: sum.withoutRate,
-				}),
-			);
+			paidOf.set(month, paid);
 		}
-		return states;
+
+		return months.map((month) => {
+			const sum = totals.get(month) ?? emptySum();
+			return invoiceStateOf({
+				month,
+				cycle,
+				charged: sum.charged,
+				paid: paidOf.get(month) ?? sum.paid,
+				scheduled: sum.scheduled,
+				scheduledOn: sum.scheduledOn,
+				opening: opening?.month === month ? opening.amount : 0,
+				today,
+				inOtherCurrencies: sum.inOtherCurrencies,
+				withoutRate: sum.withoutRate,
+			});
+		});
+	}
+
+	function emptySum(): InvoiceSum {
+		return {
+			charged: 0,
+			paid: 0,
+			scheduled: 0,
+			scheduledOn: null,
+			inOtherCurrencies: 0,
+			withoutRate: 0,
+		};
 	}
 
 	return {

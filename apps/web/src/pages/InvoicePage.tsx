@@ -482,6 +482,15 @@ export function InvoicePage() {
 					</p>
 				) : null}
 
+				{/* The debt a card from release 1.0 was written down with is an invoice of its own,
+				    with no purchase in it, so this says where the amount comes from. */}
+				{state && state.opening > 0 ? (
+					<p className="text-sm text-quiet">
+						{t("invoice.openingDebt")}{" "}
+						<Value amount={state.opening} currency={currentSpace.baseCurrency} />
+					</p>
+				) : null}
+
 				{/* A payment dated ahead pays from its day. Until then the money is in the bank and
 				    the invoice is still owed, so it stays in what falls due, and this says why. */}
 				{state && state.scheduled > 0 && state.scheduledOn ? (

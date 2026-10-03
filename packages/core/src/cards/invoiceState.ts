@@ -38,6 +38,12 @@ export type InvoiceInput = {
 	 */
 	scheduled?: number;
 	scheduledOn?: CalendarDate | null;
+	/**
+	 * How much of what was charged is the debt the card already had when it was written
+	 * down, which is an opening balance and not a purchase. Part of `charged`, said apart
+	 * so a screen can explain an invoice with no purchases on it.
+	 */
+	opening?: number;
 	/** The day the question is being asked on. */
 	today: CalendarDate;
 	/** How many of its records were written in a currency other than the one it is summed in. */
@@ -59,6 +65,8 @@ export type InvoiceState = {
 	scheduled: number;
 	/** The last day of those payments, or nothing when none is waiting. */
 	scheduledOn: CalendarDate | null;
+	/** The part of what was charged that is the card's opening balance. */
+	opening: number;
 	/** What is still to pay. Negative means the card was paid more than it charged. */
 	left: number;
 	standing: InvoiceStanding;
@@ -108,6 +116,7 @@ export function invoiceStateOf(input: InvoiceInput): InvoiceState {
 		paid: input.paid,
 		scheduled: input.scheduled ?? 0,
 		scheduledOn: (input.scheduled ?? 0) > 0 ? (input.scheduledOn ?? null) : null,
+		opening: input.opening ?? 0,
 		left,
 		standing,
 		closed: compareCalendarDates(input.today, closesOn) >= 0,

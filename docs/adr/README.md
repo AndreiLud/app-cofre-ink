@@ -58,3 +58,4 @@ new one.
 | [0049](0049_reading_a_month_of_three_numbers_back.md) | reading a month of three numbers back | accepted |
 | [0050](0050_a_fact_that_waits_for_its_day.md) | a fact that waits for its day, and one rule for what has happened | accepted |
 | [0051](0051_repairs_that_travel.md) | repairs that travel, and the moment a database took 2.0.0 | accepted |
+| [0052](0052_the_debt_a_card_was_written_down_with.md) | the debt a card was written down with is an invoice | accepted |

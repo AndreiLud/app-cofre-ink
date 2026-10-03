@@ -907,7 +907,8 @@
 		"countedIn": "Added up in {{currency}}, at the rate written down with each purchase. Each purchase appears below in the currency it was made in.",
 		"noRateTitle": "This invoice has no total",
 		"noRateBody": "A purchase on this invoice is in another currency with no rate for the day, so any total here would be a wrong number. The purchases are still in the list below. Open the purchase under Records and say what the rate was, and the total comes back.",
-		"scheduled": "Payment scheduled for {{day}}. Until that day the money stays in the account and the invoice stays open:"
+		"scheduled": "Payment scheduled for {{day}}. Until that day the money stays in the account and the invoice stays open:",
+		"openingDebt": "Includes what the card already owed when it was written down, its opening balance:"
 	},
 	"transactionKind": {
 		"expense": "Expense",
