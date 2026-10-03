@@ -28,11 +28,13 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 					quotaDay: 5,
 					quotaCarries: true,
 				});
-				// What a release before this one left on the card. A new one is written down
-				// empty, because what is on a benefit card is worked out from the allowance,
-				// and correcting the number is still allowed for exactly this: it is the
-				// starting point of everything that has carried.
-				await fixture.asAna.accounts.update(voucher.id, { initialBalance: 64_500 });
+				// What a release before this one left on the card, written as it wrote it. A new
+				// one is written down empty, because what is on a benefit card is worked out from
+				// the allowance; the old number is the starting point of everything that carried.
+				await fixture.driver.run(`UPDATE "accounts" SET "initial_balance" = ? WHERE "id" = ?`, [
+					64_500,
+					voucher.id,
+				]);
 
 				await fixture.asAna.transactions.create({
 					spaceId: space.id,
@@ -576,7 +578,11 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 					name: "Vale antigo",
 					benefit: "meal",
 				});
-				await fixture.asAna.accounts.update(voucher.id, { initialBalance: 30_000 });
+				// The number an older release left on it.
+				await fixture.driver.run(`UPDATE "accounts" SET "initial_balance" = ? WHERE "id" = ?`, [
+					30_000,
+					voucher.id,
+				]);
 				expect(
 					await fixture.asAna.accounts.benefitLeft(voucher.id, todayIn("America/Sao_Paulo")),
 				).toBeNull();
@@ -626,11 +632,39 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 				});
 				expect(card.initialBalance).toBe(0);
 
-				// And the correction, which is what carries an older card across.
-				const corrected = await fixture.asAna.accounts.update(card.id, {
-					initialBalance: -40_000,
+				// Part 1, G.7 of the request for 2.0.0: typed later, on the edit, it went through,
+				// which is the same number by another door. The voucher that carries says what is
+				// on it through its own field, and only there.
+				const voucher = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "voucher",
+					name: "Vale",
+					benefit: "meal",
+					quotaAmount: 90_000,
+					quotaDay: 5,
+					quotaCarries: true,
 				});
-				expect(corrected.initialBalance).toBe(-40_000);
+				for (const id of [card.id, voucher.id]) {
+					await expect(
+						fixture.asAna.accounts.update(id, { initialBalance: -40_000 }),
+					).rejects.toMatchObject({ rule: "noOpeningBalanceOnACard" });
+				}
+				const known = await fixture.asAna.accounts.update(voucher.id, { knownAmount: 120_000 });
+				expect(known.initialBalance).toBe(120_000);
+				await expect(
+					fixture.asAna.accounts.update(voucher.id, { initialBalance: 50_000 }),
+				).rejects.toMatchObject({ rule: "noOpeningBalanceOnACard" });
+
+				// And the correction of one written down before, which is what carries an older
+				// card across: 1,500 owed on the day it was written, corrected to 1,200.
+				await fixture.driver.run(`UPDATE "accounts" SET "initial_balance" = ? WHERE "id" = ?`, [
+					-150_000,
+					card.id,
+				]);
+				const corrected = await fixture.asAna.accounts.update(card.id, {
+					initialBalance: -120_000,
+				});
+				expect(corrected.initialBalance).toBe(-120_000);
 			} finally {
 				await fixture.close();
 			}

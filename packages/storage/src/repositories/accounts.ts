@@ -405,6 +405,21 @@ export function createAccountsRepository(context: RepositoryContext) {
 						"the opening balance is an integer of minor units, never a fractional number",
 					);
 				}
+				// The rule of `create`, which the edit let through by another door: a card and a
+				// benefit card are written down empty. A number on one written before 2.0.0 can
+				// still be corrected, because it is the debt or the starting point that carried it
+				// across; a benefit card that carries says what is on it through `knownAmount`.
+				const carriedAcross = account.initialBalance !== 0 && account.balanceKnownOn === null;
+				if (
+					(account.kind === "credit" || account.kind === "voucher") &&
+					input.initialBalance !== account.initialBalance &&
+					!carriedAcross
+				) {
+					throw new RuleError(
+						"noOpeningBalanceOnACard",
+						"a card is written down empty: what is on it is the invoice, or the allowance",
+					);
+				}
 				values.initial_balance = input.initialBalance;
 			}
 			if (input.benefit !== undefined) {
