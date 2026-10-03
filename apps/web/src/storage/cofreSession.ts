@@ -414,6 +414,8 @@ export type CofreSession = {
 		) => Promise<KnownRecord[]>;
 		/** A whole file at once, all of it or none of it, with the invoice it is and what it replaces. */
 		create: (input: ImportInput) => Promise<ImportResult>;
+		/** Taking an import back: everything it wrote, in one call, or nothing. */
+		undo: (ids: string[]) => Promise<number>;
 	};
 	backup: {
 		exportSpace: (spaceId: string) => Promise<Backup>;

@@ -57,6 +57,7 @@ export const METHOD_PERMISSIONS = {
 	"invoices.undoPlan": "transaction.delete",
 	"imports.existing": "transaction.read",
 	"imports.create": "transaction.create",
+	"imports.undo": "transaction.delete",
 	"categories.list": "category.read",
 	"categories.create": "category.write",
 	"rules.list": "rule.read",

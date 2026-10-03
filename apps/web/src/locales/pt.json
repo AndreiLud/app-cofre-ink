@@ -682,7 +682,8 @@
 		"replacedRecordIsNotHere": "Um lançamento que o arquivo ia substituir não é desta conta ou não pode ser apagado.",
 		"paymentNeedsItsAccount": "O pagamento da fatura precisa da conta de onde o dinheiro saiu.",
 		"paymentFromMoney": "Uma fatura se paga de uma conta corrente, de uma poupança ou do dinheiro em espécie.",
-		"refundedPurchaseIsNotHere": "Cada estorno desfaz uma compra desta conta, do valor inteiro dela."
+		"refundedPurchaseIsNotHere": "Cada estorno desfaz uma compra desta conta, do valor inteiro dela.",
+		"importChangedSince": "Parte do que esta importação gravou já foi mudada ou apagada, então ela não é desfeita."
 	},
 	"transactions": {
 		"title": "Lançamentos",
@@ -1484,7 +1485,16 @@
 		"pickPaidCard": "Paga qual cartão?",
 		"cardPaymentWaits": "\"{{description}}\" pagou a fatura de um cartão. Diga qual para gravar.",
 		"invoiceNotYoursTitle": "Uma fatura é de todo o cartão",
-		"invoiceNotYoursBody": "Ela traz o que todos gastaram no cartão. Quem vê só os próprios lançamentos importa extratos, e não faturas."
+		"invoiceNotYoursBody": "Ela traz o que todos gastaram no cartão. Quem vê só os próprios lançamentos importa extratos, e não faturas.",
+		"undo": "Desfazer esta importação",
+		"undoTitle": "Desfazer esta importação?",
+		"undoBody_one": "Vai embora o lançamento que ela gravou.",
+		"undoBody_other": "Vão embora os {{count}} lançamentos que ela gravou, todos de uma vez.",
+		"undoKeepsRemoved_one": "O lançamento que ela tirou, uma compra desfeita por estorno ou o que a fatura detalhou, não volta.",
+		"undoKeepsRemoved_other": "Os {{count}} lançamentos que ela tirou, compras desfeitas por estorno ou o que a fatura detalhou, não voltam.",
+		"undoConfirm": "Desfazer",
+		"undone_one": "A importação foi desfeita: 1 lançamento saiu.",
+		"undone_other": "A importação foi desfeita: {{count}} lançamentos saíram."
 	},
 	"demo": {
 		"notice": "Dados fictícios, só para demonstração."

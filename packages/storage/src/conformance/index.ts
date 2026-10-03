@@ -323,6 +323,11 @@ const PROBES: Probe[] = [
 			}),
 	},
 	{
+		method: "imports.undo",
+		permission: "transaction.delete",
+		run: (session, where) => session.imports.undo([where.transactionId]),
+	},
+	{
 		method: "cards.remove",
 		permission: "account.delete",
 		run: (session, where) => session.cards.remove(where.cardId),

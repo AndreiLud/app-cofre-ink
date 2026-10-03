@@ -682,7 +682,8 @@
 		"replacedRecordIsNotHere": "A record the file was to replace is not on this account or cannot be removed.",
 		"paymentNeedsItsAccount": "The payment of the invoice needs the account the money came from.",
 		"paymentFromMoney": "An invoice is paid from a current account, a savings account or cash.",
-		"refundedPurchaseIsNotHere": "Each refund takes back one purchase of this account, of its whole amount."
+		"refundedPurchaseIsNotHere": "Each refund takes back one purchase of this account, of its whole amount.",
+		"importChangedSince": "Some of what this import wrote was already changed or removed, so it is not undone."
 	},
 	"transactions": {
 		"title": "Records",
@@ -1484,7 +1485,16 @@
 		"pickPaidCard": "Pays which card?",
 		"cardPaymentWaits": "\"{{description}}\" paid the invoice of a card. Say which one to write it.",
 		"invoiceNotYoursTitle": "An invoice is the whole card's",
-		"invoiceNotYoursBody": "It holds what everybody spent on the card. Somebody who sees only their own records reads in statements, and not invoices."
+		"invoiceNotYoursBody": "It holds what everybody spent on the card. Somebody who sees only their own records reads in statements, and not invoices.",
+		"undo": "Undo this import",
+		"undoTitle": "Undo this import?",
+		"undoBody_one": "The record it wrote goes.",
+		"undoBody_other": "The {{count}} records it wrote go, all at once.",
+		"undoKeepsRemoved_one": "The record it took out, a purchase a refund took back or what the invoice detailed, does not come back.",
+		"undoKeepsRemoved_other": "The {{count}} records it took out, purchases refunds took back or what the invoice detailed, do not come back.",
+		"undoConfirm": "Undo",
+		"undone_one": "The import was undone: 1 record went.",
+		"undone_other": "The import was undone: {{count}} records went."
 	},
 	"demo": {
 		"notice": "Made up data, for demonstration only."

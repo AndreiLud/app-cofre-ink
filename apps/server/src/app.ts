@@ -1765,6 +1765,23 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		);
 	});
 
+	/**
+	 * Taking an import back, in one call: every record it wrote, which can be the three thousand
+	 * lines of a file and the parts of every plan in it, more than a selection takes.
+	 */
+	app.post("/api/imports/undo", async (context) => {
+		const input = z
+			.object({
+				ids: z
+					.array(z.string().min(1).max(64))
+					.min(1)
+					.max(3000 * 48),
+			})
+			.parse(await context.req.json());
+		const removed = await context.get("session").imports.undo(input.ids);
+		return context.json({ removed });
+	});
+
 	app.post("/api/spaces/:id/imports", async (context) => {
 		const input = importInput.parse(await context.req.json());
 		const written = await context

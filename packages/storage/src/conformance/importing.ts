@@ -445,6 +445,38 @@ export function runImportingConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// E.18: an import is taken back in one write, all of it or none.
+		it("takes an import back in one write, and not once part of it was changed", async () => {
+			const setup = await ready(adapter);
+			try {
+				const { on, spaceId } = setup;
+				const lines = [
+					{ happenedOn: "2026-09-12", amount: -1840, description: "Padaria" },
+					{ happenedOn: "2026-09-13", amount: -13_160, description: "Mercado" },
+				];
+				const first = await on.imports.create({
+					spaceId,
+					accountId: setup.checking.id,
+					records: lines,
+				});
+				expect(await on.imports.undo(first.ids)).toBe(2);
+				expect(await on.transactions.list({ spaceId })).toEqual([]);
+
+				const second = await on.imports.create({
+					spaceId,
+					accountId: setup.checking.id,
+					records: lines,
+				});
+				await on.transactions.remove(second.ids[0] ?? "");
+				await expect(on.imports.undo(second.ids)).rejects.toMatchObject({
+					rule: "importChangedSince",
+				});
+				expect(await on.transactions.list({ spaceId })).toHaveLength(1);
+			} finally {
+				await setup.fixture.close();
+			}
+		});
+
 		// E.10.2: the one record a card was written down with for its open invoice is replaced by
 		// the invoice that details it, in the same write.
 		it("removes the record an invoice details, in the same write", async () => {

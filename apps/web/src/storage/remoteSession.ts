@@ -766,6 +766,8 @@ export function createRemoteSession(
 				const { spaceId, ...rest } = input;
 				return send<ImportResult>(`/api/spaces/${spaceId}/imports`, "POST", rest);
 			},
+			undo: async (ids: string[]) =>
+				(await send<{ removed: number }>("/api/imports/undo", "POST", { ids })).removed,
 		},
 
 		backup: {

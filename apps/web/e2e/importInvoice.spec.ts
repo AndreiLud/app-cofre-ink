@@ -349,6 +349,37 @@ test.describe("reading a card invoice in", () => {
 		await expect(page.getByRole("cell", { name: "Já está aqui" })).toBeVisible();
 	});
 
+	// E.18: an import could only be taken back record by record.
+	test("takes back an invoice with a new plan and a payment, leaving everything as it was", async ({
+		page,
+	}) => {
+		await twoCards(page);
+		await importPdf(page, [
+			"Fatura do cartao",
+			"Vencimento: 10/10/2026",
+			"Total desta fatura R$ 150,00",
+			"12/09/2026 Loja X PARC 05/10 150,00",
+			"15/09/2026 Pagamento recebido -1.000,00",
+		]);
+		await page.getByLabel("Cartão", { exact: true }).selectOption({ label: "Itaú" });
+		await page.getByLabel("De onde saiu Pagamento recebido").selectOption({ label: "Banco" });
+		await page.getByRole("button", { name: "Gravar 2 lançamentos" }).click();
+		await expect(page.getByText("7 lançamentos gravados")).toBeVisible();
+
+		await page.getByRole("button", { name: "Desfazer esta importação" }).click();
+		const dialog = page.getByRole("dialog");
+		await expect(dialog).toContainText("Vão embora os 7 lançamentos que ela gravou");
+		await dialog.getByRole("button", { name: "Desfazer", exact: true }).click();
+		await expect(page.getByText("A importação foi desfeita: 7 lançamentos saíram.")).toBeVisible();
+
+		await go(page, "Lançamentos");
+		for (const month of ["2026-09", "2026-10", "2027-02"]) {
+			await page.getByLabel("Mês", { exact: true }).fill(month);
+			await expect(page.getByRole("row").filter({ hasText: "Loja X" })).toHaveCount(0);
+			await expect(page.getByRole("row").filter({ hasText: "Pagamento da fatura" })).toHaveCount(0);
+		}
+	});
+
 	// E.10.2: the card written down with what its open invoice held, and that invoice read in
 	// line by line, counted the same purchases twice.
 	test("takes out the record a card was written down with when its invoice comes in", async ({

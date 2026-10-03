@@ -40,10 +40,11 @@ import {
 	saysWord,
 	shapeOf,
 } from "@cofre/importers";
-import type { Account, ImportedRecord } from "@cofre/storage";
+import type { Account, ImportedRecord, ImportResult } from "@cofre/storage";
 import {
 	Button,
 	Callout,
+	Dialog,
 	EmptyState,
 	Icon,
 	SectionTitle,
@@ -205,7 +206,12 @@ export function ImportPage() {
 	const asked = useSearch({ from: ROUTES.import });
 	const [left, setLeft] = useState<Set<number>>(new Set());
 	const [problem, setProblem] = useState<string | null>(null);
-	const [written, setWritten] = useState<number | null>(null);
+	/** What the last import wrote, kept so it can be taken back. */
+	const [written, setWritten] = useState<ImportResult | null>(null);
+	/** Whether the person asked to take the last import back, which is asked once more. */
+	const [undoing, setUndoing] = useState(false);
+	/** That an import was taken back, said where it was said it was written. */
+	const [undone, setUndone] = useState<number | null>(null);
 
 	/**
 	 * This screen is nothing but writing records, so a role that writes none of them has
@@ -942,13 +948,35 @@ export function ImportPage() {
 				}
 			}
 
-			setWritten(result.written);
+			setWritten(result);
+			setUndone(null);
 			setPicked(null);
 			setFields(null);
 			setSign(null);
 			void queries.invalidateQueries();
 		},
 		onError: (error: unknown) => setProblem(sayWhy(error, t)),
+	});
+
+	/**
+	 * Taking the last import back, in one call: what it wrote goes, and what it took out stays
+	 * out, which the question before it says.
+	 */
+	const undo = useMutation({
+		mutationFn: async () => {
+			if (!session || !written) return 0;
+			return session.imports.undo(written.ids);
+		},
+		onSuccess: (count: number) => {
+			setUndoing(false);
+			setWritten(null);
+			setUndone(count);
+			void queries.invalidateQueries();
+		},
+		onError: (error: unknown) => {
+			setUndoing(false);
+			setProblem(sayWhy(error, t));
+		},
 	});
 
 	const duplicates = marked.filter((record) => record.duplicateOf !== null).length;
@@ -999,20 +1027,60 @@ export function ImportPage() {
 			{written !== null ? (
 				<Callout
 					tone="neutral"
-					title={t("importing.doneTitle", { count: written })}
+					title={t("importing.doneTitle", { count: written.written })}
 					action={
-						<Button
-							size="small"
-							variant="secondary"
-							onClick={() => void navigate({ to: ROUTES.transactions })}
-						>
-							{t("importing.seeRecords")}
-						</Button>
+						<div className="flex flex-wrap gap-2">
+							<Button
+								size="small"
+								variant="secondary"
+								onClick={() => void navigate({ to: ROUTES.transactions })}
+							>
+								{t("importing.seeRecords")}
+							</Button>
+							{mayCall("imports.undo") && written.ids.length > 0 ? (
+								<Button size="small" variant="quiet" onClick={() => setUndoing(true)}>
+									{t("importing.undo")}
+								</Button>
+							) : null}
+						</div>
 					}
 				>
-					{t("importing.doneBody", { count: written })}
+					{t("importing.doneBody", { count: written.written })}
 				</Callout>
 			) : null}
+			{undone !== null ? (
+				<Callout tone="neutral">{t("importing.undone", { count: undone })}</Callout>
+			) : null}
+			<Dialog
+				open={undoing}
+				onOpenChange={(next) => !next && setUndoing(false)}
+				title={t("importing.undoTitle")}
+				description={
+					written === null
+						? ""
+						: [
+								t("importing.undoBody", { count: written.written }),
+								written.removed > 0
+									? t("importing.undoKeepsRemoved", { count: written.removed })
+									: "",
+							]
+								.filter((part) => part !== "")
+								.join(" ")
+				}
+				closeLabel={t("actions.close")}
+				footer={
+					<>
+						<Button variant="quiet" onClick={() => setUndoing(false)}>
+							{t("actions.cancel")}
+						</Button>
+						<Button variant="destructive" onClick={() => undo.mutate()} disabled={undo.isPending}>
+							{t("importing.undoConfirm")}
+						</Button>
+					</>
+				}
+			>
+				{null}
+			</Dialog>
 
 			<div className="space-y-3 border-y border-line py-4">
 				<label htmlFor="statementFile" className="block text-sm font-medium text-ink">

@@ -29,7 +29,7 @@ import {
 	uuidV7,
 } from "@cofre/core";
 import { transactions } from "@cofre/db";
-import { assertCan, seesOwnRowsOnly } from "../actor.ts";
+import { assertCan, readableSpaceIds, seesOwnRowsOnly } from "../actor.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { type Account, type SpendingPriority, toAccount, toCategorizationRule } from "../models.ts";
 import { marks } from "../sql.ts";
@@ -116,6 +116,11 @@ export type ImportInput = {
 export type ImportResult = {
 	written: number;
 	ids: string[];
+	/**
+	 * How many records the import took out: the one a card was written down with, which an
+	 * invoice detailed, and the purchases refunds took back. Undoing it does not bring them back.
+	 */
+	removed: number;
 };
 
 /** What the reading side compares a file against, to say what is already here. */
@@ -285,7 +290,7 @@ export function createImportsRepository(context: RepositoryContext) {
 		/** Every line of the file, in one database transaction, or nothing at all. */
 		async create(input: ImportInput): Promise<ImportResult> {
 			assertCan(context.actor(), input.spaceId, "transaction.create");
-			if (input.records.length === 0) return { written: 0, ids: [] };
+			if (input.records.length === 0) return { written: 0, ids: [], removed: 0 };
 
 			const account = await accountIn(input.spaceId, input.accountId);
 			// An invoice is the whole of what a card will charge, whoever made the purchases, and so
@@ -753,7 +758,57 @@ export function createImportsRepository(context: RepositoryContext) {
 				return written;
 			});
 
-			return { written: ids.length, ids };
+			return {
+				written: ids.length,
+				ids,
+				removed: removes.length + reversed.length,
+			};
+		},
+
+		/**
+		 * Taking an import back: every record it wrote, in one write, or none.
+		 *
+		 * The records it took out stay out: a purchase a refund took back was already gone from
+		 * the month, and bringing it back would be a guess about why.
+		 */
+		async undo(ids: string[]): Promise<number> {
+			const asked = [...new Set(ids)];
+			if (asked.length === 0) return 0;
+			const actor = context.actor();
+			const readable = new Set(readableSpaceIds(actor));
+
+			const found: { id: string; spaceId: string }[] = [];
+			for (let start = 0; start < asked.length; start += 500) {
+				const chunk = asked.slice(start, start + 500);
+				const rows = await context.driver.all(
+					`SELECT "id", "space_id", "created_by" FROM "transactions"
+					 WHERE "id" IN (${marks(chunk.length)}) AND "deleted_at" IS NULL`,
+					chunk,
+				);
+				for (const row of rows) {
+					const spaceId = String(row.space_id);
+					if (!readable.has(spaceId)) throw new NotFoundError("transaction", String(row.id));
+					assertCan(actor, spaceId, "transaction.delete");
+					if (seesOwnRowsOnly(actor, spaceId) && String(row.created_by) !== actor.userId) {
+						throw new NotFoundError("transaction", String(row.id));
+					}
+					found.push({ id: String(row.id), spaceId });
+				}
+			}
+			if (found.length !== asked.length) {
+				throw new RuleError(
+					"importChangedSince",
+					"some of what this import wrote was already changed or removed, so it is not taken back",
+				);
+			}
+
+			await context.driver.transaction(async (tx) => {
+				const write = { ...context.write(), driver: tx };
+				for (const row of found) {
+					await softDeleteRow(write, { table: transactions, spaceId: row.spaceId, id: row.id });
+				}
+			});
+			return found.length;
 		},
 	};
 }
