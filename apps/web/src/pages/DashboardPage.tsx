@@ -16,6 +16,7 @@
 import {
 	addDays,
 	addUpInBase,
+	amountToPay,
 	type CalendarDate,
 	canSpendThisMonth,
 	dateInMonth,
@@ -497,6 +498,10 @@ export function DashboardPage() {
 				currency,
 				kind: "expense" as const,
 				invoice: true,
+				// A payment dated ahead is not paid yet, so the bill stays here and says when the
+				// money leaves, and offers payment only for what that payment does not cover.
+				scheduledOn: state.scheduled > 0 ? state.scheduledOn : null,
+				payable: amountToPay(state) > 0,
 			})),
 	);
 
@@ -513,6 +518,14 @@ export function DashboardPage() {
 	const dues = [
 		...(upcoming.data ?? [])
 			.filter((row) => !open.has(row.accountId) || accountKind(row.accountId) !== "credit")
+			// A payment into a card, dated ahead, is the invoice line below saying when it is
+			// paid. Listed here as well, the same money went out twice in this block.
+			.filter(
+				(row) =>
+					row.kind !== "transfer" ||
+					row.counterAccountId === null ||
+					accountKind(row.counterAccountId) !== "credit",
+			)
 			.map((row) => ({
 				id: row.id,
 				on: row.happenedOn,
@@ -1138,6 +1151,10 @@ type Due = {
 	currency: string;
 	kind: string;
 	invoice: boolean;
+	/** On an invoice: the day a payment already written for it leaves the bank. */
+	scheduledOn?: string | null;
+	/** On an invoice: whether anything is left that no payment covers yet. */
+	payable?: boolean;
 };
 
 /**
@@ -1321,6 +1338,11 @@ function DueRow({
 				<span className="font-mono text-quiet text-xs">{dayAndMonth(row.on)}</span>
 				<span className="truncate">{row.description}</span>
 				{row.invoice ? <span className="text-quiet text-xs">{t("dashboard.oneBill")}</span> : null}
+				{row.invoice && row.scheduledOn ? (
+					<span className="text-quiet text-xs">
+						{t("dashboard.paymentScheduled", { day: dayAndMonth(row.scheduledOn) })}
+					</span>
+				) : null}
 			</span>
 			<span className="flex items-center gap-2">
 				<Value amount={row.amount} currency={row.currency} tone="auto" />
@@ -1331,7 +1353,7 @@ function DueRow({
 						{label}
 					</Button>
 				) : null}
-				{row.invoice ? (
+				{row.invoice && row.payable !== false ? (
 					<Link to={ROUTES.invoices}>
 						<Button size="small" variant="secondary">
 							{t("invoice.pay")}

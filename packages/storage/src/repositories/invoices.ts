@@ -11,6 +11,7 @@
 // of the subtraction.
 
 import {
+	amountToPay,
 	type CalendarDate,
 	type CalendarMonth,
 	type CardCycle,
@@ -23,6 +24,7 @@ import {
 import { assertCan, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
+import { happenedBy, stillToComeOn } from "../happened.ts";
 import type { Account, Transaction } from "../models.ts";
 import type { AccountsRepository } from "./accounts.ts";
 import type { RepositoryContext } from "./context.ts";
@@ -87,6 +89,8 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 	type InvoiceSum = {
 		charged: number;
 		paid: number;
+		scheduled: number;
+		scheduledOn: CalendarDate | null;
 		inOtherCurrencies: number;
 		withoutRate: number;
 	};
@@ -108,22 +112,46 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 	 * The two counts are how an invoice can say it does not know. A record in another currency
 	 * with no rate written down has no honest figure in the base currency, and a total that
 	 * silently leaves it out is worse than no total.
+	 *
+	 * A payment pays from its own day, by the one rule for what has happened. Before that it
+	 * is scheduled: the money is still in the bank, so the invoice is still owed. Every
+	 * transfer into the card counted at once, whatever its day, and paying on the due day,
+	 * which is what the payment dialog suggests, took the invoice off what falls due a week
+	 * before the bank lost the money.
 	 */
 	async function sums(
 		accountId: string,
 		baseCurrency: string,
+		today: CalendarDate,
 	): Promise<Map<CalendarMonth, InvoiceSum>> {
 		const rows = await context.driver.all(
 			`SELECT "invoice_month" AS month,
 			   COALESCE(SUM(CASE WHEN "account_id" = ? THEN -"amount_in_base" ELSE 0 END), 0) AS charged,
-			   COALESCE(SUM(CASE WHEN "counter_account_id" = ? THEN "amount_in_base" ELSE 0 END), 0) AS paid,
+			   COALESCE(SUM(CASE WHEN "counter_account_id" = ? AND ${happenedBy(null)}
+			     THEN "amount_in_base" ELSE 0 END), 0) AS paid,
+			   COALESCE(SUM(CASE WHEN "counter_account_id" = ? AND ${stillToComeOn(null)}
+			     THEN "amount_in_base" ELSE 0 END), 0) AS scheduled,
+			   MAX(CASE WHEN "counter_account_id" = ? AND ${stillToComeOn(null)}
+			     THEN "happened_on" ELSE NULL END) AS scheduled_on,
 			   COALESCE(SUM(CASE WHEN "currency" <> ? THEN 1 ELSE 0 END), 0) AS in_other_currencies,
 			   COALESCE(SUM(CASE WHEN "currency" <> ? AND "fx_rate" IS NULL THEN 1 ELSE 0 END), 0) AS without_rate
 			 FROM "transactions"
 			 WHERE "deleted_at" IS NULL AND "invoice_month" IS NOT NULL
 			   AND ("account_id" = ? OR "counter_account_id" = ?)
 			 GROUP BY "invoice_month"`,
-			[accountId, accountId, baseCurrency, baseCurrency, accountId, accountId],
+			[
+				accountId,
+				accountId,
+				today,
+				accountId,
+				today,
+				accountId,
+				today,
+				baseCurrency,
+				baseCurrency,
+				accountId,
+				accountId,
+			],
 		);
 
 		const found = new Map<CalendarMonth, InvoiceSum>();
@@ -131,6 +159,11 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 			found.set(String(row.month), {
 				charged: asNumber(row.charged),
 				paid: asNumber(row.paid),
+				scheduled: asNumber(row.scheduled),
+				scheduledOn:
+					row.scheduled_on === null || row.scheduled_on === undefined
+						? null
+						: String(row.scheduled_on),
 				inOtherCurrencies: asNumber(row.in_other_currencies),
 				withoutRate: asNumber(row.without_rate),
 			});
@@ -138,15 +171,18 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 		return found;
 	}
 
-	/** A transfer into the card that names no invoice, oldest first. */
-	async function unmarkedPayments(accountId: string): Promise<Transaction[]> {
+	/**
+	 * A transfer into the card that names no invoice, oldest first, once its day has come.
+	 * Until then it is money still in the bank, and it pays nothing down.
+	 */
+	async function unmarkedPayments(accountId: string, today: CalendarDate): Promise<Transaction[]> {
 		const rows = await context.driver.all(
 			// In the currency of the space, like the sums it pays down.
 			`SELECT "id", "amount_in_base" AS "amount", "happened_on" FROM "transactions"
 			 WHERE "counter_account_id" = ? AND "deleted_at" IS NULL AND "kind" = 'transfer'
-			   AND "invoice_month" IS NULL
+			   AND "invoice_month" IS NULL AND ${happenedBy(null)}
 			 ORDER BY "happened_on", "created_at"`,
-			[accountId],
+			[accountId, today],
 		);
 		return rows as unknown as Transaction[];
 	}
@@ -193,10 +229,10 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 	async function statesOf(accountId: string, today: CalendarDate): Promise<InvoiceState[]> {
 		const { account, cycle } = await cardAccount(accountId);
 		const baseCurrency = await baseCurrencyOf(account.spaceId);
-		const totals = await sums(account.id, baseCurrency);
+		const totals = await sums(account.id, baseCurrency, today);
 
 		let loose = 0;
-		for (const payment of await unmarkedPayments(account.id)) {
+		for (const payment of await unmarkedPayments(account.id, today)) {
 			loose += asNumber((payment as unknown as { amount: number }).amount);
 		}
 
@@ -206,6 +242,8 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 			const sum = totals.get(month) ?? {
 				charged: 0,
 				paid: 0,
+				scheduled: 0,
+				scheduledOn: null,
 				inOtherCurrencies: 0,
 				withoutRate: 0,
 			};
@@ -222,6 +260,8 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 					cycle,
 					charged: sum.charged,
 					paid,
+					scheduled: sum.scheduled,
+					scheduledOn: sum.scheduledOn,
 					today,
 					inOtherCurrencies: sum.inOtherCurrencies,
 					withoutRate: sum.withoutRate,
@@ -380,13 +420,14 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 			refuseIfNarrowed(account.spaceId);
 
 			const states = await statesOf(input.accountId, input.today);
-			const owing = states.filter((state) => state.month <= input.month && state.left > 0);
+			// What a payment already waiting for its day covers is not paid again.
+			const owing = states.filter((state) => state.month <= input.month && amountToPay(state) > 0);
 
 			for (const state of owing) {
 				await needs.transactions.create({
 					spaceId: account.spaceId,
 					kind: "transfer",
-					amount: state.left,
+					amount: amountToPay(state),
 					happenedOn: state.dueOn,
 					description: input.description.replace("{{month}}", state.month),
 					accountId: input.fromAccountId,

@@ -192,6 +192,22 @@ export function total(page: Page) {
 }
 
 /**
+ * Any of the four figures on the line at the top of the overview, by its label.
+ *
+ * The innermost block holding the label, which is the last of them in the order of the
+ * page: every block around it holds the label too, and the first amount inside the
+ * outermost one is whichever figure the line happens to start with.
+ */
+export function figure(page: Page, label: string) {
+	return page
+		.locator("div")
+		.filter({ has: page.getByText(label, { exact: true }) })
+		.last()
+		.locator("span.tabular-nums")
+		.first();
+}
+
+/**
  * Spaces and members are settings, so they live in the menu of the space instead of in
  * the navigation. Both screens are reached the same way.
  */

@@ -359,7 +359,8 @@
 		"andOlderOnes_other": "And {{count}} older ones, still owed:",
 		"quotaMissing": "allowance not filled in",
 		"invoiceWithoutRate": "No total: a purchase on this invoice is in another currency with no rate. This invoice is left out of what is still there to spend this month.",
-		"limitInAnotherCurrency": "The limit of this card is in another currency, so how much of it is left cannot be said without inventing a rate."
+		"limitInAnotherCurrency": "The limit of this card is in another currency, so how much of it is left cannot be said without inventing a rate.",
+		"paymentScheduled": "payment scheduled for {{day}}"
 	},
 	"notice": {
 		"budgetOver": "{{name}} went over its limit by {{over}}.",
@@ -905,7 +906,8 @@
 		"see": "See the invoice",
 		"countedIn": "Added up in {{currency}}, at the rate written down with each purchase. Each purchase appears below in the currency it was made in.",
 		"noRateTitle": "This invoice has no total",
-		"noRateBody": "A purchase on this invoice is in another currency with no rate for the day, so any total here would be a wrong number. The purchases are still in the list below. Open the purchase under Records and say what the rate was, and the total comes back."
+		"noRateBody": "A purchase on this invoice is in another currency with no rate for the day, so any total here would be a wrong number. The purchases are still in the list below. Open the purchase under Records and say what the rate was, and the total comes back.",
+		"scheduled": "Payment scheduled for {{day}}. Until that day the money stays in the account and the invoice stays open:"
 	},
 	"transactionKind": {
 		"expense": "Expense",

@@ -478,6 +478,15 @@ export function InvoicePage() {
 					</p>
 				) : null}
 
+				{/* A payment dated ahead pays from its day. Until then the money is in the bank and
+				    the invoice is still owed, so it stays in what falls due, and this says why. */}
+				{state && state.scheduled > 0 && state.scheduledOn ? (
+					<p className="text-sm text-quiet">
+						{t("invoice.scheduled", { day: dayAndMonth(state.scheduledOn) })}{" "}
+						<Value amount={state.scheduled} currency={currentSpace.baseCurrency} />
+					</p>
+				) : null}
+
 				{state?.late ? <p className="text-sm text-seal">{t("invoice.noInterest")}</p> : null}
 
 				{/* How much of the limit is left, and not what the limit is. The limit on its own
@@ -505,7 +514,7 @@ export function InvoicePage() {
 					</p>
 				) : null}
 
-				{mayPay && state && state.left > 0 ? (
+				{mayPay && state && amountToPay(state) > 0 ? (
 					<div className="flex flex-wrap gap-2 pt-2">
 						<Button onClick={() => openPayment(state)}>{t("invoice.pay")}</Button>
 						{owingBefore.length > 0 ? (

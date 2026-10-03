@@ -47,6 +47,17 @@ Paying, said of a record dated ahead, moves its day to today, one record or seve
 did that for one and not for several, where only the status was written, which on a fact
 dated ahead changed nothing anybody could see.
 
+A payment of a card invoice follows the same rule. It pays the invoice from its own day,
+and until then it is scheduled: the invoice is still owed, stays in what falls due and in
+the months ahead, and says on which day the payment leaves. The payment dialog suggests the
+due day, so this was the ordinary case, and release 1.2.1 counted every transfer into the
+card at once: the invoice left what falls due while the bank still held the money, and what
+was left to spend read the whole invoice higher until the due day. A payment with no
+invoice named on it pays down the oldest invoice from its day too. What is offered for
+payment, by the dialog and by marking every earlier invoice paid, is what is left less
+what a scheduled payment already covers. The month screen writes its payment as a fact
+dated on the due day, like everything else.
+
 ## Consequences
 
 The overview no longer fills with late promises from every series somebody sets up, and

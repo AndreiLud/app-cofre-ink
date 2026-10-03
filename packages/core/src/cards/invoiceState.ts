@@ -26,8 +26,18 @@ export type InvoiceInput = {
 	cycle: CardCycle;
 	/** What was charged to this invoice, as a positive number. */
 	charged: number;
-	/** What has been paid against it, as a positive number. */
+	/** What has been paid against it, as a positive number. Only payments whose day has come. */
 	paid: number;
+	/**
+	 * What is marked to pay it on a day still to come, and the last of those days.
+	 *
+	 * A payment dated the day the invoice falls due is the normal way to pay one, and until
+	 * that day the money is still in the bank. Counted as paid, it took the invoice off what
+	 * falls due while the bank still showed the money, and what was left to spend went up
+	 * by the whole invoice for a week.
+	 */
+	scheduled?: number;
+	scheduledOn?: CalendarDate | null;
 	/** The day the question is being asked on. */
 	today: CalendarDate;
 	/** How many of its records were written in a currency other than the one it is summed in. */
@@ -45,6 +55,10 @@ export type InvoiceState = {
 	dueOn: CalendarDate;
 	charged: number;
 	paid: number;
+	/** Marked to be paid on a day still to come, which is not paid yet. */
+	scheduled: number;
+	/** The last day of those payments, or nothing when none is waiting. */
+	scheduledOn: CalendarDate | null;
 	/** What is still to pay. Negative means the card was paid more than it charged. */
 	left: number;
 	standing: InvoiceStanding;
@@ -92,6 +106,8 @@ export function invoiceStateOf(input: InvoiceInput): InvoiceState {
 		dueOn,
 		charged: input.charged,
 		paid: input.paid,
+		scheduled: input.scheduled ?? 0,
+		scheduledOn: (input.scheduled ?? 0) > 0 ? (input.scheduledOn ?? null) : null,
 		left,
 		standing,
 		closed: compareCalendarDates(input.today, closesOn) >= 0,
@@ -107,9 +123,12 @@ export function invoiceStateOf(input: InvoiceInput): InvoiceState {
  * What a payment should be offered for, which is what is left rather than what was
  * charged. Paying an invoice twice because the field came back with the whole amount is
  * a mistake the screen can simply not make.
+ *
+ * Less what is already marked to pay it on a day still to come, for the same reason: that
+ * payment is not paid yet, and it is not something to pay again either.
  */
 export function amountToPay(state: InvoiceState): number {
-	return Math.max(0, state.left);
+	return Math.max(0, state.left - state.scheduled);
 }
 
 export type LimitLeftInput = {

@@ -387,9 +387,6 @@ export function MonthPage() {
 	};
 	const left = (cents.income ?? 0) - (cents.spending ?? 0) - (cents.invoice ?? 0);
 
-	// The day the card is paid, which decides whether that payment already happened.
-	const paidOn = monthPartDay(shown, "payment", cycle, today);
-
 	/**
 	 * What the month should end up holding.
 	 *
@@ -444,10 +441,12 @@ export function MonthPage() {
 				into: account,
 				kind: "transfer",
 				counter: cardAccount.id,
-				// An invoice that has not fallen due yet has not been paid yet, and the
-				// application already has a word for that. It counts in what is coming
-				// rather than in what is there.
-				status: paidOn <= today ? "settled" : "planned",
+				// A fact, like everything the application writes. An invoice that has not
+				// fallen due yet has not been paid yet, and its day says so: the payment
+				// leaves the bank and pays the invoice on that day, by itself. Written as a
+				// promise it waited for somebody to say so, and counted against the invoice
+				// at once while the bank still held the money.
+				status: "settled",
 				/**
 				 * Which invoice it pays, said out loud.
 				 *

@@ -1,7 +1,7 @@
 // Writing money down, which is the thing the product exists to make fast.
 
 import { expect, test } from "@playwright/test";
-import { dayField, go, onTheDay, openCofre, record, total } from "./support.ts";
+import { dayField, figure, go, onTheDay, openCofre, record, total } from "./support.ts";
 
 /**
  * A day ahead of the day the suite runs on, as the date field wants it.
@@ -424,6 +424,9 @@ test.describe("the card invoice", () => {
 		// the button the field handed them.
 		const amount = page.getByRole("dialog").getByLabel("Valor", { exact: true });
 		await expect(amount).not.toHaveValue("");
+		// Paid today. The day it comes with is the due day, which is a payment scheduled
+		// for then, and the case after this one is about that.
+		await page.getByRole("dialog").getByLabel("Dia").fill(dayField(0));
 		await page.getByRole("dialog").getByRole("button", { name: "Pagar fatura" }).click();
 
 		await expect(page.getByRole("heading", { level: 1 })).toContainText("está paga");
@@ -438,10 +441,79 @@ test.describe("the card invoice", () => {
 
 		await page.getByRole("button", { name: "Pagar fatura" }).click();
 		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("100,00");
+		await page.getByRole("dialog").getByLabel("Dia").fill(dayField(0));
 		await page.getByRole("dialog").getByRole("button", { name: "Pagar fatura" }).click();
 
 		await expect(page.getByText("Paga em parte")).toBeVisible();
 		await expect(page.getByText("Falta:")).toBeVisible();
+	});
+
+	// The case from the request for 2.0.0, part 1, A.2: five thousand in the bank and an
+	// invoice of two thousand due in seven days. Paid on the day the dialog suggests, which
+	// is the due day, release 1.2.1 took the invoice off what falls due at once while the
+	// bank still held the money, and what was left to spend read five thousand for a week.
+	test("leaves what is left to spend alone when an invoice is paid ahead of its day", async ({
+		page,
+	}) => {
+		await openCofre(page, { demo: false });
+		// A day whose invoice falls due inside the same month, so the bill is in the figure.
+		await page.clock.setFixedTime(new Date("2026-10-13T12:00:00-03:00"));
+		await page.reload();
+		await expect(page.getByRole("navigation", { name: "Seções do aplicativo" })).toBeVisible({
+			timeout: 45_000,
+		});
+
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		await page.getByLabel("Nome").fill("Banco");
+		await page.getByLabel("Saldo de abertura").fill("5.000,00");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Banco", exact: true })).toBeVisible();
+
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		const card = page.getByRole("dialog");
+		await card.getByLabel("Nome").fill("Nubank");
+		await card.getByLabel("Tipo").selectOption("credit");
+		await card.getByLabel("Dia do fechamento").selectOption("15");
+		await card.getByLabel("Dia do vencimento").selectOption("20");
+		await card.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Nubank", exact: true })).toBeVisible();
+
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = page.getByRole("dialog");
+		await form.getByLabel("Pago com").selectOption({ label: "Nubank" });
+		await form.getByLabel("Valor", { exact: true }).fill("2.000,00");
+		await form.getByLabel("Descrição").fill("Notebook");
+		await form.getByLabel("Dia").fill("2026-10-08");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(record(page, "Notebook")).toBeVisible();
+
+		await go(page, "Painel");
+		await expect(figure(page, "Ainda dá para gastar")).toHaveText("R$ 3.000,00");
+
+		await go(page, "Faturas");
+		await page.getByRole("button", { name: "Pagar fatura" }).click();
+		await expect(page.getByRole("dialog").getByLabel("Dia")).toHaveValue("2026-10-20");
+		await page.getByRole("dialog").getByRole("button", { name: "Pagar fatura" }).click();
+
+		// Not paid yet, and the screen says when it will be.
+		await expect(page.getByRole("heading", { level: 1 })).not.toContainText("está paga");
+		await expect(page.getByText(/Pagamento agendado para 20\/10/)).toBeVisible();
+		await expect(page.getByRole("button", { name: "Pagar fatura" })).toHaveCount(0);
+
+		await go(page, "Painel");
+		await expect(figure(page, "Ainda dá para gastar")).toHaveText("R$ 3.000,00");
+		await expect(total(page)).toHaveText("R$ 5.000,00");
+		await expect(page.getByText("pagamento agendado para 20/10")).toBeVisible();
+
+		// The day after the due day: the money left the bank and the invoice is paid.
+		await page.clock.setFixedTime(new Date("2026-10-21T12:00:00-03:00"));
+		await page.reload();
+		await expect(figure(page, "Ainda dá para gastar")).toHaveText("R$ 3.000,00", {
+			timeout: 45_000,
+		});
+		await expect(total(page)).toHaveText("R$ 3.000,00");
 	});
 
 	test("moves a purchase the bank closed onto another invoice, and keeps it there", async ({

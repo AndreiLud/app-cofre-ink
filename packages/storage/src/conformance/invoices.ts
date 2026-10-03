@@ -5,6 +5,7 @@
 // cards. A payment is an ordinary transfer into the card account naming the invoice it
 // pays, so nothing here reaches past the repository to look at a row.
 
+import { amountToPay, canSpendThisMonth } from "@cofre/core";
 import { STAMP_SERIES_WITH_THEIR_INVOICE } from "@cofre/db";
 import { describe, expect, it } from "vitest";
 import { RuleError } from "../errors.ts";
@@ -154,6 +155,82 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 				expect(invoices[0]?.standing).toBe("partlyPaid");
 				expect(invoices[0]?.left).toBe(78_450);
 				expect(invoices[0]?.late).toBe(true);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		// The case from the request for 2.0.0, part 1, A.2: five thousand in the bank and an
+		// invoice of two thousand due in seven days, paid on the due day, which is the day the
+		// payment dialog suggests. Release 1.2.1 counted the payment at once, so the invoice
+		// left what falls due while the bank still held the money, and what was left to spend
+		// read five thousand instead of three until the due day.
+		it("pays an invoice from the day of the payment, and not from the day it was written", async () => {
+			const ready = await readyCard(adapter);
+			try {
+				await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 200_000,
+					happenedOn: "2026-09-10",
+					description: "Notebook",
+					accountId: ready.card.id,
+				});
+				await ready.fixture.asAna.invoices.pay({
+					accountId: ready.card.id,
+					fromAccountId: ready.checking.id,
+					amount: 200_000,
+					happenedOn: "2026-10-10",
+					month: "2026-10",
+					description: "Pagamento",
+				});
+
+				const leftToSpend = async (day: string) => {
+					const balances = await ready.fixture.asAna.transactions.balances(ready.spaceId, day);
+					const bank = balances.find((one) => one.accountId === ready.checking.id)?.settled ?? 0;
+					const [card] = await ready.fixture.asAna.invoices.standing(ready.spaceId, day);
+					const due = [card?.open, ...(card?.owing ?? [])]
+						.filter((state) => state !== undefined && state.left > 0)
+						.reduce((total, state) => total + (state?.left ?? 0), 0);
+					return {
+						bank,
+						left: canSpendThisMonth({
+							spendable: bank,
+							comingIn: 0,
+							fallingDue: due,
+							stillToSave: 0,
+						}).amount,
+					};
+				};
+
+				// Seven days before the due day.
+				const [waiting] = await ready.fixture.asAna.invoices.list(ready.card.id, "2026-10-03");
+				expect(waiting?.paid).toBe(0);
+				expect(waiting?.left).toBe(200_000);
+				expect(waiting?.scheduled).toBe(200_000);
+				expect(waiting?.scheduledOn).toBe("2026-10-10");
+				expect(waiting?.standing).toBe("open");
+				expect(waiting ? amountToPay(waiting) : null).toBe(0);
+				expect(await leftToSpend("2026-10-03")).toEqual({ bank: 500_000, left: 300_000 });
+
+				// Marking everything up to it as paid does not pay it a second time.
+				expect(
+					await ready.fixture.asAna.invoices.markPaidUntil({
+						accountId: ready.card.id,
+						month: "2026-10",
+						fromAccountId: ready.checking.id,
+						today: "2026-10-03",
+						description: "Pagamento da fatura {{month}}",
+					}),
+				).toBe(0);
+
+				// On the due day the money leaves and the invoice is paid, and the figure is the same.
+				const [paid] = await ready.fixture.asAna.invoices.list(ready.card.id, "2026-10-10");
+				expect(paid?.paid).toBe(200_000);
+				expect(paid?.left).toBe(0);
+				expect(paid?.scheduled).toBe(0);
+				expect(paid?.standing).toBe("paid");
+				expect(await leftToSpend("2026-10-10")).toEqual({ bank: 300_000, left: 300_000 });
 			} finally {
 				await ready.fixture.close();
 			}

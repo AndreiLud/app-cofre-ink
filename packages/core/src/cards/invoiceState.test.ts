@@ -97,6 +97,17 @@ describe("what a payment is offered for", () => {
 		expect(amountToPay(state({ paid: 50_000 }))).toBe(78_450);
 	});
 
+	// A payment dated ahead is not paid yet, and it is not something to pay again either.
+	it("leaves a scheduled payment owing, and does not offer it a second time", () => {
+		const waiting = state({ charged: 200_000, scheduled: 200_000, scheduledOn: "2026-10-10" });
+		expect(waiting.left).toBe(200_000);
+		expect(waiting.standing).toBe("open");
+		expect(waiting.scheduledOn).toBe("2026-10-10");
+		expect(amountToPay(waiting)).toBe(0);
+		expect(amountToPay(state({ charged: 200_000, scheduled: 50_000 }))).toBe(150_000);
+		expect(state({ charged: 200_000 }).scheduledOn).toBe(null);
+	});
+
 	it("offers nothing on an invoice that is already in credit", () => {
 		expect(amountToPay(state({ paid: 150_000 }))).toBe(0);
 	});
