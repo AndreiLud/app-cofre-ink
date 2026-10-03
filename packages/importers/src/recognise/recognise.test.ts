@@ -369,6 +369,46 @@ describe("the summary, the sections and the currency", () => {
 	});
 });
 
+// Part 2, E.6: what kind of document, and from which bank.
+describe("the kind of document and the bank", () => {
+	it("reads a statement that pays a card as a statement", () => {
+		const read = recogniseStatement(
+			[
+				"Banco do Brasil",
+				"Extrato de conta corrente",
+				"Agencia 1234 Conta 56789-0",
+				"Saldo anterior 3.000,00",
+				"05/10/2026 PAG FATURA NUBANK 1.234,56 1.765,44",
+				"Vencimento do boleto em 10/10/2026",
+			],
+			{ today },
+		);
+		expect(read.kind).toBe("statement");
+		expect(read.entries[0]).toMatchObject({ amount: -123_456, nature: "cardPayment" });
+	});
+
+	it("takes the first bank named as a whole word", () => {
+		const read = recogniseStatement(
+			[
+				"C6 Bank",
+				"Fatura do cartao",
+				"Vencimento: 10/10/2026",
+				"12/09/2026 IOF compra internacional 3,20",
+			],
+			{ today },
+		);
+		expect(read.institution).toBe("C6");
+	});
+
+	it("reads it as the person says it is", () => {
+		const read = recogniseStatement(["Banco qualquer", "12/09/2026 Padaria 18,40"], {
+			today,
+			kind: "invoice",
+		});
+		expect(read.kind).toBe("invoice");
+	});
+});
+
 describe("whatever the lines hold", () => {
 	it("never throws, and never invents a record", () => {
 		fc.assert(

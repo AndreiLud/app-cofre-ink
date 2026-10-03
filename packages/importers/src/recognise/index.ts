@@ -28,7 +28,7 @@ export function recognise(
 	lines: readonly string[],
 	options: RecogniseOptions = {},
 ): RecognisedDocument {
-	return kindOf(lines) === "receipt"
+	return options.kind === undefined && kindOf(lines) === "receipt"
 		? recogniseReceipt(lines, options)
 		: recogniseStatement(lines, options);
 }

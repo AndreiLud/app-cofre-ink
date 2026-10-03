@@ -1421,7 +1421,10 @@
 		"signExpense": "São gastos",
 		"signAsWritten": "O sinal é do banco",
 		"signGuessedExpense": "Nenhum valor deste arquivo é negativo, então ele parece uma fatura de cartão, onde toda linha é uma compra. Se for um extrato, troque aqui.",
-		"signHint": "O arquivo tem valores dos dois lados, então o sinal dele é que manda."
+		"signHint": "O arquivo tem valores dos dois lados, então o sinal dele é que manda.",
+		"documentIs": "O documento é",
+		"isStatement": "Extrato de conta",
+		"isInvoice": "Fatura de cartão"
 	},
 	"demo": {
 		"notice": "Dados fictícios, só para demonstração."

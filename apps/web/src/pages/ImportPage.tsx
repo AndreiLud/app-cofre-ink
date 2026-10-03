@@ -118,6 +118,8 @@ export function ImportPage() {
 	const [picked, setPicked] = useState<Picked | null>(null);
 	const [fields, setFields] = useState<FieldName[] | null>(null);
 	const [sign, setSign] = useState<SignMeaning | null>(null);
+	/** What the person said a document is, when the reader got it wrong. */
+	const [documentKind, setDocumentKind] = useState<"statement" | "invoice" | null>(null);
 	const [accountId, setAccountId] = useState("");
 	const [left, setLeft] = useState<Set<number>>(new Set());
 	const [problem, setProblem] = useState<string | null>(null);
@@ -153,7 +155,8 @@ export function ImportPage() {
 	// come from this screen or from the last time a file of this shape was read.
 	const read = useMemo(() => {
 		if (!picked) return null;
-		const first = readFile(picked.bytes, { fileName: picked.name, today });
+		const said = documentKind === null ? {} : { kind: documentKind };
+		const first = readFile(picked.bytes, { fileName: picked.name, today, ...said });
 		if (!first.mapping) return first;
 
 		const shape = shapeOf(first.header);
@@ -164,13 +167,14 @@ export function ImportPage() {
 		return readFile(picked.bytes, {
 			fileName: picked.name,
 			today,
+			...said,
 			mapping: {
 				...first.mapping,
 				fields: corrected ?? first.mapping.fields,
 				positiveMeans: chosenSign ?? first.mapping.positiveMeans,
 			},
 		});
-	}, [picked, fields, sign, today, spaceId]);
+	}, [picked, fields, sign, today, spaceId, documentKind]);
 
 	const usable = (accounts.data ?? []).filter((account) => account.archivedAt === null);
 
@@ -276,6 +280,7 @@ export function ImportPage() {
 		setWritten(null);
 		setLeft(new Set());
 		setFields(null);
+		setDocumentKind(null);
 
 		try {
 			setPicked({ name: file.name, bytes: await readPickedFile(file) });
@@ -426,6 +431,21 @@ export function ImportPage() {
 			{read === null ? null : (
 				<div className="space-y-5">
 					{read.document ? <WhatItIs document={read.document} /> : null}
+					{/* The reader decides from the words at the top of the page, and the person
+					    can say otherwise: a statement and an invoice are read differently. */}
+					{read.document && read.document.kind !== "receipt" ? (
+						<div className="max-w-md">
+							<Segmented
+								label={t("importing.documentIs")}
+								value={read.document.kind === "invoice" ? "invoice" : "statement"}
+								onChange={(value) => setDocumentKind(value)}
+								options={[
+									{ value: "statement", label: t("importing.isStatement") },
+									{ value: "invoice", label: t("importing.isInvoice") },
+								]}
+							/>
+						</div>
+					) : null}
 
 					<div className="flex flex-wrap items-end gap-4">
 						<div className="min-w-[14rem] grow sm:grow-0">

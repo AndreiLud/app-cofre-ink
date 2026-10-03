@@ -1421,7 +1421,10 @@
 		"signExpense": "Are money leaving",
 		"signAsWritten": "Carry the sign the bank wrote",
 		"signGuessedExpense": "Nothing in this file is negative, so it looks like a card invoice, where every line is a purchase. If it is a statement, change it here.",
-		"signHint": "The file has amounts on both sides, so its sign is what counts."
+		"signHint": "The file has amounts on both sides, so its sign is what counts.",
+		"documentIs": "This document is",
+		"isStatement": "An account statement",
+		"isInvoice": "A card invoice"
 	},
 	"demo": {
 		"notice": "Made up data, for demonstration only."

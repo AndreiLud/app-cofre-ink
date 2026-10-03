@@ -14,6 +14,7 @@ import { looksLikePdf, readPdf } from "./pdf/index.ts";
 import { readQif } from "./qif.ts";
 import {
 	type InstallmentMark,
+	type InvoiceConvention,
 	installmentOf,
 	type RecognisedDocument,
 	recognise,
@@ -113,6 +114,12 @@ export type ReadOptions = {
 	format?: SourceFormat;
 	/** The day where the person is, for a document that writes a day with no year. */
 	today?: CalendarDate;
+	/** What the person said a document is, when the reader got it wrong. */
+	kind?: "statement" | "invoice";
+	/** How the person said an invoice writes a purchase, when they turned the signs round. */
+	convention?: InvoiceConvention;
+	/** The banks of the cards written down, which a statement names when it pays one. */
+	cardBanks?: readonly string[];
 };
 
 /**
@@ -124,7 +131,7 @@ export function readFile(bytes: Uint8Array, options: ReadOptions = {}): ReadFile
 	const format = options.format ?? guessFormat(bytes, options.fileName ?? "");
 
 	try {
-		if (format === "pdf") return fromPdf(bytes, options.today);
+		if (format === "pdf") return fromPdf(bytes, options);
 		if (format === "ofx") return fromOfx(decode(bytes));
 		if (format === "qif") return fromQif(decode(bytes));
 		if (format === "json") return fromJson(decode(bytes));
@@ -153,7 +160,7 @@ export function readFile(bytes: Uint8Array, options: ReadOptions = {}): ReadFile
  * recognised. A file with no lines in it is a file made of pictures, and saying so is
  * the only useful thing to do about it.
  */
-function fromPdf(bytes: Uint8Array, today?: CalendarDate): ReadFileResult {
+function fromPdf(bytes: Uint8Array, options: ReadOptions): ReadFileResult {
 	const read = readPdf(bytes);
 
 	if (read.lines.length === 0) {
@@ -171,7 +178,12 @@ function fromPdf(bytes: Uint8Array, today?: CalendarDate): ReadFileResult {
 
 	const document = recognise(
 		read.lines.map((line) => line.text),
-		today ? { today } : {},
+		{
+			...(options.today ? { today: options.today } : {}),
+			...(options.kind ? { kind: options.kind } : {}),
+			...(options.convention ? { convention: options.convention } : {}),
+			...(options.cardBanks ? { cardBanks: options.cardBanks } : {}),
+		},
 	);
 
 	return {

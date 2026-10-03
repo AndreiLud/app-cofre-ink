@@ -425,9 +425,53 @@ export function findAmounts(line: string): FoundAmount[] {
 	return found;
 }
 
+/** What only a card invoice says about itself. */
+const INVOICE_MARKS = [
+	"total desta fatura",
+	"total da fatura",
+	"pagamento minimo",
+	"valor minimo",
+	"fatura do cartao",
+	"fatura de cartao",
+	"fatura do seu cartao",
+	"resumo da fatura",
+	"cartao de credito",
+	"melhor dia de compra",
+	"limite disponivel",
+	"limite total",
+	"credit card",
+	"minimum payment",
+	"invoice",
+];
+
+/** What only a statement of an account says about itself. */
+const STATEMENT_MARKS = [
+	"extrato",
+	"agencia",
+	"conta corrente",
+	"conta poupanca",
+	"saldo em conta",
+	"saldo disponivel",
+	"bank statement",
+	"account statement",
+	"statement",
+];
+
+/** A line that is an entry: a day where a day is written, and money. */
+function isEntry(line: string): boolean {
+	return findAmounts(line).length > 0 && findDate(line, "dayFirst", 2000) !== null;
+}
+
+/**
+ * What kind of document this is.
+ *
+ * From the first twelve lines that are neither an entry nor the balance carried over, and
+ * from words only one kind of document says. It was an invoice when any line anywhere had
+ * "fatura" or "vencimento", so a statement paying a card, "PAG FATURA NUBANK", was read as
+ * that card's invoice.
+ */
 export function kindOf(lines: readonly string[]): DocumentKind {
 	const opening = fold(lines.slice(0, 6).join(" "));
-	const all = fold(lines.join(" "));
 
 	// A receipt says what it is at the top and holds one payment. A statement that
 	// happens to list a transfer is still a statement, and what tells them apart is how
@@ -437,17 +481,33 @@ export function kindOf(lines: readonly string[]): DocumentKind {
 		if (withMoney <= 4 && lines.length <= 40) return "receipt";
 	}
 
-	if (/fatura|cartao de credito|credit card|invoice|vencimento/.test(all)) return "invoice";
-	if (/extrato|statement|saldo/.test(all)) return "statement";
-	return "unknown";
+	const about = lines.filter((line) => !isEntry(line) && !/saldo anterior/.test(fold(line)));
+	const decide = (said: readonly string[]): DocumentKind | null => {
+		for (const line of said) {
+			const folded = fold(line);
+			const invoice = INVOICE_MARKS.some((mark) => saysWord(folded, mark));
+			const statement = STATEMENT_MARKS.some((mark) => saysWord(folded, mark));
+			if (invoice && !statement) return "invoice";
+			if (statement && !invoice) return "statement";
+		}
+		return null;
+	};
+	return decide(about.slice(0, 12)) ?? decide(about) ?? "unknown";
 }
 
+/**
+ * The bank a document is from: the first one named in it, as a whole word. It was any name
+ * found inside any word, so "IOF compra internacional" under "C6 Bank" was Inter.
+ */
 export function institutionOf(lines: readonly string[]): string | null {
 	const head = fold(lines.slice(0, 25).join(" "));
+	let first: { name: string; at: number } | null = null;
 	for (const name of INSTITUTIONS) {
-		if (head.includes(fold(name))) return name;
+		const escaped = fold(name).replace(/ /g, "\\s+");
+		const found = new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`).exec(head);
+		if (found && (first === null || found.index < first.at)) first = { name, at: found.index };
 	}
-	return null;
+	return first?.name ?? null;
 }
 
 /**
@@ -605,6 +665,8 @@ export type RecogniseOptions = {
 	convention?: InvoiceConvention;
 	/** The banks of the cards written down, which a statement names when it pays one. */
 	cardBanks?: readonly string[];
+	/** Given when the person said what the document is, which beats what was worked out. */
+	kind?: "statement" | "invoice";
 };
 
 /**
@@ -620,7 +682,7 @@ export function recogniseStatement(
 	options: RecogniseOptions = {},
 ): RecognisedDocument {
 	const today = options.today ?? "2026-01-01";
-	const kind = kindOf(lines);
+	const kind = options.kind ?? kindOf(lines);
 	const currency = currencyOf(lines);
 	const year = yearOf(lines, today);
 	const order =
