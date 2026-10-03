@@ -1,0 +1,82 @@
+name: image
+
+# The image, built and started without being published, whenever what it is made of changes.
+#
+# A workflow of its own because Actions filters by path per workflow and not per job, and
+# building an image on every push to the documents would be twenty minutes for nothing.
+on:
+  push:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - compose.yaml
+      - compose.build.yaml
+      - "**/package.json"
+      - pnpm-lock.yaml
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - compose.yaml
+      - compose.build.yaml
+      - "**/package.json"
+      - pnpm-lock.yaml
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  runtime:
+    name: the image runs, and carries only what it should
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: build the runtime stage, without publishing it
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          load: true
+          push: false
+          tags: cofre-image-check:ci
+
+      # The version the server reads is the one the repository says; the conformance suite,
+      # which imports the test runner, is not there; no test file is outside the dependencies,
+      # which bring their own; and the licence is the one in the repository, unchanged.
+      - name: what is inside
+        run: |
+          expected=$(node -p "require('./package.json').version")
+          inside=$(docker run --rm --entrypoint node cofre-image-check:ci -p "require('/app/package.json').version")
+          if [ "$expected" != "$inside" ]; then echo "the image says $inside and the repository $expected"; exit 1; fi
+          if docker run --rm --entrypoint sh cofre-image-check:ci -c 'test -e /app/packages/storage/src/conformance'; then
+            echo "the conformance suite is in the image"
+            exit 1
+          fi
+          found=$(docker run --rm --entrypoint sh cofre-image-check:ci -c "find /app -name node_modules -prune -o \( -name '*.test.ts' -o -name '*.spec.ts' \) -print")
+          if [ -n "$found" ]; then echo "tests in the image: $found"; exit 1; fi
+          want=$(sha256sum LICENSE | cut -d ' ' -f 1)
+          got=$(docker run --rm --entrypoint sh cofre-image-check:ci -c "sha256sum /app/LICENSE | cut -d ' ' -f 1")
+          if [ "$want" != "$got" ]; then echo "the licence in the image is not the one in the repository"; exit 1; fi
+
+      # And it answers, with a secret of forty characters and a database in memory, within
+      # thirty seconds of starting.
+      - name: it answers
+        run: |
+          docker run -d --name cofrecheck -p 4321:4321 \
+            -e COFRE_SECRET=0123456789abcdef0123456789abcdef01234567 \
+            -e COFRE_DATABASE=:memory: \
+            cofre-image-check:ci
+          for second in $(seq 1 30); do
+            if curl -fsS http://localhost:4321/health > /dev/null; then
+              echo "it answered after $second seconds"
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs cofrecheck
+          exit 1
