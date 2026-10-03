@@ -134,6 +134,16 @@ export function SplitDialog({ open, onOpenChange, record, people }: SplitDialogP
 			}
 		>
 			<div className="space-y-4">
+				{/* A part of a plan is divided with the whole plan, and the screen says so before
+				    anything is written: the other parts change too. */}
+				{record?.installmentCount && record.installmentCount > 1 ? (
+					<p className="text-sm text-quiet">
+						{t("sharing.wholePlan", {
+							number: record.installmentNumber ?? 1,
+							parts: record.installmentCount,
+						})}
+					</p>
+				) : null}
 				<Segmented
 					label={t("sharing.method")}
 					value={method}

@@ -213,6 +213,58 @@ export function runPlanOfPartsConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// D.9: dividing one part divided only that part, and the balance between people counted
+		// every division whatever the day of its record.
+		it("divides the whole plan from one part, and owes each part from its day", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const on = fixture.asAna;
+				const house = await on.spaces.create({ name: "Casa" });
+				await on.members.invite({ spaceId: house.id, userId: fixture.joao.id, role: "editor" });
+				await fixture.asJoao.members.accept(house.id);
+				const card = await on.accounts.create({
+					spaceId: house.id,
+					kind: "credit",
+					name: "Cartao",
+					closingDay: 3,
+					dueDay: 10,
+					creditLimit: 1_000_000,
+				});
+				const parts = await on.transactions.create({
+					spaceId: house.id,
+					kind: "expense",
+					amount: 240_000,
+					happenedOn: "2026-10-28",
+					description: "Geladeira",
+					accountId: card.id,
+					installments: 48,
+				});
+				const sharesOfThePlan = async () =>
+					(await Promise.all(parts.map((part) => on.sharing.splitsOf(part.id)))).flat();
+
+				await on.sharing.split({ transactionId: parts[5]?.id ?? "", method: "evenly" });
+				expect(await sharesOfThePlan()).toHaveLength(96);
+
+				const owedOn = async (day: string) => {
+					const then = await openSession({
+						driver: fixture.driver,
+						userId: fixture.ana.id,
+						deviceId: `ana${day}`,
+						now: () => Date.parse(`${day}T15:00:00Z`),
+					});
+					const balances = await then.sharing.balances(house.id);
+					return balances.find((one) => one.userId === fixture.joao.id)?.amount;
+				};
+				expect(await owedOn("2026-10-28")).toBe(-2_500);
+				expect(await owedOn("2026-11-28")).toBe(-5_000);
+
+				await on.sharing.clearSplit(parts[47]?.id ?? "");
+				expect(await sharesOfThePlan()).toEqual([]);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		// D.1.2 and D.1.5: a plan of sixty parts, which 1.2.1 could write, comes back whole from a
 		// backup, and its tenth part can still be changed with the ones after it.
 		it("restores a plan of sixty parts written before the ceiling, and edits it", async () => {

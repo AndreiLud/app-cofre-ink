@@ -486,7 +486,8 @@
 		"paidBy": "Quem pagou",
 		"paidByHint": "Quem tirou do bolso, que nem sempre é quem lançou.",
 		"currently": "Como está dividido",
-		"clearSplit": "Desfazer a divisão"
+		"clearSplit": "Desfazer a divisão",
+		"wholePlan": "É a parcela {{number}} de {{parts}}. A divisão vale para as {{parts}} parcelas, cada uma pelo seu valor, e cada uma passa a contar entre vocês no dia dela."
 	},
 	"accounts": {
 		"title": "Contas",

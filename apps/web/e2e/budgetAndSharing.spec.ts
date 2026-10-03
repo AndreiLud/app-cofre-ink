@@ -173,6 +173,43 @@ test.describe("dividing with the house", () => {
 	 * offering an example of 42,90 inside a dialog that holds no amounts at all. A share
 	 * left empty said nothing and quietly wrote that person a part of zero.
 	 */
+	// Part 2, D.9 of the request for 2.0.0: dividing one part of a plan divided that part alone,
+	// and the balance between people counted every division whatever its day.
+	test("divides a whole plan, and owes each part on its own day", async ({ page }) => {
+		await openCofre(page);
+		await openSetting(page, "Gerenciar espaços");
+		await page.getByRole("button", { name: "Entrar" }).click();
+		await expect(page.getByRole("banner")).toContainText("Casa");
+
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = page.getByRole("dialog");
+		await form.getByLabel("Valor", { exact: true }).fill("2.400,00");
+		await form.getByLabel("Descrição").fill("Geladeira da casa");
+		await form.getByLabel("Parcelas", { exact: true }).selectOption({ label: "48 vezes" });
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(form).toHaveCount(0);
+
+		await record(page, "Geladeira da casa 1/48").getByRole("button", { name: "Ações" }).click();
+		await page.getByRole("menuitem", { name: "Dividir com a casa" }).click();
+		await expect(page.getByRole("dialog")).toContainText(
+			"É a parcela 1 de 48. A divisão vale para as 48 parcelas",
+		);
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("dialog")).toHaveCount(0);
+
+		await openSetting(page, "Gerenciar espaços");
+		await expect(page.getByText("João (exemplo) paga para você")).toBeVisible();
+		await expect(page.getByText("R$ 25,00").first()).toBeVisible();
+
+		// A month later the second part has come, and only it.
+		await page.clock.setFixedTime(new Date("2026-11-28T12:00:00-03:00"));
+		await page.reload();
+		await openSetting(page, "Gerenciar espaços");
+		await expect(page.getByText("R$ 50,00").first()).toBeVisible({ timeout: 45_000 });
+		await expect(page.getByText("R$ 25,00")).toHaveCount(0);
+	});
+
 	test("says what a share is when it cannot read one", async ({ page }) => {
 		await openCofre(page);
 

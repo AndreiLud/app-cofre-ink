@@ -486,7 +486,8 @@
 		"paidBy": "Who paid",
 		"paidByHint": "Whoever put the money in, which is not always who wrote it down.",
 		"currently": "How it is divided",
-		"clearSplit": "Undo the division"
+		"clearSplit": "Undo the division",
+		"wholePlan": "This is part {{number}} of {{parts}}. The division applies to all {{parts}} parts, each by what it is worth, and each one counts between you on its own day."
 	},
 	"accounts": {
 		"title": "Accounts",

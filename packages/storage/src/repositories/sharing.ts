@@ -16,14 +16,17 @@ import {
 	SplitError,
 	type SplitMethod,
 	settleUp,
+	todayIn,
 } from "@cofre/core";
 import { expenseSplits, settlements as settlementTable, transactions } from "@cofre/db";
 import { assertCan, readableSpaceIds } from "../actor.ts";
 import { asNumber } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
+import { happenedBy } from "../happened.ts";
 import {
 	type ExpenseSplit,
 	type Settlement,
+	type Transaction,
 	toExpenseSplit,
 	toSettlement,
 	toTransaction,
@@ -100,6 +103,25 @@ export function createSharingRepository(context: RepositoryContext) {
 		}));
 	}
 
+	/**
+	 * The record and, when it is a part of a plan, every other part of it.
+	 *
+	 * Dividing one part divided only that part, so a fridge in forty eight shared by two left
+	 * forty seven parts on whoever wrote them, and nobody looks for the other forty seven to
+	 * divide them one by one. A plan is one purchase, so it is divided as one, each part by
+	 * what it is worth, and taking the division back takes it back from all of them.
+	 */
+	async function planOf(found: Transaction): Promise<Transaction[]> {
+		if (found.installmentGroup === null) return [found];
+		const rows = await context.driver.all(
+			`${TRANSACTION_SELECT} WHERE "installment_group" = ? AND "space_id" = ?
+			 AND "kind" = 'expense' AND "deleted_at" IS NULL
+			 ORDER BY "installment_number", "happened_on"`,
+			[found.installmentGroup, found.spaceId],
+		);
+		return rows.map(toTransaction);
+	}
+
 	return {
 		/** The parts of one expense, or nothing when it was never divided. */
 		async splitsOf(transactionId: string): Promise<ExpenseSplit[]> {
@@ -171,14 +193,20 @@ export function createSharingRepository(context: RepositoryContext) {
 				weight: input.shares?.[member.userId],
 			}));
 
-			let parts: { userId: string; amount: number }[];
+			const plan = await planOf(found);
+			const divided: { record: Transaction; parts: { userId: string; amount: number }[] }[] = [];
 			try {
 				// In the currency of the space, because that is the currency the shares are
 				// stored in and the currency the balances between people are read in. It
 				// divided the amount as written, so a bill of forty dollars in a space that
 				// counts in reais left two people owing twenty of nothing, and the balance
 				// never came back to zero when it was settled.
-				parts = divide(Math.abs(found.amountInBase), input.method, participants);
+				for (const record of plan) {
+					divided.push({
+						record,
+						parts: divide(Math.abs(record.amountInBase), input.method, participants),
+					});
+				}
 			} catch (error) {
 				// The core says why in a word, and the word is what the interface reads.
 				if (error instanceof SplitError) throw new RuleError(error.rule, error.message);
@@ -193,62 +221,70 @@ export function createSharingRepository(context: RepositoryContext) {
 			await context.driver.transaction(async (tx) => {
 				const write = { ...context.write(), driver: tx };
 
-				const old = await tx.all(
-					`SELECT "id" FROM "expense_splits" WHERE "transaction_id" = ? AND "deleted_at" IS NULL`,
-					[input.transactionId],
-				);
-				for (const row of old) {
-					await softDeleteRow(write, {
-						table: expenseSplits,
-						spaceId: found.spaceId,
-						id: String(row.id),
-					});
-				}
+				for (const { record, parts } of divided) {
+					const old = await tx.all(
+						`SELECT "id" FROM "expense_splits" WHERE "transaction_id" = ? AND "deleted_at" IS NULL`,
+						[record.id],
+					);
+					for (const row of old) {
+						await softDeleteRow(write, {
+							table: expenseSplits,
+							spaceId: found.spaceId,
+							id: String(row.id),
+						});
+					}
 
-				for (const part of parts) {
-					await insertRow(write, {
-						table: expenseSplits,
-						spaceId: found.spaceId,
-						values: {
-							transaction_id: input.transactionId,
-							user_id: part.userId,
-							amount: part.amount,
-							created_by: context.actor().userId,
-						},
-					});
-				}
+					for (const part of parts) {
+						await insertRow(write, {
+							table: expenseSplits,
+							spaceId: found.spaceId,
+							values: {
+								transaction_id: record.id,
+								user_id: part.userId,
+								amount: part.amount,
+								created_by: context.actor().userId,
+							},
+						});
+					}
 
-				if (payer !== found.paidBy) {
-					await updateRow(write, {
-						table: transactions,
-						spaceId: found.spaceId,
-						id: found.id,
-						values: { paid_by: payer },
-					});
+					if (payer !== record.paidBy) {
+						await updateRow(write, {
+							table: transactions,
+							spaceId: found.spaceId,
+							id: record.id,
+							values: { paid_by: payer },
+						});
+					}
 				}
 			});
 
 			return this.splitsOf(input.transactionId);
 		},
 
-		/** Undoes a division, leaving the expense as one person's. */
+		/** Undoes a division, leaving the expense as one person's, and every part of its plan. */
 		async clearSplit(transactionId: string): Promise<void> {
 			const spaceIds = readableSpaceIds(context.actor());
 			if (spaceIds.length === 0) throw new NotFoundError("transaction", transactionId);
 			const found = await transactionIn(spaceIds, transactionId);
 			assertCan(context.actor(), found.spaceId, "sharing.write");
 
-			const rows = await context.driver.all(
-				`SELECT "id" FROM "expense_splits" WHERE "transaction_id" = ? AND "deleted_at" IS NULL`,
-				[transactionId],
-			);
-			for (const row of rows) {
-				await softDeleteRow(context.write(), {
-					table: expenseSplits,
-					spaceId: found.spaceId,
-					id: String(row.id),
-				});
-			}
+			const plan = await planOf(found);
+			await context.driver.transaction(async (tx) => {
+				const write = { ...context.write(), driver: tx };
+				for (const record of plan) {
+					const rows = await tx.all(
+						`SELECT "id" FROM "expense_splits" WHERE "transaction_id" = ? AND "deleted_at" IS NULL`,
+						[record.id],
+					);
+					for (const row of rows) {
+						await softDeleteRow(write, {
+							table: expenseSplits,
+							spaceId: found.spaceId,
+							id: String(row.id),
+						});
+					}
+				}
+			});
 		},
 
 		async settlements(spaceId: string): Promise<Settlement[]> {
@@ -339,6 +375,19 @@ export function createSharingRepository(context: RepositoryContext) {
 		async balances(spaceId: string): Promise<PersonBalance[]> {
 			assertCan(context.actor(), spaceId, "sharing.read");
 
+			// A division counts from the day of its record, the way the record itself does: the
+			// part of a plan that falls in March is not owed in October. Every part of a divided
+			// plan counted at once, so a fridge in forty eight had the other person owing the
+			// whole of it on the day it was bought.
+			const zone = await context.driver.all(
+				`SELECT "timezone" FROM "spaces" WHERE "id" = ? AND "deleted_at" IS NULL`,
+				[spaceId],
+			);
+			const today = todayIn(
+				String(zone[0]?.timezone ?? "America/Sao_Paulo"),
+				new Date(context.now()),
+			);
+
 			// In the currency of the space, which is what the screen labels the total with.
 			// It read the amount as written, so a record in another currency had its minor
 			// units added to the base ones and the balance came out wrong with the right
@@ -349,8 +398,9 @@ export function createSharingRepository(context: RepositoryContext) {
 				        COALESCE(t."paid_by", t."created_by") AS paid_by
 				 FROM "expense_splits" s
 				 JOIN "transactions" t ON t."id" = s."transaction_id"
-				 WHERE s."space_id" = ? AND s."deleted_at" IS NULL AND t."deleted_at" IS NULL`,
-				[spaceId],
+				 WHERE s."space_id" = ? AND s."deleted_at" IS NULL AND t."deleted_at" IS NULL
+				   AND ${happenedBy("t")}`,
+				[spaceId, today],
 			);
 
 			const grouped = new Map<
