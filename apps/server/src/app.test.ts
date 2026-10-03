@@ -2,8 +2,10 @@
 // every request carries it. No network and no listening socket, because Hono answers
 // a plain Request.
 
+import { CloudError, type Releases } from "@cofre/cloud";
 import { addDays, solveWork, todayIn } from "@cofre/core";
 import { beforeEach, describe, expect, it } from "vitest";
+import { readAppVersion } from "./about.ts";
 import { createApp } from "./app.ts";
 import { createAuth } from "./auth.ts";
 import { type Config, readConfig } from "./config.ts";
@@ -19,6 +21,9 @@ type Client = {
 };
 
 const PASSWORD = "uma senha bem comprida";
+
+/** The version of this release, which a device says when it exchanges changes. */
+const VERSION = readAppVersion();
 
 function configure(): Config {
 	return readConfig({
@@ -108,6 +113,133 @@ describe("the api", () => {
 	it("answers that it is alive", async () => {
 		const response = await app.request("http://localhost:4321/health");
 		expect(response.status).toBe(200);
+	});
+
+	// Part 2, K of the request for 2.0.0: the version, and asking GitHub only when pressed.
+	describe("the version, and who asks GitHub", () => {
+		const RELEASED: Releases = {
+			latest: {
+				version: { major: 2, minor: 1, patch: 0 },
+				publishedOn: "2026-11-12",
+				notes: "What is new.",
+				page: "https://github.com/AndreiLud/app-cofre-ink/releases/tag/v2.1.0",
+			},
+			newer: [],
+		};
+
+		function withReleases(releases: () => Promise<Releases>, clock: { now: number }) {
+			const config = configure();
+			return createApp({
+				config,
+				database,
+				auth: createAuth(config, database),
+				version: "2.0.0",
+				releases,
+				now: () => clock.now,
+			});
+		}
+
+		it("says its version before anybody signs in", async () => {
+			const setup = await createClient(app).json<{ version: string }>("/api/setup");
+			expect(setup.version).toBe(VERSION);
+		});
+
+		it("asks GitHub only when pressed, once for presses at once, and again after an hour", async () => {
+			let asked = 0;
+			const clock = { now: Date.parse("2026-11-20T14:05:00Z") };
+			const pressed = withReleases(async () => {
+				asked += 1;
+				await new Promise((resolve) => setTimeout(resolve, 20));
+				return RELEASED;
+			}, clock);
+			const ana = createClient(pressed);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+
+			await ana.request("/health");
+			await ana.request("/api/setup");
+			await ana.request("/api/me");
+			const about = await ana.json<{ version: string; installedWith: string; database: string }>(
+				"/api/about",
+			);
+			expect(about).toMatchObject({
+				version: "2.0.0",
+				installedWith: "source",
+				database: "sqlite",
+			});
+			expect(asked).toBe(0);
+
+			const [one, two] = await Promise.all([
+				ana.json<{ state: string; latest: { version: string } }>("/api/updates/check", {
+					method: "POST",
+				}),
+				ana.json<{ state: string }>("/api/updates/check", { method: "POST" }),
+			]);
+			expect(asked).toBe(1);
+			expect(one).toMatchObject({ state: "behind", latest: { version: "v2.1.0" } });
+			expect(two.state).toBe("behind");
+
+			clock.now += 30 * 60 * 1000;
+			await ana.request("/api/updates/check", { method: "POST" });
+			expect(asked).toBe(1);
+			clock.now += 31 * 60 * 1000;
+			await ana.request("/api/updates/check", { method: "POST" });
+			expect(asked).toBe(2);
+		});
+
+		it("names a refusal of GitHub, and asks nothing of anybody in a test", async () => {
+			const clock = { now: Date.now() };
+			const refused = withReleases(
+				() => Promise.reject(new CloudError("GitHub", 403, "rate limited")),
+				clock,
+			);
+			const ana = createClient(refused);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			const response = await ana.request("/api/updates/check", { method: "POST" });
+			expect(response.status).toBe(502);
+			expect(await response.json()).toEqual({ error: "githubRefused" });
+
+			// With nothing handed in, a test server never calls fetch.
+			const before = globalThis.fetch;
+			let fetched = 0;
+			globalThis.fetch = (async () => {
+				fetched += 1;
+				return new Response("[]");
+			}) as typeof fetch;
+			try {
+				const bob = createClient(app);
+				await bob.signUp({ name: "Bob", email: "bob@exemplo.com" });
+				const answer = await bob.request("/api/updates/check", { method: "POST" });
+				expect(answer.status).toBe(502);
+				expect(fetched).toBe(0);
+			} finally {
+				globalThis.fetch = before;
+			}
+		});
+
+		// Part 2, H.11.4: a device of 1.x says no version and would lose what it cannot hold.
+		it("refuses an exchange that does not say its version, and hands back nothing", async () => {
+			const ana = createClient(app);
+			await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+			const space = await ana.json<{ id: string }>("/api/spaces", {
+				method: "POST",
+				body: JSON.stringify({ name: "Casa" }),
+			});
+			// Relative to the version this runs on: the one before, as 1.2.1 is to 2.0.0, and the next.
+			const major = Number(VERSION.split(".")[0]);
+			for (const body of [
+				{ since: null, changes: [] },
+				{ version: `${major - 1}.2.1`, since: null, changes: [] },
+				{ version: `${major + 1}.0.0`, since: null, changes: [] },
+			]) {
+				const response = await ana.request(`/api/spaces/${space.id}/sync`, {
+					method: "POST",
+					body: JSON.stringify(body),
+				});
+				expect(response.status).toBe(409);
+				const said = (await response.json()) as Record<string, unknown>;
+				expect(said).toEqual({ error: "serverOtherVersion" });
+			}
+		});
 	});
 
 	it("refuses anything without a session", async () => {
@@ -1358,7 +1490,7 @@ describe("the api", () => {
 
 			const first = await ana.json<{ changes: unknown[]; people: unknown[]; stamp: string }>(
 				`/api/spaces/${space.id}/sync`,
-				{ method: "POST", body: JSON.stringify({ since: null, changes: [] }) },
+				{ method: "POST", body: JSON.stringify({ version: VERSION, since: null, changes: [] }) },
 			);
 
 			expect(first.changes.length).toBeGreaterThan(0);
@@ -1367,7 +1499,7 @@ describe("the api", () => {
 			// Asking again from the stamp it was given brings nothing new.
 			const second = await ana.json<{ changes: unknown[] }>(`/api/spaces/${space.id}/sync`, {
 				method: "POST",
-				body: JSON.stringify({ since: first.stamp, changes: [] }),
+				body: JSON.stringify({ version: VERSION, since: first.stamp, changes: [] }),
 			});
 			expect(second.changes).toHaveLength(0);
 		});
@@ -1395,6 +1527,7 @@ describe("the api", () => {
 				{
 					method: "POST",
 					body: JSON.stringify({
+						version: VERSION,
 						since: null,
 						changes: [
 							{
@@ -1495,6 +1628,7 @@ describe("the api", () => {
 				{
 					method: "POST",
 					body: JSON.stringify({
+						version: VERSION,
 						since: null,
 						profile: { id: profileId, email: "ana.7k2@dispositivo.local", name: "Ana (aparelho)" },
 						changes: aSpaceFromADevice(spaceId, accountId, profileId),
@@ -1531,6 +1665,7 @@ describe("the api", () => {
 			await ana.request(`/api/spaces/${spaceId}/sync`, {
 				method: "POST",
 				body: JSON.stringify({
+					version: VERSION,
 					since: null,
 					profile: { id: profileId, email: "ana.7k2@dispositivo.local", name: "Ana (aparelho)" },
 					changes,
@@ -1540,6 +1675,7 @@ describe("the api", () => {
 			const response = await joao.request(`/api/spaces/${spaceId}/sync`, {
 				method: "POST",
 				body: JSON.stringify({
+					version: VERSION,
 					since: null,
 					profile: { id: profileId, email: "ana.7k2@dispositivo.local", name: "Ana (aparelho)" },
 					changes,
@@ -1559,6 +1695,7 @@ describe("the api", () => {
 			const response = await joao.request(`/api/spaces/99999999-9999-7999-8999-999999999999/sync`, {
 				method: "POST",
 				body: JSON.stringify({
+					version: VERSION,
 					since: null,
 					// A profile that claims to be Ana.
 					profile: { id: me.user.id, email: me.user.email, name: "Ana" },
@@ -1581,7 +1718,7 @@ describe("the api", () => {
 
 			const response = await joao.request(`/api/spaces/${space.id}/sync`, {
 				method: "POST",
-				body: JSON.stringify({ since: null, changes: [] }),
+				body: JSON.stringify({ version: VERSION, since: null, changes: [] }),
 			});
 			expect(response.status).toBe(404);
 		});

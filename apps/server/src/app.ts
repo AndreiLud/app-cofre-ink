@@ -5,8 +5,8 @@
 // rules about who may do what live in the repository layer, not here, which is what
 // keeps the server and the browser honest about the same model.
 
-import { fetchEveryIndex } from "@cofre/cloud";
-import { CalendarError, parseCalendarDate } from "@cofre/core";
+import { CloudError, fetchEveryIndex, readReleases } from "@cofre/cloud";
+import { CalendarError, crossesMajor, parseCalendarDate, parseVersion } from "@cofre/core";
 import type { Session } from "@cofre/storage";
 import {
 	applyChanges,
@@ -29,15 +29,29 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { secureHeaders } from "hono/secure-headers";
 import { z } from "zod";
+import { dataOnAVolume, imageOf, installedWithOf, readAppVersion, readMountinfo } from "./about.ts";
 import type { Auth } from "./auth.ts";
-import type { Config } from "./config.ts";
+import { type Config, withoutTheSecret } from "./config.ts";
 import type { OpenedDatabase } from "./database.ts";
 import { checkTurnstile, createGate } from "./gate.ts";
+import { createUpdateCheck, type ReleasesReader } from "./updates.ts";
 
 export type AppDependencies = {
 	config: Config;
 	database: OpenedDatabase;
 	auth: Auth;
+	/** The version of this release, from the root package.json unless a test says otherwise. */
+	version?: string;
+	/**
+	 * What reads the published versions when somebody presses "Verificar atualização". GitHub
+	 * on a real server; in a test, what the test hands in, and nothing at all otherwise, so a
+	 * test never asks GitHub anything (part 2, K.3.5).
+	 */
+	releases?: ReleasesReader;
+	/** The clock the answer of GitHub is kept by, for a test that moves it. */
+	now?: () => number;
+	/** The mounts the process sees, for a test; read from the machine otherwise. */
+	mountinfo?: string | null;
 };
 
 type Variables = {
@@ -446,9 +460,23 @@ const savedFilterInput = z.object({
 	position: z.number().int().min(0).max(999).optional(),
 });
 
-export function createApp({ config, database, auth }: AppDependencies) {
+export function createApp(dependencies: AppDependencies) {
+	const { config, database, auth } = dependencies;
 	const app = new Hono<{ Variables: Variables }>();
 	const gate = createGate(config.COFRE_PROOF_BITS, config.COFRE_SECRET);
+	const version = dependencies.version ?? readAppVersion();
+	const ours = parseVersion(version);
+	const checkForUpdates = createUpdateCheck({
+		version,
+		now: dependencies.now,
+		releases:
+			dependencies.releases ??
+			(config.NODE_ENV === "test"
+				? () => Promise.reject(new CloudError("GitHub", 0, "not asked from a test"))
+				: (mine) => readReleases(mine)),
+	});
+	const mounts =
+		dependencies.mountinfo === undefined ? readMountinfo(config) : dependencies.mountinfo;
 
 	/**
 	 * The headers a browser reads before it does anything clever.
@@ -534,6 +562,10 @@ export function createApp({ config, database, auth }: AppDependencies) {
 			// Public by definition: it is the key the widget is drawn with. The secret
 			// that checks an answer never leaves this process.
 			turnstileSiteKey: config.COFRE_TURNSTILE_SITE_KEY ?? null,
+			// Public too, because a page has to know which server it talks to before anybody
+			// signs in: a page and a server of different major versions do not write to each
+			// other (part 2, K.6.1).
+			version,
 		});
 	});
 
@@ -602,6 +634,35 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		const session = context.get("session");
 		const [me, spaces] = await Promise.all([session.users.me(), session.spaces.list()]);
 		return context.json({ user: me, spaces });
+	});
+
+	/**
+	 * What this copy is, for the line under the danger zone and the commands that update it:
+	 * the version, how it was installed, the image, which database, where the file of SQLite
+	 * is, and whether that file is somewhere a new container will find it. For anybody signed
+	 * in, because knowing a version is not a permission.
+	 */
+	app.get("/api/about", (context) =>
+		context.json({
+			version,
+			installedWith: installedWithOf(config),
+			image: imageOf(config),
+			database: config.databaseKind,
+			databasePath:
+				config.databaseKind === "sqlite" ? withoutTheSecret(config.COFRE_DATABASE) : null,
+			dataOnAVolume: dataOnAVolume(config.COFRE_DATABASE, mounts),
+		}),
+	);
+
+	/**
+	 * Which version was published last, asked of GitHub now, because somebody pressed the
+	 * button. Kept an hour, a failure five minutes, and presses at once share one request. A
+	 * failure is a 502 with its name, which the page says in a sentence.
+	 */
+	app.post("/api/updates/check", async (context) => {
+		const result = await checkForUpdates();
+		if (!result.ok) return context.json({ error: result.error }, 502);
+		return context.json(result.answer);
 	});
 
 	/** Everyone this person shares a space with, which is who the screens can name. */
@@ -1561,8 +1622,19 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		const userId = context.get("userId");
 		const session = context.get("session");
 
+		// A device of another major version, or one that does not say its version, which is
+		// every device of 1.x, is refused before anything is read or handed back: a 1.x device
+		// would move its mark past rows it cannot hold, such as the movements of a holding, and
+		// lose them for good (part 2, H.11.4 and K.6.2).
+		const body = (await context.req.json()) as Record<string, unknown>;
+		const theirs = typeof body?.version === "string" ? parseVersion(body.version) : null;
+		if (!theirs || !ours || crossesMajor(theirs, ours)) {
+			return context.json({ error: "serverOtherVersion" }, 409);
+		}
+
 		const input = z
 			.object({
+				version: z.string().min(1),
 				since: z.string().min(1).nullable().optional(),
 				changes: z.array(changeInput).max(2000).optional(),
 				/** Who this device writes as, when that is not the account itself. */
@@ -1575,7 +1647,7 @@ export function createApp({ config, database, auth }: AppDependencies) {
 					})
 					.optional(),
 			})
-			.parse(await context.req.json());
+			.parse(body);
 
 		// Who the caller may speak for. Themselves, always.
 		const speakingFor = new Set<string>([userId]);

@@ -58,6 +58,13 @@ const schema = z.object({
 	 */
 	COFRE_TURNSTILE_SITE_KEY: optionalText,
 	COFRE_TURNSTILE_SECRET: optionalText,
+	/**
+	 * Where the image came from, which the Dockerfile writes: `ghcr` for the one a release
+	 * published, `local` for one built here. Absent outside a container.
+	 */
+	COFRE_IMAGE_SOURCE: optionalText,
+	/** How the container was started, which compose.yaml says: `compose`. Absent otherwise. */
+	COFRE_INSTALLED_WITH: optionalText,
 	NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 

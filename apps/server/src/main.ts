@@ -2,9 +2,10 @@
 // application can be built in a test with a database that lives in memory.
 
 import { existsSync } from "node:fs";
-import { repairEverySpace, tidyEverySpace } from "@cofre/storage";
+import { NewerDatabaseError, repairEverySpace, tidyEverySpace } from "@cofre/storage";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
+import { readAppVersion } from "./about.ts";
 import { createApp } from "./app.ts";
 import { createAuth } from "./auth.ts";
 import { ConfigError, readConfig, withoutTheSecret } from "./config.ts";
@@ -44,7 +45,7 @@ async function main(): Promise<void> {
 	if (months > 0) console.log(`cleared ${months} invoices named after a month that does not exist`);
 
 	const server = serve({ fetch: app.fetch, port: config.COFRE_PORT }, (address) => {
-		console.log(`Cofre Ink is listening on http://localhost:${address.port}`);
+		console.log(`Cofre Ink ${readAppVersion()} is listening on http://localhost:${address.port}`);
 		console.log(`storing data in ${withoutTheSecret(config.COFRE_DATABASE)}`);
 	});
 
@@ -80,7 +81,9 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-	if (error instanceof ConfigError) {
+	// Two refusals that are sentences and not faults: the configuration is not complete, or the
+	// database was migrated by a newer version, which this one does not open over.
+	if (error instanceof ConfigError || error instanceof NewerDatabaseError) {
 		console.error(error.message);
 		process.exit(1);
 	}
