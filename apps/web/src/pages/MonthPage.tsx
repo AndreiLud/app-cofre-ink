@@ -324,10 +324,21 @@ export function MonthPage() {
 			currency,
 		}).format(cents / 100);
 
-	/** This month against the middle of the closed months before it, when there are enough. */
-	const usual = reads
-		? againstAUsualMonth({ month: shown, today, months: behind.data ?? [] })
-		: null;
+	/**
+	 * This month against the middle of the closed months before it, when there are enough.
+	 *
+	 * What came in is the income and the benefit together, which is decision 5 of 2.0.0 and
+	 * what the overview says for the same month. The spending already holds the lunches the
+	 * benefit paid for, so leaving the benefit out made every month look worse by it.
+	 */
+	const withBenefits = (behind.data ?? []).map((one) => ({
+		month: one.month,
+		income: one.income + one.benefits,
+		expense: one.expense,
+	}));
+	const usual = reads ? againstAUsualMonth({ month: shown, today, months: withBenefits }) : null;
+	/** How much of what came in this month was benefit, said beside the figure. */
+	const benefitsThisMonth = (behind.data ?? []).find((one) => one.month === shown)?.benefits ?? 0;
 	const monthsBehind = (behind.data ?? []).filter((one) => one.month < shown).length;
 
 	/**
@@ -867,6 +878,11 @@ export function MonthPage() {
 									</li>
 								))}
 							</ul>
+							{benefitsThisMonth > 0 ? (
+								<p className="mt-2 text-quiet text-sm">
+									{t("reports.ofWhichBenefits", { amount: asMoney(benefitsThisMonth) })}
+								</p>
+							) : null}
 							<p className="mt-4 border-line border-t pt-4 text-sm">
 								{usual.verdict === "tooEarly"
 									? t("theMonth.usualTooEarly", { month: monthName })

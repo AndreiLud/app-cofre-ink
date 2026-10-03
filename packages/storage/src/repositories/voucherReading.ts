@@ -7,15 +7,17 @@
 
 import {
 	type CalendarDate,
+	compareCalendarDates,
 	type QuotaVersion,
 	todayIn,
 	type VoucherMovement,
 	type VoucherStart,
+	voucherLandings,
 } from "@cofre/core";
 import type { Driver } from "../driver.ts";
 import { asNumber } from "../driver.ts";
 import { happenedBy } from "../happened.ts";
-import type { Account } from "../models.ts";
+import { type Account, toAccount } from "../models.ts";
 
 /**
  * Every version of the allowance of an account, oldest first, or nothing without one: the
@@ -109,4 +111,74 @@ export async function incomesOf(
 		amount: asNumber(row.amount),
 		kind: "income" as const,
 	}));
+}
+
+/**
+ * Every allowance that landed on the benefit cards of some spaces over a range of days, each
+ * with its day and its space, which is the benefit of a period counted as money that came
+ * in. One reading for every screen that counts it: the totals of a report, its months, the
+ * check up and the month on paper. Worked out rather than read, because an allowance landing
+ * is not a record. A voucher with no allowance written on it counts as nothing.
+ *
+ * Which spaces is the caller's to say: somebody who only sees their own records is given
+ * none of the household's allowance, which every caller decides the same way.
+ */
+export async function benefitLandingsIn(
+	driver: Driver,
+	spaceIds: readonly string[],
+	from: CalendarDate,
+	to: CalendarDate,
+): Promise<{ on: CalendarDate; amount: number; spaceId: string }[]> {
+	if (spaceIds.length === 0) return [];
+
+	// Only the cards that exist and are still in use. The allowance is a fact about the
+	// account today, and multiplying it by the landings of any range at all credited a
+	// household eight hundred a month in a March before they had the card, and went on
+	// crediting one they had archived.
+	const rows = await driver.all(
+		`SELECT a.*, s."timezone" AS space_timezone
+		 FROM "accounts" a
+		 JOIN "spaces" s ON s."id" = a."space_id"
+		 WHERE a."space_id" IN (${spaceIds.map(() => "?").join(", ")}) AND a."deleted_at" IS NULL
+		   AND a."kind" = 'voucher' AND a."quota_amount" IS NOT NULL
+		   AND a."quota_day" IS NOT NULL`,
+		[...spaceIds],
+	);
+
+	const found: { on: CalendarDate; amount: number; spaceId: string }[] = [];
+	for (const row of rows) {
+		const account = toAccount(row);
+		const versions = versionsOf(account);
+		if (!versions) continue;
+		// A day rather than an instant, in the timezone of its own space, because the
+		// periods are counted in days and the row remembers a millisecond in UTC.
+		const zone = String(row.space_timezone);
+		const closedOn =
+			account.archivedAt === null ? null : todayIn(zone, new Date(account.archivedAt));
+
+		// Never past today. An allowance that lands on the twenty fifth has not landed on the
+		// second, and the month in hand counted it from the first day, while the line of the
+		// card on the overview said it would land in twenty three days. And never after the
+		// card was archived.
+		const today = todayIn(zone);
+		const ends = compareCalendarDates(today, to) < 0 ? today : to;
+		const until = closedOn !== null && compareCalendarDates(closedOn, ends) < 0 ? closedOn : ends;
+
+		// Where the landings start is the core's answer, the same one the line of the card
+		// reads: the period the card was written down in, or the day somebody said what was on
+		// it. A month with an income written on the card by hand has that income, which is
+		// counted as income already, and not the allowance besides it.
+		const landings = voucherLandings({
+			versions,
+			start: startOf(account, zone),
+			movements: await incomesOf(driver, account.id, until),
+			until,
+		});
+		for (const landing of landings) {
+			if (compareCalendarDates(landing.on, from) >= 0) {
+				found.push({ on: landing.on, amount: landing.amount, spaceId: account.spaceId });
+			}
+		}
+	}
+	return found;
 }

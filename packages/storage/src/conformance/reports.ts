@@ -7,6 +7,7 @@
 import { addDays, todayIn } from "@cofre/core";
 import { describe, expect, it } from "vitest";
 import { NotFoundError } from "../errors.ts";
+import { openSession } from "../session.ts";
 import { type AdapterUnderTest, prepare } from "./setup.ts";
 
 export function runReportConformance(adapter: AdapterUnderTest): void {
@@ -102,6 +103,66 @@ export function runReportConformance(adapter: AdapterUnderTest): void {
 					to: today,
 				});
 				expect(behind.benefits).toBe(90_000);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		// Part 1, C.1 of the request for 2.0.0: the months of a report had no benefit while the
+		// totals had it, so the same month said two different things about what came in.
+		it("gives each month the benefit the totals give it", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const on = await openSession({
+					driver: fixture.driver,
+					userId: fixture.ana.id,
+					deviceId: "deviceAna",
+					now: () => Date.parse("2026-07-20T12:00:00-03:00"),
+				});
+				const space = await on.spaces.create({ name: "Pessoal", kind: "personal" });
+				const checking = await on.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+				});
+				await on.accounts.create({
+					spaceId: space.id,
+					kind: "voucher",
+					name: "Vale",
+					benefit: "meal",
+					quotaAmount: 90_000,
+					quotaDay: 5,
+					quotaCarries: true,
+				});
+				for (const month of ["2026-07", "2026-08", "2026-09"]) {
+					await on.transactions.create({
+						spaceId: space.id,
+						kind: "income",
+						amount: 612_000,
+						happenedOn: `${month}-05`,
+						description: "Salario",
+						accountId: checking.id,
+					});
+				}
+
+				const months = await on.reports.byMonth({
+					spaceId: space.id,
+					from: "2026-07-01",
+					to: "2026-09-30",
+				});
+				expect(months.map((one) => [one.month, one.income, one.benefits])).toEqual([
+					["2026-07", 612_000, 90_000],
+					["2026-08", 612_000, 90_000],
+					["2026-09", 612_000, 90_000],
+				]);
+				for (const one of months) {
+					const totals = await on.reports.totals({
+						spaceId: space.id,
+						from: `${one.month}-01`,
+						to: `${one.month}-${one.month === "2026-09" ? "30" : "31"}`,
+					});
+					expect(totals.benefits).toBe(one.benefits);
+				}
 			} finally {
 				await fixture.close();
 			}

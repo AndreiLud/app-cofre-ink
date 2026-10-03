@@ -375,10 +375,12 @@ export function ReportsPage() {
 
 					<Panel title={t("reports.monthsTitle")}>
 						<ColumnChart
+							// What came in is the income and the benefit together, which is what the
+							// overview says of the same month (decision 5 of 2.0.0).
 							groups={(byMonth.data ?? []).map((one) => ({
 								key: one.month,
 								label: shortMonth(one.month),
-								income: one.income,
+								income: one.income + one.benefits,
 								expense: one.expense,
 							}))}
 							description={t("reports.monthsDescription")}
@@ -408,13 +410,26 @@ export function ReportsPage() {
 									<TableRow key={one.month}>
 										<TableCell>{monthName(one.month)}</TableCell>
 										<TableCell numeric={true}>
-											<Value amount={one.income} currency={currency} tone="neutral" />
+											<Value
+												amount={one.income + one.benefits}
+												currency={currency}
+												tone="neutral"
+											/>
+											{one.benefits > 0 ? (
+												<span className="block text-quiet text-xs">
+													{t("reports.ofWhichBenefits", { amount: money(one.benefits) })}
+												</span>
+											) : null}
 										</TableCell>
 										<TableCell numeric={true}>
 											<Value amount={one.expense} currency={currency} tone="neutral" />
 										</TableCell>
 										<TableCell numeric={true}>
-											<Value amount={one.income - one.expense} currency={currency} tone="auto" />
+											<Value
+												amount={one.income + one.benefits - one.expense}
+												currency={currency}
+												tone="auto"
+											/>
 										</TableCell>
 									</TableRow>
 								))}

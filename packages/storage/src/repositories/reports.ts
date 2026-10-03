@@ -10,14 +10,14 @@
 // spaces is counted in the same number, and it exists because a person with a personal
 // space and a house still has one life.
 
-import { type CalendarDate, compareCalendarDates, todayIn, voucherLandings } from "@cofre/core";
+import { type CalendarDate, todayIn } from "@cofre/core";
 import { assertCan, readableSpaceIds, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber, type SqlValue } from "../driver.ts";
 import { happenedBy } from "../happened.ts";
-import { type SpendingPriority, toAccount } from "../models.ts";
+import type { SpendingPriority } from "../models.ts";
 import { marks } from "../sql.ts";
 import type { RepositoryContext } from "./context.ts";
-import { incomesOf, startOf, versionsOf } from "./voucherReading.ts";
+import { benefitLandingsIn } from "./voucherReading.ts";
 
 export type ReportRange = {
 	/** Empty for the consolidated view, which is every space this person can read. */
@@ -43,7 +43,19 @@ export type CategoryTotal = {
 
 export type PriorityTotal = { priority: SpendingPriority | null; total: number };
 
-export type MonthTotal = { month: string; income: number; expense: number };
+export type MonthTotal = {
+	month: string;
+	/** What was written as income that month. */
+	income: number;
+	expense: number;
+	/**
+	 * What landed on the benefit cards that month, counted beside the income and never in it,
+	 * the same figure `totals` gives for a range. The months had none, so the comparison of
+	 * the month screen, the twelve months of the reports and the month on paper said less came
+	 * in than the overview did for the same month, against spending that included the lunches.
+	 */
+	benefits: number;
+};
 
 export type DayTotal = { day: CalendarDate; total: number };
 
@@ -127,67 +139,24 @@ export function createReportsRepository(context: RepositoryContext) {
 	 * every voucher written before this release is.
 	 */
 	async function benefitsIn(range: ReportRange): Promise<number> {
-		// Nothing for somebody who only sees their own records, whether they named a space
-		// or not. An allowance belongs to the space and not to a person, and the rest of
-		// this reading is narrowed to their own rows, so counting it whole would put the
-		// household's meal card into a month made of one person's records. The filter was
-		// on the branch that reads every space and not on the branch every screen takes.
+		let total = 0;
+		for (const landing of await landingsIn(range)) total += landing.amount;
+		return total;
+	}
+
+	/**
+	 * The landings of a range, from the spaces it reads.
+	 *
+	 * Nothing for somebody who only sees their own records, whether they named a space or
+	 * not. An allowance belongs to the space and not to a person, and the rest of this reading
+	 * is narrowed to their own rows, so counting it whole would put the household's meal card
+	 * into a month made of one person's records.
+	 */
+	async function landingsIn(range: ReportRange) {
 		const spaceIds = (range.spaceId ? [range.spaceId] : readableSpaceIds(context.actor())).filter(
 			(id) => !seesOwnRowsOnly(context.actor(), id),
 		);
-		if (spaceIds.length === 0) return 0;
-
-		// Only the cards that exist and are still in use. The allowance is a fact about the
-		// account today, and multiplying it by the landings of any range at all credited a
-		// household eight hundred a month in a March before they had the card, and went on
-		// crediting one they had archived.
-		const rows = await context.driver.all(
-			`SELECT a.*, s."timezone" AS space_timezone
-			 FROM "accounts" a
-			 JOIN "spaces" s ON s."id" = a."space_id"
-			 WHERE a."space_id" IN (${marks(spaceIds.length)}) AND a."deleted_at" IS NULL
-			   AND a."kind" = 'voucher' AND a."quota_amount" IS NOT NULL
-			   AND a."quota_day" IS NOT NULL`,
-			spaceIds,
-		);
-
-		let total = 0;
-		for (const row of rows) {
-			const account = toAccount(row);
-			const versions = versionsOf(account);
-			if (!versions) continue;
-			// A day rather than an instant, in the timezone of its own space, because the
-			// periods are counted in days and the row remembers a millisecond in UTC.
-			const zone = String(row.space_timezone);
-			const closedOn =
-				account.archivedAt === null ? null : todayIn(zone, new Date(account.archivedAt));
-
-			// Never past today. An allowance that lands on the twenty fifth has not landed on
-			// the second, and the month in hand counted it from the first day, while the line
-			// of the card on the overview said it would land in twenty three days. And never
-			// after the card was archived.
-			const today = todayIn(zone);
-			const ends = compareCalendarDates(today, range.to) < 0 ? today : range.to;
-			const until = closedOn !== null && compareCalendarDates(closedOn, ends) < 0 ? closedOn : ends;
-
-			// Where the landings start is the core's answer, the same one the line of the card
-			// reads: the period the card was written down in, or the day somebody said what was
-			// on it. Somebody who adds a meal card halfway through a month is looking at that
-			// month, and the lunches they typed are in the same period as the landing that paid
-			// for them, so the credit belongs beside them.
-			// A month with an income written on the card by hand has that income, which is
-			// counted as income already, and not the allowance besides it.
-			const landings = voucherLandings({
-				versions,
-				start: startOf(account, zone),
-				movements: await incomesOf(context.driver, account.id, until),
-				until,
-			});
-			for (const landing of landings) {
-				if (compareCalendarDates(landing.on, range.from) >= 0) total += landing.amount;
-			}
-		}
-		return total;
+		return benefitLandingsIn(context.driver, spaceIds, range.from, range.to);
 	}
 
 	return {
@@ -296,11 +265,28 @@ export function createReportsRepository(context: RepositoryContext) {
 				params,
 			);
 
-			return rows.map((row) => ({
-				month: String(row.month),
-				income: asNumber(row.income),
-				expense: Math.abs(asNumber(row.expense)),
-			}));
+			// The benefit of each month, from the same landings the totals count, and a month
+			// that had only the allowance is a month too.
+			const benefits = new Map<string, number>();
+			for (const landing of await landingsIn(range)) {
+				const month = landing.on.slice(0, 7);
+				benefits.set(month, (benefits.get(month) ?? 0) + landing.amount);
+			}
+			const months = new Map<string, MonthTotal>();
+			for (const row of rows) {
+				const month = String(row.month);
+				months.set(month, {
+					month,
+					income: asNumber(row.income),
+					expense: Math.abs(asNumber(row.expense)),
+					benefits: benefits.get(month) ?? 0,
+				});
+			}
+			for (const [month, amount] of benefits) {
+				if (!months.has(month))
+					months.set(month, { month, income: 0, expense: 0, benefits: amount });
+			}
+			return [...months.values()].sort((one, other) => one.month.localeCompare(other.month));
 		},
 
 		/** Day by day, for the map that shows which days money leaves. */

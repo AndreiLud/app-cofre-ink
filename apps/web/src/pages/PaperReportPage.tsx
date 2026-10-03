@@ -415,14 +415,25 @@ export function PaperReportPage() {
 							{(byMonth.data ?? []).map((one) => (
 								<TableRow key={one.month}>
 									<TableCell>{shortMonth(one.month)}</TableCell>
+									{/* What came in is the income and the benefit together, as the
+									    overview and the summary above say of the same month. */}
 									<TableCell numeric={true}>
-										<Value amount={one.income} currency={currency} />
+										<Value amount={one.income + one.benefits} currency={currency} />
+										{one.benefits > 0 ? (
+											<span className="block text-quiet text-xs">
+												{t("reports.ofWhichBenefits", { amount: money(one.benefits) })}
+											</span>
+										) : null}
 									</TableCell>
 									<TableCell numeric={true}>
 										<Value amount={one.expense} currency={currency} />
 									</TableCell>
 									<TableCell numeric={true}>
-										<Value amount={one.income - one.expense} currency={currency} tone="auto" />
+										<Value
+											amount={one.income + one.benefits - one.expense}
+											currency={currency}
+											tone="auto"
+										/>
 									</TableCell>
 								</TableRow>
 							))}

@@ -4,7 +4,7 @@
 // names the file it wants to be, and that it says nothing a person is not allowed to see.
 
 import { expect, test } from "@playwright/test";
-import { go, openCofre } from "./support.ts";
+import { figure, go, openCofre } from "./support.ts";
 
 test.describe("the month on paper", () => {
 	test("holds the month in order, with a table under every figure", async ({ page }) => {
@@ -31,6 +31,59 @@ test.describe("the month on paper", () => {
 		// Nothing here is only a picture: every figure has a table it can be read from,
 		// which is what makes the PDF the browser writes readable with a screen reader.
 		expect(await page.getByRole("table").count()).toBeGreaterThan(5);
+	});
+
+	// Part 1, C.1 and C.4 of the request for 2.0.0: the overview said October came in with
+	// the benefit and the month screen, the twelve months of the reports and the month on
+	// paper said it without, against spending that held the lunches. Registry 0044 says one
+	// figure is one figure on every screen.
+	test("says the same came in for a month on every screen that says it", async ({ page }) => {
+		await openCofre(page, { demo: false });
+
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		await page.getByLabel("Nome").fill("Banco");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Banco", exact: true })).toBeVisible();
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		const voucher = page.getByRole("dialog");
+		await voucher.getByLabel("Nome").fill("VR");
+		await voucher.getByLabel("Tipo").selectOption("voucher");
+		await voucher.getByLabel("Valor por mês").fill("900,00");
+		await voucher.getByLabel("Dia do crédito").selectOption("5");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "VR", exact: true })).toBeVisible();
+
+		// Three closed months and this one, which the comparison of the month screen needs.
+		await go(page, "Lançamentos");
+		const quick = page.getByLabel("Lançamento rápido");
+		for (const month of ["2026-07", "2026-08", "2026-09", "2026-10"]) {
+			for (const line of [
+				`recebi Trabalho 6000,00 ${month}-05 banco`,
+				`Mercado 3000,00 ${month}-12 banco`,
+			]) {
+				await quick.fill(line);
+				await page.getByRole("button", { name: "Lançar", exact: true }).click();
+				await expect(page.getByRole("button", { name: "Desfazer" })).toBeVisible();
+			}
+		}
+
+		// October: 6,000 written and the 900 that landed on the fifth.
+		const october = "R$ 6.900,00";
+		await go(page, "Painel");
+		await expect(figure(page, "Entrou")).toHaveText(october);
+
+		await go(page, "O mês");
+		await expect(page.getByRole("listitem").filter({ hasText: "O que entra" })).toContainText(
+			`${october} neste`,
+		);
+
+		await go(page, "Relatórios");
+		await expect(page.getByRole("row").filter({ hasText: /^outubro/ })).toContainText(october);
+
+		await page.goto("/relatorio?mes=2026-10");
+		const twelve = page.locator("section").filter({ hasText: "Os últimos doze meses" }).last();
+		await expect(twelve.getByRole("row").filter({ hasText: /^out/ })).toContainText(october);
 	});
 
 	test("asks the browser to call the file what it is", async ({ page }) => {
