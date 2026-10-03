@@ -477,6 +477,67 @@ describe("the api", () => {
 		expect((await payment("2026-13")).status).toBe(400);
 	});
 
+	// Part 1, G.6 of the request for 2.0.0: the route that pays an invoice took "2026-13",
+	// wrote the payment, and from then on every reading of an invoice in the space answered
+	// five hundred. A month or a day that does not exist is refused where it comes in.
+	it("refuses a month that does not exist, and the invoices still read", async () => {
+		const ana = createClient(app);
+		await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+		const space = await ana.json<{ id: string }>("/api/spaces", {
+			method: "POST",
+			body: JSON.stringify({ name: "Casa" }),
+		});
+		const account = (body: Record<string, unknown>) =>
+			ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+				method: "POST",
+				body: JSON.stringify(body),
+			});
+		const checking = await account({ kind: "checking", name: "Conta" });
+		const card = await account({ kind: "credit", name: "Cartao", closingDay: 3, dueDay: 10 });
+		const post = (path: string, body: Record<string, unknown>) =>
+			ana.request(path, { method: "POST", body: JSON.stringify(body) });
+
+		const paid = await post(`/api/accounts/${card.id}/invoices/pay`, {
+			fromAccountId: checking.id,
+			amount: 90_000,
+			happenedOn: "2026-10-10",
+			month: "2026-13",
+			description: "Pagamento da fatura",
+		});
+		expect(paid.status).toBe(400);
+		const untilThen = await post(`/api/accounts/${card.id}/invoices/paidUntil`, {
+			fromAccountId: checking.id,
+			month: "2026-00",
+			today: "2026-10-28",
+			description: "Pagamento da fatura",
+		});
+		expect(untilThen.status).toBe(400);
+		const closed = await post(`/api/accounts/${card.id}/invoices/closedOn`, {
+			month: "2026-10",
+			day: "2026-02-31",
+		});
+		expect(closed.status).toBe(400);
+		const limit = await post(`/api/spaces/${space.id}/budgets`, {
+			scope: "total",
+			amount: 100_000,
+			month: "2026-13",
+		});
+		expect(limit.status).toBe(400);
+		const oneMonth = await ana.request(
+			`/api/accounts/${card.id}/invoices/2026-13?today=2026-10-28`,
+		);
+		expect(oneMonth.status).toBe(400);
+		const ahead = await ana.request(
+			`/api/spaces/${space.id}/projection?from=2026-13&today=2026-10-28`,
+		);
+		expect(ahead.status).toBe(400);
+
+		const invoices = await ana.request(`/api/accounts/${card.id}/invoices?today=2026-10-28`);
+		expect(invoices.status).toBe(200);
+		const standing = await ana.request(`/api/spaces/${space.id}/invoices?today=2026-10-28`);
+		expect(standing.status).toBe(200);
+	});
+
 	// Part 2, A.4 of the request for 2.0.0: "Era entre contas suas" on a server, with the other
 	// half taken away in the same request, and a month that does not exist refused.
 	it("turns a record into a move and takes away the other half", async () => {

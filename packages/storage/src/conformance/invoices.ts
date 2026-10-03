@@ -132,6 +132,61 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 1, G.6 of the request for 2.0.0: paying the invoice of "2026-13" wrote the payment,
+		// and from then on every reading of an invoice in the space failed. The month is refused
+		// where a record is written, and one written before is cleared by the repair, so the
+		// payment pays the oldest invoice still owed, as any payment that names none does.
+		it("refuses a month that does not exist, and clears one already written", async () => {
+			const ready = await readyCard(adapter);
+			try {
+				const on = ready.fixture.asAna;
+				const [purchase] = await on.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 90_000,
+					happenedOn: "2026-09-01",
+					description: "Mercado",
+					accountId: ready.card.id,
+				});
+				const itsInvoice = purchase?.invoiceMonth ?? "";
+				const paying = (month: string) =>
+					on.invoices.pay({
+						accountId: ready.card.id,
+						fromAccountId: ready.checking.id,
+						amount: 90_000,
+						happenedOn: "2026-09-10",
+						month,
+						description: "Pagamento da fatura",
+					});
+				await expect(paying("2026-13")).rejects.toThrow("2026-13");
+				await expect(on.invoices.get(ready.card.id, "2026-13", TODAY)).rejects.toThrow("2026-13");
+				await expect(
+					on.invoices.closedOn({ accountId: ready.card.id, month: "2026-09", day: "2026-02-31" }),
+				).rejects.toThrow("2026-02-31");
+
+				// One written by a release that did not check, which is a row and not a request.
+				const written = await paying("2026-09");
+				for (const id of [written.id, purchase?.id ?? ""]) {
+					await ready.fixture.driver.run(
+						`UPDATE "transactions" SET "invoice_month" = '2026-13' WHERE "id" = ?`,
+						[id],
+					);
+				}
+				await expect(on.invoices.standing(ready.spaceId, TODAY)).rejects.toThrow("2026-13");
+
+				// The payment names none, and the purchase takes the invoice of its day again.
+				const done = await on.repairs.run(ready.spaceId);
+				expect(done.impossibleMonthsCleared).toBe(2);
+				expect((await on.transactions.get(written.id)).invoiceMonth).toBeNull();
+				expect((await on.transactions.get(purchase?.id ?? "")).invoiceMonth).toBe(itsInvoice);
+				const standing = await on.invoices.standing(ready.spaceId, TODAY);
+				expect(standing.map((one) => one.owing.length)).toEqual([0]);
+				expect((await on.repairs.run(ready.spaceId)).impossibleMonthsCleared).toBe(0);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		// Part 2, B.7.4: a credit account with no cycle has no invoices, and it vanished with
 		// nothing said. A new one is refused, and so is an edit that clears a day; one written
 		// before 2.0.0 comes back marked.

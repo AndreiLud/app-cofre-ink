@@ -118,7 +118,9 @@ const invoicesRoute = createRoute({
 	validateSearch: (search: Record<string, unknown>): { cartao?: string; mes?: string } => ({
 		cartao: typeof search.cartao === "string" && search.cartao !== "" ? search.cartao : undefined,
 		mes:
-			typeof search.mes === "string" && /^\d{4}-\d{2}$/.test(search.mes) ? search.mes : undefined,
+			typeof search.mes === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(search.mes)
+				? search.mes
+				: undefined,
 	}),
 	component: lazyRouteComponent(() => import("./pages/InvoicePage.tsx"), "InvoicePage"),
 });

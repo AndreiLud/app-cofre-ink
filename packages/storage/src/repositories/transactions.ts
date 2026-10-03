@@ -533,6 +533,8 @@ export function createTransactionsRepository(context: RepositoryContext) {
 		async create(input: CreateTransactionInput): Promise<Transaction[]> {
 			assertCan(context.actor(), input.spaceId, "transaction.create");
 			parseCalendarDate(input.happenedOn);
+			// "2026-13" was written as it came, and every reading of an invoice failed after it.
+			if (input.invoiceMonth) parseCalendarMonth(input.invoiceMonth);
 			// Checked before anything else, and never quietly turned positive: a negative
 			// amount here means whoever called got the contract wrong, and guessing what
 			// they meant is how money ends up on the wrong side of a report.

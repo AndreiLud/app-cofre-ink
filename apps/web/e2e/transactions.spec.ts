@@ -490,6 +490,21 @@ test.describe("the card invoice", () => {
 		await expect(record(page, "Fone de ouvido 1/3")).toBeVisible();
 	});
 
+	// Part 1, G.6 of the request for 2.0.0: a month that does not exist in the address is
+	// dropped, and the screen opens on the invoice it would have opened on anyway.
+	test("ignores a month that does not exist in the address", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Faturas");
+		// The period is there once the invoice is, and the sentence above it with it.
+		await expect(page.getByText(/^Compras de /)).toBeVisible();
+		const heading = await page.getByRole("heading", { level: 1 }).innerText();
+
+		await page.goto("/faturas?mes=2026-13");
+		await expect(page.getByText(/^Compras de /)).toBeVisible();
+		await expect(page.getByRole("heading", { level: 1 })).toHaveText(heading);
+		await expect(record(page, "Fone de ouvido 1/3")).toBeVisible();
+	});
+
 	test("puts a subscription charged to the card on the invoice", async ({ page }) => {
 		await openCofre(page);
 		await go(page, "Faturas");

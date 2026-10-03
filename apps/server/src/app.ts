@@ -6,6 +6,7 @@
 // keeps the server and the browser honest about the same model.
 
 import { fetchSeries } from "@cofre/cloud";
+import { CalendarError, parseCalendarDate } from "@cofre/core";
 import type { Session } from "@cofre/storage";
 import {
 	applyChanges,
@@ -97,7 +98,23 @@ const cardInput = z.object({
 
 const roleInput = z.enum(["admin", "editor", "viewer", "logger"]);
 
-const calendarDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected a calendar date");
+/** A day that exists. "2026-02-31" passed a pattern of digits and reached the repository. */
+const calendarDate = z
+	.string()
+	.regex(/^\d{4}-\d{2}-\d{2}$/, "expected a calendar date")
+	.refine(dayExists, "expected a day that exists");
+
+/** A month that exists. "2026-13" passed a pattern of four digits and two, and broke every invoice read after it. */
+const existingMonth = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "expected a month that exists");
+
+function dayExists(value: string): boolean {
+	try {
+		parseCalendarDate(value);
+		return true;
+	} catch {
+		return false;
+	}
+}
 
 const priority = z.enum(["essential", "important", "desirable", "superfluous"]);
 
@@ -116,11 +133,7 @@ const budgetInput = z.object({
 	amount: z.number().int().positive(),
 	categoryId: z.string().min(1).nullable().optional(),
 	priority: priority.nullable().optional(),
-	month: z
-		.string()
-		.regex(/^\d{4}-\d{2}$/)
-		.nullable()
-		.optional(),
+	month: existingMonth.nullable().optional(),
 });
 
 const goalInput = z.object({
@@ -212,9 +225,6 @@ const cardIdentifier = z
 	.nullable()
 	.optional()
 	.transform((given) => (given === "" ? null : given));
-
-/** A month that exists. "2026-13" passed a pattern of four digits and two, and broke every invoice read after it. */
-const existingMonth = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "expected a month that exists");
 
 const transactionInput = z.object({
 	kind: z.enum(["income", "expense", "transfer"]),
@@ -680,8 +690,6 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		}),
 	);
 
-	const calendarMonth = z.string().regex(/^\d{4}-\d{2}$/);
-
 	app.get("/api/accounts/:id/invoices", async (context) => {
 		const query = z.object({ today: calendarDate }).parse(context.req.query());
 		return context.json(
@@ -696,7 +704,7 @@ export function createApp({ config, database, auth }: AppDependencies) {
 				.get("session")
 				.invoices.get(
 					context.req.param("id"),
-					calendarMonth.parse(context.req.param("month")),
+					existingMonth.parse(context.req.param("month")),
 					query.today,
 				),
 		);
@@ -715,7 +723,7 @@ export function createApp({ config, database, auth }: AppDependencies) {
 				fromAccountId: z.string().min(1),
 				amount: z.number().int().positive(),
 				happenedOn: calendarDate,
-				month: calendarMonth,
+				month: existingMonth,
 				description: z.string().trim().min(1).max(200),
 			})
 			.parse(await context.req.json());
@@ -729,10 +737,10 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		const input = z
 			.object({
 				fromAccountId: z.string().min(1),
-				month: calendarMonth,
+				month: existingMonth,
 				today: calendarDate,
 				description: z.string().trim().min(1).max(200),
-				monthNames: z.record(calendarMonth, z.string().trim().min(1).max(60)).optional(),
+				monthNames: z.record(existingMonth, z.string().trim().min(1).max(60)).optional(),
 			})
 			.parse(await context.req.json());
 		return context.json({
@@ -744,7 +752,7 @@ export function createApp({ config, database, auth }: AppDependencies) {
 
 	app.post("/api/accounts/:id/invoices/closedOn", async (context) => {
 		const input = z
-			.object({ month: calendarMonth, day: calendarDate })
+			.object({ month: existingMonth, day: calendarDate })
 			.parse(await context.req.json());
 		return context.json({
 			moved: await context
@@ -1486,7 +1494,7 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		// the opening balance counts up to and what decides which invoices are still owed.
 		const query = z
 			.object({
-				from: z.string().regex(/^\d{4}-\d{2}$/),
+				from: existingMonth,
 				months: z.coerce.number().int().min(1).max(36).optional(),
 				window: z.coerce.number().int().min(1).max(24).optional(),
 				today: calendarDate,
@@ -1576,14 +1584,8 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		const query = z
 			.object({
 				series: z.enum(["cdi", "selic", "ipca"]),
-				from: z
-					.string()
-					.regex(/^\d{4}-\d{2}$/)
-					.optional(),
-				to: z
-					.string()
-					.regex(/^\d{4}-\d{2}$/)
-					.optional(),
+				from: existingMonth.optional(),
+				to: existingMonth.optional(),
 			})
 			.parse(context.req.query());
 
@@ -1608,7 +1610,7 @@ export function createApp({ config, database, auth }: AppDependencies) {
 					.array(z.enum(["cdi", "selic", "ipca"]))
 					.min(1)
 					.max(3),
-				from: z.string().regex(/^\d{4}-\d{2}$/),
+				from: existingMonth,
 			})
 			.parse(await context.req.json());
 
@@ -1714,6 +1716,11 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		}
 		if (error instanceof z.ZodError) {
 			return context.json({ error: "invalidInput", issues: error.issues }, 400);
+		}
+		// A day or a month that does not exist, met by the repository in something a route
+		// passed on without a schema of its own, such as the month of a budget asked for.
+		if (error instanceof CalendarError) {
+			return context.json({ error: "invalidInput", message: error.message }, 400);
 		}
 		console.error(error);
 		return context.json({ error: "unexpected" }, 500);

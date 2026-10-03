@@ -33,9 +33,15 @@ async function main(): Promise<void> {
 	// the change log, as the owner of each space. Before the first request, so nobody reads a
 	// space halfway through it.
 	const repaired = await repairEverySpace(database.driver);
-	const promises = repaired.reduce((total, one) => total + one.promisesMadeFacts, 0);
+	const count = (field: keyof Omit<(typeof repaired)[number], "spaceId">) =>
+		repaired.reduce((total, one) => total + one[field], 0);
+	const promises = count("promisesMadeFacts");
 	if (promises > 0)
 		console.log(`repaired ${promises} records written as promises by 1.1.0 to 1.2.1`);
+	const payments = count("paymentsGivenTheirInvoice");
+	if (payments > 0) console.log(`gave ${payments} invoice payments the invoice of their month`);
+	const months = count("impossibleMonthsCleared");
+	if (months > 0) console.log(`cleared ${months} invoices named after a month that does not exist`);
 
 	const server = serve({ fetch: app.fetch, port: config.COFRE_PORT }, (address) => {
 		console.log(`Cofre Ink is listening on http://localhost:${address.port}`);

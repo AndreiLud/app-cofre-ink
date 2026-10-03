@@ -13,7 +13,7 @@
 // Every repair is safe to run on every opening: it looks for the rows it has not repaired
 // yet, and a database with none costs one query per space.
 
-import { readMonthMark } from "@cofre/core";
+import { invoiceMonthOf, parseCalendarMonth, readMonthMark } from "@cofre/core";
 import { MIGRATIONS_TABLE, transactions } from "@cofre/db";
 import { assertCan } from "../actor.ts";
 import { asNumber } from "../driver.ts";
@@ -32,6 +32,8 @@ export type RepairOutcome = {
 	promisesMadeFacts: number;
 	/** Payments of the month screen a server wrote with no invoice, given the invoice of their month. */
 	paymentsGivenTheirInvoice: number;
+	/** Records naming the invoice of a month that does not exist, such as "2026-13". */
+	impossibleMonthsCleared: number;
 };
 
 async function appliedAt(context: RepositoryContext, id: string): Promise<number | null> {
@@ -126,11 +128,61 @@ async function paymentsWithoutTheirInvoice(
 	return repaired;
 }
 
+/**
+ * Invoices named after a month that does not exist.
+ *
+ * The route that pays an invoice took "2026-13" and wrote it, and from then on every reading
+ * of an invoice in the space failed, because no invoice can be built for that month. Which
+ * month was meant cannot be told, so the name is put back the way it is when nobody chose
+ * one: a purchase on a card takes the invoice of its day, and a payment names none, which
+ * pays the oldest invoice still owed.
+ */
+async function monthsThatDoNotExist(context: RepositoryContext, spaceId: string): Promise<number> {
+	const rows = await context.driver.all(
+		`SELECT t."id" AS id, t."invoice_month" AS month, t."happened_on" AS day,
+		        a."kind" AS account_kind, a."closing_day" AS closing_day, a."due_day" AS due_day
+		 FROM "transactions" t
+		 JOIN "accounts" a ON a."id" = t."account_id"
+		 WHERE t."space_id" = ? AND t."deleted_at" IS NULL AND t."invoice_month" IS NOT NULL`,
+		[spaceId],
+	);
+	let cleared = 0;
+	for (const row of rows) {
+		if (isAMonth(String(row.month))) continue;
+		const onTheCard =
+			String(row.account_kind) === "credit" && row.closing_day !== null && row.due_day !== null;
+		const month = onTheCard
+			? invoiceMonthOf(String(row.day), {
+					closingDay: asNumber(row.closing_day),
+					dueDay: asNumber(row.due_day),
+				})
+			: null;
+		await updateRow(context.write(), {
+			table: transactions,
+			spaceId,
+			id: String(row.id),
+			values: { invoice_month: month, invoice_month_by_hand: null },
+		});
+		cleared += 1;
+	}
+	return cleared;
+}
+
+function isAMonth(value: string): boolean {
+	try {
+		parseCalendarMonth(value);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 async function repairSpace(context: RepositoryContext, spaceId: string): Promise<RepairOutcome> {
 	return {
 		spaceId,
 		promisesMadeFacts: await promisesOfOneOneToOneTwo(context, spaceId),
 		paymentsGivenTheirInvoice: await paymentsWithoutTheirInvoice(context, spaceId),
+		impossibleMonthsCleared: await monthsThatDoNotExist(context, spaceId),
 	};
 }
 

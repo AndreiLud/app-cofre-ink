@@ -23,6 +23,8 @@ import {
 	invoiceStateOf,
 	invoicesInTurn,
 	limitLeftOf,
+	parseCalendarDate,
+	parseCalendarMonth,
 	todayIn,
 } from "@cofre/core";
 import { assertCan, seesOwnRowsOnly } from "../actor.ts";
@@ -402,6 +404,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 
 		/** One invoice of one card, whether or not anything is on it. */
 		async get(accountId: string, month: CalendarMonth, today: CalendarDate): Promise<InvoiceState> {
+			parseCalendarMonth(month);
 			const account = await needs.accounts.get(accountId);
 			assertCan(context.actor(), account.spaceId, "transaction.read");
 			refuseIfNarrowed(account.spaceId);
@@ -566,6 +569,8 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 			 */
 			monthNames?: Record<string, string>;
 		}): Promise<number> {
+			parseCalendarMonth(input.month);
+			parseCalendarDate(input.today);
 			const { account } = await cardAccount(input.accountId);
 			assertCan(context.actor(), account.spaceId, "transaction.create");
 			refuseIfNarrowed(account.spaceId);
@@ -658,6 +663,8 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 			month: CalendarMonth;
 			day: CalendarDate;
 		}): Promise<number> {
+			parseCalendarMonth(input.month);
+			parseCalendarDate(input.day);
 			const { account, cycle } = await cardAccount(input.accountId);
 			assertCan(context.actor(), account.spaceId, "transaction.update");
 			refuseIfNarrowed(account.spaceId);
