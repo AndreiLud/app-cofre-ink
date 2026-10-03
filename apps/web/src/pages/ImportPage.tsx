@@ -221,6 +221,9 @@ export function ImportPage() {
 	 */
 	const { mayCall, ready, role, seesOwnRowsOnly } = useWhatIMayDo(spaceId);
 	const mayWrite = mayCall("transactions.create");
+	// Moving a part already written to the invoice of this file moves the whole plan, which reads
+	// the invoice whole: not for whoever sees only their own records.
+	const mayMoveParts = mayCall("invoices.move") && !seesOwnRowsOnly;
 
 	const accounts = useQuery({
 		queryKey: ["accounts", spaceId, "open"],
@@ -924,7 +927,7 @@ export function ImportPage() {
 			});
 			// A part already written on another invoice, moved to this one with the parts after it,
 			// one invoice at a time, the way the list moves them.
-			for (const index of moveParts) {
+			for (const index of mayMoveParts ? moveParts : []) {
 				const match = partMatches.get(index);
 				if (match?.kind !== "elsewhere" || !invoiceMonth || !match.record.invoiceMonth) continue;
 				const steps = monthsBetween(match.record.invoiceMonth, invoiceMonth);
@@ -1599,7 +1602,8 @@ export function ImportPage() {
 														<label className="flex items-center gap-2 text-xs text-quiet">
 															<input
 																type="checkbox"
-																checked={moveParts.has(index)}
+																hidden={!mayMoveParts}
+																checked={mayMoveParts && moveParts.has(index)}
 																onChange={() =>
 																	setMoveParts((current) => {
 																		const next = new Set(current);
