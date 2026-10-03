@@ -134,6 +134,53 @@ export function runAdviceConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 1, H.2.3.7 of the request for 2.0.0: the invoices that closed and the instalments
+		// ahead added amounts as they were typed, so a dinner of forty dollars at five reais and
+		// twenty was a bill of forty reais to the check up.
+		it("reads purchases in another currency at the rate of their day", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Casa" });
+				const card = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "credit",
+					name: "Cartao",
+					closingDay: 3,
+					dueDay: 10,
+				});
+				const dollars = { currency: "USD", fxRate: 520_000_000, accountId: card.id } as const;
+				await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 4_000,
+					happenedOn: "2026-08-20",
+					description: "Jantar",
+					...dollars,
+				});
+				await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 12_000,
+					installments: 3,
+					happenedOn: "2026-09-20",
+					description: "Mala",
+					...dollars,
+				});
+
+				const snapshot = await fixture.asAna.advice.snapshot({
+					spaceId: space.id,
+					today: "2026-10-15",
+				});
+				expect(snapshot.invoices.find((one) => one.month === "2026-09")?.amount).toBe(20_800);
+				expect(snapshot.instalments).toEqual([
+					{ month: "2026-10", amount: 20_800 },
+					{ month: "2026-11", amount: 20_800 },
+				]);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		it("counts money on hand without counting what is put aside as cash", async () => {
 			const fixture = await prepare(adapter);
 			try {

@@ -355,12 +355,13 @@ export function MonthPage() {
 	const byHand = (records.data ?? []).filter(
 		(row) => readMonthMark(row.externalId) === null && row.kind !== "transfer",
 	);
+	// In the currency of the space, like every total: a dinner of forty dollars was forty reais.
 	const byHandIn = byHand
 		.filter((row) => row.kind === "income")
-		.reduce((sum, row) => sum + row.amount, 0);
+		.reduce((sum, row) => sum + row.amountInBase, 0);
 	const byHandOut = byHand
 		.filter((row) => row.kind === "expense")
-		.reduce((sum, row) => sum + Math.abs(row.amount), 0);
+		.reduce((sum, row) => sum + Math.abs(row.amountInBase), 0);
 
 	const monthName = new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
 		month: "long",

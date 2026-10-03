@@ -411,14 +411,19 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 		return rows.map((row) => ({ month: String(row.month), net: asNumber(row.net) }));
 	}
 
-	/** Card invoices that have closed, which is every one before the month in hand. */
+	/**
+	 * Card invoices that have closed, which is every one before the month in hand.
+	 *
+	 * This and the instalments below are in the currency of the space, like every total: they
+	 * added amounts as typed, so a dinner of forty dollars was a bill of forty reais.
+	 */
 	async function closedInvoices(
 		spaceId: string,
 		from: string,
 		thisMonth: string,
 	): Promise<{ month: string; amount: number }[]> {
 		const rows = await context.driver.all(
-			`SELECT "invoice_month" AS month, COALESCE(SUM("amount"), 0) AS total
+			`SELECT "invoice_month" AS month, COALESCE(SUM("amount_in_base"), 0) AS total
 			 FROM "transactions"
 			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "kind" = 'expense'
 			   AND "invoice_month" IS NOT NULL AND "invoice_month" >= ? AND "invoice_month" < ?
@@ -445,7 +450,7 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 		after: CalendarDate,
 	): Promise<{ month: string; amount: number }[]> {
 		const rows = await context.driver.all(
-			`SELECT SUBSTR("happened_on", 1, 7) AS month, COALESCE(SUM("amount"), 0) AS total
+			`SELECT SUBSTR("happened_on", 1, 7) AS month, COALESCE(SUM("amount_in_base"), 0) AS total
 			 FROM "transactions"
 			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "kind" = 'expense'
 			   AND "installment_number" IS NOT NULL AND "happened_on" > ?

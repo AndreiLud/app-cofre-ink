@@ -367,8 +367,10 @@ export function createGoalsRepository(context: RepositoryContext) {
 			// The salary dated for the end of this month has not been earned on the tenth, and
 			// a transfer to the savings account dated for next week has not been put aside.
 			const today = todayIn(await timezoneOf(input.spaceId));
+			// Both in the currency of the space, which is what the rule asks for: an income in
+			// dollars was counted as that many reais.
 			const earnedRows = await context.driver.all(
-				`SELECT COALESCE(SUM("amount"), 0) AS total FROM "transactions"
+				`SELECT COALESCE(SUM("amount_in_base"), 0) AS total FROM "transactions"
 				 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "kind" = 'income'
 				   AND ${happenedBy(null)} AND "happened_on" >= ? AND "happened_on" <= ?
 				   ${only.clause}`,
@@ -379,7 +381,7 @@ export function createGoalsRepository(context: RepositoryContext) {
 			let put = 0;
 			if (rule?.accountId) {
 				const intoRows = await context.driver.all(
-					`SELECT COALESCE(SUM("amount"), 0) AS total FROM "transactions"
+					`SELECT COALESCE(SUM("amount_in_base"), 0) AS total FROM "transactions"
 					 WHERE "space_id" = ? AND "deleted_at" IS NULL AND ${happenedBy(null)}
 					   AND "counter_account_id" = ? AND "happened_on" >= ? AND "happened_on" <= ?
 					   ${only.clause}`,

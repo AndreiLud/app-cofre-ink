@@ -4,6 +4,7 @@
 // not lost: a limit counts what it should and nothing else, a goal reads the account it
 // points at, and what two people owe each other always adds up to zero.
 
+import { todayIn } from "@cofre/core";
 import { describe, expect, it } from "vitest";
 import { NotFoundError, RuleError } from "../errors.ts";
 import type { Session } from "../session.ts";
@@ -501,6 +502,49 @@ export function runPlanConformance(adapter: AdapterUnderTest): void {
 				const balances = await ready.fixture.asAna.sharing.balances(ready.spaceId);
 				expect(balances.find((one) => one.userId === ready.fixture.ana.id)?.amount).toBe(10_400);
 				expect(balances.find((one) => one.userId === ready.fixture.joao.id)?.amount).toBe(-10_400);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		// Part 1, H.2.3.7 of the request for 2.0.0: the notes of 1.2.0 say no total adds up an
+		// amount as it was typed, and the limits and the saving rule still did. A dinner of forty
+		// dollars at five reais and twenty counted as forty reais against a limit in reais, and a
+		// salary in dollars as that many reais in what the rule asks for.
+		it("counts money in another currency at the rate of its day in limits and the rule", async () => {
+			const ready = await sharedSpace();
+			try {
+				const on = ready.fixture.asAna;
+				const today = todayIn("America/Sao_Paulo");
+				const month = today.slice(0, 7);
+				await on.budgets.create({ spaceId: ready.spaceId, scope: "total", amount: 100_000 });
+				await on.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 4_000,
+					currency: "USD",
+					fxRate: 520_000_000,
+					happenedOn: today,
+					description: "Jantar em Nova York",
+					accountId: ready.accountId,
+				});
+				const limits = await on.budgets.progress({ spaceId: ready.spaceId, month, today });
+				expect(limits[0]?.progress.spent).toBe(20_800);
+
+				await on.goals.setRule({ spaceId: ready.spaceId, mode: "percent", value: 1_000 });
+				await on.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "income",
+					amount: 100_000,
+					currency: "USD",
+					fxRate: 520_000_000,
+					happenedOn: today,
+					description: "Consultoria",
+					accountId: ready.accountId,
+				});
+				const savings = await on.goals.savings({ spaceId: ready.spaceId, month });
+				expect(savings.earned).toBe(520_000);
+				expect(savings.expected).toBe(52_000);
 			} finally {
 				await ready.fixture.close();
 			}

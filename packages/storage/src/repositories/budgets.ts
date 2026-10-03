@@ -214,7 +214,9 @@ export function createBudgetsRepository(context: RepositoryContext) {
 			}
 
 			const rows = await context.driver.all(
-				`SELECT t."amount" AS amount, t."kind" AS kind, t."category_id" AS category_id,
+				// In the currency of the space, which is what a limit is written in: a dinner of forty
+				// dollars counted as forty reais against it.
+				`SELECT t."amount_in_base" AS amount, t."kind" AS kind, t."category_id" AS category_id,
 				        COALESCE(t."priority", c."priority") AS priority
 				 FROM "transactions" t
 				 LEFT JOIN "categories" c ON c."id" = t."category_id"

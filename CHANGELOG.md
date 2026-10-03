@@ -120,7 +120,10 @@ a record in and none to read a file.
 written down with it, which is what every other total in this application does. An invoice
 holding a purchase in another currency with no rate for the day prints no total at all and
 says why, rather than printing one that quietly leaves that purchase out, and it is in no
-figure on the overview while it says it.
+figure on the overview while it says it. (Corrected in 2.0.0: not every other total did. The
+limits, the saving rule, the invoices and the instalments the check up reads, and what the
+month screen says was written one at a time, still added amounts as they were typed until
+2.0.0.)
 
 **A control on a screen names the call it makes**, not the permission behind it. The permission
 is read from one table, and every row of that table is proved against the running repositories
