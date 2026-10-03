@@ -6,7 +6,9 @@
 // somebody ends up with two of every purchase in a month and no way to tell which.
 
 import {
+	addDays,
 	addMonthsToMonth,
+	type CalendarDate,
 	type CardCycle,
 	invoiceMonthForDue,
 	invoiceMonthOf,
@@ -17,6 +19,7 @@ import {
 import type {
 	AccountGuess,
 	DraftRecord,
+	ExistingRecord,
 	FieldName,
 	InvoiceConvention,
 	MarkedRecord,
@@ -24,7 +27,14 @@ import type {
 	RecognisedDocument,
 	SignMeaning,
 } from "@cofre/importers";
-import { guessAccount, markDuplicates, readFile, shapeOf } from "@cofre/importers";
+import {
+	guessAccount,
+	markDuplicates,
+	readFile,
+	refundedPurchase,
+	refundsInFile,
+	shapeOf,
+} from "@cofre/importers";
 import type { Account, ImportedRecord } from "@cofre/storage";
 import {
 	Button,
@@ -510,10 +520,16 @@ export function ImportPage() {
 		);
 	};
 
+	// The days the file covers, and for an invoice four months before them as well: a refund
+	// takes back a purchase that may have been on an invoice already written.
 	const span = useMemo(() => {
 		const days = (read?.records ?? []).map((record) => record.happenedOn).sort();
-		return { from: days[0], to: days[days.length - 1] };
-	}, [read]);
+		const first = days[0];
+		return {
+			from: first && isInvoice ? addDays(first as CalendarDate, -120) : first,
+			to: days[days.length - 1],
+		};
+	}, [read, isInvoice]);
 
 	const existing = useQuery({
 		queryKey: ["importExisting", spaceId, chosen?.id, span.from, span.to],
@@ -548,6 +564,28 @@ export function ImportPage() {
 		() => markDuplicates(lines, existing.data ?? []),
 		[lines, existing.data],
 	);
+
+	/**
+	 * A refund and its purchase in the same file: the two cancel, so both start out and the
+	 * month shows neither.
+	 */
+	const pairedInFile = useMemo(() => {
+		if (!isInvoice) return new Set<number>();
+		const pairs = refundsInFile(lines);
+		return new Set([...pairs.keys(), ...pairs.values()]);
+	}, [lines, isInvoice]);
+	/** The purchase already written that a refund of the file takes back, by its place. */
+	const takesBack = useMemo(() => {
+		const found = new Map<number, ExistingRecord>();
+		lines.forEach((record, index) => {
+			if (pairedInFile.has(index)) return;
+			const purchase = refundedPurchase(record, existing.data ?? []);
+			if (purchase) found.set(index, purchase);
+		});
+		return found;
+	}, [lines, pairedInFile, existing.data]);
+	/** Refunds the person said not to take their purchase back, which they start doing. */
+	const [keepPurchase, setKeepPurchase] = useState<Set<number>>(new Set());
 
 	// The rules of the space run at the moment of writing, so what they will do is
 	// worked out here with the same function and shown before anything is written.
@@ -585,10 +623,10 @@ export function ImportPage() {
 	 * which is most likely the same payment written before. A tick turns a line from how it
 	 * started, which is what `left` holds.
 	 */
-	const startsOut = (record: MarkedRecord) =>
-		isInvoice && record.nature === "payment" && paidAlready;
+	const startsOut = (record: MarkedRecord, index: number) =>
+		(isInvoice && record.nature === "payment" && paidAlready) || pairedInFile.has(index);
 	const isOut = (record: MarkedRecord, index: number) =>
-		(record.certain && record.duplicateOf !== null) || startsOut(record) !== left.has(index);
+		(record.certain && record.duplicateOf !== null) || startsOut(record, index) !== left.has(index);
 
 	/** The lines that will be written, with their place in the file. */
 	const kept = marked
@@ -657,6 +695,7 @@ export function ImportPage() {
 		setAsParts(new Set());
 		setKeepWrittenDown(false);
 		setPayers(new Map());
+		setKeepPurchase(new Set());
 
 		try {
 			setPicked({ name: file.name, bytes: await readPickedFile(file) });
@@ -695,6 +734,9 @@ export function ImportPage() {
 					externalId: record.externalId,
 					nature: record.nature,
 					...(payment ? { paymentFrom: payerOf(index) } : {}),
+					...(takesBack.has(index) && !keepPurchase.has(index)
+						? { reverses: takesBack.get(index)?.id ?? null }
+						: {}),
 					...(card ? { cardId: card } : {}),
 				};
 			});
@@ -1191,6 +1233,34 @@ export function ImportPage() {
 														</select>
 													) : null}
 												</span>
+												{/* A refund and its purchase on the same invoice cancel. One of a
+												    purchase already written takes it out instead of going in. */}
+												{pairedInFile.has(index) ? (
+													<span className="block text-xs text-quiet">
+														{t("importing.pairedInFile")}
+													</span>
+												) : null}
+												{takesBack.has(index) ? (
+													<label className="flex items-center gap-2 text-xs text-quiet">
+														<input
+															type="checkbox"
+															checked={!keepPurchase.has(index)}
+															onChange={() =>
+																setKeepPurchase((current) => {
+																	const next = new Set(current);
+																	if (next.has(index)) next.delete(index);
+																	else next.add(index);
+																	return next;
+																})
+															}
+															className="size-4 accent-[var(--ink)]"
+														/>
+														{t("importing.takesBack", {
+															description: takesBack.get(index)?.description ?? "",
+															day: takesBack.get(index)?.happenedOn ?? "",
+														})}
+													</label>
+												) : null}
 												{isInvoice && record.nature === "payment" && paidMonth ? (
 													<span className="block text-xs text-quiet">
 														{t("importing.paysInvoice", { month: monthName(paidMonth) })}

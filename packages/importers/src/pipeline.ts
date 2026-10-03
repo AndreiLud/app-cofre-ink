@@ -427,6 +427,8 @@ export type ExistingRecord = {
 	externalId: string | null;
 	/** A move between two accounts touching the one the file is read into. */
 	moved?: boolean;
+	/** What kind of record it is, so a refund finds the purchase it takes back. */
+	kind?: "expense" | "income" | "transfer";
 };
 
 /** How far apart a line and the move it is may be dated. A slip can take two days. */

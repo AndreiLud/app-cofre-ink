@@ -64,6 +64,11 @@ export type ImportedRecord = {
 	 * never income on the card.
 	 */
 	paymentFrom?: string | null;
+	/**
+	 * A purchase already written that this refund takes back. The purchase is removed in the
+	 * same write and the refund is not written: the two cancel, and the month did not keep it.
+	 */
+	reverses?: string | null;
 };
 
 export type ImportInput = {
@@ -108,6 +113,8 @@ export type KnownRecord = {
 	 * of a move deleted the record that carried this statement's mark.
 	 */
 	moved: boolean;
+	/** What kind of record it is, so a refund in the file finds the purchase it takes back. */
+	kind: "expense" | "income" | "transfer";
 };
 
 function cycleOf(account: Account): CardCycle | undefined {
@@ -189,6 +196,7 @@ export function createImportsRepository(context: RepositoryContext) {
 					description: String(row.description),
 					externalId: row.external_id === null ? null : String(row.external_id),
 					moved,
+					kind: String(row.kind) as KnownRecord["kind"],
 				};
 			});
 		},
@@ -362,6 +370,44 @@ export function createImportsRepository(context: RepositoryContext) {
 				}
 			}
 
+			// The purchases the refunds of the file take back: each one an expense of this account,
+			// of the whole amount of its refund, on the same day or before, removable by this person.
+			const reversed = input.records.filter((record) => record.reverses);
+			if (reversed.length > 0) {
+				assertCan(context.actor(), input.spaceId, "transaction.delete");
+				const own = seesOwnRowsOnly(context.actor(), input.spaceId);
+				const asked = [...new Set(reversed.map((record) => record.reverses ?? ""))];
+				if (asked.length !== reversed.length) {
+					throw new RuleError(
+						"refundedPurchaseIsNotHere",
+						"each refund takes back one purchase of this account, of its whole amount",
+					);
+				}
+				const rows = await context.driver.all(
+					`SELECT "id", "kind", "amount", "happened_on", "created_by", "installment_group"
+					 FROM "transactions"
+					 WHERE "id" IN (${marks(asked.length)}) AND "space_id" = ? AND "account_id" = ?
+					   AND "deleted_at" IS NULL`,
+					[...asked, input.spaceId, input.accountId],
+				);
+				const byId = new Map(rows.map((row) => [String(row.id), row]));
+				for (const record of reversed) {
+					const row = byId.get(record.reverses ?? "");
+					if (
+						row?.kind !== "expense" ||
+						Number(row.amount) !== -Math.abs(record.amount) ||
+						String(row.happened_on) > record.happenedOn ||
+						row.installment_group !== null ||
+						(own && String(row.created_by) !== context.actor().userId)
+					) {
+						throw new RuleError(
+							"refundedPurchaseIsNotHere",
+							"each refund takes back one purchase of this account, of its whole amount",
+						);
+					}
+				}
+			}
+
 			const ids = await context.driver.transaction(async (tx) => {
 				const write = { ...context.write(), driver: tx };
 				const written: string[] = [];
@@ -371,6 +417,15 @@ export function createImportsRepository(context: RepositoryContext) {
 				}
 
 				for (const record of input.records) {
+					// A refund of a purchase already written takes it out, and is not written itself.
+					if (record.reverses) {
+						await softDeleteRow(write, {
+							table: transactions,
+							spaceId: input.spaceId,
+							id: record.reverses,
+						});
+						continue;
+					}
 					// A payment on an invoice pays the invoice before it: the transfer an invoice is
 					// paid with, from the account the money came from, marked with that invoice. It
 					// was income on the card, and September earned the thousand it paid.

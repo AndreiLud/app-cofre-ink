@@ -324,6 +324,7 @@ const importedRecord = z.object({
 		.nullable()
 		.optional(),
 	paymentFrom: z.string().min(1).max(64).nullable().optional(),
+	reverses: z.string().min(1).max(64).nullable().optional(),
 });
 
 const importInput = z.object({

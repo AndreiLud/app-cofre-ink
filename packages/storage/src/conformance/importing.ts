@@ -223,6 +223,70 @@ export function runImportingConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// E.12: a refund of a purchase already written was income on the card, and the month kept
+		// the purchase it did not keep.
+		it("takes back the purchase a refund undoes, in the same write", async () => {
+			const setup = await ready(adapter);
+			try {
+				const { on, spaceId } = setup;
+				const [purchase] = await on.transactions.create({
+					spaceId,
+					kind: "expense",
+					amount: 5000,
+					happenedOn: "2026-09-02",
+					description: "Loja X",
+					accountId: setup.card.id,
+				});
+				const before = await on.reports.totals({ spaceId, from: "2026-09-01", to: "2026-09-30" });
+				const written = await on.imports.create({
+					spaceId,
+					accountId: setup.card.id,
+					invoiceMonth: "2026-10",
+					records: [
+						{
+							happenedOn: "2026-09-14",
+							amount: 5000,
+							description: "Estorno Loja X",
+							nature: "credit",
+							reverses: purchase?.id ?? "",
+						},
+					],
+				});
+				expect(written.written).toBe(0);
+				const after = await on.reports.totals({ spaceId, from: "2026-09-01", to: "2026-09-30" });
+				expect(before.expense - after.expense).toBe(5000);
+				expect(await on.transactions.list({ spaceId, accountId: setup.card.id })).toEqual([]);
+
+				// A refund of part of it does not take a purchase back.
+				const [other] = await on.transactions.create({
+					spaceId,
+					kind: "expense",
+					amount: 9000,
+					happenedOn: "2026-09-03",
+					description: "Loja Y",
+					accountId: setup.card.id,
+				});
+				await expect(
+					on.imports.create({
+						spaceId,
+						accountId: setup.card.id,
+						invoiceMonth: "2026-10",
+						records: [
+							{
+								happenedOn: "2026-09-14",
+								amount: 3000,
+								description: "Estorno Loja Y",
+								nature: "credit",
+								reverses: other?.id ?? "",
+							},
+						],
+					}),
+				).rejects.toMatchObject({ rule: "refundedPurchaseIsNotHere" });
+			} finally {
+				await setup.fixture.close();
+			}
+		});
+
 		// E.10.2: the one record a card was written down with for its open invoice is replaced by
 		// the invoice that details it, in the same write.
 		it("removes the record an invoice details, in the same write", async () => {

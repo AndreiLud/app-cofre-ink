@@ -199,6 +199,48 @@ test.describe("reading a card invoice in", () => {
 		).not.toBeChecked();
 	});
 
+	// E.12: a refund went in as money coming in, beside the purchase it undid.
+	test("leaves a purchase and its refund out, and takes back one already written", async ({
+		page,
+	}) => {
+		await twoCards(page);
+		await importPdf(page, [
+			"Fatura do cartao",
+			"Vencimento: 10/10/2026",
+			"Total desta fatura R$ 0,00",
+			"Cartao final 1234",
+			"02/09/2026 Loja X 50,00",
+			"14/09/2026 Estorno Loja X -50,00",
+		]);
+		await expect(page.getByRole("checkbox", { name: "Gravar Loja X" })).not.toBeChecked();
+		await expect(page.getByRole("checkbox", { name: "Gravar Estorno Loja X" })).not.toBeChecked();
+		await expect(page.getByRole("button", { name: "Nada para gravar" })).toBeDisabled();
+
+		// The purchase written by hand, and its refund read in afterwards.
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = page.getByRole("dialog");
+		await form.getByLabel("Pago com").selectOption({ label: "Itaú" });
+		await form.getByLabel("Valor", { exact: true }).fill("50,00");
+		await form.getByLabel("Descrição").fill("Loja X");
+		await form.getByLabel("Dia").fill("2026-09-02");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(form).toHaveCount(0);
+
+		await importPdf(page, [
+			"Fatura do cartao",
+			"Vencimento: 10/10/2026",
+			"Cartao final 1234",
+			"14/09/2026 Estorno Loja X -50,00",
+		]);
+		await expect(page.getByRole("checkbox", { name: /Tirar a compra Loja X/ })).toBeChecked();
+		await page.getByRole("button", { name: "Gravar 1 lançamento" }).click();
+
+		await go(page, "Lançamentos");
+		await page.getByLabel("Mês", { exact: true }).fill("2026-09");
+		await expect(page.getByRole("row").filter({ hasText: "Loja X" })).toHaveCount(0);
+	});
+
 	// E.10.2: the card written down with what its open invoice held, and that invoice read in
 	// line by line, counted the same purchases twice.
 	test("takes out the record a card was written down with when its invoice comes in", async ({

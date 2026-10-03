@@ -681,7 +681,8 @@
 		"invoiceNeedsItsMonth": "This card has no closing day. Say which invoice the file is.",
 		"replacedRecordIsNotHere": "A record the file was to replace is not on this account or cannot be removed.",
 		"paymentNeedsItsAccount": "The payment of the invoice needs the account the money came from.",
-		"paymentFromMoney": "An invoice is paid from a current account, a savings account or cash."
+		"paymentFromMoney": "An invoice is paid from a current account, a savings account or cash.",
+		"refundedPurchaseIsNotHere": "Each refund takes back one purchase of this account, of its whole amount."
 	},
 	"transactions": {
 		"title": "Records",
@@ -1470,7 +1471,9 @@
 		"paidFromOf": "Where {{description}} came from",
 		"pickPayer": "Paid from which account?",
 		"paysInvoice": "Pays the invoice of {{month}}.",
-		"paymentWaits": "\"{{description}}\" is the payment of the invoice before. Say which account the money came from to write it."
+		"paymentWaits": "\"{{description}}\" is the payment of the invoice before. Say which account the money came from to write it.",
+		"pairedInFile": "A purchase and its refund are both in this file: neither is written.",
+		"takesBack": "Take out the purchase {{description}} of {{day}}, which this refund undoes, instead of writing the refund."
 	},
 	"demo": {
 		"notice": "Made up data, for demonstration only."

@@ -681,7 +681,8 @@
 		"invoiceNeedsItsMonth": "Este cartão não tem dia de fechamento. Diga de qual fatura é o arquivo.",
 		"replacedRecordIsNotHere": "Um lançamento que o arquivo ia substituir não é desta conta ou não pode ser apagado.",
 		"paymentNeedsItsAccount": "O pagamento da fatura precisa da conta de onde o dinheiro saiu.",
-		"paymentFromMoney": "Uma fatura se paga de uma conta corrente, de uma poupança ou do dinheiro em espécie."
+		"paymentFromMoney": "Uma fatura se paga de uma conta corrente, de uma poupança ou do dinheiro em espécie.",
+		"refundedPurchaseIsNotHere": "Cada estorno desfaz uma compra desta conta, do valor inteiro dela."
 	},
 	"transactions": {
 		"title": "Lançamentos",
@@ -1470,7 +1471,9 @@
 		"paidFromOf": "De onde saiu {{description}}",
 		"pickPayer": "Pago de qual conta?",
 		"paysInvoice": "Paga a fatura de {{month}}.",
-		"paymentWaits": "\"{{description}}\" é o pagamento da fatura anterior. Diga de qual conta o dinheiro saiu para gravar."
+		"paymentWaits": "\"{{description}}\" é o pagamento da fatura anterior. Diga de qual conta o dinheiro saiu para gravar.",
+		"pairedInFile": "Uma compra e o estorno dela estão neste mesmo arquivo: os dois ficam de fora.",
+		"takesBack": "Tirar a compra {{description}} de {{day}}, que este estorno desfaz, em vez de gravar o estorno."
 	},
 	"demo": {
 		"notice": "Dados fictícios, só para demonstração."
