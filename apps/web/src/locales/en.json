@@ -908,7 +908,9 @@
 		"noRateTitle": "This invoice has no total",
 		"noRateBody": "A purchase on this invoice is in another currency with no rate for the day, so any total here would be a wrong number. The purchases are still in the list below. Open the purchase under Records and say what the rate was, and the total comes back.",
 		"scheduled": "Payment scheduled for {{day}}. Until that day the money stays in the account and the invoice stays open:",
-		"openingDebt": "Includes what the card already owed when it was written down, its opening balance:"
+		"openingDebt": "Includes what the card already owed when it was written down, its opening balance:",
+		"carriedIn": "Credit from the invoice before, paid in excess there:",
+		"carriedOut": "Paid in excess on this invoice, and it pays the next one:"
 	},
 	"transactionKind": {
 		"expense": "Expense",

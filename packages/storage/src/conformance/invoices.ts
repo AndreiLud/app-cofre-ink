@@ -295,6 +295,61 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 1, A.6 of the request for 2.0.0: what is paid too much on one invoice pays the
+		// next, and counts in the limit. October charged 1,000 and was paid 1,500 by its own
+		// button; November charged 800, so it owes 300, and the card has 4,700 of its 5,000.
+		it("hands what was paid too much on one invoice to the next", async () => {
+			const ready = await readyCard(adapter);
+			try {
+				await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 100_000,
+					happenedOn: "2026-09-10",
+					description: "Mercado",
+					accountId: ready.card.id,
+				});
+				await ready.fixture.asAna.invoices.pay({
+					accountId: ready.card.id,
+					fromAccountId: ready.checking.id,
+					amount: 150_000,
+					happenedOn: "2026-10-10",
+					month: "2026-10",
+					description: "Pagamento",
+				});
+				const [taken] = await ready.fixture.asAna.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 80_000,
+					happenedOn: "2026-10-05",
+					description: "Farmacia",
+					accountId: ready.card.id,
+				});
+				expect(taken?.invoiceMonth).toBe("2026-11");
+
+				const invoices = await ready.fixture.asAna.invoices.list(ready.card.id, "2026-10-11");
+				expect(
+					invoices.map((one) => [one.month, one.standing, one.left, one.carriedIn, one.carriedOut]),
+				).toEqual([
+					["2026-10", "paid", 0, 0, 50_000],
+					["2026-11", "partlyPaid", 30_000, 50_000, 0],
+				]);
+
+				const [standing] = await ready.fixture.asAna.invoices.standing(ready.spaceId, "2026-10-11");
+				expect(standing?.open.left).toBe(30_000);
+				expect(standing?.available).toBe(500_000 - 30_000);
+
+				// Which is what the balance of the card says.
+				const balances = await ready.fixture.asAna.transactions.balances(
+					ready.spaceId,
+					"2026-10-11",
+				);
+				expect(balances.find((one) => one.accountId === ready.card.id)?.settled).toBe(-30_000);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		it("lets a payment with no invoice named on it pay down the oldest one owing", async () => {
 			const ready = await readyCard(adapter);
 			try {

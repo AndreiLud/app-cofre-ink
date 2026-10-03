@@ -352,11 +352,7 @@ export function InvoicePage() {
 
 	const limitLeft =
 		invoiceAccount && cycle && older.data && !limitInAnotherCurrency
-			? limitLeftOf({
-					creditLimit: invoiceAccount.creditLimit,
-					states: older.data,
-					openMonth,
-				})
+			? limitLeftOf({ creditLimit: invoiceAccount.creditLimit, states: older.data })
 			: undefined;
 
 	// The year is only worth saying when it is not this one.
@@ -479,6 +475,20 @@ export function InvoicePage() {
 								<Value amount={state.left} currency={currentSpace.baseCurrency} />
 							</>
 						) : null}
+					</p>
+				) : null}
+
+				{/* Credit moves from one invoice to the next, and each end of it says so. */}
+				{state && state.carriedIn > 0 ? (
+					<p className="text-sm text-quiet">
+						{t("invoice.carriedIn")}{" "}
+						<Value amount={state.carriedIn} currency={currentSpace.baseCurrency} />
+					</p>
+				) : null}
+				{state && state.carriedOut > 0 ? (
+					<p className="text-sm text-quiet">
+						{t("invoice.carriedOut")}{" "}
+						<Value amount={state.carriedOut} currency={currentSpace.baseCurrency} />
 					</p>
 				) : null}
 

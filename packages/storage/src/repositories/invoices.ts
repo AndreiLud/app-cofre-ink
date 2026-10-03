@@ -20,6 +20,7 @@ import {
 	type InvoiceState,
 	invoiceMonthOf,
 	invoiceStateOf,
+	invoicesInTurn,
 	limitLeftOf,
 	todayIn,
 } from "@cofre/core";
@@ -320,22 +321,30 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 			}
 			paidOf.set(month, paid);
 		}
+		// More paid with no invoice named than every invoice owes is credit, like any other
+		// payment beyond what was charged, and it was simply dropped.
+		const last = months.at(-1);
+		if (loose > 0 && last !== undefined) paidOf.set(last, (paidOf.get(last) ?? 0) + loose);
 
-		return months.map((month) => {
-			const sum = totals.get(month) ?? emptySum();
-			return invoiceStateOf({
-				month,
-				cycle,
-				charged: sum.charged,
-				paid: paidOf.get(month) ?? sum.paid,
-				scheduled: sum.scheduled,
-				scheduledOn: sum.scheduledOn,
-				opening: opening?.month === month ? opening.amount : 0,
-				today,
-				inOtherCurrencies: sum.inOtherCurrencies,
-				withoutRate: sum.withoutRate,
-			});
-		});
+		// What was paid too much on one invoice pays the next, which the core works out for
+		// the whole card at once.
+		return invoicesInTurn(
+			months.map((month) => {
+				const sum = totals.get(month) ?? emptySum();
+				return {
+					month,
+					cycle,
+					charged: sum.charged,
+					paid: paidOf.get(month) ?? sum.paid,
+					scheduled: sum.scheduled,
+					scheduledOn: sum.scheduledOn,
+					opening: opening?.month === month ? opening.amount : 0,
+					today,
+					inOtherCurrencies: sum.inOtherCurrencies,
+					withoutRate: sum.withoutRate,
+				};
+			}),
+		);
 	}
 
 	function emptySum(): InvoiceSum {
@@ -417,7 +426,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 					// screen asks the same question about the same card and two subtractions in
 					// two packages are how two screens come to disagree.
 					available: limitComparable
-						? limitLeftOf({ creditLimit: account.creditLimit, states, openMonth })
+						? limitLeftOf({ creditLimit: account.creditLimit, states })
 						: null,
 					limitInAnotherCurrency: !limitComparable && account.creditLimit !== null,
 				});

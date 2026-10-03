@@ -908,7 +908,9 @@
 		"noRateTitle": "Esta fatura não tem total",
 		"noRateBody": "Uma compra desta fatura está em outra moeda e sem a cotação do dia, então qualquer total aqui seria um número errado. As compras continuam na lista abaixo. Abra a compra em Lançamentos e informe a cotação, e o total volta.",
 		"scheduled": "Pagamento agendado para {{day}}. Até esse dia o dinheiro continua na conta e a fatura continua em aberto:",
-		"openingDebt": "Inclui o que o cartão já devia quando foi cadastrado, o saldo de abertura dele:"
+		"openingDebt": "Inclui o que o cartão já devia quando foi cadastrado, o saldo de abertura dele:",
+		"carriedIn": "Crédito que veio da fatura anterior, pago a mais lá:",
+		"carriedOut": "Foi pago a mais nesta fatura, e isso abate a fatura seguinte:"
 	},
 	"transactionKind": {
 		"expense": "Despesa",
