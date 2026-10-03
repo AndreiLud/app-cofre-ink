@@ -29,6 +29,7 @@ import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CardDialog } from "../components/CardDialog.tsx";
 import { CardsSection } from "../components/CardsSection.tsx";
+import { MoveDialog, type MoveStart, movesInto, movesOutOf } from "../components/MoveDialog.tsx";
 import { Value } from "../components/Value.tsx";
 import { VoucherAmount } from "../components/VoucherAmount.tsx";
 import { fillAmount, readAmount } from "../lib/amounts.ts";
@@ -74,6 +75,8 @@ export function AccountsPage() {
 	const [debitAccountId, setDebitAccountId] = useState("");
 	const [cardTarget, setCardTarget] = useState<Card | null>(null);
 	const [problem, setProblem] = useState<string | null>(null);
+	/** A move between two accounts being written, with what the door it came through knew. */
+	const [moving, setMoving] = useState<MoveStart | null>(null);
 
 	const spaceId = currentSpace?.id ?? "";
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
@@ -383,6 +386,7 @@ export function AccountsPage() {
 	const mayUpdate = mayCall("accounts.update");
 	const mayArchive = mayCall("accounts.archive");
 	const mayDelete = mayCall("accounts.remove");
+	const mayWrite = mayCall("transactions.create");
 
 	// None of these three said anything when they failed: the menu closed, the row stayed,
 	// and a refusal looked exactly like a click that had not landed.
@@ -433,24 +437,47 @@ export function AccountsPage() {
 			(card) => card.creditAccountId === accountId || card.debitAccountId === accountId,
 		);
 
+	/**
+	 * Whether there is anywhere to move money between: one account it can leave and another
+	 * it can reach. A button that opens a dialog with one account in both lists is a
+	 * refusal waiting to happen.
+	 */
+	const mayMove =
+		mayWrite &&
+		rows.some((from) => movesOutOf(from) && rows.some((to) => to.id !== from.id && movesInto(to)));
+
 	return (
 		<div className="space-y-6">
 			<SectionTitle
 				level="h1"
 				action={
-					mayCreate ? (
-						<Button
-							size="small"
-							variant="primary"
-							icon={<Icon name="plus" />}
-							onClick={() => {
-								// Nothing that failed before this form was opened belongs in it.
-								setProblem(null);
-								setOpen(true);
-							}}
-						>
-							{t("accounts.create")}
-						</Button>
+					mayCreate || mayMove ? (
+						<div className="flex flex-wrap justify-end gap-2">
+							{mayMove ? (
+								<Button
+									size="small"
+									variant="secondary"
+									icon={<Icon name="transfer" />}
+									onClick={() => setMoving({})}
+								>
+									{t("move.title")}
+								</Button>
+							) : null}
+							{mayCreate ? (
+								<Button
+									size="small"
+									variant="primary"
+									icon={<Icon name="plus" />}
+									onClick={() => {
+										// Nothing that failed before this form was opened belongs in it.
+										setProblem(null);
+										setOpen(true);
+									}}
+								>
+									{t("accounts.create")}
+								</Button>
+							) : null}
+						</div>
 					) : null
 				}
 			>
@@ -540,7 +567,7 @@ export function AccountsPage() {
 									<TableCell numeric={true}>
 										{/* Nothing to offer is no button, rather than a button that opens
 										    an empty popup. */}
-										{mayUpdate || mayArchive || mayDelete ? (
+										{mayUpdate || mayArchive || mayDelete || mayMove ? (
 											<Menu
 												align="end"
 												trigger={
@@ -549,6 +576,14 @@ export function AccountsPage() {
 													</Button>
 												}
 											>
+												{mayMove && movesOutOf(account) ? (
+													<>
+														<MenuItem onSelect={() => setMoving({ fromId: account.id })}>
+															{t("move.fromHere")}
+														</MenuItem>
+														<MenuSeparator />
+													</>
+												) : null}
 												{/* Only the cards that already reach this account. Adding one is
 												    "Nova conta", where a card is one of the things you can add,
 												    and a second door onto the same form is a second door to keep
@@ -593,6 +628,15 @@ export function AccountsPage() {
 			) : null}
 
 			<CardsSection accounts={rows} cards={plastic} loading={cards.isPending} />
+
+			<MoveDialog
+				open={moving !== null}
+				onOpenChange={(next) => !next && setMoving(null)}
+				spaceId={spaceId}
+				accounts={rows}
+				today={today}
+				start={moving ?? undefined}
+			/>
 
 			{/* Correcting an account, which had no screen at all: the only way to fix a name
 			    or an opening balance was to delete the account and write everything again. */}

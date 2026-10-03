@@ -1584,5 +1584,15 @@
 		"investmentsCaption": "O que está aplicado",
 		"madeHere": "Feito neste aparelho pelo {{app}}. Nada saiu daqui para gerar este arquivo.",
 		"noTotal": "sem total"
+	},
+	"move": {
+		"title": "Mover entre contas",
+		"explain": "Dinheiro que sai de uma conta sua e entra em outra. Não é gasto nem entrada: o total do que você tem não muda.",
+		"from": "De",
+		"to": "Para",
+		"notHere": "Cartão de crédito e conta de investimento não entram aqui. A fatura de um cartão se paga em Faturas, com Pagar fatura, que diz qual fatura foi paga; uma conta de investimento vale pelas aplicações dentro dela.",
+		"description": "Movimentação entre contas",
+		"repeats": "Repete todo mês, neste dia",
+		"fromHere": "Mover dinheiro daqui"
 	}
 }

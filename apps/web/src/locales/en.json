@@ -1584,5 +1584,15 @@
 		"investmentsCaption": "What is invested",
 		"madeHere": "Made on this device by {{app}}. Nothing left it to produce this file.",
 		"noTotal": "no total"
+	},
+	"move": {
+		"title": "Move between accounts",
+		"explain": "Money that leaves one of your accounts and goes into another. It is neither money out nor money in: the total of what you have does not change.",
+		"from": "From",
+		"to": "To",
+		"notHere": "Credit cards and investment accounts are not here. A card's invoice is paid under Invoices, with Pay the invoice, which says which invoice was paid; an investment account is worth the holdings inside it.",
+		"description": "Moved between accounts",
+		"repeats": "Repeats every month, on this day",
+		"fromHere": "Move money from here"
 	}
 }
