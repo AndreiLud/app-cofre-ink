@@ -37,6 +37,16 @@ export type QuickEntryAccount = {
 	name: string;
 	/** Set when this name is a card rather than the account itself. */
 	cardId?: string | null;
+	/**
+	 * Which side of a card that does both this entry is: a cartao multiplo is named once on a
+	 * line and reaches two accounts, and "debito" or "credito" on the line says which.
+	 */
+	side?: "credit" | "debit" | null;
+	/**
+	 * Whether money coming in can land here. Not on a card and not on a benefit card: a salary
+	 * read off a line that named the bank whose card has the same name went onto the card.
+	 */
+	takesIncome?: boolean;
 };
 
 export type QuickEntryOptions = {
@@ -181,6 +191,37 @@ function dayOfThisMonth(day: number, today: CalendarDate): CalendarDate {
 
 type Role = "amount" | "date" | "account" | "kind" | "status" | "installments" | "noise" | "word";
 
+const DEBIT_WORDS = ["debito", "debit"];
+const CREDIT_WORDS = ["credito", "credit"];
+
+/**
+ * The one way to pay a set of names that all answered comes down to, or nothing.
+ *
+ * Names pointing at the same account are one answer, the card among them preferred, so
+ * the card is carried. A card and an account of the same name are the card: the form
+ * that writes a card down gives it the name of its account, so "nubank" answered both,
+ * the tie was left alone and the purchase went to the default account, where in 1.0.5
+ * it went to the card. The two sides of one cartao multiplo are one card, and the line
+ * says which side, credit when it says nothing. Two different cards, or two different
+ * accounts, are a real tie.
+ */
+function oneOf(
+	hits: readonly QuickEntryAccount[],
+	side: "credit" | "debit" | null,
+): QuickEntryAccount | null {
+	if (hits.length === 0) return null;
+	const cards = hits.filter((hit) => hit.cardId);
+	const pool = cards.length > 0 ? cards : hits;
+	const ids = new Set(pool.map((hit) => hit.id));
+	if (ids.size === 1) return pool[0] ?? null;
+	const plastics = new Set(pool.map((hit) => hit.cardId));
+	if (cards.length > 0 && plastics.size === 1) {
+		const wanted = side ?? "credit";
+		return pool.find((hit) => hit.side === wanted) ?? null;
+	}
+	return null;
+}
+
 /**
  * Finds the account the line names, preferring the longest run of words that matches,
  * so "conta corrente" wins over "conta". A tie between two accounts is left unresolved:
@@ -189,8 +230,16 @@ type Role = "amount" | "date" | "account" | "kind" | "status" | "installments" |
 function findAccount(
 	folded: string[],
 	accounts: readonly QuickEntryAccount[],
-): { id: string; cardId: string | null; from: number; to: number } | null {
-	const named = accounts.map((account) => ({ account, words: wordsOf(account.name) }));
+	kind: QuickEntryKind,
+): { id: string; cardId: string | null; from: number; to: number; sideAt: number | null } | null {
+	// Money coming in lands only where money can land.
+	const reachable =
+		kind === "income" ? accounts.filter((account) => account.takesIncome !== false) : accounts;
+	const named = reachable.map((account) => ({ account, words: wordsOf(account.name) }));
+	const sideAt = folded.findIndex(
+		(word) => DEBIT_WORDS.includes(word) || CREDIT_WORDS.includes(word),
+	);
+	const side = sideAt < 0 ? null : DEBIT_WORDS.includes(folded[sideAt] ?? "") ? "debit" : "credit";
 
 	for (let size = Math.min(3, folded.length); size >= 1; size -= 1) {
 		for (let start = 0; start + size <= folded.length; start += 1) {
@@ -207,12 +256,20 @@ function findAccount(
 				);
 			});
 
-			if (hits.length === 1 && hits[0]) {
+			const found = oneOf(
+				hits.map((hit) => hit.account),
+				side,
+			);
+			if (found) {
+				// The word that chose the side is part of the way to pay, not of the description.
+				const choseTheSide =
+					found.side && sideAt >= 0 && (sideAt < start || sideAt > start + size - 1);
 				return {
-					id: hits[0].account.id,
-					cardId: hits[0].account.cardId ?? null,
+					id: found.id,
+					cardId: found.cardId ?? null,
 					from: start,
 					to: start + size - 1,
+					sideAt: choseTheSide ? sideAt : null,
 				};
 			}
 			// More than one account answers to this name. Leave it and keep looking, in
@@ -220,6 +277,25 @@ function findAccount(
 		}
 	}
 	return null;
+}
+
+/**
+ * Whether the line is money coming in, read before the account is looked for, because
+ * which accounts it may name depends on it. The same words and signs the reading below
+ * reads, in the same order, the last one winning.
+ */
+function kindOf(folded: readonly string[]): QuickEntryKind {
+	let kind: QuickEntryKind = "expense";
+	let signed = false;
+	for (const token of folded) {
+		if (INCOME_WORDS.includes(token)) kind = "income";
+		else if (EXPENSE_WORDS.includes(token)) kind = "expense";
+		else if (!signed && /^[+-][\d.,]*\d/.test(token)) {
+			signed = true;
+			kind = token.startsWith("+") ? "income" : "expense";
+		}
+	}
+	return kind;
 }
 
 export function readQuickEntry(text: string, options: QuickEntryOptions): QuickEntryReading {
@@ -233,9 +309,10 @@ export function readQuickEntry(text: string, options: QuickEntryOptions): QuickE
 	let happenedOn: CalendarDate | null = null;
 	let installments = 1;
 
-	const account = options.accounts ? findAccount(folded, options.accounts) : null;
+	const account = options.accounts ? findAccount(folded, options.accounts, kindOf(folded)) : null;
 	if (account) {
 		for (let index = account.from; index <= account.to; index += 1) roles[index] = "account";
+		if (account.sideAt !== null) roles[account.sideAt] = "account";
 	}
 
 	for (let index = 0; index < tokens.length; index += 1) {

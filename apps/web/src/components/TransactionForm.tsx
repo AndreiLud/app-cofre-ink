@@ -28,7 +28,7 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { fillAmount, readAmount } from "../lib/amounts.ts";
-import { lastWayUsed, rememberWayUsed } from "../lib/lastWay.ts";
+import { lastWayUsed, rememberLandingUsed, rememberWayUsed } from "../lib/lastWay.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { accountOptions, waysToPay } from "../lib/wayLabel.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -281,6 +281,8 @@ export function TransactionForm({
 		},
 		onSuccess: () => {
 			if (kind === "expense") rememberWayUsed(spaceId, way);
+			// Where money came in, which is where the next line that names nothing lands.
+			if (kind === "income") rememberLandingUsed(spaceId, accountId);
 			onOpenChange(false);
 			afterRecordsChange(queries);
 		},

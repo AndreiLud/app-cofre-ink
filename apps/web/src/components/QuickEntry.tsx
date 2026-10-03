@@ -12,7 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { afterRecordsChange } from "../lib/afterRecords.ts";
-import { lastWayUsed } from "../lib/lastWay.ts";
+import { lastLandingUsed, lastWayUsed, rememberLandingUsed } from "../lib/lastWay.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { Value } from "./Value.tsx";
@@ -58,12 +58,33 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 	 * on the line enough.
 	 */
 	const named = useMemo(() => {
-		const byCard = (cards.data ?? []).flatMap((card) => {
-			const reaches = card.creditAccountId ?? card.debitAccountId;
-			if (!reaches || !usable.some((account) => account.id === reaches)) return [];
-			return [{ id: reaches, name: card.name, cardId: card.id }];
-		});
-		return [...usable.map((account) => ({ id: account.id, name: account.name })), ...byCard];
+		// Both sides of a card that does both, because one name reaches two accounts and the
+		// line may say which: it took the credit side whatever was written.
+		const byCard = (cards.data ?? []).flatMap((card) =>
+			[
+				{ side: "credit" as const, reaches: card.creditAccountId },
+				{ side: "debit" as const, reaches: card.debitAccountId },
+			]
+				.filter(
+					(one): one is { side: "credit" | "debit"; reaches: string } =>
+						one.reaches !== null && usable.some((account) => account.id === one.reaches),
+				)
+				.map((one) => ({
+					id: one.reaches,
+					name: card.name,
+					cardId: card.id,
+					side: one.side,
+					takesIncome: false,
+				})),
+		);
+		return [
+			...usable.map((account) => ({
+				id: account.id,
+				name: account.name,
+				takesIncome: account.kind !== "credit" && account.kind !== "voucher",
+			})),
+			...byCard,
+		];
 	}, [usable, cards.data]);
 
 	const reading: QuickEntryReading = useMemo(
@@ -71,13 +92,37 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 		[text, today, named],
 	);
 
-	// A line that names neither goes to the last way somebody paid on this device, which
-	// beats the first account by name: that one is a pocket in most households. The
-	// sentence below says which, so it is a statement and not a surprise.
-	const remembered = lastWayUsed(spaceId);
-	const fallback =
-		usable.find((option) => option.id === (remembered ?? "").split(":")[1]) ?? usable[0] ?? null;
-	const account = usable.find((option) => option.id === reading.accountId) ?? fallback;
+	/**
+	 * Where a line that names nothing goes, which is not the same for money out and money in.
+	 *
+	 * A spend goes to the last way somebody paid on this device, the card with it: the account
+	 * alone was carried, so "mercado 80" landed on the card's account with no card. Money in
+	 * goes to the last account money came into, or the first that holds money, the current
+	 * account first, and never a card or a benefit card: "salario 6120" became income on the
+	 * credit card whenever the last spend was on it.
+	 */
+	const remembered = (lastWayUsed(spaceId) ?? "").split(":");
+	const holdsMoney = (option: Account) =>
+		option.kind === "checking" || option.kind === "savings" || option.kind === "cash";
+	const spendFallback = usable.find((option) => option.id === remembered[1]) ?? usable[0] ?? null;
+	const landing = lastLandingUsed(spaceId);
+	const incomeFallback =
+		usable.find((option) => option.id === landing && holdsMoney(option)) ??
+		usable.find((option) => option.kind === "checking") ??
+		usable.find(holdsMoney) ??
+		null;
+	const fallback = reading.kind === "income" ? incomeFallback : spendFallback;
+	const namedAccount = usable.find((option) => option.id === reading.accountId);
+	const account = namedAccount ?? fallback;
+	/** The plastic: the one the line named, or the one of the last spend when it named nothing. */
+	const cardId =
+		reading.cardId ??
+		(namedAccount === undefined &&
+		reading.kind === "expense" &&
+		remembered[0] !== "" &&
+		remembered[1] === account?.id
+			? (remembered[0] ?? null)
+			: null);
 	const ready = reading.problems.length === 0 && account !== null;
 
 	const invalidate = () => {
@@ -94,14 +139,15 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 				happenedOn: reading.happenedOn,
 				description: reading.description,
 				accountId: account.id,
-				// The plastic, when the line named one. The account is still the truth, and
-				// the model refuses a card that does not reach it.
-				cardId: reading.cardId,
+				// The plastic, when the line named one or the last spend used one. The account is
+				// still the truth, and the model refuses a card that does not reach it.
+				cardId,
 				status: reading.status,
 				installments: reading.installments,
 			});
 		},
 		onSuccess: (rows: Transaction[]) => {
+			if (reading.kind === "income" && account) rememberLandingUsed(spaceId, account.id);
 			setProblem(null);
 			setWritten(
 				rows.length > 0

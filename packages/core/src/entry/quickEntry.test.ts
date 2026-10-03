@@ -164,6 +164,53 @@ describe("the name of a card", () => {
 		expect(reading.accountId).toBeNull();
 		expect(reading.cardId).toBeNull();
 	});
+
+	// Part 1, D.2 of the request for 2.0.0: the form that writes a card down gives it the name
+	// of its account, so the account and the card both answered to "nubank", the tie was left
+	// alone and the purchase went to the default account. "mercado 80 nubank" worked in 1.0.5.
+	it("takes the card when a card and an account share a name, of one word or two", () => {
+		for (const name of ["Nubank", "Banco Inter"]) {
+			const ways = [
+				{ id: "checking", name, takesIncome: true },
+				{ id: "credit", name, takesIncome: false },
+				{ id: "credit", name, cardId: "plastic", side: "credit" as const, takesIncome: false },
+			];
+			const line = `mercado 80 ${name.toLowerCase()}`;
+			const spent = readQuickEntry(line, { today, accounts: ways });
+			expect([spent.accountId, spent.cardId, spent.description]).toEqual([
+				"credit",
+				"plastic",
+				"mercado",
+			]);
+
+			// Money coming in never lands on the card, which is where the salary went.
+			const earned = readQuickEntry(`salario 6120 ${name.toLowerCase()}`, {
+				today,
+				accounts: ways,
+			});
+			expect([earned.kind, earned.accountId, earned.cardId]).toEqual(["income", "checking", null]);
+		}
+	});
+
+	// Part 2, B.9: a cartao multiplo reaches two accounts, and the line said which by nothing.
+	it("lets the line say which side of a card that does both", () => {
+		const ways = [
+			{ id: "corrente", name: "Conta corrente", takesIncome: true },
+			{ id: "fatura", name: "Cartão de crédito", takesIncome: false },
+			{ id: "fatura", name: "Cartão do banco", cardId: "multiplo", side: "credit" as const },
+			{ id: "corrente", name: "Cartão do banco", cardId: "multiplo", side: "debit" as const },
+		];
+		const debit = readQuickEntry("mercado 80 cartão do banco débito", { today, accounts: ways });
+		expect([debit.accountId, debit.cardId, debit.description]).toEqual([
+			"corrente",
+			"multiplo",
+			"mercado",
+		]);
+		const credit = readQuickEntry("mercado 80 cartão do banco", { today, accounts: ways });
+		expect([credit.accountId, credit.cardId]).toEqual(["fatura", "multiplo"]);
+		const said = readQuickEntry("mercado 80 cartão do banco crédito", { today, accounts: ways });
+		expect([said.accountId, said.description]).toEqual(["fatura", "mercado"]);
+	});
 });
 
 describe("installments", () => {

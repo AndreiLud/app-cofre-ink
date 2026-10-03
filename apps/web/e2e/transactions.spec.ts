@@ -314,6 +314,55 @@ test.describe("records", () => {
 		await expect(record(page, "pastel")).toHaveCount(0);
 	});
 
+	// Part 1, D.2 of the request for 2.0.0: a card and an account of the same name both answered
+	// to the line, the tie was left alone and the purchase went to the default account.
+	test("reads a card by the name it shares with an account", async ({ page }) => {
+		await openCofre(page, { demo: false });
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		await page.getByLabel("Nome").fill("Banco Inter");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Banco Inter", exact: true })).toHaveCount(1);
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		const card = page.getByRole("dialog");
+		await card.getByLabel("Nome").fill("Banco Inter");
+		await card.getByLabel("Tipo").selectOption("credit");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Banco Inter", exact: true })).toHaveCount(2);
+
+		await go(page, "Lançamentos");
+		const quick = page.getByLabel("Lançamento rápido");
+		await quick.fill("mercado 80 banco inter");
+		await page.getByRole("button", { name: "Lançar", exact: true }).click();
+		await expect(page.getByRole("button", { name: "Desfazer" })).toBeVisible();
+		await go(page, "Faturas");
+		await expect(page.getByRole("row").filter({ hasText: "mercado" })).toBeVisible();
+	});
+
+	// Part 1, D.3: a line that named nothing took the account of the last way somebody paid and
+	// dropped its card, and a salary read that way landed on the credit card.
+	test("keeps the card of the last spend, and never puts money in on a card", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = page.getByRole("dialog");
+		await form.getByLabel("Pago com").selectOption({ label: "Cartão do banco (Crédito)" });
+		await form.getByLabel("Valor", { exact: true }).fill("12,00");
+		await form.getByLabel("Descrição").fill("Pão");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(form).toHaveCount(0);
+
+		const quick = page.getByLabel("Lançamento rápido");
+		await quick.fill("hortifruti 80");
+		await page.getByRole("button", { name: "Lançar", exact: true }).click();
+		await expect(record(page, "hortifruti")).toContainText("Cartão do banco, Cartão de crédito");
+		// The word is what makes it money coming in, and the name is what is left of the line.
+		await quick.fill("salario Acme 6120");
+		await page.getByRole("button", { name: "Lançar", exact: true }).click();
+		await expect(record(page, "Acme")).toContainText("Conta corrente");
+		await expect(record(page, "Acme")).not.toContainText("Cartão");
+	});
+
 	test("changes a selection of records in one go", async ({ page }) => {
 		await openCofre(page);
 		await go(page, "Lançamentos");

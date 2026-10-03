@@ -158,6 +158,23 @@ test.describe("more than one card", () => {
 		);
 	});
 
+	// Part 2, B.9, with part 1, D.2 and D.7: a cartao multiplo reaches two accounts and a line
+	// could not say which, and the list said the account and never the card.
+	test("lets a line say which side of a card that does both", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Lançamentos");
+		const quick = page.getByLabel("Lançamento rápido");
+		await quick.fill("hortifruti 80 cartão do banco débito");
+		await page.getByRole("button", { name: "Lançar", exact: true }).click();
+		await expect(page.getByRole("button", { name: "Desfazer" })).toBeVisible();
+		await quick.fill("padaria 30 cartão do banco");
+		await page.getByRole("button", { name: "Lançar", exact: true }).click();
+		await expect(record(page, "padaria")).toBeVisible();
+
+		await expect(record(page, "hortifruti")).toContainText("Cartão do banco, Conta corrente");
+		await expect(record(page, "padaria")).toContainText("Cartão do banco, Cartão de crédito");
+	});
+
 	// Part 2, B.4.2, B.4.3, B.4.4 and B.4.8: four cards and a meal card on the twenty eighth.
 	test("adds four cards into one line at the top and lists them by urgency", async ({ page }) => {
 		await fourCards(page);

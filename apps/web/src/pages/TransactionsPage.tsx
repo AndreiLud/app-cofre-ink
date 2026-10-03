@@ -50,7 +50,7 @@ import {
 	narrowedIn,
 } from "../lib/recordFilters.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
-import { accountOptions, cardOptions } from "../lib/wayLabel.ts";
+import { accountOptions, cardOptions, paidWithLabel } from "../lib/wayLabel.ts";
 import { ROUTES } from "../routes.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
@@ -157,9 +157,10 @@ export function TransactionsPage() {
 	});
 
 	const cards = useQuery({
-		queryKey: ["cards", spaceId],
+		// The archived ones too, for the name of a record made with a card since put away.
+		queryKey: ["cards", spaceId, "includingArchived"],
 		enabled: Boolean(session && currentSpace),
-		queryFn: () => session?.cards.list(spaceId) ?? [],
+		queryFn: () => session?.cards.list(spaceId, { includeArchived: true }) ?? [],
 	});
 
 	// Only a shared space needs to know who else is in it, and only to divide a cost.
@@ -750,7 +751,15 @@ export function TransactionsPage() {
 										) : null}
 									</TableCell>
 									<TableCell className="hidden text-quiet sm:table-cell">
-										{nameOf(row.accountId)}
+										{/* The card beside the account, when the record says which: the
+										    card and the current account of one bank carry one name, and
+										    the plastic is what somebody remembers paying with. */}
+										{paidWithLabel(
+											nameOf(row.accountId),
+											row.cardId === null
+												? null
+												: cards.data?.find((card) => card.id === row.cardId),
+										)}
 										{row.counterAccountId ? ` → ${nameOf(row.counterAccountId)}` : ""}
 									</TableCell>
 									<TableCell numeric={true}>

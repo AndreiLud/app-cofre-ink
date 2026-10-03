@@ -39,6 +39,39 @@ export function rememberWayUsed(spaceId: string, way: string): void {
 	}
 }
 
+/**
+ * The last account money came into, per space, for the same reason and kept the same way.
+ *
+ * Money coming in has a default of its own, because the last way somebody paid is often a
+ * card, and a salary read off a line that named nothing went onto the card.
+ */
+const LANDING = "cofreLastLanding";
+
+function landings(): Record<string, string> {
+	try {
+		const raw = window.localStorage.getItem(LANDING);
+		if (!raw) return {};
+		const parsed: unknown = JSON.parse(raw);
+		if (typeof parsed !== "object" || parsed === null) return {};
+		return parsed as Record<string, string>;
+	} catch {
+		return {};
+	}
+}
+
+export function lastLandingUsed(spaceId: string): string | null {
+	return landings()[spaceId] ?? null;
+}
+
+export function rememberLandingUsed(spaceId: string, accountId: string): void {
+	if (spaceId === "" || accountId === "") return;
+	try {
+		window.localStorage.setItem(LANDING, JSON.stringify({ ...landings(), [spaceId]: accountId }));
+	} catch {
+		// Nothing to do and nothing lost.
+	}
+}
+
 // There was a function here to forget these, exported and never called. Erasing everything
 // on this device already removes every key of this application, this one among them, so it
 // was a second answer to a question that has one. An entry left for a space that has gone
