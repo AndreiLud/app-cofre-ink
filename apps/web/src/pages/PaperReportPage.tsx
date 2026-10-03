@@ -332,12 +332,10 @@ export function PaperReportPage() {
 								))}
 							</>
 						) : null}
-						<Line
-							name={t("reports.expense")}
-							amount={-period.expense}
-							currency={currency}
-							tone="auto"
-						/>
+						{/* Without a sign, like every table below it: this line said "Saiu" with a
+						    minus over tables that said the same money without one. The name says
+						    which way the money went. */}
+						<Line name={t("reports.expense")} amount={period.expense} currency={currency} />
 						<Line
 							name={t("dashboard.leftOver")}
 							amount={period.left}
