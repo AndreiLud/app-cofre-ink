@@ -71,6 +71,22 @@ export const ACCOUNT_QUOTA_COLUMNS = [
 	{ name: "quota_carries", type: "integer" as const },
 ];
 
+/**
+ * The history of an allowance, which decision 4 of 2.0.0 needs: a change applies from the
+ * next landing onwards and never rewrites one that already landed, so the versions before
+ * the current one are kept, each with the first day it applied from.
+ *
+ * Kept on the account rather than in a table of its own. It is a handful of entries read
+ * whole with the account and written with it, and as part of the row it travels, is backed
+ * up and is restored with the account without a second path for any of that.
+ */
+export const ACCOUNT_QUOTA_HISTORY_COLUMNS = [
+	/** The first day the current allowance applies from, empty when it applies from the start. */
+	{ name: "quota_since", type: "text" as const },
+	/** The versions before the current one, oldest first, as JSON. Empty when there are none. */
+	{ name: "quota_before", type: "text" as const },
+];
+
 function inList(column: string, values: readonly string[]): string {
 	return `${column} in (${values.map((value) => `'${value}'`).join(", ")})`;
 }
@@ -159,6 +175,7 @@ export const accounts = defineTable({
 		{ name: "credit_limit", type: "bigint" },
 		...ACCOUNT_BENEFIT_COLUMNS,
 		...ACCOUNT_QUOTA_COLUMNS,
+		...ACCOUNT_QUOTA_HISTORY_COLUMNS,
 		{
 			name: "created_by",
 			type: "text",

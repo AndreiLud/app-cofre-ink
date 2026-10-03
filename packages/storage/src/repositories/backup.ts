@@ -21,7 +21,13 @@ import { insertRow } from "../writer.ts";
 import type { RepositoryContext } from "./context.ts";
 
 export const BACKUP_FORMAT = "cofre.backup";
-export const BACKUP_VERSION = 1;
+/**
+ * Raised once for 2.0.0, which added columns a restore copies only when it knows them. A
+ * release of 1.x restoring a file of 2.0.0 refuses it as newer instead of quietly losing
+ * the history of an allowance and the rest of what 2.0.0 writes. A file of version 1 is
+ * still restored, with those columns empty.
+ */
+export const BACKUP_VERSION = 2;
 
 /** The tables a backup carries, in the order a restore has to write them. */
 export const BACKUP_TABLES: readonly Table[] = SCHEMA.filter(

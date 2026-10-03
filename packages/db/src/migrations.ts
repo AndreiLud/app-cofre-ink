@@ -21,6 +21,7 @@ import { RULE_TABLES } from "./schema/ruleTables.ts";
 import {
 	ACCOUNT_BENEFIT_COLUMNS,
 	ACCOUNT_QUOTA_COLUMNS,
+	ACCOUNT_QUOTA_HISTORY_COLUMNS,
 	SCHEMA,
 	SPACE_COMPACTION_COLUMNS,
 } from "./schema/tables.ts";
@@ -202,6 +203,18 @@ export const MIGRATIONS: readonly Migration[] = [
 		 */
 		id: "0016_release_2_0_0",
 		statements: () => [],
+	},
+	{
+		/**
+		 * The history of an allowance. A change applies from the next landing onwards, so the
+		 * versions before it are kept. Empty on every account that exists, which reads as an
+		 * allowance that was never changed: the one there is applies from the start.
+		 */
+		id: "0017_allowance_history",
+		statements: (context) =>
+			ACCOUNT_QUOTA_HISTORY_COLUMNS.filter(
+				(column) => !context.hasColumn("accounts", column.name),
+			).map((column) => addColumnSql("accounts", column, context.dialect)),
 	},
 ];
 

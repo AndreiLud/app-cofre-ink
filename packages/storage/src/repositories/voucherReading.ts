@@ -17,15 +17,19 @@ import { asNumber } from "../driver.ts";
 import { happenedBy } from "../happened.ts";
 import type { Account } from "../models.ts";
 
-/** Every version of the allowance of an account, oldest first, or nothing without one. */
+/**
+ * Every version of the allowance of an account, oldest first, or nothing without one: the
+ * ones it replaced, and the one it has, from the day each applied from.
+ */
 export function versionsOf(account: Account): QuotaVersion[] | null {
 	if (account.quotaAmount === null || account.quotaDay === null) return null;
 	return [
+		...account.quotaBefore,
 		{
 			amount: account.quotaAmount,
 			day: account.quotaDay,
 			carries: account.quotaCarries ?? true,
-			since: null,
+			since: account.quotaSince,
 		},
 	];
 }

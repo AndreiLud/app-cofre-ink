@@ -59,3 +59,4 @@ new one.
 | [0050](0050_a_fact_that_waits_for_its_day.md) | a fact that waits for its day, and one rule for what has happened | accepted |
 | [0051](0051_repairs_that_travel.md) | repairs that travel, and the moment a database took 2.0.0 | accepted |
 | [0052](0052_the_debt_a_card_was_written_down_with.md) | the debt a card was written down with is an invoice | accepted |
+| [0053](0053_an_allowance_with_a_history.md) | an allowance with a history, and one place that reads a voucher | accepted |

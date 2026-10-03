@@ -1,9 +1,22 @@
-import { type BenefitState, benefitState, type CalendarDate, countingFrom } from "@cofre/core";
+import {
+	type BenefitState,
+	benefitState,
+	type CalendarDate,
+	countingFrom,
+	nextLandingOf,
+	todayIn,
+} from "@cofre/core";
 import { accounts, cards } from "@cofre/db";
 import { assertCan, readableSpaceIds, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
-import { type Account, type AccountKind, type BenefitKind, toAccount } from "../models.ts";
+import {
+	type Account,
+	type AccountKind,
+	type BenefitKind,
+	type QuotaHistoryEntry,
+	toAccount,
+} from "../models.ts";
 import { marks } from "../sql.ts";
 import { insertRow, softDeleteRow, updateRow } from "../writer.ts";
 import type { RepositoryContext } from "./context.ts";
@@ -56,7 +69,7 @@ export type UpdateAccountInput = {
 
 const SELECT = `SELECT "id", "space_id", "kind", "name", "currency", "initial_balance",
 	"institution", "archived_at", "closing_day", "due_day", "credit_limit", "benefit",
-	"quota_amount", "quota_day", "quota_carries",
+	"quota_amount", "quota_day", "quota_carries", "quota_since", "quota_before",
 	"created_by", "created_at", "updated_at"
 	FROM "accounts"`;
 
@@ -128,6 +141,52 @@ export function createAccountsRepository(context: RepositoryContext) {
 			[spaceId],
 		);
 		return String(rows[0]?.timezone ?? "America/Sao_Paulo");
+	}
+
+	/**
+	 * What changing an allowance writes besides the allowance: the one it replaces, kept with
+	 * the day it applied from, and the day the new one applies from, which is its first
+	 * landing after today. Decision 4 of 2.0.0: a change applies from the next landing on and
+	 * never rewrites one that already landed nor a month already closed. The allowance was
+	 * multiplied by every landing since the card was written down, so a raise from 900 to
+	 * 1,000 after ten landings added 1,000 at once and changed the income of ten months.
+	 *
+	 * Nothing for the first allowance a card is given, which applies from the start, nor for
+	 * a change that changes nothing.
+	 */
+	async function historyOfChange(
+		account: Account,
+		input: UpdateAccountInput,
+	): Promise<Record<string, string | null>> {
+		if (account.quotaAmount === null || account.quotaDay === null) return {};
+		const next = {
+			amount: input.quotaAmount !== undefined ? input.quotaAmount : account.quotaAmount,
+			day: input.quotaDay !== undefined ? input.quotaDay : account.quotaDay,
+			carries:
+				input.quotaCarries !== undefined && input.quotaCarries !== null
+					? input.quotaCarries
+					: (account.quotaCarries ?? true),
+		};
+		if (next.amount === null || next.day === null) return {};
+		if (
+			next.amount === account.quotaAmount &&
+			next.day === account.quotaDay &&
+			next.carries === (account.quotaCarries ?? true)
+		) {
+			return {};
+		}
+
+		const today = todayIn(await timezoneOf(account.spaceId), new Date(context.now()));
+		const replaced: QuotaHistoryEntry = {
+			amount: account.quotaAmount,
+			day: account.quotaDay,
+			carries: account.quotaCarries ?? true,
+			since: account.quotaSince,
+		};
+		return {
+			quota_before: JSON.stringify([...account.quotaBefore, replaced]),
+			quota_since: nextLandingOf(today, next.day),
+		};
 	}
 
 	/**
@@ -298,6 +357,7 @@ export function createAccountsRepository(context: RepositoryContext) {
 			if (input.quotaCarries !== undefined) {
 				values.quota_carries = quotaCarriesValue(input.quotaCarries);
 			}
+			Object.assign(values, await historyOfChange(account, input));
 
 			// Only a card has a cycle, and without both of its days it has no invoices at all.
 			for (const [name, given] of [

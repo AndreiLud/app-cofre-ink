@@ -99,6 +99,62 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 1, B.3 of the request for 2.0.0, decision 4: ten landings of 900 and then a
+		// raise to 1,000. The allowance was multiplied by every landing since the card was
+		// written down, so the raise added 1,000 at once and rewrote ten months of income.
+		it("changes an allowance from its next landing, and leaves what landed alone", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const on = (day: string) =>
+					openSession({
+						driver: fixture.driver,
+						userId: fixture.ana.id,
+						deviceId: "deviceAna",
+						now: () => Date.parse(`${day}T12:00:00-03:00`),
+					});
+				const january = await on("2026-01-06");
+				const space = await january.spaces.create({ name: "Pessoal", kind: "personal" });
+				const voucher = await january.accounts.create({
+					spaceId: space.id,
+					kind: "voucher",
+					name: "Vale refeicao",
+					benefit: "meal",
+					quotaAmount: 90_000,
+					quotaDay: 5,
+					quotaCarries: true,
+				});
+
+				// January to October: ten landings of 900.
+				const october = await on("2026-10-06");
+				const left = async (day: string) =>
+					(await october.accounts.benefitLeft(voucher.id, day))?.left;
+				expect(await left("2026-10-06")).toBe(900_000);
+
+				await october.accounts.update(voucher.id, { quotaAmount: 100_000 });
+				// Nothing changes until the next landing, and then it lands at 1,000.
+				expect(await left("2026-10-06")).toBe(900_000);
+				expect(await left("2026-11-04")).toBe(900_000);
+				expect(await left("2026-11-05")).toBe(1_000_000);
+
+				// A month already closed keeps the 900 it had.
+				const september = await october.reports.totals({
+					spaceId: space.id,
+					from: "2026-09-01",
+					to: "2026-09-30",
+				});
+				expect(september.benefits).toBe(90_000);
+
+				// And the account keeps the version it replaced, with the day the new one starts.
+				const account = await october.accounts.get(voucher.id);
+				expect(account.quotaSince).toBe("2026-11-05");
+				expect(account.quotaBefore).toEqual([
+					{ amount: 90_000, day: 5, carries: true, since: null },
+				]);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		// Part 1, B.9 of the request for 2.0.0. An allowance was accepted with no day, the form
 		// wrote the first of the month under an example showing the fifth when the field was
 		// left empty, and the edit wrote no day at all, so the overview said there was none.

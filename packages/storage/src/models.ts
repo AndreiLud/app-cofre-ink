@@ -83,10 +83,46 @@ export type Account = {
 	quotaAmount: number | null;
 	quotaDay: number | null;
 	quotaCarries: boolean | null;
+	/**
+	 * The first day the allowance above applies from, and the versions before it.
+	 *
+	 * A change applies from the next landing onwards and never rewrites one that already
+	 * landed, which is decision 4 of 2.0.0. Nothing and none on an allowance never changed.
+	 */
+	quotaSince: string | null;
+	quotaBefore: QuotaHistoryEntry[];
 	createdBy: string;
 	createdAt: number;
 	updatedAt: number;
 };
+
+/** One version of an allowance that was replaced, with the first day it applied from. */
+export type QuotaHistoryEntry = {
+	amount: number;
+	day: number;
+	carries: boolean;
+	since: string | null;
+};
+
+/** The versions before the current one, read leniently: a row nobody can read has none. */
+function asQuotaHistory(value: unknown): QuotaHistoryEntry[] {
+	if (typeof value !== "string" || value === "") return [];
+	try {
+		const parsed: unknown = JSON.parse(value);
+		if (!Array.isArray(parsed)) return [];
+		return parsed.filter(
+			(entry): entry is QuotaHistoryEntry =>
+				typeof entry === "object" &&
+				entry !== null &&
+				Number.isSafeInteger(entry.amount) &&
+				Number.isInteger(entry.day) &&
+				typeof entry.carries === "boolean" &&
+				(entry.since === null || typeof entry.since === "string"),
+		);
+	} catch {
+		return [];
+	}
+}
 
 /**
  * A piece of plastic, which is a way to reach money and not the money itself.
@@ -398,6 +434,8 @@ export function toAccount(row: Row): Account {
 			row.quota_carries === null || row.quota_carries === undefined
 				? null
 				: asNumber(row.quota_carries) === 1,
+		quotaSince: asOptionalText(row.quota_since),
+		quotaBefore: asQuotaHistory(row.quota_before),
 		createdBy: asText(row.created_by),
 		createdAt: asNumber(row.created_at),
 		updatedAt: asNumber(row.updated_at),

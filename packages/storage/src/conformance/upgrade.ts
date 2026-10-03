@@ -10,6 +10,7 @@
 // had and no more, fills it with the rows that release would have written, and then
 // upgrades it for real and reads the whole thing back through the repositories of today.
 
+import { MIGRATIONS } from "@cofre/db";
 import { describe, expect, it } from "vitest";
 import type { Driver } from "../driver.ts";
 import { migrate } from "../migrate.ts";
@@ -145,13 +146,14 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 				const ana = await createUser(driver, { email: "ana@exemplo.com", name: "Ana" });
 				await fillAsOf105(driver, ana.id);
 
-				// And the upgrade, for real: only the ones that are new, in order, once.
+				// And the upgrade, for real: only the ones that are new, in order, once, the three
+				// of 1.1.0 first.
 				const ran = await migrate(driver);
-				expect(ran).toEqual([
+				expect(ran).toEqual(idsAfter(AS_OF_105));
+				expect(ran.slice(0, 3)).toEqual([
 					"0013_benefit_quota",
 					"0014_invoice_by_hand",
 					"0015_subscriptions_reach_their_invoice",
-					"0016_release_2_0_0",
 				]);
 				// Idempotent, which is what a device that syncs and then opens again does.
 				expect(await migrate(driver)).toEqual([]);
@@ -295,7 +297,9 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 					createdAt: later,
 				});
 
-				expect(await migrate(driver)).toEqual(["0016_release_2_0_0"]);
+				const ranTo200 = await migrate(driver);
+				expect(ranTo200).toEqual(idsAfter(AS_OF_121));
+				expect(ranTo200[0]).toBe("0016_release_2_0_0");
 
 				const session = await openSession({ driver, userId: ana.id, deviceId: "deviceAna" });
 				const done = await session.repairs.runEverywhere();
@@ -467,6 +471,12 @@ export function runUpgradeConformance(adapter: AdapterUnderTest): void {
 
 /** The last migration release 1.2.1 carried. */
 const AS_OF_121 = "0015_subscriptions_reach_their_invoice";
+
+/** Every migration after one, in order, which is what upgrading from it runs. */
+function idsAfter(id: string): string[] {
+	const all = MIGRATIONS.map((migration) => migration.id);
+	return all.slice(all.indexOf(id) + 1);
+}
 
 const DAY = 24 * 60 * 60 * 1000;
 

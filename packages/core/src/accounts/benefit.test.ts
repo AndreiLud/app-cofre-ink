@@ -4,9 +4,11 @@ import {
 	carriesByDefault,
 	daysToLanding,
 	landingsBetween,
+	landingsOf,
 	nextLandingOf,
 	periodOf,
 	type Quota,
+	type QuotaVersion,
 } from "./benefit.ts";
 
 describe("which period a day falls in", () => {
@@ -269,6 +271,33 @@ describe("what is left on a card that does not carry", () => {
 		});
 		expect(state.from).toBe("2026-11-01");
 		expect(state.to).toBe("2026-11-30");
+	});
+});
+
+// Decision 4 of 2.0.0: a change applies from the next landing on.
+describe("an allowance that changed", () => {
+	it("lands each month with the amount in force on its own day", () => {
+		const versions: QuotaVersion[] = [
+			{ amount: 90_000, day: 5, carries: true, since: null },
+			{ amount: 100_000, day: 5, carries: true, since: "2026-11-05" },
+		];
+		expect(landingsOf(versions, "2026-09-04", "2026-11-05")).toEqual([
+			{ on: "2026-09-05", amount: 90_000 },
+			{ on: "2026-10-05", amount: 90_000 },
+			{ on: "2026-11-05", amount: 100_000 },
+		]);
+	});
+
+	it("lands once in the month its day changed, on the new day", () => {
+		const versions: QuotaVersion[] = [
+			{ amount: 90_000, day: 5, carries: true, since: null },
+			{ amount: 90_000, day: 10, carries: true, since: "2026-10-10" },
+		];
+		expect(landingsOf(versions, "2026-08-31", "2026-11-30").map((one) => one.on)).toEqual([
+			"2026-09-05",
+			"2026-10-10",
+			"2026-11-10",
+		]);
 	});
 });
 
