@@ -20,6 +20,7 @@ import { MEMBER_INCOME_COLUMNS, PLAN_TABLES } from "./schema/planTables.ts";
 import { RULE_TABLES } from "./schema/ruleTables.ts";
 import {
 	ACCOUNT_BENEFIT_COLUMNS,
+	ACCOUNT_KNOWN_BALANCE_COLUMNS,
 	ACCOUNT_QUOTA_COLUMNS,
 	ACCOUNT_QUOTA_HISTORY_COLUMNS,
 	SCHEMA,
@@ -213,6 +214,18 @@ export const MIGRATIONS: readonly Migration[] = [
 		id: "0017_allowance_history",
 		statements: (context) =>
 			ACCOUNT_QUOTA_HISTORY_COLUMNS.filter(
+				(column) => !context.hasColumn("accounts", column.name),
+			).map((column) => addColumnSql("accounts", column, context.dialect)),
+	},
+	{
+		/**
+		 * The day somebody said what was on a voucher that carries. Empty on every account
+		 * that exists, which reads as the day the account was written down, the day an
+		 * opening balance from release 1.0 was true on.
+		 */
+		id: "0018_voucher_known_balance",
+		statements: (context) =>
+			ACCOUNT_KNOWN_BALANCE_COLUMNS.filter(
 				(column) => !context.hasColumn("accounts", column.name),
 			).map((column) => addColumnSql("accounts", column, context.dialect)),
 	},

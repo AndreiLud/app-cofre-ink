@@ -511,7 +511,9 @@
 		"deleteHolds_zero": "Não tem nenhum lançamento nesta conta. Apagar não deixa nada apontando para o vazio.",
 		"deleteHolds_other": "Tem {{count}} lançamentos nesta conta. Eles ficam onde estão, apontando para uma conta que não existe mais, e o dinheiro deles deixa de ser contado em qualquer lugar.",
 		"deleteInstead": "Se a conta só saiu de uso, arquivar tira ela da frente e mantém tudo somando.",
-		"quotaDayPick": "Escolha o dia"
+		"quotaDayPick": "Escolha o dia",
+		"knownToday": "Quanto tem no cartão hoje",
+		"knownTodayHint": "Se você souber, conta a partir de hoje. Em branco, vale o valor do mês em que o cartão foi cadastrado, menos o que foi gasto nesse período."
 	},
 	"rules": {
 		"notABackup": "Esse arquivo não é um backup do {{app}}. Um backup sai daqui mesmo, no botão Baixar cópia, e a cópia que esta tela guarda antes de trocar uma também. Extrato do banco entra por Importar extrato.",
@@ -599,7 +601,8 @@
 		"benefitIsNotIncome": "Um cartão de benefício só gasta. O valor que cai nele é o valor mensal do cartão, e o {{app}} conta esse valor sozinho.",
 		"benefitDoesNotLeave": "O dinheiro de um cartão de benefício é gasto no próprio cartão e não sai dele. Recarregar por Pix você lança como transferência para o cartão, que isso existe.",
 		"closingDayTooFar": "Esse dia está longe demais do fechamento previsto. Um banco muda o fechamento em poucos dias, por fim de semana ou feriado; confira o dia, e o ano.",
-		"quotaNeedsADay": "O valor do benefício cai num dia do mês. Escolha o dia em que ele cai."
+		"quotaNeedsADay": "O valor do benefício cai num dia do mês. Escolha o dia em que ele cai.",
+		"knownAmountIsForCarryingVouchers": "Quanto tem no cartão hoje só vale para um benefício que acumula. Num que zera, o valor do mês já diz o que tem."
 	},
 	"transactions": {
 		"title": "Lançamentos",

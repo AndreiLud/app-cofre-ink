@@ -91,6 +91,11 @@ export type Account = {
 	 */
 	quotaSince: string | null;
 	quotaBefore: QuotaHistoryEntry[];
+	/**
+	 * The day somebody said what was on a voucher that carries, which the opening balance is
+	 * then the figure of. Nothing on a voucher nobody said anything about.
+	 */
+	balanceKnownOn: string | null;
 	createdBy: string;
 	createdAt: number;
 	updatedAt: number;
@@ -436,6 +441,7 @@ export function toAccount(row: Row): Account {
 				: asNumber(row.quota_carries) === 1,
 		quotaSince: asOptionalText(row.quota_since),
 		quotaBefore: asQuotaHistory(row.quota_before),
+		balanceKnownOn: asOptionalText(row.balance_known_on),
 		createdBy: asText(row.created_by),
 		createdAt: asNumber(row.created_at),
 		updatedAt: asNumber(row.updated_at),

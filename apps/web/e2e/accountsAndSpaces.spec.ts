@@ -89,6 +89,38 @@ test.describe("accounts", () => {
 		await expect(page.getByRole("cell", { name: "VR", exact: true })).toBeVisible();
 	});
 
+	// Part 1, B.4 of the request for 2.0.0, decision 3: how much is on a card that carries,
+	// today, on the form that writes it down and on the one that corrects it.
+	test("writes down how much is on a benefit card today, and counts from it", async ({ page }) => {
+		await openCofre(page, { demo: false });
+		await go(page, "Contas");
+
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByLabel("Nome").fill("VR");
+		await dialog.getByLabel("Tipo").selectOption("voucher");
+		await dialog.getByLabel("Valor por mês").fill("900,00");
+		await dialog.getByLabel("Dia do crédito").selectOption("5");
+		await dialog.getByLabel("Quanto tem no cartão hoje").fill("300,00");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "VR", exact: true })).toBeVisible();
+
+		await go(page, "Painel");
+		await expect(page.getByText("R$ 300,00").first()).toBeVisible();
+		await expect(page.getByText("de R$ 900,00").first()).toBeVisible();
+
+		await go(page, "Contas");
+		await page
+			.getByRole("row")
+			.filter({ hasText: "VR" })
+			.getByRole("button", { name: "Ações da conta" })
+			.click();
+		await page.getByRole("menuitem", { name: "Editar conta" }).click();
+		await expect(page.getByRole("dialog").getByLabel("Quanto tem no cartão hoje")).toHaveValue(
+			"300,00",
+		);
+	});
+
 	test("says what goes nowhere before deleting an account", async ({ page }) => {
 		await openCofre(page);
 		await go(page, "Contas");

@@ -87,6 +87,14 @@ export const ACCOUNT_QUOTA_HISTORY_COLUMNS = [
 	{ name: "quota_before", type: "text" as const },
 ];
 
+/**
+ * The day somebody said what was on a voucher that carries, which is decision 3 of 2.0.0.
+ * The amount is the opening balance; this is the day it was true on, and counting starts
+ * there. Empty on a card nobody said anything about, and on a card from release 1.0, whose
+ * opening balance was true on the day it was written down.
+ */
+export const ACCOUNT_KNOWN_BALANCE_COLUMNS = [{ name: "balance_known_on", type: "text" as const }];
+
 function inList(column: string, values: readonly string[]): string {
 	return `${column} in (${values.map((value) => `'${value}'`).join(", ")})`;
 }
@@ -176,6 +184,7 @@ export const accounts = defineTable({
 		...ACCOUNT_BENEFIT_COLUMNS,
 		...ACCOUNT_QUOTA_COLUMNS,
 		...ACCOUNT_QUOTA_HISTORY_COLUMNS,
+		...ACCOUNT_KNOWN_BALANCE_COLUMNS,
 		{
 			name: "created_by",
 			type: "text",

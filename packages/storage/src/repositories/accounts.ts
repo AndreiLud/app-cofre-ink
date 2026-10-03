@@ -40,6 +40,12 @@ export type CreateAccountInput = {
 	quotaAmount?: number | null;
 	quotaDay?: number | null;
 	quotaCarries?: boolean | null;
+	/**
+	 * How much is on a voucher that carries, today, when somebody knows. Decision 3 of 2.0.0:
+	 * kept with the day it was said, and counting starts there. Left out, the allowance of
+	 * the period the card is written down in is what it holds.
+	 */
+	knownAmount?: number | null;
 };
 
 export type UpdateAccountInput = {
@@ -50,6 +56,8 @@ export type UpdateAccountInput = {
 	quotaAmount?: number | null;
 	quotaDay?: number | null;
 	quotaCarries?: boolean | null;
+	/** The same, corrected later, which moves the day it was true on to today. Nothing clears it. */
+	knownAmount?: number | null;
 	/**
 	 * The cycle of a credit card, and what the bank allows on it.
 	 *
@@ -69,7 +77,7 @@ export type UpdateAccountInput = {
 
 const SELECT = `SELECT "id", "space_id", "kind", "name", "currency", "initial_balance",
 	"institution", "archived_at", "closing_day", "due_day", "credit_limit", "benefit",
-	"quota_amount", "quota_day", "quota_carries", "quota_since", "quota_before",
+	"quota_amount", "quota_day", "quota_carries", "quota_since", "quota_before", "balance_known_on",
 	"created_by", "created_at", "updated_at"
 	FROM "accounts"`;
 
@@ -117,6 +125,33 @@ function assertQuota(
 		throw new RuleError(
 			"quotaDayIsADayOfTheMonth",
 			"the day an allowance lands is a day of a month",
+		);
+	}
+}
+
+/**
+ * What somebody says is on a voucher today, which only a voucher that carries can hold.
+ *
+ * On a card that does not carry, what was there is taken back on the next landing anyway,
+ * so a figure for today would be true for the rest of the period and nothing after it, and
+ * the allowance of the period says the same thing better.
+ */
+function assertKnownAmount(
+	knownAmount: number | null | undefined,
+	kind: AccountKind,
+	carries: boolean | null,
+): void {
+	if (knownAmount === undefined || knownAmount === null) return;
+	if (kind !== "voucher" || carries === false) {
+		throw new RuleError(
+			"knownAmountIsForCarryingVouchers",
+			"how much is on the card today is for a benefit card whose leftover carries",
+		);
+	}
+	if (!Number.isSafeInteger(knownAmount) || knownAmount < 0) {
+		throw new RuleError(
+			"amountIsInteger",
+			"what is on the card is a whole amount of minor units, never less than nothing",
 		);
 	}
 }
@@ -255,6 +290,14 @@ export function createAccountsRepository(context: RepositoryContext) {
 			}
 			assertQuota(input, input.kind);
 			assertQuotaHasADay(input.quotaAmount, input.quotaDay);
+			assertKnownAmount(input.knownAmount, input.kind, input.quotaCarries ?? null);
+			const known =
+				input.knownAmount === undefined || input.knownAmount === null
+					? null
+					: {
+							amount: input.knownAmount,
+							on: todayIn(await timezoneOf(input.spaceId), new Date(context.now())),
+						};
 
 			// The currency of the space, and not the currency of Brazil.
 			//
@@ -274,7 +317,8 @@ export function createAccountsRepository(context: RepositoryContext) {
 					kind: input.kind,
 					name: input.name.trim(),
 					currency: input.currency ?? spaceCurrency,
-					initial_balance: input.initialBalance ?? 0,
+					initial_balance: known?.amount ?? input.initialBalance ?? 0,
+					balance_known_on: known?.on ?? null,
 					institution: input.institution ?? null,
 					archived_at: null,
 					closing_day: input.closingDay ?? null,
@@ -358,6 +402,25 @@ export function createAccountsRepository(context: RepositoryContext) {
 				values.quota_carries = quotaCarriesValue(input.quotaCarries);
 			}
 			Object.assign(values, await historyOfChange(account, input));
+
+			// What is on the card today, said again, which counts from today.
+			if (input.knownAmount !== undefined) {
+				const carries =
+					input.quotaCarries !== undefined && input.quotaCarries !== null
+						? input.quotaCarries
+						: account.quotaCarries;
+				assertKnownAmount(input.knownAmount, account.kind, carries);
+				if (input.knownAmount === null) {
+					values.initial_balance = 0;
+					values.balance_known_on = null;
+				} else {
+					values.initial_balance = input.knownAmount;
+					values.balance_known_on = todayIn(
+						await timezoneOf(account.spaceId),
+						new Date(context.now()),
+					);
+				}
+			}
 
 			// Only a card has a cycle, and without both of its days it has no invoices at all.
 			for (const [name, given] of [

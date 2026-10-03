@@ -35,10 +35,16 @@ export function versionsOf(account: Account): QuotaVersion[] | null {
 }
 
 /**
- * Where counting what is on the card starts: the opening balance a card from release 1.0
- * was written down with, on the day it was written down, or nothing said on that day.
+ * Where counting what is on the card starts.
+ *
+ * What somebody said was on it, on the day they said it, which is decision 3 of 2.0.0 and
+ * may be nothing at all. Or the opening balance a card from release 1.0 was written down
+ * with, on the day it was written down. Or nothing said, from the day it was written down.
  */
 export function startOf(account: Account, timezone: string): VoucherStart {
+	if (account.balanceKnownOn !== null) {
+		return { on: account.balanceKnownOn, amount: account.initialBalance };
+	}
 	return {
 		on: todayIn(timezone, new Date(account.createdAt)),
 		amount: account.initialBalance === 0 ? null : account.initialBalance,

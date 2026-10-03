@@ -77,6 +77,9 @@ const accountInput = z.object({
 	quotaAmount: z.number().int().positive().nullable().optional(),
 	quotaDay: z.number().int().min(1).max(31).nullable().optional(),
 	quotaCarries: z.boolean().nullable().optional(),
+	// How much is on a benefit card that carries, today, when somebody knows. Dropped here,
+	// a card written down in server mode would count from the allowance as if nobody said.
+	knownAmount: z.number().int().min(0).nullable().optional(),
 });
 
 /**
@@ -637,6 +640,7 @@ export function createApp({ config, database, auth }: AppDependencies) {
 			quotaAmount: true,
 			quotaDay: true,
 			quotaCarries: true,
+			knownAmount: true,
 			// The cycle of a card and what the bank allows on it, which a bank changes and
 			// which the day somebody typed when they added the card is most likely to be a
 			// guess at.

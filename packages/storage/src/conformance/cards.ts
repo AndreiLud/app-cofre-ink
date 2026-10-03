@@ -155,6 +155,77 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 1, B.4 of the request for 2.0.0, decision 3: how much is on a card that carries,
+		// today, kept with the day it was said. Counting starts there: a lunch from before is
+		// inside the figure, and one after it comes off.
+		it("counts from what somebody said was on the card, on the day they said it", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const on20th = await openSession({
+					driver: fixture.driver,
+					userId: fixture.ana.id,
+					deviceId: "deviceAna",
+					now: () => Date.parse("2026-10-20T12:00:00-03:00"),
+				});
+				const space = await on20th.spaces.create({ name: "Pessoal", kind: "personal" });
+				const voucher = await on20th.accounts.create({
+					spaceId: space.id,
+					kind: "voucher",
+					name: "Vale refeicao",
+					benefit: "meal",
+					quotaAmount: 90_000,
+					quotaDay: 5,
+					quotaCarries: true,
+					knownAmount: 30_000,
+				});
+				expect([voucher.initialBalance, voucher.balanceKnownOn]).toEqual([30_000, "2026-10-20"]);
+
+				for (const [day, amount] of [
+					["2026-10-10", 4_000],
+					["2026-10-22", 5_000],
+				] as const) {
+					await on20th.transactions.create({
+						spaceId: space.id,
+						kind: "expense",
+						amount,
+						happenedOn: day,
+						description: "Almoco",
+						accountId: voucher.id,
+					});
+				}
+
+				expect((await on20th.accounts.benefitLeft(voucher.id, "2026-10-25"))?.left).toBe(25_000);
+				expect((await on20th.accounts.benefitLeft(voucher.id, "2026-11-05"))?.left).toBe(115_000);
+
+				// Said again on a later day, it counts from that day.
+				const on1st = await openSession({
+					driver: fixture.driver,
+					userId: fixture.ana.id,
+					deviceId: "deviceAna",
+					now: () => Date.parse("2026-11-01T12:00:00-03:00"),
+				});
+				const corrected = await on1st.accounts.update(voucher.id, { knownAmount: 20_000 });
+				expect(corrected.balanceKnownOn).toBe("2026-11-01");
+				expect((await on1st.accounts.benefitLeft(voucher.id, "2026-11-05"))?.left).toBe(110_000);
+
+				// Only on a card that carries: on one that resets, the allowance says it.
+				await expect(
+					on20th.accounts.create({
+						spaceId: space.id,
+						kind: "voucher",
+						name: "Vale transporte",
+						benefit: "transport",
+						quotaAmount: 30_000,
+						quotaDay: 1,
+						quotaCarries: false,
+						knownAmount: 10_000,
+					}),
+				).rejects.toMatchObject({ rule: "knownAmountIsForCarryingVouchers" });
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		// Part 1, B.9 of the request for 2.0.0. An allowance was accepted with no day, the form
 		// wrote the first of the month under an example showing the fifth when the field was
 		// left empty, and the edit wrote no day at all, so the overview said there was none.

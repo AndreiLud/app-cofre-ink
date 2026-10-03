@@ -55,6 +55,8 @@ export function AccountsPage() {
 	// when the money arrives, so this is the only place the figure can come from.
 	const [quota, setQuota] = useState("");
 	const [quotaDay, setQuotaDay] = useState("");
+	/** How much is on a voucher that carries, today, when somebody knows. Empty is allowed. */
+	const [known, setKnown] = useState("");
 	/** The days an allowance can land on, with nothing chosen first rather than an example. */
 	const quotaDays = [
 		{ value: "", label: t("accounts.quotaDayPick") },
@@ -117,6 +119,9 @@ export function AccountsPage() {
 	const [editQuota, setEditQuota] = useState("");
 	const [editQuotaDay, setEditQuotaDay] = useState("");
 	const [editCarries, setEditCarries] = useState(true);
+	const [editKnown, setEditKnown] = useState("");
+	/** What the field said when the edit opened, so only a change of it is sent. */
+	const [editKnownWas, setEditKnownWas] = useState("");
 	const [editClosingDay, setEditClosingDay] = useState("");
 	const [editDueDay, setEditDueDay] = useState("");
 	const [editLimit, setEditLimit] = useState("");
@@ -159,6 +164,13 @@ export function AccountsPage() {
 		);
 		setEditQuotaDay(account.quotaDay === null ? "" : String(account.quotaDay));
 		setEditCarries(account.quotaCarries ?? carriesByDefault(account.benefit ?? "meal"));
+		const knownBefore =
+			account.kind === "voucher" &&
+			(account.balanceKnownOn !== null || account.initialBalance !== 0)
+				? fillAmount(account.initialBalance, i18n.resolvedLanguage, account.currency)
+				: "";
+		setEditKnown(knownBefore);
+		setEditKnownWas(knownBefore);
 		setEditClosingDay(account.closingDay === null ? "" : String(account.closingDay));
 		setEditDueDay(account.dueDay === null ? "" : String(account.dueDay));
 		setEditLimit(
@@ -185,6 +197,12 @@ export function AccountsPage() {
 							quotaAmount: quota,
 							quotaDay: editQuotaDay.trim() === "" ? null : Number(editQuotaDay),
 							quotaCarries: quota === null ? null : editCarries,
+							...(editCarries && editKnown.trim() !== editKnownWas.trim()
+								? {
+										knownAmount:
+											editKnown.trim() === "" ? null : readAmount(editKnown, editing.currency),
+									}
+								: {}),
 						}
 					: {}),
 				// The cycle of a card, because a bank changes it and because the day somebody
@@ -283,6 +301,11 @@ export function AccountsPage() {
 							// written here, under an example that showed the fifth.
 							quotaDay: quotaDay === "" ? null : Number(quotaDay),
 							quotaCarries: carriesByDefault(benefit),
+							...(carriesByDefault(benefit) && known.trim() !== ""
+								? {
+										knownAmount: parseMoney(known, { currency: currentSpace?.baseCurrency }).amount,
+									}
+								: {}),
 						}
 					: {}),
 			});
@@ -339,6 +362,10 @@ export function AccountsPage() {
 			setLastFour("");
 			setWorks("credit");
 			setInvoiceSoFar("");
+			// The allowance of the card just written, so the next one does not inherit it.
+			setQuota("");
+			setQuotaDay("");
+			setKnown("");
 			setProblem(null);
 			invalidate();
 		},
@@ -664,6 +691,16 @@ export function AccountsPage() {
 									{ value: "resets", label: t("accounts.quotaResets") },
 								]}
 							/>
+							{editCarries ? (
+								<Field
+									label={t("accounts.knownToday")}
+									hint={t("accounts.knownTodayHint")}
+									value={editKnown}
+									onChange={(event) => setEditKnown(event.target.value)}
+									numeric={true}
+									inputMode="decimal"
+								/>
+							) : null}
 						</>
 					) : null}
 					{problem ? <Callout tone="problem">{problem}</Callout> : null}
@@ -857,6 +894,19 @@ export function AccountsPage() {
 								onChange={(event) => setQuotaDay(event.target.value)}
 								options={quotaDays}
 							/>
+							{/* Decision 3 of 2.0.0: on a card that carries, what is on it today,
+							    when somebody knows. Left empty, the allowance of this period is
+							    what it holds, with what was spent in the period. */}
+							{carriesByDefault(benefit) ? (
+								<Field
+									label={t("accounts.knownToday")}
+									hint={t("accounts.knownTodayHint")}
+									value={known}
+									onChange={(event) => setKnown(event.target.value)}
+									numeric={true}
+									inputMode="decimal"
+								/>
+							) : null}
 						</div>
 					) : null}
 

@@ -511,7 +511,9 @@
 		"deleteHolds_zero": "There are no records in this account. Deleting it leaves nothing dangling.",
 		"deleteHolds_other": "There are {{count}} records in this account. They stay where they are, pointing at an account that is no longer there, and their money stops being counted anywhere.",
 		"deleteInstead": "If the account is simply not used any more, archiving takes it out of the way and keeps everything adding up.",
-		"quotaDayPick": "Pick the day"
+		"quotaDayPick": "Pick the day",
+		"knownToday": "How much is on the card today",
+		"knownTodayHint": "If you know, counting starts today. Left empty, the allowance of the period the card was written down in counts, less what was spent in that period."
 	},
 	"rules": {
 		"notABackup": "That file is not a {{app}} backup. A backup comes from here, from the Download a copy button, and so does the copy this screen saves before it replaces one. A statement from the bank goes in through Import a statement.",
@@ -599,7 +601,8 @@
 		"benefitIsNotIncome": "A benefit card only spends. What lands on it is the monthly allowance of the card, and {{app}} counts that on its own.",
 		"benefitDoesNotLeave": "Money on a benefit card is spent on the card and does not leave it. A top up by Pix goes in as a transfer into the card, because that one is real.",
 		"closingDayTooFar": "That day is too far from the expected closing. A bank moves a closing by a few days, for a weekend or a holiday; check the day, and the year.",
-		"quotaNeedsADay": "The allowance lands on a day of the month. Pick the day it lands on."
+		"quotaNeedsADay": "The allowance lands on a day of the month. Pick the day it lands on.",
+		"knownAmountIsForCarryingVouchers": "How much is on the card today is only for a benefit that carries. On one that resets, the monthly allowance already says what is on it."
 	},
 	"transactions": {
 		"title": "Records",
