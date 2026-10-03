@@ -7,12 +7,16 @@
 // 2.0.0), so the form only edits a move that already exists, with both of its ends.
 
 import {
+	allocateInstallments,
+	anchorAfterPaid,
 	type CalendarDate,
 	type CurrencyCode,
 	compareCalendarDates,
 	countsAsMoney,
 	invoiceDueDate,
 	invoiceMonthOf,
+	MAX_INSTALLMENTS,
+	money,
 } from "@cofre/core";
 import type {
 	Account,
@@ -20,6 +24,7 @@ import type {
 	SpendingPriority,
 	Transaction,
 	TransactionKind,
+	UpdateTransactionInput,
 } from "@cofre/storage";
 import { RuleError } from "@cofre/storage";
 import { Button, Callout, Dialog, Disclosure, Field, Segmented, Select } from "@cofre/ui";
@@ -65,6 +70,10 @@ export function TransactionForm({
 	const [accountId, setAccountId] = useState("");
 	const [counterAccountId, setCounterAccountId] = useState("");
 	const [installments, setInstallments] = useState("1");
+	/** Whether the amount typed is each part of a plan, rather than the whole of it. */
+	const [eachPart, setEachPart] = useState(false);
+	/** How many parts of the plan were paid before it was written down. */
+	const [paidBefore, setPaidBefore] = useState("");
 	const [notes, setNotes] = useState("");
 	const [categoryId, setCategoryId] = useState("");
 	const [priority, setPriority] = useState("");
@@ -168,6 +177,72 @@ export function TransactionForm({
 		});
 	})();
 
+	/**
+	 * A plan, said before it is written: what each part comes to, the equal ones together, or
+	 * the whole when the amount typed is each part. And, with parts paid before, where the
+	 * first one kept falls and on which invoice. Part 2, D.2 and D.3 of 2.0.0.
+	 */
+	const partCount = Number(installments);
+	const cardCycle =
+		chosen?.kind === "credit" && chosen.closingDay !== null && chosen.dueDay !== null
+			? { closingDay: chosen.closingDay, dueDay: chosen.dueDay }
+			: undefined;
+	const currencyHere = (chosen?.currency ?? "BRL") as CurrencyCode;
+	const asMoneyHere = (cents: number) =>
+		new Intl.NumberFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+			style: "currency",
+			currency: currencyHere,
+		}).format(cents / 100);
+	const typedCents = (() => {
+		try {
+			return amount.trim() === "" ? 0 : readAmount(amount, currencyHere);
+		} catch {
+			return 0;
+		}
+	})();
+	const planTotal = eachPart ? typedCents * partCount : typedCents;
+	const paidCount = paidBefore.trim() === "" ? 0 : Number(paidBefore);
+	const planSaid = (() => {
+		if (partCount <= 1 || typedCents <= 0) return null;
+		if (eachPart) return t("transactions.planTotal", { amount: asMoneyHere(planTotal) });
+		if (planTotal < partCount) return null;
+		const parts = allocateInstallments(money(planTotal, currencyHere), partCount).map(
+			(part) => part.amount,
+		);
+		const groups: { count: number; amount: number }[] = [];
+		for (const part of parts) {
+			const last = groups.at(-1);
+			if (last && last.amount === part) last.count += 1;
+			else groups.push({ count: 1, amount: part });
+		}
+		return groups
+			.map((group) =>
+				t("transactions.partsOf", { count: group.count, amount: asMoneyHere(group.amount) }),
+			)
+			.join(` ${t("transactions.and")} `);
+	})();
+	const anchor =
+		partCount > 1 && Number.isInteger(paidCount) && paidCount >= 1 && paidCount < partCount
+			? anchorAfterPaid({
+					purchasedOn: happenedOn as CalendarDate,
+					paid: paidCount,
+					...(cardCycle ? { cycle: cardCycle } : {}),
+				})
+			: null;
+	const firstKeptSaid = anchor
+		? t(anchor.invoice ? "transactions.firstKeptOnInvoice" : "transactions.firstKept", {
+				number: anchor.firstNumber,
+				count: partCount,
+				day: `${anchor.day.slice(8)}/${anchor.day.slice(5, 7)}/${anchor.day.slice(0, 4)}`,
+				month: anchor.invoice
+					? new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+							month: "long",
+							timeZone: "UTC",
+						}).format(new Date(`${anchor.invoice}-01T00:00:00Z`))
+					: "",
+			})
+		: null;
+
 	/** Open the details by themselves when either of them already holds something. */
 	const hasDetails = priority !== "" || notes.trim() !== "";
 
@@ -244,6 +319,8 @@ export function TransactionForm({
 		setDescription("");
 		setCounterAccountId("");
 		setInstallments("1");
+		setEachPart(false);
+		setPaidBefore("");
 		setNotes("");
 		setCategoryId("");
 		setPriority("");
@@ -309,28 +386,52 @@ export function TransactionForm({
 				// about it was corrected.
 				const opened = `${editing.cardId ?? ""}:${editing.accountId}`;
 				const { cardId, ...sortedOnly } = sorting;
-				const change = {
+				const counter = kind === "transfer" ? counterAccountId : null;
+				const noted = notes.trim() === "" ? null : notes.trim();
+				// Only what changed. Everything was sent on every save, and over a plan the amount
+				// of the part being edited was written on every part after it: changing only the
+				// category of R$ 1.000,00 in forty eight left the plan at R$ 1.000,32.
+				const change: UpdateTransactionInput = {
 					// Only when it changed, which only a record that stands alone offers.
 					...(kind !== editing.kind && kind !== "transfer" ? { kind } : {}),
-					amount: parsed.amount,
-					description,
-					accountId,
-					counterAccountId: kind === "transfer" ? counterAccountId : null,
-					notes: notes.trim() === "" ? null : notes.trim(),
-					...sortedOnly,
+					...(parsed.amount !== Math.abs(editing.amount) || kind !== editing.kind
+						? { amount: parsed.amount }
+						: {}),
+					...(description !== editing.description ? { description } : {}),
+					...(accountId !== editing.accountId ? { accountId } : {}),
+					...(counter !== editing.counterAccountId ? { counterAccountId: counter } : {}),
+					...(noted !== editing.notes ? { notes: noted } : {}),
+					...(sortedOnly.categoryId !== editing.categoryId
+						? { categoryId: sortedOnly.categoryId }
+						: {}),
+					...(sortedOnly.priority !== editing.priority ? { priority: sortedOnly.priority } : {}),
 					...(way !== opened || kind !== editing.kind ? { cardId } : {}),
 				};
 				// The whole of the plan from here on, when that is what was asked for. The day
 				// is left out of it on purpose: each part falls on its own.
 				if (reach === "onwards") return session.transactions.updateFrom(editing.id, change);
-				return session.transactions.update(editing.id, { ...change, happenedOn });
+				return session.transactions.update(editing.id, {
+					...change,
+					...(happenedOn !== editing.happenedOn ? { happenedOn } : {}),
+				});
 			}
 
+			// A plan is written whole: the amount of each part times the parts, from the part after
+			// the ones paid before, on its day and its invoice.
+			const count = canSplit ? partCount : 1;
+			const total = count > 1 && eachPart ? parsed.amount * count : parsed.amount;
+			const start =
+				count > 1 && anchor
+					? {
+							happenedOn: anchor.day,
+							firstInstallment: anchor.firstNumber,
+							...(anchor.invoice ? { invoiceMonth: anchor.invoice } : {}),
+						}
+					: { happenedOn };
 			return session.transactions.create({
 				spaceId,
 				kind,
-				amount: parsed.amount,
-				happenedOn,
+				amount: total,
 				description,
 				accountId,
 				counterAccountId: kind === "transfer" ? counterAccountId : null,
@@ -340,7 +441,8 @@ export function TransactionForm({
 				// stayed out of the balance and the next morning came back as late.
 				status: "settled",
 				notes: notes.trim() === "" ? null : notes.trim(),
-				installments: canSplit ? Number(installments) : 1,
+				installments: count,
+				...start,
 				...sorting,
 			});
 		},
@@ -468,7 +570,11 @@ export function TransactionForm({
 
 					<div className="grid gap-4 md:grid-cols-2">
 						<Field
-							label={t("transactions.amount")}
+							label={
+								reach === "onwards" || (eachPart && partCount > 1 && !editing)
+									? t("transactions.amountEachPart")
+									: t("transactions.amount")
+							}
 							hint={t("fields.amountHint")}
 							value={amount}
 							onChange={(event) => setAmount(event.target.value)}
@@ -515,14 +621,17 @@ export function TransactionForm({
 								<Select
 									label={t("transactions.installments")}
 									value={installments}
-									onChange={(event) => setInstallments(event.target.value)}
+									onChange={(event) => {
+										setInstallments(event.target.value);
+										setPaidBefore("");
+									}}
 									// The invoice is only something to speak of on a card.
 									hint={
 										chosen?.kind === "credit"
-											? t("transactions.installmentsHint")
-											: t("transactions.installmentsHintMonth")
+											? t("transactions.installmentsHint", { max: MAX_INSTALLMENTS })
+											: t("transactions.installmentsHintMonth", { max: MAX_INSTALLMENTS })
 									}
-									options={Array.from({ length: 24 }, (_unused, index) => ({
+									options={Array.from({ length: MAX_INSTALLMENTS }, (_unused, index) => ({
 										value: String(index + 1),
 										label:
 											index === 0
@@ -550,6 +659,33 @@ export function TransactionForm({
 							) : null}
 						</div>
 					)}
+
+					{/* A plan: whether the amount is the whole of it or each part, what each part
+					    comes to, and the parts already paid before it was written down. */}
+					{kind === "expense" && canSplit && !editing && partCount > 1 ? (
+						<div className="space-y-3">
+							<Segmented
+								label={t("transactions.amountIs")}
+								value={eachPart ? "each" : "total"}
+								onChange={(value) => setEachPart(value === "each")}
+								options={[
+									{ value: "total", label: t("invoice.amountIsTotal") },
+									{ value: "each", label: t("invoice.amountIsEach") },
+								]}
+							/>
+							{planSaid ? <p className="text-quiet text-sm">{planSaid}</p> : null}
+							<Field
+								label={t("transactions.paidBefore")}
+								hint={t("transactions.paidBeforeHint")}
+								type="number"
+								min={1}
+								max={partCount - 1}
+								value={paidBefore}
+								onChange={(event) => setPaidBefore(event.target.value)}
+							/>
+							{firstKeptSaid ? <p className="text-quiet text-sm">{firstKeptSaid}</p> : null}
+						</div>
+					) : null}
 
 					{/* Which invoice a card purchase lands on, said before it is written rather
 				    than found out on the invoice screen three weeks later. */}
