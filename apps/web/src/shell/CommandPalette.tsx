@@ -79,6 +79,12 @@ export function CommandPalette({ state }: { state: PaletteState }) {
 				run: go(ROUTES.transactions),
 			},
 			{
+				id: "goRecurring",
+				group: t("palette.navigate"),
+				label: t("nav.recurring"),
+				run: go(ROUTES.recurring),
+			},
+			{
 				id: "goMonth",
 				group: t("palette.navigate"),
 				label: t("nav.month"),

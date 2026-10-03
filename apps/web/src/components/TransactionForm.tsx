@@ -88,7 +88,15 @@ export function TransactionForm({
 	 * would change a month somebody has already read.
 	 */
 	const [reach, setReach] = useState<"this" | "onwards">("this");
-	const mayReachOnwards = useWhatIMayDo(spaceId).mayCall("transactions.updateFrom");
+	const whatIMay = useWhatIMayDo(spaceId);
+	const mayReachOnwards = whatIMay.mayCall("transactions.updateFrom");
+	/**
+	 * A record that happens again, said where it is written: the form opens for whoever writes
+	 * records, so the field is drawn for whoever may also write the series behind it.
+	 */
+	const [repeats, setRepeats] = useState<"" | "weekly" | "monthly" | "yearly">("");
+	const mayRepeat = whatIMay.mayCall("recurrences.startWith");
+	const mayChangeSeries = whatIMay.mayCall("recurrences.update");
 	const [problem, setProblem] = useState<string | null>(null);
 	/** The move between accounts this spend turned out to be, with what was typed. */
 	const [moving, setMoving] = useState<MoveStart | null>(null);
@@ -287,6 +295,7 @@ export function TransactionForm({
 		// the thing in front of them, and the wider answer is the one that has to be asked
 		// for.
 		setReach("this");
+		setRepeats("");
 		if (editing) {
 			setKind(editing.kind);
 			setAmount(
@@ -407,9 +416,36 @@ export function TransactionForm({
 					...(sortedOnly.priority !== editing.priority ? { priority: sortedOnly.priority } : {}),
 					...(way !== opened || kind !== editing.kind ? { cardId } : {}),
 				};
+				// The series from the next time on, when that is what was asked for, and this record
+				// as well while it is still there: one already gone, or one somebody had changed.
+				// One ahead that nobody touched is written again by the series, with the change.
+				if (reach === "onwards" && editing.recurrenceId !== null) {
+					await session.recurrences.update(editing.recurrenceId, {
+						...(change.description !== undefined ? { description: change.description } : {}),
+						...(change.amount !== undefined ? { amount: change.amount } : {}),
+						...(change.accountId !== undefined ? { accountId: change.accountId } : {}),
+						...(change.cardId !== undefined ? { cardId: change.cardId } : {}),
+						...(change.categoryId !== undefined ? { categoryId: change.categoryId } : {}),
+						...(change.priority !== undefined ? { priority: change.priority } : {}),
+						...(change.notes !== undefined ? { notes: change.notes } : {}),
+						...(happenedOn !== editing.happenedOn ? { startsOn: happenedOn } : {}),
+					});
+					await session.recurrences.materialize({ spaceId });
+					const still = (
+						await session.transactions.list({
+							spaceId,
+							from: editing.happenedOn,
+							to: editing.happenedOn,
+							recurrenceId: editing.recurrenceId,
+						})
+					).some((one) => one.id === editing.id);
+					if (!still) return null;
+				}
 				// The whole of the plan from here on, when that is what was asked for. The day
 				// is left out of it on purpose: each part falls on its own.
-				if (reach === "onwards") return session.transactions.updateFrom(editing.id, change);
+				if (reach === "onwards" && editing.installmentGroup !== null) {
+					return session.transactions.updateFrom(editing.id, change);
+				}
 				return session.transactions.update(editing.id, {
 					...change,
 					...(happenedOn !== editing.happenedOn ? { happenedOn } : {}),
@@ -419,6 +455,23 @@ export function TransactionForm({
 			// A plan is written whole: the amount of each part times the parts, from the part after
 			// the ones paid before, on its day and its invoice.
 			const count = canSplit ? partCount : 1;
+			// One that repeats is its series: the record of the day typed and the days ahead, in
+			// one write, the day typed once.
+			if (repeats !== "" && count === 1 && kind !== "transfer") {
+				return session.recurrences.startWith({
+					spaceId,
+					kind,
+					amount: parsed.amount,
+					description,
+					accountId,
+					cardId: sorting.cardId,
+					categoryId: sorting.categoryId,
+					priority: sorting.priority,
+					happenedOn,
+					notes: notes.trim() === "" ? null : notes.trim(),
+					frequency: repeats,
+				});
+			}
 			const total = count > 1 && eachPart ? parsed.amount * count : parsed.amount;
 			const start =
 				count > 1 && anchor
@@ -726,6 +779,39 @@ export function TransactionForm({
 								/>
 							) : null}
 						</div>
+					) : null}
+
+					{/* A record a series wrote: this one, or the series from the next time on. What
+					    already happened stays what it was either way. */}
+					{editing && editing.recurrenceId !== null && mayChangeSeries ? (
+						<Segmented
+							label={t("transactions.reach")}
+							value={reach}
+							onChange={(next) => setReach(next)}
+							options={[
+								{ value: "this", label: t("transactions.seriesThis") },
+								{ value: "onwards", label: t("transactions.seriesOnwards") },
+							]}
+						/>
+					) : null}
+
+					{/* Whether it happens again. Only on a record being written, and not on one in
+					    parts, which repeats already. */}
+					{!editing && kind !== "transfer" && mayRepeat && !(canSplit && partCount > 1) ? (
+						<Select
+							label={t("recurrences.frequency")}
+							value={repeats}
+							onChange={(event) =>
+								setRepeats(event.target.value as "" | "weekly" | "monthly" | "yearly")
+							}
+							hint={repeats === "" ? undefined : t("transactions.repeatsHint")}
+							options={[
+								{ value: "", label: t("transactions.noRepeat") },
+								{ value: "weekly", label: t("recurrences.every.weekly") },
+								{ value: "monthly", label: t("recurrences.every.monthly") },
+								{ value: "yearly", label: t("recurrences.every.yearly") },
+							]}
+						/>
 					) : null}
 
 					{kind === "transfer" ? null : (

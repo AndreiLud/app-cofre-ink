@@ -258,6 +258,22 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 		return String(rows[0]?.timezone ?? "America/Sao_Paulo");
 	}
 
+	/** The last series of the chain a series is in, the one that is running. */
+	async function headOf(one: Recurrence): Promise<Recurrence> {
+		let head = one;
+		const seen = new Set([one.id]);
+		for (;;) {
+			const rows = await context.driver.all(
+				`${SELECT} WHERE r."follows_id" = ? AND r."deleted_at" IS NULL`,
+				[head.id],
+			);
+			const next = rows[0] ? toRecurrence(rows[0]) : null;
+			if (next === null || seen.has(next.id)) return head;
+			seen.add(next.id);
+			head = next;
+		}
+	}
+
 	/** The rule of a series, as the schedule reads it. */
 	function specOf(one: Recurrence): RecurrenceSpec {
 		return {
@@ -735,7 +751,10 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 		 * on the day of the return, so the months of the pause are not written.
 		 */
 		async update(id: string, input: UpdateRecurrenceInput): Promise<Recurrence> {
-			const found = await reachable(id);
+			// The series running now. A record written before an earlier change carries the series
+			// that wrote it, and a change asked of that one would start a second continuation
+			// beside the first, and the days ahead would be written twice.
+			const found = await headOf(await reachable(id));
 			assertCan(context.actor(), found.spaceId, "recurrence.write");
 			const today = todayIn(await timezoneOf(found.spaceId), new Date(context.now()));
 
@@ -745,12 +764,12 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 					await updateRow(write, {
 						table: recurrenceTable,
 						spaceId: found.spaceId,
-						id,
+						id: found.id,
 						values: { paused_at: context.now() },
 					});
 					await dropUntouchedAfter(write, found, today);
 				});
-				return reachable(id);
+				return reachable(found.id);
 			}
 			if (input.paused === false && found.pausedAt !== null) {
 				return continueFrom(found, {}, today, true);

@@ -214,6 +214,13 @@ export function TransactionsPage() {
 		queryFn: () => session?.categories.list(spaceId) ?? [],
 	});
 
+	// The name of the series the list is narrowed to, from "Ver lançamentos" on its screen.
+	const series = useQuery({
+		queryKey: ["recurrences", spaceId],
+		enabled: Boolean(session && currentSpace && filters.recurrenceId !== ""),
+		queryFn: () => session?.recurrences.list(spaceId) ?? [],
+	});
+
 	const cards = useQuery({
 		// The archived ones too, for the name of a record made with a card since put away.
 		queryKey: ["cards", spaceId, "includingArchived"],
@@ -265,6 +272,7 @@ export function TransactionsPage() {
 		search: filters.search === "" ? undefined : filters.search,
 		categoryIds: chosenCategories,
 		withoutCategory: filters.categoryId === "none",
+		recurrenceId: filters.recurrenceId === "" ? undefined : filters.recurrenceId,
 	};
 
 	/**
@@ -470,7 +478,15 @@ export function TransactionsPage() {
 	const narrowed = narrowedIn(filters);
 
 	const clearFilters = () => {
-		show({ ...filters, kind: "", status: "", accountId: "", cardId: "", categoryId: "" });
+		show({
+			...filters,
+			kind: "",
+			status: "",
+			accountId: "",
+			cardId: "",
+			categoryId: "",
+			recurrenceId: "",
+		});
 		setPicked([]);
 	};
 
@@ -596,6 +612,9 @@ export function TransactionsPage() {
 				{row.reconciledAt !== null ? (
 					<span className="ml-2 text-xs text-cedar">{t("transactions.reconciled")}</span>
 				) : null}
+				{row.recurrenceId !== null ? (
+					<span className="ml-2 text-xs text-quiet">{t("transactions.repeats")}</span>
+				) : null}
 			</TableCell>
 			<TableCell className="hidden text-quiet sm:table-cell">
 				{/* The card beside the account, when the record says which: the
@@ -643,6 +662,11 @@ export function TransactionsPage() {
 								}}
 							>
 								{t("transactions.edit")}
+							</MenuItem>
+						) : null}
+						{row.recurrenceId !== null ? (
+							<MenuItem onSelect={() => void navigate({ to: ROUTES.recurring })}>
+								{t("transactions.seeSeries")}
 							</MenuItem>
 						) : null}
 						{row.status === "planned" && mayUpdate ? (
@@ -974,6 +998,21 @@ export function TransactionsPage() {
 							]}
 						/>
 					</div>
+				) : null}
+
+				{filters.recurrenceId !== "" ? (
+					<p className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+						<span className="text-ink">
+							{t("transactions.ofSeries", {
+								description:
+									series.data?.find((one) => one.id === filters.recurrenceId)?.description ??
+									t("transactions.aSeries"),
+							})}
+						</span>
+						<Button size="small" variant="quiet" onClick={() => change({ recurrenceId: "" })}>
+							{t("transactions.everyRecord")}
+						</Button>
+					</p>
 				) : null}
 
 				<div className="mt-3">

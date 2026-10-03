@@ -18,7 +18,7 @@ new one.
 | [0009](0009_authentication_and_identity.md) | authentication on the server, identity mirroring and invitations | accepted |
 | [0010](0010_shape_of_a_transaction.md) | transfers, signs, invoices and installments | accepted |
 | [0011](0011_reading_one_line_of_text.md) | reading a record from one line somebody typed | accepted |
-| [0012](0012_rules_and_recurrences.md) | categories, rules that sort, and what repeats | accepted |
+| [0012](0012_rules_and_recurrences.md) | categories, rules that sort, and what repeats | accepted, amended by 0068 |
 | [0013](0013_budget_goals_and_splitting.md) | limits, goals, saving first and dividing an expense | accepted |
 | [0014](0014_charts_and_sizes.md) | charts drawn by hand, and screens that survive a resize | accepted |
 | [0015](0015_import_export_and_sync.md) | reading files in, taking everything out, and meeting a server | accepted, extended by 0035 |
@@ -27,7 +27,7 @@ new one.
 | [0018](0018_making_the_history_smaller.md) | folding the change log up to a watermark, and packing what travels | accepted |
 | [0019](0019_the_months_ahead.md) | projections, scenarios, compound interest and what is put aside | accepted |
 | [0020](0020_an_application_in_a_window.md) | installed on a telephone, wrapped for a desktop, served from anywhere | partly superseded by 0021 |
-| [0021](0021_a_web_application_that_tidies_itself.md) | no shell, and housekeeping that nobody is asked about | accepted |
+| [0021](0021_a_web_application_that_tidies_itself.md) | no shell, and housekeeping that nobody is asked about | accepted, amended by 0068 |
 | [0022](0022_reading_the_figures_back.md) | findings over a household's own records, and five ways in | accepted |
 | [0023](0023_surfaces_weight_and_one_colour.md) | three surfaces, two weights of line, and one interactive colour | accepted |
 | [0024](0024_the_plastic_and_the_money.md) | cards, the accounts they reach, and which pot a voucher is | accepted |
@@ -73,3 +73,4 @@ new one.
 | [0065](0065_reading_a_document_again.md) | reading a document again: its kind, its convention and its own total | accepted |
 | [0066](0066_what_an_import_writes.md) | what an import writes | accepted, the owner's suggestions wait for confirmation |
 | [0067](0067_the_period_of_a_list.md) | the period of a list, and a filter that follows the calendar | accepted, the months ahead and the saved period wait for confirmation |
+| [0068](0068_what_repeats_is_a_chain.md) | what repeats has a screen, a chain and one writer | accepted, three choices wait for confirmation |

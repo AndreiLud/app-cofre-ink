@@ -82,7 +82,7 @@ export async function promisesFromBefore(
 	const one = await first.newPage();
 	await openCofre(one);
 
-	await go(one, "Calendário");
+	await go(one, "Recorrentes");
 	await one.getByRole("button", { name: "Nova recorrência" }).click();
 	const dialog = one.getByRole("dialog");
 	await dialog.getByLabel("Descrição").fill(series.description);
@@ -192,6 +192,7 @@ export function inside(page: Page, label: string) {
  */
 const SECTION_OF: Record<string, string> = {
 	Lista: "Lançamentos",
+	Recorrentes: "Lançamentos",
 	"O mês": "Lançamentos",
 	Faturas: "Lançamentos",
 	Calendário: "Lançamentos",

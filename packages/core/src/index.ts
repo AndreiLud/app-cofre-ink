@@ -31,6 +31,7 @@ export * from "./plan/interest.ts";
 export * from "./plan/projection.ts";
 export * from "./proof/sha256.ts";
 export * from "./proof/work.ts";
+export * from "./recurrences/monthly.ts";
 export * from "./recurrences/schedule.ts";
 export * from "./recurrences/untouched.ts";
 export * from "./reports/flow.ts";

@@ -16,6 +16,7 @@ import { SignInPage } from "../pages/SignInPage.tsx";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useAutomaticBackup } from "../storage/useAutomaticBackup.ts";
+import { useSeriesWriter } from "../storage/useSeriesWriter.ts";
 import { CommandPalette, useCommandPalette } from "./CommandPalette.tsx";
 import { SpaceSwitcher } from "./SpaceSwitcher.tsx";
 
@@ -37,6 +38,7 @@ function sectionsOf(t: (key: string) => string) {
 			icon: "records" as const,
 			children: [
 				{ to: ROUTES.transactions, label: t("nav.allRecords") },
+				{ to: ROUTES.recurring, label: t("nav.recurring") },
 				// Beside the list, because it is the other way of writing the same thing and
 				// somebody who does not want the list has to find it without being told.
 				{ to: ROUTES.month, label: t("nav.month") },
@@ -309,6 +311,8 @@ export function AppShell({ children }: { children: ReactNode }) {
 	// A copy that only keeps up while somebody is looking at the data screen is not a
 	// copy that keeps up, so what runs it is mounted here, around everything.
 	useAutomaticBackup();
+	// And the series write what they owe in every space, whichever screen is open.
+	useSeriesWriter();
 
 	const isDark =
 		choice === "dark" ||

@@ -15,7 +15,7 @@ test.describe("the calendar", () => {
 
 	test("puts what repeats on the days it falls due", async ({ page }) => {
 		await openCofre(page);
-		await go(page, "Calendário");
+		await go(page, "Recorrentes");
 
 		await page.getByRole("button", { name: "Nova recorrência" }).click();
 		await page.getByRole("dialog").getByLabel("Descrição").fill("Aluguel do mês");
@@ -28,6 +28,7 @@ test.describe("the calendar", () => {
 		);
 
 		// And the calendar itself now carries it.
+		await go(page, "Calendário");
 		await expect(page.getByText("Aluguel do mês").first()).toBeVisible();
 
 		// It starts today, so today's is money that moved and nobody had to say so. Next
@@ -42,7 +43,7 @@ test.describe("the calendar", () => {
 		page,
 	}) => {
 		await openCofre(page);
-		await go(page, "Calendário");
+		await go(page, "Recorrentes");
 
 		await page.getByRole("button", { name: "Nova recorrência" }).click();
 		await page.getByRole("dialog").getByLabel("Descrição").fill("Internet");

@@ -7,18 +7,15 @@
 
 import { addMonthsToMonth, addUpInBase, monthOf, todayIn } from "@cofre/core";
 import { hasHappened, type Transaction } from "@cofre/storage";
-import { Button, InsightTitle, Panel, Skeleton } from "@cofre/ui";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useEffect, useMemo } from "react";
+import { Button, InsightTitle, Skeleton } from "@cofre/ui";
+import { useQuery } from "@tanstack/react-query";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { RecurrencesSection } from "../components/RecurrencesSection.tsx";
 import { Value } from "../components/Value.tsx";
-import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { useMonthInAddress } from "../lib/monthAddress.ts";
 import { ROUTES } from "../routes.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
-import { useWhatIMayDo } from "../storage/roles.ts";
 
 /** Monday first, which is how a month is read in Brazil and in most of Europe. */
 const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -40,7 +37,6 @@ function weekdayOf(date: string): number {
 export function CalendarPage() {
 	const { t, i18n } = useTranslation();
 	const { session, currentSpace } = useCofre();
-	const queries = useQueryClient();
 
 	const spaceId = currentSpace?.id ?? "";
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
@@ -56,27 +52,8 @@ export function CalendarPage() {
 			}),
 	);
 
-	// The series write what they owe before the month is drawn, so a bill that has not
-	// been written yet still shows up on the day it falls due.
-	//
-	// Writing them is for the roles that may set them, so this asks first. It used to ask
-	// nobody and drop the promise, so every opening of this screen by a Viewer or a Logger
-	// left a refusal in the console, on every visit and every space switch, and nothing
-	// said their calendar was missing whatever the series had not written yet.
-	const mayMaterialise = useWhatIMayDo(spaceId).mayCall("recurrences.materialize");
-	useEffect(() => {
-		if (!session || spaceId === "" || !mayMaterialise) return;
-		session.recurrences
-			.materialize({ spaceId })
-			.then((written) => {
-				if (written > 0) {
-					afterRecordsChange(queries);
-				}
-			})
-			// Nothing on screen: the month is drawn either way and a person who did not ask
-			// for this has nothing to do about it. But not thrown away either.
-			.catch((error: unknown) => console.warn("the series could not be written", error));
-	}, [session, spaceId, queries, mayMaterialise]);
+	// What the series owe is written by the shell, for every space, whichever screen is open:
+	// storage/useSeriesWriter.ts. This screen used to be the only one that wrote it.
 
 	const period = useMemo(() => {
 		const days = daysOfMonth(month);
@@ -248,9 +225,13 @@ export function CalendarPage() {
 
 			<p className="text-xs text-quiet">{t("calendar.plannedLegend")}</p>
 
-			<Panel title={t("recurrences.title")}>
-				<RecurrencesSection spaceId={spaceId} today={today} />
-			</Panel>
+			{/* The series have a screen of their own now; this is the way there from the month
+			    they are drawn on. */}
+			<p className="text-sm">
+				<Link to={ROUTES.recurring} className="text-ink underline underline-offset-2">
+					{t("recurrences.calendarLink")}
+				</Link>
+			</p>
 		</div>
 	);
 }

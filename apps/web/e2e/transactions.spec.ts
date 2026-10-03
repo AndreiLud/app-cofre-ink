@@ -202,7 +202,7 @@ test.describe("records", () => {
 		await expect(form).toContainText("passa a contar no saldo sozinho nesse dia");
 		await page.getByRole("button", { name: "Salvar" }).click();
 
-		await go(page, "Calendário");
+		await go(page, "Recorrentes");
 		await page.getByRole("button", { name: "Nova recorrência" }).click();
 		await page.getByRole("dialog").getByLabel("Descrição").fill("Academia");
 		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("149,00");

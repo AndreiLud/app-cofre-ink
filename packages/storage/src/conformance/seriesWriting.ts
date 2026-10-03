@@ -126,6 +126,26 @@ export function runSeriesWritingConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		it("takes a change asked of an older series of the chain to the one running", async () => {
+			// "Este e os próximos" on the record of October, which the first series wrote.
+			const fixture = await prepare(adapter);
+			try {
+				const { spaceId, series } = await writtenOnTheFirst(fixture);
+				const on = await onTheDay(fixture);
+				await on.recurrences.update(series.id, { amount: 150_000 });
+				await on.recurrences.update(series.id, { amount: 160_000 });
+				await on.recurrences.materialize({ spaceId });
+				expect(await amountsOf(on, spaceId)).toEqual([
+					["2026-10-05", -145_000],
+					["2026-11-05", -160_000],
+					["2026-12-05", -160_000],
+				]);
+				expect((await on.recurrences.list(spaceId)).map((one) => one.amount)).toEqual([160_000]);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		it("moves the day of the month from the next month on", async () => {
 			const fixture = await prepare(adapter);
 			try {

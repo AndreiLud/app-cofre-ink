@@ -23,6 +23,7 @@ const NOTHING: Filters = {
 	cardId: "",
 	categoryId: "",
 	search: "",
+	recurrenceId: "",
 	month: "2026-10",
 };
 

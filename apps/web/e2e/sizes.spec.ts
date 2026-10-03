@@ -19,6 +19,7 @@ const SCREENS = [
 	"/lancamentos",
 	// The list of a year, grouped by month, with the months ahead closed at the top.
 	"/lancamentos?ano=2026",
+	"/recorrentes",
 	"/mes",
 	"/relatorios",
 	"/orcamento",

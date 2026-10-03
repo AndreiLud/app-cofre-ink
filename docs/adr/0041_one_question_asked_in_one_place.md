@@ -73,11 +73,14 @@ two to be found by somebody reading the screens afterwards. All four are written
 
 1. Who owes whom, because a logger is part of that count.
 2. The log of what happened in the space, which they do not read.
-3. A series, which is a promise of the household and not a record. The rent and the salary
-   are on the calendar for everybody who can see the calendar, and narrowing the list to
-   the person who typed it would leave a month looking empty and a projection built on a
-   third of what is coming. They read the list and they do not write it: `recurrence.write`
-   belongs to the owner, the administrator and the editor.
+3. A series, which is a rule of the household and not a record. They see the series of the
+   space on their own screen, with no sentence about what they add up to, no button and no
+   menu: they read the list and they do not write it, `recurrence.write` belongs to the owner,
+   the administrator and the editor. The days a series writes are records, written by whoever
+   opened the application, so the calendar and the overview's list of what falls due, which are
+   made of records, show them only their own. This item said the rent and the salary were on
+   the calendar for everybody who can see it, which stopped being true when the days became
+   records; corrected with registry 0068.
 4. A holding, which is money the household owns rather than money that moved. There is
    nothing in it to attribute to a person. The one figure on that screen that was made of
    records, how long this money would last without an income, closed to them in 1.1.0,

@@ -677,6 +677,7 @@ export function DashboardPage() {
 				currency: row.currency,
 				kind: row.kind,
 				invoice: false,
+				repeats: row.recurrenceId !== null,
 			})),
 		...bills.coming,
 	].sort((one, other) => (one.on < other.on ? -1 : 1));
@@ -1556,6 +1557,8 @@ type Due = {
 	currency: string;
 	kind: string;
 	invoice: boolean;
+	/** Written by a series, which the line says. */
+	repeats?: boolean;
 	/** On an invoice: the day a payment already written for it leaves the bank. */
 	scheduledOn?: string | null;
 	/** On an invoice: whether anything is left that no payment covers yet. */
@@ -1828,6 +1831,9 @@ function DueRow({
 				<span className="font-mono text-quiet text-xs">{dayAndMonth(row.on)}</span>
 				<span className="truncate">{row.description}</span>
 				{row.invoice ? <span className="text-quiet text-xs">{t("dashboard.oneBill")}</span> : null}
+				{row.repeats ? (
+					<span className="text-quiet text-xs">{t("transactions.repeats")}</span>
+				) : null}
 				{row.invoice && row.scheduledOn ? (
 					<span className="text-quiet text-xs">
 						{t("dashboard.paymentScheduled", { day: dayAndMonth(row.scheduledOn) })}

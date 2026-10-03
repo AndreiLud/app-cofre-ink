@@ -26,6 +26,8 @@ export type Filters = {
 	/** A category, the word "none" for what was never sorted, or empty for everything. */
 	categoryId: string;
 	search: string;
+	/** What one series wrote, with the series before and after it, or empty for every record. */
+	recurrenceId: string;
 	/** The period: "" for every month, "AAAA" for a year, "AAAA-MM" for a month. */
 	month: string;
 };
@@ -46,6 +48,8 @@ export type RecordsSearch = {
 	conta?: string;
 	cartao?: string;
 	categoria?: string;
+	/** A series, from "Ver lançamentos" on the screen of the things that repeat. */
+	serie?: string;
 };
 
 /**
@@ -94,6 +98,7 @@ export function readRecordsSearch(search: Record<string, unknown>): RecordsSearc
 		conta: word(search.conta),
 		cartao: word(search.cartao),
 		categoria: word(search.categoria),
+		serie: word(search.serie),
 	};
 }
 
@@ -106,6 +111,7 @@ export function filtersFromAddress(asked: RecordsSearch, thisMonth: string): Fil
 		cardId: asked.cartao ?? "",
 		categoryId: asked.categoria === UNSORTED ? "none" : (asked.categoria ?? ""),
 		search: asked.busca ?? "",
+		recurrenceId: asked.serie ?? "",
 		month:
 			asked.mes === EVERY_MONTH
 				? ""
@@ -130,6 +136,7 @@ export function addressFromFilters(filters: Filters, thisMonth: string): Records
 		conta: filters.accountId || undefined,
 		cartao: filters.cardId || undefined,
 		categoria: filters.categoryId === "none" ? UNSORTED : filters.categoryId || undefined,
+		serie: filters.recurrenceId || undefined,
 	};
 }
 
@@ -150,6 +157,7 @@ export function filtersFromSaved(query: Record<string, unknown>, thisMonth: stri
 		cardId: text("cardId"),
 		categoryId: text("categoryId"),
 		search: text("search"),
+		recurrenceId: text("recurrenceId"),
 		month: !("month" in query)
 			? thisMonth
 			: text("month") === THIS_YEAR
@@ -175,6 +183,7 @@ export function savedFromFilters(filters: Filters, thisMonth: string): Record<st
 		["cardId", filters.cardId],
 		["categoryId", filters.categoryId],
 		["search", filters.search],
+		["recurrenceId", filters.recurrenceId],
 	] as const) {
 		if (value !== "") query[name] = value;
 	}

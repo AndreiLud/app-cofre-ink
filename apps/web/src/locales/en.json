@@ -106,7 +106,8 @@
 		"planning": "Planning",
 		"settings": "Settings",
 		"insideLabel": "Screens in this section",
-		"money": "Accounts"
+		"money": "Accounts",
+		"recurring": "Recurring"
 	},
 	"projection": {
 		"headlineLasts": "In {{month}} you would have {{amount}}",
@@ -796,7 +797,16 @@
 		"ahead": "Still to come",
 		"aheadSummary_one": "{{count}} record: {{income}} in, {{expense}} out",
 		"aheadSummary_other": "{{count}} records: {{income}} in, {{expense}} out",
-		"aheadCaption": "Records of the months after this one, with day, description, account and amount"
+		"aheadCaption": "Records of the months after this one, with day, description, account and amount",
+		"ofSeries": "Only what {{description}} wrote.",
+		"aSeries": "the series",
+		"everyRecord": "See every one",
+		"seriesThis": "Only this one",
+		"seriesOnwards": "This one and the next ones",
+		"noRepeat": "Does not repeat",
+		"repeatsHint": "Writes this one and the next ones, each on its day. To change or stop it, use Recurring.",
+		"repeats": "repeats",
+		"seeSeries": "See the recurrence"
 	},
 	"rulesSection": {
 		"title": "Rules that sort on their own",
@@ -821,11 +831,10 @@
 	},
 	"recurrences": {
 		"title": "What happens again",
-		"explain": "Rent, a subscription, a salary. {{app}} writes these as planned records on the right days, and they only touch the balance when you mark them as paid.",
+		"explain": "Rent, a subscription, a salary. {{app}} writes each one on its day, and it counts in the balance when the day comes, with nothing to tick.",
 		"create": "New recurrence",
 		"createDescription": "Say what repeats, how much and from when.",
 		"edit": "Edit",
-		"actions": "Recurrence actions",
 		"pause": "Hold",
 		"resume": "Start again",
 		"paused": "on hold",
@@ -840,7 +849,24 @@
 			"weekly": "Every week",
 			"monthly": "Every month",
 			"yearly": "Every year"
-		}
+		},
+		"monthSentence": "Every month what repeats takes {{out}} out and brings {{in}} in.",
+		"stoppedAccount": "stopped: its account was deleted or put away",
+		"stoppedCard": "stopped: its card was deleted or put away",
+		"seeRecords": "See its records",
+		"actionsOf": "What to do with {{description}}",
+		"endsOn": "Until",
+		"endsOnHint": "Empty, it does not end.",
+		"pastOnes_one": "This also writes 1 occurrence already gone ({{days}}), {{amount}}, and it counts in the balance.",
+		"pastOnes_other": "This also writes {{count}} occurrences already gone ({{days}}), {{amount}}, and they count in the balance.",
+		"leavePastOut": "Leave them out",
+		"deleteTitle": "Delete {{description}}?",
+		"deleteKeeps": "What already happened stays, and so does anything somebody changed by hand.",
+		"deleteGoing_one": "1 record still to come goes, {{days}}.",
+		"deleteGoing_other": "{{count}} records still to come go, {{days}}.",
+		"deleteNothing": "No record still to come goes.",
+		"editNote": "The change applies from the next time on. What already happened stays as it is.",
+		"calendarLink": "See what repeats"
 	},
 	"calendar": {
 		"headline": "{{month}}, the way it will happen",

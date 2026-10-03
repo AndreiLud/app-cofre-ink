@@ -8,6 +8,8 @@
 export const ROUTES = {
 	dashboard: "/",
 	transactions: "/lancamentos",
+	/** The things that happen again: rent, a subscription, a salary. */
+	recurring: "/recorrentes",
 	month: "/mes",
 	calendar: "/calendario",
 	reports: "/relatorios",

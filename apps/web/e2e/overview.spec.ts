@@ -174,7 +174,7 @@ test.describe("the overview", () => {
 		// A series that started before today writes a record for every day it has already
 		// passed. Release 1.2.1 wrote each one as a promise and listed them all as late, for
 		// somebody to say they happened. They are facts now, and their days have come.
-		await go(page, "Calendário");
+		await go(page, "Recorrentes");
 		await page.getByRole("button", { name: "Nova recorrência" }).click();
 		await page.getByRole("dialog").getByLabel("Descrição").fill("Academia");
 		await page.getByRole("dialog").getByLabel("Valor", { exact: true }).fill("149,00");

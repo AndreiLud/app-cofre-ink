@@ -72,6 +72,12 @@ const transactionsRoute = createRoute({
 	component: TransactionsPage,
 });
 
+const recurringRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: "/recorrentes",
+	component: lazyRouteComponent(() => import("./pages/RecurringPage.tsx"), "RecurringPage"),
+});
+
 const monthRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/mes",
@@ -193,6 +199,7 @@ const designSystemRoute = createRoute({
 const routeTree = rootRoute.addChildren([
 	dashboardRoute,
 	transactionsRoute,
+	recurringRoute,
 	monthRoute,
 	calendarRoute,
 	reportsRoute,

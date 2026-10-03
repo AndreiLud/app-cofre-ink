@@ -106,7 +106,8 @@
 		"planning": "Planejamento",
 		"settings": "Ajustes",
 		"insideLabel": "Telas desta seção",
-		"money": "Contas"
+		"money": "Contas",
+		"recurring": "Recorrentes"
 	},
 	"projection": {
 		"headlineLasts": "Em {{month}} você teria {{amount}}",
@@ -796,7 +797,16 @@
 		"ahead": "Ainda vão acontecer",
 		"aheadSummary_one": "{{count}} lançamento: entradas {{income}}, saídas {{expense}}",
 		"aheadSummary_other": "{{count}} lançamentos: entradas {{income}}, saídas {{expense}}",
-		"aheadCaption": "Lançamentos dos meses depois deste, com dia, descrição, conta e valor"
+		"aheadCaption": "Lançamentos dos meses depois deste, com dia, descrição, conta e valor",
+		"ofSeries": "Só o que {{description}} escreveu.",
+		"aSeries": "a série",
+		"everyRecord": "Ver todos",
+		"seriesThis": "Só este",
+		"seriesOnwards": "Este e os próximos",
+		"noRepeat": "Não repete",
+		"repeatsHint": "Grava este e os próximos, cada um no seu dia. Para mudar ou parar, use Recorrentes.",
+		"repeats": "repete",
+		"seeSeries": "Ver a recorrência"
 	},
 	"rulesSection": {
 		"title": "Regras que categorizam sozinhas",
@@ -821,11 +831,10 @@
 	},
 	"recurrences": {
 		"title": "O que se repete",
-		"explain": "Aluguel, assinatura, salário. O {{app}} escreve esses lançamentos como previstos nos dias certos, e eles só mexem no saldo quando você marca como pago.",
+		"explain": "Aluguel, assinatura, salário. O {{app}} escreve cada um no seu dia, e ele conta no saldo quando o dia chega, sem ninguém marcar nada.",
 		"create": "Nova recorrência",
 		"createDescription": "Diga o que se repete, quanto e a partir de quando.",
 		"edit": "Editar",
-		"actions": "Ações da recorrência",
 		"pause": "Pausar",
 		"resume": "Voltar a repetir",
 		"paused": "pausada",
@@ -840,7 +849,24 @@
 			"weekly": "Toda semana",
 			"monthly": "Todo mês",
 			"yearly": "Todo ano"
-		}
+		},
+		"monthSentence": "Todo mês o que se repete tira {{out}} e põe {{in}}.",
+		"stoppedAccount": "parou: a conta foi apagada ou guardada",
+		"stoppedCard": "parou: o cartão foi apagado ou guardado",
+		"seeRecords": "Ver lançamentos",
+		"actionsOf": "O que fazer com {{description}}",
+		"endsOn": "Até",
+		"endsOnHint": "Em branco, não tem fim.",
+		"pastOnes_one": "Isto lança também 1 ocorrência que já passou ({{days}}), {{amount}}, e ela entra no saldo.",
+		"pastOnes_other": "Isto lança também {{count}} ocorrências que já passaram ({{days}}), {{amount}}, e elas entram no saldo.",
+		"leavePastOut": "Deixar de fora",
+		"deleteTitle": "Apagar {{description}}?",
+		"deleteKeeps": "O que já aconteceu fica, e o que alguém mudou à mão também.",
+		"deleteGoing_one": "Sai 1 lançamento que ainda ia acontecer, {{days}}.",
+		"deleteGoing_other": "Saem {{count}} lançamentos que ainda iam acontecer, {{days}}.",
+		"deleteNothing": "Nenhum lançamento que ainda ia acontecer sai.",
+		"editNote": "A mudança vale da próxima vez em diante. O que já aconteceu fica como está.",
+		"calendarLink": "Ver o que se repete"
 	},
 	"calendar": {
 		"headline": "O mês de {{month}}, do jeito que ele vai acontecer",

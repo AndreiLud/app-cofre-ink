@@ -52,7 +52,8 @@ const WHERE: Partial<Record<Finding["code"], { to: string; label: string }>> = {
 	categoryAboveUsual: { to: ROUTES.transactions, label: "nav.allRecords" },
 	budgetPassed: { to: ROUTES.budget, label: "nav.budget" },
 	budgetPace: { to: ROUTES.budget, label: "nav.budget" },
-	subscriptionLoad: { to: ROUTES.transactions, label: "nav.allRecords" },
+	// The charges that repeat are dealt with where the series are.
+	subscriptionLoad: { to: ROUTES.recurring, label: "nav.recurring" },
 	subscriptionRose: { to: ROUTES.transactions, label: "nav.allRecords" },
 	chargedTwice: { to: ROUTES.transactions, label: "nav.allRecords" },
 	invoiceOverBalance: { to: ROUTES.invoices, label: "nav.invoices" },

@@ -77,7 +77,15 @@ test.describe("the keyboard and the screen reader", () => {
 	test("gives every screen exactly one first level heading", async ({ page }) => {
 		await openCofre(page);
 
-		for (const screen of ["Painel", "Lançamentos", "O mês", "Orçamento", "Relatórios", "Contas"]) {
+		for (const screen of [
+			"Painel",
+			"Lançamentos",
+			"Recorrentes",
+			"O mês",
+			"Orçamento",
+			"Relatórios",
+			"Contas",
+		]) {
 			await go(page, screen);
 			await expect(page.getByRole("heading", { level: 1 }), `${screen} has one h1`).toHaveCount(1);
 		}
