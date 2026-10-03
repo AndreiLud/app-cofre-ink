@@ -42,6 +42,20 @@ Uma compra parcelada escreve todas as parcelas de uma vez, compartilhando um
 identificador de grupo, para que o conjunto inteiro possa ser removido como uma coisa
 só.
 
+Um plano tem no máximo 48 parcelas, e pedir mais é recusado com uma frase, nunca cortado
+para 48. Só saídas são parceladas, e nunca no cartão de benefício. O formulário pergunta se
+o valor digitado é o total ou o de cada parcela; a linha lê `48x de 99,90` como cada parcela
+e `tv 2400 48x` como o total. Os dois dizem quanto dá cada parcela antes de gravar.
+
+Uma compra começada antes do Cofre pode ser gravada da parcela seguinte às já pagas: "Já
+paguei 10" numa compra em 48 grava as parcelas 11 a 48, a primeira no dia da compra mais dez
+meses e na fatura da compra mais dez. Quando um extrato diz a fatura dessa parcela, vale a
+fatura do extrato, e as seguintes vão uma em cada fatura.
+
+Mudar uma parcela com "esta e as próximas" muda essa parcela e todas as seguintes, nunca as
+anteriores e nunca o dia. Só vai o que mudou, e um valor mandado é o de cada parcela. Mover a
+fatura de uma parcela move junto todas as parcelas do plano.
+
 Um lançamento num cartão de crédito é colocado na fatura a que pertence, decidida pelo
 dia de fechamento da conta e não pelo mês do calendário.
 
@@ -131,7 +145,10 @@ cresceu, o que vence na quinta, se o mercado passou do limite. O raciocínio est
 
 Um espaço compartilhado tem membros. Uma despesa pode ser dividida igual, por cota, ou
 proporcional à renda declarada. A divisão escreve linhas dizendo quem deve qual parte
-daquela despesa.
+daquela despesa. Uma parcela de um plano é dividida com o plano inteiro, cada parcela pelo
+seu valor, e desfazer a divisão desfaz em todas. O que alguém deve conta a partir do dia de
+cada lançamento: uma geladeira em 48 dividida entre dois deixa o outro devendo metade de uma
+parcela no dia da compra, e mais uma metade a cada mês.
 
 Ela é entre os membros do espaço em que a despesa está, e só entre eles. Quem está em
 dois espaços compartilhados com pessoas diferentes vê as pessoas do espaço que está

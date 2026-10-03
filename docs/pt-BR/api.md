@@ -62,6 +62,16 @@ Todo o resto exige sessão e responde `401 {"error": "signedOut"}` sem uma.
 | `POST` | `/api/transactions/:id/invoice/move` | uma fatura antes ou depois, com todas as parcelas do plano. Todas ou nenhuma |
 | `DELETE` | `/api/installments/:groupId` | o conjunto inteiro de parcelas |
 
+Um lançamento parcelado é criado com `installments`, um número inteiro a partir de um, e o
+valor da compra inteira. Mais de 48 parcelas, parcelas numa entrada, parcelas no cartão de
+benefício e parcelas abaixo de um centavo voltam 409 com o código da regra:
+`tooManyInstallments`, `onlyExpensesGoInInstallments`, `benefitIsNotInInstallments`,
+`partBelowOneCent`. Um plano começado antes é gravado a partir de `firstInstallment` (um
+quando não vem), com `happenedOn` o dia dessa parcela; `invoiceMonth`, quando vem, é a fatura
+dessa parcela, e cada parcela seguinte fica na fatura seguinte. Um `firstInstallment` além do
+plano volta `firstInstallmentOutsidePlan`. Planos gravados antes da 2.0.0 com mais de 48
+parcelas são lidos, mudados e restaurados como estão.
+
 Os filtros da listagem são parâmetros de consulta: `accountId`, `cardId`, `kind`,
 `status`, `from`, `to`, `invoiceMonth`, `search`, `categoryIds` como lista separada por
 vírgula, `withoutCategory`, `externalIds`, `order` como `oldestFirst`, `limit` e `offset`. A
@@ -113,8 +123,8 @@ rota daqui fecha para quem só vê os lançamentos que escreveu.
 
 | método | caminho | o que faz |
 | --- | --- | --- |
-| `GET` `POST` `DELETE` | `/api/transactions/:id/splits` | como uma despesa é dividida. Uma parte vai pelo identificador, em `shares`, e nunca pela posição |
-| `GET` | `/api/spaces/:id/sharing/balances` | quem deve o quê, no total |
+| `GET` `POST` `DELETE` | `/api/transactions/:id/splits` | como uma despesa é dividida. Uma parte vai pelo identificador, em `shares`, e nunca pela posição. Numa parcela de um plano, gravar e apagar valem para todas as parcelas dele |
+| `GET` | `/api/spaces/:id/sharing/balances` | quem deve o quê, no total, contando cada divisão a partir do dia do lançamento |
 | `GET` | `/api/spaces/:id/sharing/suggested` | o menor número de pagamentos que fecha |
 | `GET` `POST` | `/api/spaces/:id/sharing/settlements` | pagamentos já registrados, registrar um |
 | `DELETE` | `/api/settlements/:id` | esquecer um pagamento |

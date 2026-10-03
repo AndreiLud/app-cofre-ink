@@ -41,6 +41,21 @@ was wrong.
 An instalment purchase writes every instalment at once, sharing a group identifier, so
 the whole set can be removed as one thing.
 
+A plan has at most 48 parts, and asking for more is refused with a sentence, never cut down
+to 48. Only money out goes in parts, and never on a benefit card. The form asks whether the
+amount typed is the whole or each part; the line reads `48x de 99,90` as each part and
+`tv 2400 48x` as the whole. Both say what each part comes to before anything is written.
+
+A purchase begun before Cofre can be written from the part after the ones already paid:
+"Já paguei 10" (Already paid 10) on a purchase in 48 writes parts 11 to 48, the first on
+the day of the purchase plus ten months and on the invoice of the purchase plus ten. When a
+statement says the invoice of that part, the invoice of the statement holds, and the parts
+after it follow one invoice each.
+
+Changing a part with "this and the next" changes that part and every part after it, never
+the ones behind and never the day. Only what was changed is sent, and an amount sent is the
+amount of each part. Moving the invoice of a part moves every part of the plan with it.
+
 A record on a credit card is placed in the invoice it belongs to, which is decided by
 the closing day of the account and not by the calendar month.
 
@@ -129,7 +144,10 @@ is in [decision record 0038](../adr/0038_a_month_in_three_numbers.md).
 
 A shared space has members. An expense can be split evenly, by share, or in proportion
 to declared income. The split writes rows saying who owes what part of that one
-expense.
+expense. A part of an instalment plan is divided with the whole plan, each part by what it
+is worth, and taking the division back takes it from every part. What somebody owes counts
+from the day of each record, so a fridge in 48 shared by two has the other person owing one
+half of one part on the day it was bought, and a half more each month.
 
 It is between the members of the space the expense is in, and only them. Somebody who
 is in two shared spaces with different people sees the people of the space they are

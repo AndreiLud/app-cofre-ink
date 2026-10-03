@@ -63,6 +63,16 @@ one.
 | `POST` | `/api/transactions/:id/invoice/move` | one invoice earlier or later, with every part of an instalment plan. All of them or none |
 | `DELETE` | `/api/installments/:groupId` | the whole instalment set |
 
+A record in parts is created with `installments`, a whole number from one, and the amount of
+the whole purchase. More than 48 parts, parts on money coming in, parts on a benefit card and
+parts below one cent are refused with 409 and the code of the rule: `tooManyInstallments`,
+`onlyExpensesGoInInstallments`, `benefitIsNotInInstallments`, `partBelowOneCent`. A plan
+begun before is written from `firstInstallment` (one when it is left out), with `happenedOn`
+the day of that part; `invoiceMonth`, when given, is the invoice of that part, and each part
+after it is on the next invoice. A `firstInstallment` beyond the plan is refused with
+`firstInstallmentOutsidePlan`. Plans written before 2.0.0 with more than 48 parts are read,
+changed and restored as they are.
+
 The filters on the list are query parameters: `accountId`, `cardId`, `kind`, `status`,
 `from`, `to`, `invoiceMonth`, `search`, `categoryIds` as a comma separated list,
 `withoutCategory`, `externalIds`, `order` as `oldestFirst`, `limit` and `offset`. The order
@@ -115,8 +125,8 @@ route here closes to somebody who only ever sees the records they wrote.
 
 | method | path | what it does |
 | --- | --- | --- |
-| `GET` `POST` `DELETE` | `/api/transactions/:id/splits` | how one expense is divided. A share is given by identifier, in `shares`, and never by position |
-| `GET` | `/api/spaces/:id/sharing/balances` | who owes what, in total |
+| `GET` `POST` `DELETE` | `/api/transactions/:id/splits` | how one expense is divided. A share is given by identifier, in `shares`, and never by position. On a part of an instalment plan, writing and removing apply to every part of it |
+| `GET` | `/api/spaces/:id/sharing/balances` | who owes what, in total, counting each division from the day of its record |
 | `GET` | `/api/spaces/:id/sharing/suggested` | the fewest payments that close it |
 | `GET` `POST` | `/api/spaces/:id/sharing/settlements` | payments already recorded, record one |
 | `DELETE` | `/api/settlements/:id` | forget a payment |

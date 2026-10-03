@@ -69,3 +69,4 @@ new one.
 | [0060](0060_what_the_repository_keeps_and_the_image_carries.md) | what the repository keeps, what git ignores, and what the image carries | accepted |
 | [0062](0062_a_month_on_paper_as_it_stood.md) | a month on paper as it stood, and the day a month counts as over | accepted |
 | [0063](0063_an_invoice_paid_with_a_card_or_in_parts.md) | an invoice paid with another card, or in parts | accepted |
+| [0064](0064_a_plan_of_up_to_forty_eight_parts.md) | a plan of up to forty eight parts, refused rather than cut | accepted, the division between people waits for the owner |
