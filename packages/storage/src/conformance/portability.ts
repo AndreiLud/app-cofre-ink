@@ -505,6 +505,49 @@ export function runPortabilityConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 2, A.1.4 of the request for 2.0.0: the spreadsheet called a payment of an invoice
+		// and money moved into savings the same thing, a transfer, which the interface no longer
+		// says. The kind of the account it landed in tells the two apart.
+		it("says what kind of account a transfer landed in", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				const make = (kind: "checking" | "savings" | "credit", name: string) =>
+					fixture.asAna.accounts.create({
+						spaceId: space.id,
+						kind,
+						name,
+						...(kind === "credit" ? { closingDay: 3, dueDay: 10 } : {}),
+					});
+				const checking = await make("checking", "Conta corrente");
+				const savings = await make("savings", "Reserva");
+				const card = await make("credit", "Cartao");
+				for (const [to, description] of [
+					[savings.id, "Guardar"],
+					[card.id, "Pagamento"],
+				] as const) {
+					await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "transfer",
+						amount: 10_000,
+						happenedOn: "2026-09-10",
+						description,
+						accountId: checking.id,
+						counterAccountId: to,
+					});
+				}
+
+				const rows = await fixture.asAna.backup.recordsForExport(space.id);
+				const read = rows.map((row) => [row.description, row.counterKind]);
+				expect(read.sort()).toEqual([
+					["Guardar", "savings"],
+					["Pagamento", "credit"],
+				]);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		it("gives a logger the records of that logger, and no others", async () => {
 			const fixture = await prepare(adapter);
 			try {

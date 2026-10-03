@@ -573,7 +573,7 @@
 		"rateIsRequired": "Um lançamento em outra moeda precisa da cotação usada no dia.",
 		"tooManyAdjustments": "Um cenário com mais de vinte mudanças dentro não é uma pergunta que alguém consiga ler. Faça dois cenários.",
 		"transferBeforeLeaving": "Um Dono passa o espaço para outra pessoa antes de sair dele. Em Gerenciar espaços, no menu de quem vai ficar.",
-		"transfersAreNotSplit": "Uma transferência não se divide em parcelas.",
+		"transfersAreNotSplit": "Uma movimentação entre contas não se divide em parcelas.",
 		"installmentDaysAreTheirOwn": "Cada parcela cai no dia dela, então o dia é mudado uma parcela por vez.",
 		"useLeave": "Para sair de um espaço, use $t(members.leave).",
 		"notThere": "Não achei isso. Pode ter sido apagado, ou pode não estar ao seu alcance.",
@@ -690,7 +690,10 @@
 		"refund": "Estornar",
 		"refundTitle": "Estornar a compra",
 		"refundBody": "O valor volta para o cartão e sai do gasto na categoria da compra. Não conta como dinheiro que entrou.",
-		"refundOf": "Estorno: {{description}}"
+		"refundOf": "Estorno: {{description}}",
+		"wasAMove": "Foi para uma conta sua, como a poupança ou o vale? Isso não é gasto:",
+		"useMove": "use Mover entre contas.",
+		"kindMoves": "Pagamentos de fatura e movimentações"
 	},
 	"rulesSection": {
 		"title": "Regras que categorizam sozinhas",
@@ -932,9 +935,10 @@
 		"moveAnyway": "Mover mesmo assim"
 	},
 	"transactionKind": {
-		"expense": "Despesa",
-		"income": "Receita",
-		"transfer": "Transferência"
+		"expense": "Saída",
+		"income": "Entrada",
+		"transfer": "Movimentação entre contas",
+		"payment": "Pagamento de fatura"
 	},
 	"transactionStatus": {
 		"settled": "Aconteceu",

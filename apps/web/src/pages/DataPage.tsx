@@ -265,7 +265,15 @@ export function DataPage() {
 				record.description,
 				writeAmount(record.amount),
 				record.currency,
-				t(`transactionKind.${record.kind}`),
+				// The interface has no transfers any more: money that went into a card paid its
+				// invoice, and anything else moved between two accounts.
+				record.kind === "transfer"
+					? t(
+							record.counterKind === "credit"
+								? "transactionKind.payment"
+								: "transactionKind.transfer",
+						)
+					: t(`transactionKind.${record.kind}`),
 				t(`transactionStatus.${record.status}`),
 				record.account,
 				record.counterAccount,

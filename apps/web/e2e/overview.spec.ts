@@ -11,6 +11,7 @@ import {
 	dayField,
 	figure,
 	go,
+	moveBetween,
 	onTheDay,
 	openCofre,
 	promisesFromBefore,
@@ -77,15 +78,12 @@ test.describe("the overview", () => {
 		await expect(page.getByRole("dialog")).toHaveCount(0);
 		await expect(record(page, "Estorno: Almoço perto do trabalho")).toBeVisible();
 
-		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
-		const form = page.getByRole("dialog");
-		await form.getByText("Transferência", { exact: true }).click();
-		await form.getByLabel("Valor", { exact: true }).fill("100,00");
-		await form.getByLabel("Descrição").fill("Recarga por Pix");
-		await form.getByLabel("Sai de").selectOption({ label: "Conta corrente" });
-		await form.getByLabel("Entra em").selectOption({ label: "Vale refeição" });
-		await page.getByRole("button", { name: "Salvar" }).click();
-		await expect(page.getByRole("dialog")).toHaveCount(0);
+		await moveBetween(page, {
+			from: "Conta corrente",
+			to: "Vale refeição",
+			amount: "100,00",
+			description: "Recarga por Pix",
+		});
 
 		await go(page, "Painel");
 		await expect(page.getByText("R$ 1.000,00").first()).toBeVisible();
@@ -267,16 +265,12 @@ test.describe("the overview", () => {
 		await go(page, "Painel");
 		await expect(figure(page, "Ainda dá para gastar")).toHaveText("R$ 2.500,00");
 
-		await go(page, "Lançamentos");
-		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
-		const form = page.getByRole("dialog");
-		await form.getByText("Transferência", { exact: true }).click();
-		await form.getByLabel("Valor", { exact: true }).fill("500,00");
-		await form.getByLabel("Descrição").fill("Guardar");
-		await form.getByLabel("Sai de").selectOption({ label: "Banco" });
-		await form.getByLabel("Entra em").selectOption({ label: "Reserva" });
-		await page.getByRole("button", { name: "Salvar" }).click();
-		await expect(page.getByRole("dialog")).toHaveCount(0);
+		await moveBetween(page, {
+			from: "Banco",
+			to: "Reserva",
+			amount: "500,00",
+			description: "Guardar",
+		});
 
 		await go(page, "Painel");
 		await expect(figure(page, "Ainda dá para gastar")).toHaveText("R$ 2.500,00");

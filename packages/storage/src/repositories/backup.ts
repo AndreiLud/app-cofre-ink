@@ -98,6 +98,12 @@ export type RecordForExport = {
 	status: string;
 	account: string;
 	counterAccount: string | null;
+	/**
+	 * The kind of the account a transfer lands in, which is what says whether it paid an
+	 * invoice or moved money between two accounts. A spreadsheet that called both a
+	 * transfer named a word the interface no longer uses.
+	 */
+	counterKind: string | null;
 	/** The plastic it was paid with, when the record says. */
 	card: string | null;
 	category: string | null;
@@ -397,7 +403,8 @@ export function createBackupRepository(context: RepositoryContext) {
 				`SELECT t."happened_on", t."description", t."amount", t."currency", t."kind",
 				        t."status", t."notes", t."invoice_month", t."priority", t."external_id",
 				        t."installment_number", t."installment_count",
-				        a."name" AS account_name, b."name" AS counter_name, c."name" AS category_name,
+				        a."name" AS account_name, b."name" AS counter_name, b."kind" AS counter_kind,
+				        c."name" AS category_name,
 				        d."name" AS card_name
 				 FROM "transactions" t
 				 JOIN "accounts" a ON a."id" = t."account_id"
@@ -418,6 +425,7 @@ export function createBackupRepository(context: RepositoryContext) {
 				status: String(row.status),
 				account: String(row.account_name),
 				counterAccount: row.counter_name === null ? null : String(row.counter_name),
+				counterKind: row.counter_kind === null ? null : String(row.counter_kind),
 				card: row.card_name === null ? null : String(row.card_name),
 				category: row.category_name === null ? null : String(row.category_name),
 				priority: row.priority === null ? null : String(row.priority),

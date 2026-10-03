@@ -224,3 +224,23 @@ export async function openSetting(page: Page, label: "Gerenciar espaços") {
 export function record(page: Page, description: string) {
 	return page.getByRole("row").filter({ hasText: description });
 }
+
+/**
+ * Money moved between two accounts, through Move between accounts on the accounts screen,
+ * which is where a move is written since the form for a record kept only money out and
+ * money in.
+ */
+export async function moveBetween(
+	page: Page,
+	move: { from: string; to: string; amount: string; description?: string },
+): Promise<void> {
+	await go(page, "Contas");
+	await page.getByRole("button", { name: "Mover entre contas" }).click();
+	const dialog = page.getByRole("dialog");
+	await dialog.getByLabel("De", { exact: true }).selectOption({ label: move.from });
+	await dialog.getByLabel("Para", { exact: true }).selectOption({ label: move.to });
+	await dialog.getByLabel("Valor", { exact: true }).fill(move.amount);
+	if (move.description) await dialog.getByLabel("Descrição").fill(move.description);
+	await page.getByRole("button", { name: "Salvar" }).click();
+	await expect(dialog).toHaveCount(0);
+}

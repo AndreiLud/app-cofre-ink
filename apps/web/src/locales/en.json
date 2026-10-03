@@ -573,7 +573,7 @@
 		"rateIsRequired": "A record in another currency needs the rate used on the day.",
 		"tooManyAdjustments": "A scenario with more than twenty changes in it is not a question anybody can read. Make two scenarios.",
 		"transferBeforeLeaving": "An Owner hands the space to somebody else before leaving it. Under Manage spaces, in the menu of whoever is staying.",
-		"transfersAreNotSplit": "A transfer is not split into instalments.",
+		"transfersAreNotSplit": "A move between accounts is not split into instalments.",
 		"installmentDaysAreTheirOwn": "Each part of a purchase falls on its own day, so the day is changed one part at a time.",
 		"useLeave": "To leave a space, use $t(members.leave).",
 		"notThere": "I could not find that. It may have been erased, or it may be out of your reach.",
@@ -690,7 +690,10 @@
 		"refund": "Refund",
 		"refundTitle": "Refund the purchase",
 		"refundBody": "The amount goes back on the card and comes off the spending in the purchase's category. It does not count as money coming in.",
-		"refundOf": "Refund: {{description}}"
+		"refundOf": "Refund: {{description}}",
+		"wasAMove": "Did it go into an account of yours, like savings or the meal card? That is not spending:",
+		"useMove": "use Move between accounts.",
+		"kindMoves": "Invoice payments and moves"
 	},
 	"rulesSection": {
 		"title": "Rules that sort on their own",
@@ -932,9 +935,10 @@
 		"moveAnyway": "Move anyway"
 	},
 	"transactionKind": {
-		"expense": "Expense",
-		"income": "Income",
-		"transfer": "Transfer"
+		"expense": "Money out",
+		"income": "Money in",
+		"transfer": "Moved between accounts",
+		"payment": "Invoice payment"
 	},
 	"transactionStatus": {
 		"settled": "Happened",

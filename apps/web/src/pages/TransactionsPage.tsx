@@ -481,7 +481,8 @@ export function TransactionsPage() {
 								{ value: "", label: t("transactions.anyKind") },
 								{ value: "expense", label: t("transactionKind.expense") },
 								{ value: "income", label: t("transactionKind.income") },
-								{ value: "transfer", label: t("transactionKind.transfer") },
+								// Still tipo=transfer in the address, which somebody may have saved.
+								{ value: "transfer", label: t("transactions.kindMoves") },
 							]}
 						/>
 						<Select

@@ -1,9 +1,10 @@
 // Writing down what happened.
 //
-// The three kinds are on screen at once rather than behind a menu, because choosing
-// between them is the decision, not a detail of it. Everything else on the form
-// changes with that choice: a transfer needs a destination, a card purchase can be
-// split, and neither makes sense for the other.
+// The two kinds are on screen at once rather than behind a menu, because choosing between
+// them is the decision, not a detail of it: money out says what it was paid with and may
+// be split, money in says where it landed. Moving money between two accounts of the same
+// person was a third kind here, and it is an action on the accounts now (decision 1 of
+// 2.0.0), so the form only edits a move that already exists, with both of its ends.
 
 import {
 	type CalendarDate,
@@ -30,6 +31,7 @@ import { fillAmount, readAmount } from "../lib/amounts.ts";
 import { lastWayUsed, rememberWayUsed } from "../lib/lastWay.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { MoveDialog, type MoveStart, movesInto, movesOutOf } from "./MoveDialog.tsx";
 
 export type TransactionFormProps = {
 	open: boolean;
@@ -74,6 +76,8 @@ export function TransactionForm({
 	 */
 	const [reach, setReach] = useState<"this" | "onwards">("this");
 	const [problem, setProblem] = useState<string | null>(null);
+	/** The move between accounts this spend turned out to be, with what was typed. */
+	const [moving, setMoving] = useState<MoveStart | null>(null);
 
 	const categories = useQuery({
 		queryKey: ["categories", spaceId],
@@ -343,7 +347,6 @@ export function TransactionForm({
 		save.mutate();
 	}
 
-	const accountOptions = usable.map((account) => ({ value: account.id, label: account.name }));
 	/**
 	 * Where money comes in, or where a move starts: an account that holds money. Never a
 	 * benefit card, which takes no income and lets nothing out, and never a credit card,
@@ -354,6 +357,38 @@ export function TransactionForm({
 	const sourceOptions = usable
 		.filter((account) => countsAsMoney(account.kind) || account.id === editing?.accountId)
 		.map((account) => ({ value: account.id, label: account.name }));
+
+	/**
+	 * The two ends of a move that already exists: the lists of Move between accounts, and the
+	 * accounts the row already has, so an old move from a card or into an investment opens to
+	 * be corrected rather than to be changed behind somebody's back.
+	 */
+	const movesFrom = accounts
+		.filter((account) => movesOutOf(account) || account.id === editing?.accountId)
+		.map((account) => ({ value: account.id, label: account.name }));
+	const movesTo = accounts
+		.filter(
+			(account) =>
+				account.id !== accountId &&
+				(movesInto(account) || account.id === editing?.counterAccountId),
+		)
+		.map((account) => ({ value: account.id, label: account.name }));
+
+	/**
+	 * What was typed, handed to Move between accounts: a spend into the savings account or
+	 * onto the meal card is not spending, and writing it as one made the month look worse by
+	 * exactly what was put aside.
+	 */
+	function moveInstead() {
+		const from = usable.find((account) => account.id === accountId);
+		setMoving({
+			amount,
+			happenedOn,
+			description: description.trim() === "" ? undefined : description,
+			fromId: from && movesOutOf(from) ? from.id : undefined,
+		});
+		onOpenChange(false);
+	}
 
 	// The list reads as the tree it is: a category, then the ones under it, set in from
 	// the margin by a couple of spaces rather than by a decoration.
@@ -371,221 +406,242 @@ export function TransactionForm({
 	const chosenCategory = sorted.find((category) => category.id === categoryId);
 
 	return (
-		<Dialog
-			open={open}
-			onOpenChange={onOpenChange}
-			title={editing ? t("transactions.edit") : t("transactions.create")}
-			description={t("transactions.createDescription")}
-			closeLabel={t("actions.close")}
-			footer={
-				<>
-					<Button variant="quiet" onClick={() => onOpenChange(false)}>
-						{t("actions.cancel")}
-					</Button>
-					<Button variant="primary" onClick={() => save.mutate()} disabled={save.isPending}>
-						{t("actions.save")}
-					</Button>
-				</>
-			}
-		>
-			<form onSubmit={submit} className="space-y-4">
-				{editing ? null : (
-					<Segmented
-						label={t("transactions.kind")}
-						value={kind}
-						onChange={changeKind}
-						options={[
-							{ value: "expense", label: t("transactionKind.expense") },
-							{ value: "income", label: t("transactionKind.income") },
-							{ value: "transfer", label: t("transactionKind.transfer") },
-						]}
-					/>
-				)}
+		<>
+			<Dialog
+				open={open}
+				onOpenChange={onOpenChange}
+				title={editing ? t("transactions.edit") : t("transactions.create")}
+				description={t("transactions.createDescription")}
+				closeLabel={t("actions.close")}
+				footer={
+					<>
+						<Button variant="quiet" onClick={() => onOpenChange(false)}>
+							{t("actions.cancel")}
+						</Button>
+						<Button variant="primary" onClick={() => save.mutate()} disabled={save.isPending}>
+							{t("actions.save")}
+						</Button>
+					</>
+				}
+			>
+				<form onSubmit={submit} className="space-y-4">
+					{editing ? null : (
+						<div className="space-y-2">
+							<Segmented
+								label={t("transactions.kind")}
+								value={kind}
+								onChange={changeKind}
+								options={[
+									{ value: "expense", label: t("transactionKind.expense") },
+									{ value: "income", label: t("transactionKind.income") },
+								]}
+							/>
+							{kind === "expense" ? (
+								<p className="text-quiet text-sm">
+									{t("transactions.wasAMove")}{" "}
+									<button
+										type="button"
+										className="text-ink underline underline-offset-2"
+										onClick={moveInstead}
+									>
+										{t("transactions.useMove")}
+									</button>
+								</p>
+							) : null}
+						</div>
+					)}
 
-				<div className="grid gap-4 md:grid-cols-2">
+					<div className="grid gap-4 md:grid-cols-2">
+						<Field
+							label={t("transactions.amount")}
+							hint={t("fields.amountHint")}
+							value={amount}
+							onChange={(event) => setAmount(event.target.value)}
+							numeric={true}
+							inputMode="decimal"
+							placeholder={t("fields.amountPlaceholder")}
+							required={true}
+						/>
+						<Field
+							label={t("transactions.day")}
+							type="date"
+							value={happenedOn}
+							onChange={(event) => setHappenedOn(event.target.value)}
+							required={true}
+							// Off while the change reaches the parts ahead, because each of them
+							// falls on its own day a month apart and one day written over all of
+							// them would pile the whole purchase onto one afternoon.
+							disabled={reach === "onwards"}
+							hint={reach === "onwards" ? t("transactions.dayIsPerPart") : undefined}
+						/>
+					</div>
+
 					<Field
-						label={t("transactions.amount")}
-						hint={t("fields.amountHint")}
-						value={amount}
-						onChange={(event) => setAmount(event.target.value)}
-						numeric={true}
-						inputMode="decimal"
-						placeholder={t("fields.amountPlaceholder")}
+						label={t("transactions.description")}
+						value={description}
+						onChange={(event) => setDescription(event.target.value)}
+						placeholder={t("transactions.descriptionPlaceholder")}
 						required={true}
 					/>
-					<Field
-						label={t("transactions.day")}
-						type="date"
-						value={happenedOn}
-						onChange={(event) => setHappenedOn(event.target.value)}
-						required={true}
-						// Off while the change reaches the parts ahead, because each of them
-						// falls on its own day a month apart and one day written over all of
-						// them would pile the whole purchase onto one afternoon.
-						disabled={reach === "onwards"}
-						hint={reach === "onwards" ? t("transactions.dayIsPerPart") : undefined}
-					/>
-				</div>
 
-				<Field
-					label={t("transactions.description")}
-					value={description}
-					onChange={(event) => setDescription(event.target.value)}
-					placeholder={t("transactions.descriptionPlaceholder")}
-					required={true}
-				/>
-
-				{/* One field, because it was one decision behind two controls. A spend says
+					{/* One field, because it was one decision behind two controls. A spend says
 				    what it was paid with; money coming in says where it landed; a transfer
 				    says both ends and never a card, because moving money between two of your
 				    own accounts is not a purchase whatever plastic was in the hand. */}
-				{kind === "expense" ? (
-					<div className="grid gap-4 md:grid-cols-2">
-						<Select
-							label={t("transactions.paidWith")}
-							value={way}
-							onChange={(event) => pickWay(event.target.value)}
-							options={ways.map((entry) => ({ value: entry.value, label: entry.label }))}
-						/>
-						{canSplit && !editing ? (
+					{kind === "expense" ? (
+						<div className="grid gap-4 md:grid-cols-2">
 							<Select
-								label={t("transactions.installments")}
-								value={installments}
-								onChange={(event) => setInstallments(event.target.value)}
-								hint={t("transactions.installmentsHint")}
-								options={Array.from({ length: 24 }, (_unused, index) => ({
-									value: String(index + 1),
-									label:
-										index === 0
-											? t("transactions.inFull")
-											: t("transactions.timesOf", { count: index + 1 }),
-								}))}
+								label={t("transactions.paidWith")}
+								value={way}
+								onChange={(event) => pickWay(event.target.value)}
+								options={ways.map((entry) => ({ value: entry.value, label: entry.label }))}
 							/>
-						) : null}
-					</div>
-				) : (
-					<div className="grid gap-4 md:grid-cols-2">
-						<Select
-							label={kind === "transfer" ? t("transactions.from") : t("transactions.landsIn")}
-							value={accountId}
-							onChange={(event) => setAccountId(event.target.value)}
-							options={sourceOptions}
-						/>
-						{kind === "transfer" ? (
+							{canSplit && !editing ? (
+								<Select
+									label={t("transactions.installments")}
+									value={installments}
+									onChange={(event) => setInstallments(event.target.value)}
+									hint={t("transactions.installmentsHint")}
+									options={Array.from({ length: 24 }, (_unused, index) => ({
+										value: String(index + 1),
+										label:
+											index === 0
+												? t("transactions.inFull")
+												: t("transactions.timesOf", { count: index + 1 }),
+									}))}
+								/>
+							) : null}
+						</div>
+					) : (
+						<div className="grid gap-4 md:grid-cols-2">
 							<Select
-								label={t("transactions.to")}
-								value={counterAccountId}
-								onChange={(event) => setCounterAccountId(event.target.value)}
-								options={[
-									{ value: "", label: t("transactions.pickAccount") },
-									...accountOptions.filter((option) => option.value !== accountId),
-								]}
+								label={kind === "transfer" ? t("transactions.from") : t("transactions.landsIn")}
+								value={accountId}
+								onChange={(event) => setAccountId(event.target.value)}
+								options={kind === "transfer" ? movesFrom : sourceOptions}
 							/>
-						) : null}
-					</div>
-				)}
+							{kind === "transfer" ? (
+								<Select
+									label={t("transactions.to")}
+									value={counterAccountId}
+									onChange={(event) => setCounterAccountId(event.target.value)}
+									options={[{ value: "", label: t("transactions.pickAccount") }, ...movesTo]}
+								/>
+							) : null}
+						</div>
+					)}
 
-				{/* Which invoice a card purchase lands on, said before it is written rather
+					{/* Which invoice a card purchase lands on, said before it is written rather
 				    than found out on the invoice screen three weeks later. */}
-				{landsOn ? <p className="text-quiet text-sm">{landsOn}</p> : null}
+					{landsOn ? <p className="text-quiet text-sm">{landsOn}</p> : null}
 
-				{/* Which part of a purchase in parts this is. The select that made them is
+					{/* Which part of a purchase in parts this is. The select that made them is
 				    gone while editing, because it was drawn and then ignored. */}
-				{editing?.installmentNumber && editing.installmentCount ? (
-					<div className="space-y-3">
-						<p className="text-quiet text-sm">
-							{t("transactions.partOf", {
-								number: editing.installmentNumber,
-								count: editing.installmentCount,
-							})}
-						</p>
+					{editing?.installmentNumber && editing.installmentCount ? (
+						<div className="space-y-3">
+							<p className="text-quiet text-sm">
+								{t("transactions.partOf", {
+									number: editing.installmentNumber,
+									count: editing.installmentCount,
+								})}
+							</p>
 
-						{/* How far the correction reaches. Only where there is something ahead
+							{/* How far the correction reaches. Only where there is something ahead
 						    of it to reach: the last part of a plan has no wider answer, and
 						    offering one there is offering the same thing twice.
 
 						    A subscription whose price went up, or a plan filed under the wrong
 						    category, used to mean opening eleven more rows by hand, and
 						    whoever opened one left ten disagreeing with it. */}
-						{editing.installmentNumber < editing.installmentCount ? (
-							<Segmented
-								label={t("transactions.reach")}
-								value={reach}
-								onChange={(next) => setReach(next)}
-								options={[
-									{ value: "this", label: t("transactions.reachThis") },
-									{
-										value: "onwards",
-										label: t("transactions.reachOnwards", {
-											count: editing.installmentCount - editing.installmentNumber + 1,
-										}),
-									},
-								]}
-							/>
-						) : null}
-					</div>
-				) : null}
+							{editing.installmentNumber < editing.installmentCount ? (
+								<Segmented
+									label={t("transactions.reach")}
+									value={reach}
+									onChange={(next) => setReach(next)}
+									options={[
+										{ value: "this", label: t("transactions.reachThis") },
+										{
+											value: "onwards",
+											label: t("transactions.reachOnwards", {
+												count: editing.installmentCount - editing.installmentNumber + 1,
+											}),
+										},
+									]}
+								/>
+							) : null}
+						</div>
+					) : null}
 
-				{kind === "transfer" ? null : (
-					<Select
-						label={t("transactions.category")}
-						value={categoryId}
-						onChange={(event) => setCategoryId(event.target.value)}
-						options={[{ value: "", label: t("transactions.noCategory") }, ...categoryOptions]}
-						hint={categoryOptions.length === 0 ? t("transactions.noCategoriesYet") : undefined}
-					/>
-				)}
+					{kind === "transfer" ? null : (
+						<Select
+							label={t("transactions.category")}
+							value={categoryId}
+							onChange={(event) => setCategoryId(event.target.value)}
+							options={[{ value: "", label: t("transactions.noCategory") }, ...categoryOptions]}
+							hint={categoryOptions.length === 0 ? t("transactions.noCategoriesYet") : undefined}
+						/>
+					)}
 
-				{/* There was a tickbox here asking whether this had happened yet, beside a
+					{/* There was a tickbox here asking whether this had happened yet, beside a
 				    field that had already been given the day. Two answers to one question,
 				    and the tickbox won. The day decides now, and this says what the day
 				    chosen above means, which is the only part of it worth reading. */}
-				{/* Said when editing too, since a record dated ahead is kept as a fact that waits
+					{/* Said when editing too, since a record dated ahead is kept as a fact that waits
 				    for its day, and the promise below is only what release 1.0 wrote. */}
-				{editing?.status !== "planned" &&
-				compareCalendarDates(happenedOn as CalendarDate, today) > 0 ? (
-					<p className="text-quiet text-sm">{t("transactions.aheadOfToday")}</p>
-				) : null}
-				{editing?.status === "planned" ? (
-					<p className="text-quiet text-sm">{t("transactions.stillWaiting")}</p>
-				) : null}
+					{editing?.status !== "planned" &&
+					compareCalendarDates(happenedOn as CalendarDate, today) > 0 ? (
+						<p className="text-quiet text-sm">{t("transactions.aheadOfToday")}</p>
+					) : null}
+					{editing?.status === "planned" ? (
+						<p className="text-quiet text-sm">{t("transactions.stillWaiting")}</p>
+					) : null}
 
-				{/* The two fields almost nobody fills, out of the way but not hidden: it opens
+					{/* The two fields almost nobody fills, out of the way but not hidden: it opens
 				    by itself when either of them already has something in it, so editing a
 				    record never buries what somebody wrote. */}
-				<Disclosure summary={t("transactions.moreDetails")} open={hasDetails}>
-					<div className="space-y-4">
-						{kind === "expense" ? (
-							<Select
-								label={t("transactions.priority")}
-								value={priority}
-								onChange={(event) => setPriority(event.target.value)}
-								hint={
-									chosenCategory
-										? t("transactions.priorityFromCategory", {
-												priority: t(`priority.${chosenCategory.priority}`),
-											})
-										: t("transactions.priorityHint")
-								}
-								options={[
-									{ value: "", label: t("transactions.priorityInherited") },
-									...(["essential", "important", "desirable", "superfluous"] as const).map(
-										(level) => ({ value: level, label: t(`priority.${level}`) }),
-									),
-								]}
+					<Disclosure summary={t("transactions.moreDetails")} open={hasDetails}>
+						<div className="space-y-4">
+							{kind === "expense" ? (
+								<Select
+									label={t("transactions.priority")}
+									value={priority}
+									onChange={(event) => setPriority(event.target.value)}
+									hint={
+										chosenCategory
+											? t("transactions.priorityFromCategory", {
+													priority: t(`priority.${chosenCategory.priority}`),
+												})
+											: t("transactions.priorityHint")
+									}
+									options={[
+										{ value: "", label: t("transactions.priorityInherited") },
+										...(["essential", "important", "desirable", "superfluous"] as const).map(
+											(level) => ({ value: level, label: t(`priority.${level}`) }),
+										),
+									]}
+								/>
+							) : null}
+							<Field
+								label={t("transactions.notes")}
+								value={notes}
+								onChange={(event) => setNotes(event.target.value)}
+								placeholder={t("transactions.notesPlaceholder")}
 							/>
-						) : null}
-						<Field
-							label={t("transactions.notes")}
-							value={notes}
-							onChange={(event) => setNotes(event.target.value)}
-							placeholder={t("transactions.notesPlaceholder")}
-						/>
-					</div>
-				</Disclosure>
+						</div>
+					</Disclosure>
 
-				{problem ? <Callout tone="problem">{problem}</Callout> : null}
-			</form>
-		</Dialog>
+					{problem ? <Callout tone="problem">{problem}</Callout> : null}
+				</form>
+			</Dialog>
+
+			<MoveDialog
+				open={moving !== null}
+				onOpenChange={(next) => !next && setMoving(null)}
+				spaceId={spaceId}
+				accounts={accounts}
+				today={today}
+				start={moving ?? undefined}
+			/>
+		</>
 	);
 }

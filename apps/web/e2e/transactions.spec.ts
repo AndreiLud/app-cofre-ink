@@ -188,18 +188,21 @@ test.describe("records", () => {
 		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
 		const form = page.getByRole("dialog");
 
-		await form.getByText("Receita", { exact: true }).click();
+		await form.getByText("Entrada", { exact: true }).click();
 		await expect(
 			form.getByLabel("Entrou em").locator("option", { hasText: "Vale refeição" }),
 		).toHaveCount(0);
 
-		await form.getByText("Transferência", { exact: true }).click();
+		// A move lives in Move between accounts now, reached from under money out.
+		await form.getByText("Saída", { exact: true }).click();
+		await form.getByRole("button", { name: "use Mover entre contas." }).click();
+		const move = page.getByRole("dialog");
 		await expect(
-			form.getByLabel("Sai de").locator("option", { hasText: "Vale refeição" }),
+			move.getByLabel("De", { exact: true }).locator("option", { hasText: "Vale refeição" }),
 		).toHaveCount(0);
 		// A top up still goes onto it.
 		await expect(
-			form.getByLabel("Entra em").locator("option", { hasText: "Vale refeição" }),
+			move.getByLabel("Para", { exact: true }).locator("option", { hasText: "Vale refeição" }),
 		).toHaveCount(1);
 	});
 
@@ -218,7 +221,7 @@ test.describe("records", () => {
 		await expect(record(page, "Padaria")).toBeVisible();
 
 		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
-		await form.getByText("Receita", { exact: true }).click();
+		await form.getByText("Entrada", { exact: true }).click();
 		const landing = form.getByLabel("Entrou em");
 		await expect(landing.locator("option:checked")).toHaveText("Conta corrente");
 		await expect(landing.locator("option", { hasText: "Cartão de crédito" })).toHaveCount(0);
