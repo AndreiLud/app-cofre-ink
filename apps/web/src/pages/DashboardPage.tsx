@@ -1689,8 +1689,13 @@ function VouchersTogetherLine({
  * boxes, which is registry 0023.
  */
 function CardRow({ card }: { card: CardStanding & { currency: string } }) {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const currency = card.currency;
+	const monthWord = (month: string) =>
+		new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+			month: "long",
+			timeZone: "UTC",
+		}).format(new Date(`${month}-01T00:00:00Z`));
 	return (
 		<li className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
 			<div className="min-w-0">
@@ -1719,6 +1724,13 @@ function CardRow({ card }: { card: CardStanding & { currency: string } }) {
 							</span>
 						</p>
 						<OwedLines owing={card.owing} currency={currency} />
+						{/* A split invoice owes nothing more and is in none of the lines above, so the
+						    list says it is in parts. */}
+						{card.lastClosed?.standing === "inParts" ? (
+							<p className="text-quiet text-sm">
+								{t("dashboard.lastInParts", { month: monthWord(card.lastClosed.month) })}
+							</p>
+						) : null}
 						{card.later > 0 ? (
 							<p className="text-quiet text-sm">
 								<Value amount={card.later} currency={currency} /> {t("dashboard.inPartsAfter")}

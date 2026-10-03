@@ -23,7 +23,7 @@ import {
 	limitLeftOf,
 	todayIn,
 } from "@cofre/core";
-import type { Account } from "@cofre/storage";
+import type { Account, Transaction } from "@cofre/storage";
 import {
 	Button,
 	buttonClasses,
@@ -36,6 +36,7 @@ import {
 	InsightTitle,
 	Menu,
 	MenuItem,
+	MenuLabel,
 	Panel,
 	Segmented,
 	Select,
@@ -51,9 +52,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { PayInvoiceDialog, type PayWay } from "../components/PayInvoiceDialog.tsx";
 import { Value } from "../components/Value.tsx";
 import { afterRecordsChange } from "../lib/afterRecords.ts";
-import { fillAmount, readAmount } from "../lib/amounts.ts";
+import { readAmount } from "../lib/amounts.ts";
 import { invoiceHeadline } from "../lib/invoiceHeadline.ts";
 import { payable } from "../lib/payable.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
@@ -93,19 +95,30 @@ export function InvoicePage() {
 		void navigate({ to: ROUTES.invoices, search: { cartao: next.cartao, mes: next.mes } });
 	const [problem, setProblem] = useState<string | null>(null);
 
+	/** The invoice being paid, and the way the dialog opens on. */
 	const [paying, setPaying] = useState<InvoiceState | null>(null);
+	const [payWay, setPayWay] = useState<PayWay>("money");
 	const [payFrom, setPayFrom] = useState("");
-	const [payAmount, setPayAmount] = useState("");
-	const [payOn, setPayOn] = useState("");
 	const [clearingOld, setClearingOld] = useState(false);
 	const [closedDay, setClosedDay] = useState("");
+	const [undoing, setUndoing] = useState<"parts" | "card" | null>(null);
+	const [interest, setInterest] = useState<string | null>(null);
 
 	const mine = iMay;
 	// Each button by the call it makes.
 	const mayPay = mine.mayCall("invoices.pay");
+	const mayPayWithCard = mine.mayCall("invoices.payWithCard");
+	const maySplit = mine.mayCall("invoices.split");
+	const mayUndoPlan = mine.mayCall("invoices.undoPlan");
+	const mayWrite = mine.mayCall("transactions.create");
 	const mayPayOld = mine.mayCall("invoices.markPaidUntil");
 	const mayMove = mine.mayCall("invoices.move");
 	const mayReclose = mine.mayCall("invoices.closedOn");
+	const payWays: PayWay[] = [
+		...(mayPay ? (["money"] as const) : []),
+		...(mayPayWithCard ? (["card"] as const) : []),
+		...(maySplit ? (["parts"] as const) : []),
+	];
 
 	// The archived ones too, because a card put away with its last invoice still owed is a
 	// card somebody still has to pay.
@@ -227,6 +240,26 @@ export function InvoicePage() {
 		queryFn: () => session?.invoices.list(invoiceAccount?.id ?? "", today) ?? [],
 	});
 
+	const categories = useQuery({
+		queryKey: ["categories", spaceId],
+		enabled: Boolean(session && currentSpace),
+		queryFn: () => session?.categories.list(spaceId) ?? [],
+	});
+
+	/**
+	 * The whole of the arrangement that settled this invoice, when one did: the parts, their
+	 * costs on the invoices they land on, and the entry. "Como foi paga" says it in one line.
+	 */
+	const planGroup =
+		(records.data ?? []).find(
+			(row) => row.arrangedFor === shown && row.counterAccountId === invoiceAccount?.id,
+		)?.installmentGroup ?? null;
+	const plan = useQuery({
+		queryKey: ["transactions", spaceId, "plan", planGroup],
+		enabled: Boolean(session && planGroup),
+		queryFn: () => session?.transactions.list({ spaceId, installmentGroup: planGroup ?? "" }) ?? [],
+	});
+
 	/**
 	 * Where a payment can come from: money, and never the card paying itself.
 	 *
@@ -234,8 +267,11 @@ export function InvoicePage() {
 	 * pocket, and the list is sorted by name, so the default was whichever account somebody
 	 * happened to have called something early in the alphabet.
 	 */
+	// Money only: a current account, savings or cash. An investment account was offered too, and
+	// it is worth what its holdings are worth, so paying from it took money out of "Você tem"
+	// that was never there to spend.
 	const payableFrom = (accounts.data ?? [])
-		.filter((one) => one.kind !== "credit" && one.kind !== "voucher")
+		.filter((one) => one.archivedAt === null && ["checking", "savings", "cash"].includes(one.kind))
 		.sort((left, right) => Number(right.kind === "checking") - Number(left.kind === "checking"));
 
 	function afterInvoiceChange() {
@@ -243,14 +279,15 @@ export function InvoicePage() {
 		afterRecordsChange(queries);
 	}
 
-	function openPayment(state: InvoiceState) {
+	/**
+	 * How to pay, asked in one dialog: with money, with another card, or in parts. It opens with
+	 * what is left, and not what was charged: paying an invoice twice because the field came back
+	 * with the whole amount is a mistake this screen can simply not make.
+	 */
+	function openPayment(state: InvoiceState, way: PayWay = payWays[0] ?? "money") {
 		setProblem(null);
+		setPayWay(way);
 		setPaying(state);
-		setPayFrom(payableFrom[0]?.id ?? "");
-		// What is left, and not what was charged: paying an invoice twice because the field
-		// came back with the whole amount is a mistake this screen can simply not make.
-		setPayAmount(fillAmount(amountToPay(state), i18n.resolvedLanguage, invoiceAccount?.currency));
-		setPayOn(state.dueOn);
 	}
 
 	/**
@@ -265,23 +302,45 @@ export function InvoicePage() {
 			timeZone: "UTC",
 		}).format(new Date(`${month}-01T00:00:00Z`));
 
-	const pay = useMutation({
+	/** Taking back a split, or a payment with another card, all of it at once. */
+	const undoPlan = useMutation({
 		mutationFn: async () => {
-			if (!session || !invoiceAccount || !paying) throw new Error("no session");
-			return session.invoices.pay({
+			if (!session || !invoiceAccount) throw new Error("no session");
+			return session.invoices.undoPlan({ accountId: invoiceAccount.id, month: shown, today });
+		},
+		onSuccess: () => {
+			setUndoing(null);
+			afterInvoiceChange();
+		},
+		onError: (error: unknown) => setProblem(sayWhy(error, t)),
+	});
+
+	/**
+	 * The interest the bank charged on what was not paid, which this application does not work
+	 * out: a purchase on the open invoice, under "Tarifas e juros", named after the invoice it
+	 * came from.
+	 */
+	const chargeInterest = useMutation({
+		mutationFn: async () => {
+			if (!session || !invoiceAccount || interest === null) throw new Error("no session");
+			const fees = (categories.data ?? []).find(
+				(one) =>
+					one.kind === "expense" &&
+					["tarifas e juros", "fees and interest"].includes(one.name.trim().toLowerCase()),
+			);
+			return session.transactions.create({
+				spaceId,
+				kind: "expense",
+				amount: readAmount(interest, invoiceAccount.currency),
+				happenedOn: today,
+				description: t("invoice.interestOf", { month: monthLabel(shown) }),
 				accountId: invoiceAccount.id,
-				fromAccountId: payFrom,
-				amount: readAmount(payAmount, invoiceAccount.currency),
-				happenedOn: payOn as CalendarDate,
-				month: paying.month,
-				description: t("invoice.paymentOf", {
-					month: spelled(paying.month),
-					card: invoiceAccount.name,
-				}),
+				invoiceMonth: openMonth,
+				categoryId: fees?.id ?? null,
 			});
 		},
 		onSuccess: () => {
-			setPaying(null);
+			setInterest(null);
 			afterInvoiceChange();
 		},
 		onError: (error: unknown) => setProblem(sayWhy(error, t)),
@@ -420,10 +479,19 @@ export function InvoicePage() {
 	}
 
 	// Purchases only. A payment carries the same invoice stamp, which is what makes it a
-	// payment of that invoice, and it belongs beside the total rather than inside a table
-	// headed with what the card charged.
-	const rows = (records.data ?? []).filter((row) => row.counterAccountId !== invoiceAccount?.id);
+	// payment of that invoice, and it belongs under "Como foi paga" rather than inside a table
+	// headed with what the card charged. A part of a split lands on a later invoice as a
+	// transfer from the card to itself, and there it is a purchase.
+	const paysThis = (row: Transaction) =>
+		row.counterAccountId === invoiceAccount?.id && row.invoiceMonth === shown;
+	const rows = (records.data ?? []).filter((row) => !paysThis(row));
+	const payments = (records.data ?? []).filter(paysThis);
+	/** A payment of this invoice in money, dated after today, which an arrangement would repeat. */
+	const waiting =
+		payments.find((row) => row.happenedOn > today && row.arrangedFor === null) ?? null;
 	const state = invoice.data ?? undefined;
+	const nameOfAccount = (id: string | null) =>
+		(accounts.data ?? []).find((one) => one.id === id)?.name ?? "";
 	const period = state ? { from: state.from, to: state.to } : null;
 	const dueOn = state?.dueOn ?? null;
 
@@ -483,6 +551,85 @@ export function InvoicePage() {
 		}).format(new Date(`${month}-01T00:00:00Z`));
 	}
 	const monthName = monthLabel(shown);
+
+	/**
+	 * A part of an arrangement, on the invoice it is a purchase on: "Parcelamento da fatura de
+	 * outubro, 2 de 6". It is a transfer, so it read as money coming in; it is money the card
+	 * charges, so it reads as a purchase.
+	 */
+	const chargedHere = (row: Transaction) =>
+		row.kind === "transfer" && row.accountId === invoiceAccount?.id && !paysThis(row);
+	const describe = (row: Transaction) => {
+		if (!chargedHere(row) || row.originInvoiceMonth === null) return row.description;
+		const values = {
+			month: monthLabel(row.invoiceMonth ?? ""),
+			number: row.installmentNumber ?? 1,
+			count: row.installmentCount ?? 1,
+		};
+		return row.arrangedBy === "parts"
+			? t("invoice.partOfSplit", values)
+			: t("invoice.partOfPaidWithCard", { ...values, card: nameOfAccount(row.counterAccountId) });
+	};
+	/** Why a row of an arrangement does not move, in the words the request gave it. */
+	const lockOf = (row: Transaction) =>
+		row.arrangedFor === null
+			? null
+			: t(row.arrangedBy === "card" ? "arrangement.lockedCard" : "arrangement.lockedParts", {
+					month: monthLabel(row.arrangedFor),
+				});
+
+	/**
+	 * The arrangement in one line: how many parts, of how much, on which invoices. Each part is
+	 * its share of what was owed and its cost, which sit on the same invoice.
+	 */
+	const planRows = plan.data ?? [];
+	const planLine = (() => {
+		const principal = planRows.filter((row) => row.originInvoiceMonth !== null);
+		if (principal.length === 0) return null;
+		const byNumber = new Map<number, number>();
+		for (const row of planRows) {
+			if (row.installmentNumber === null) continue;
+			byNumber.set(
+				row.installmentNumber,
+				(byNumber.get(row.installmentNumber) ?? 0) + Math.abs(row.amountInBase),
+			);
+		}
+		const each = [...byNumber.values()];
+		const months = principal.map((row) => row.originInvoiceMonth ?? "").sort();
+		const from = monthLabel(months[0] ?? "");
+		const to = monthLabel(months.at(-1) ?? "");
+		const asMoney = (cents: number) =>
+			new Intl.NumberFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+				style: "currency",
+				currency: currentSpace.baseCurrency,
+			}).format(cents / 100);
+		const summary =
+			each.length === 1
+				? t("invoice.planSummaryOne", { each: asMoney(each[0] ?? 0), from })
+				: each.every((one) => one === each[0])
+					? t("invoice.planSummary", { count: each.length, each: asMoney(each[0] ?? 0), from, to })
+					: t("invoice.planSummaryUneven", {
+							count: each.length,
+							from,
+							to,
+							total: asMoney(each.reduce((sum, one) => sum + one, 0)),
+						});
+		const by = principal[0]?.arrangedBy ?? "parts";
+		const head =
+			by === "parts"
+				? t("invoice.standing.inParts")
+				: t("invoice.paidWithCardLine", { card: nameOfAccount(principal[0]?.accountId ?? null) });
+		return { by, text: `${head}: ${summary}` };
+	})();
+	const settledPayments = payments.filter(
+		(row) => row.arrangedFor === null || row.originInvoiceMonth === null,
+	);
+	/** Closed and paid in part, which is where the revolving credit starts. */
+	const closedPartly =
+		state?.closed === true &&
+		state.left > 0 &&
+		state.paid + state.byCard + state.carriedIn > 0 &&
+		state.withoutRate === 0;
 
 	return (
 		<div className="space-y-8">
@@ -643,14 +790,35 @@ export function InvoicePage() {
 
 				{/* A payment dated ahead pays from its day. Until then the money is in the bank and
 				    the invoice is still owed, so it stays in what falls due, and this says why. */}
+				{/* An arrangement agreed for a day still to come says what is waiting, and the invoice
+				    is owed until that day, like any payment dated ahead. */}
 				{state && state.scheduled > 0 && state.scheduledOn ? (
 					<p className="text-sm text-quiet">
-						{t("invoice.scheduled", { day: dayAndMonth(state.scheduledOn) })}{" "}
-						<Value amount={state.scheduled} currency={currentSpace.baseCurrency} />
+						{state.scheduledBy === "parts" ? (
+							t("invoice.scheduledParts", { day: dayAndMonth(state.scheduledOn) })
+						) : state.scheduledBy === "card" ? (
+							t("invoice.scheduledCard", {
+								day: dayAndMonth(state.scheduledOn),
+								card: nameOfAccount(
+									payments.find((row) => row.originInvoiceMonth !== null)?.accountId ?? null,
+								),
+							})
+						) : (
+							<>
+								{t("invoice.scheduled", { day: dayAndMonth(state.scheduledOn) })}{" "}
+								<Value amount={state.scheduled} currency={currentSpace.baseCurrency} />
+							</>
+						)}
 					</p>
 				) : null}
 
-				{state?.late ? <p className="text-sm text-seal">{t("invoice.noInterest")}</p> : null}
+				{/* On every invoice that closed and was paid in part, and not only once it is late:
+				    that is when somebody decides between the revolving credit and a split. */}
+				{state?.late || closedPartly ? (
+					<p className={state?.late ? "text-sm text-seal" : "text-sm text-quiet"}>
+						{t("invoice.noInterest")}
+					</p>
+				) : null}
 
 				{/* How much of the limit is left, and not what the limit is. The limit on its own
 				    is a number nobody acts on, and this is the one the card will refuse. */}
@@ -680,10 +848,22 @@ export function InvoicePage() {
 				{/* The two do not depend on each other. The earlier invoices used to be offered only
 				    beside a payment of this one, so an open invoice with nothing on it, which is
 				    what somebody who has just updated sees first, hid every invoice they owe. */}
-				{(mayPay && payable(state)) || (mayPayOld && owingBefore.length > 0) ? (
+				{(payWays.length > 0 && payable(state)) || (mayPayOld && owingBefore.length > 0) ? (
 					<div className="flex flex-wrap gap-2 pt-2">
-						{mayPay && payable(state) ? (
+						{payWays.length > 0 && payable(state) ? (
 							<Button onClick={() => openPayment(state)}>{t("invoice.pay")}</Button>
+						) : null}
+						{/* The revolving credit, which this application does not work out: what is
+						    left split into parts, or the interest the bank charged written down. */}
+						{closedPartly && maySplit && payable(state) ? (
+							<Button variant="secondary" onClick={() => openPayment(state, "parts")}>
+								{t("invoice.splitWhatIsLeft")}
+							</Button>
+						) : null}
+						{closedPartly && mayWrite && cycle ? (
+							<Button variant="secondary" onClick={() => setInterest("")}>
+								{t("invoice.chargeInterest")}
+							</Button>
 						) : null}
 						{mayPayOld && owingBefore.length > 0 ? (
 							<Button variant="secondary" onClick={() => setClearingOld(true)}>
@@ -693,6 +873,42 @@ export function InvoicePage() {
 					</div>
 				) : null}
 			</section>
+
+			{/* How it was paid: each payment, and an arrangement in one line, with the way to take
+			    it back. The payments used to be filtered out of the table and said nowhere. */}
+			{settledPayments.length > 0 || planLine ? (
+				<section className="space-y-2">
+					<h2 className="font-serif text-lg">{t("invoice.howItWasPaid")}</h2>
+					<ul className="divide-y divide-line text-sm">
+						{planLine ? <li className="py-2">{planLine.text}</li> : null}
+						{settledPayments.map((row) => (
+							<li
+								key={row.id}
+								className="flex flex-wrap items-baseline justify-between gap-x-4 py-2"
+							>
+								<span>
+									<span className="font-mono text-quiet">{dayAndMonth(row.happenedOn)}</span>{" "}
+									{row.description}
+								</span>
+								<Value
+									amount={row.amountInBase}
+									currency={currentSpace.baseCurrency}
+									tone="neutral"
+								/>
+							</li>
+						))}
+					</ul>
+					{planLine && mayUndoPlan ? (
+						<Button
+							size="small"
+							variant="secondary"
+							onClick={() => setUndoing(planLine.by === "card" ? "card" : "parts")}
+						>
+							{planLine.by === "card" ? t("invoice.undoPaidWithCard") : t("invoice.undoSplit")}
+						</Button>
+					) : null}
+				</section>
+			) : null}
 
 			{records.isPending ? <Skeleton lines={4} /> : null}
 
@@ -722,17 +938,36 @@ export function InvoicePage() {
 									<TableCell className="whitespace-nowrap font-mono text-quiet">
 										{dayAndMonth(row.happenedOn)}
 									</TableCell>
-									<TableCell>{row.description}</TableCell>
+									<TableCell>{describe(row)}</TableCell>
 									{severalPlastics ? (
 										<TableCell className="text-quiet">
 											{plasticNames.get(row.cardId ?? "") ?? t("invoice.noCard")}
 										</TableCell>
 									) : null}
 									<TableCell numeric={true}>
-										<Value amount={row.amount} currency={row.currency} tone="auto" />
+										<Value
+											amount={chargedHere(row) ? -row.amount : row.amount}
+											currency={row.currency}
+											tone="auto"
+										/>
 									</TableCell>
 									<TableCell>
-										{mayMove ? (
+										{lockOf(row) ? (
+											<Menu
+												align="end"
+												trigger={
+													<Button
+														size="small"
+														variant="quiet"
+														aria-label={t("transactions.actions")}
+													>
+														<Icon name="settings" size="small" />
+													</Button>
+												}
+											>
+												<MenuLabel>{lockOf(row)}</MenuLabel>
+											</Menu>
+										) : mayMove ? (
 											<Menu
 												align="end"
 												trigger={
@@ -831,43 +1066,71 @@ export function InvoicePage() {
 				{problem ? <Callout tone="problem">{problem}</Callout> : null}
 			</Dialog>
 
+			{invoiceAccount ? (
+				<PayInvoiceDialog
+					state={paying}
+					card={invoiceAccount}
+					accounts={accounts.data ?? []}
+					waiting={waiting}
+					today={today}
+					startWith={payWay}
+					ways={payWays}
+					onClose={() => setPaying(null)}
+				/>
+			) : null}
+
 			<Dialog
-				open={paying !== null}
-				onOpenChange={(next) => !next && setPaying(null)}
-				title={t("invoice.payTitle")}
-				description={t("invoice.payDescription")}
+				open={undoing !== null}
+				onOpenChange={(next) => !next && setUndoing(null)}
+				title={
+					undoing === "card"
+						? t("invoice.undoPaidWithCardTitle", { month: monthName })
+						: t("invoice.undoSplitTitle", { month: monthName })
+				}
+				description={t("invoice.undoBody")}
 				closeLabel={t("actions.close")}
 				footer={
 					<>
-						<Button variant="quiet" onClick={() => setPaying(null)}>
+						<Button variant="quiet" onClick={() => setUndoing(null)}>
 							{t("actions.cancel")}
 						</Button>
-						<Button onClick={() => pay.mutate()} disabled={pay.isPending}>
-							{t("invoice.pay")}
+						<Button onClick={() => undoPlan.mutate()} disabled={undoPlan.isPending}>
+							{undoing === "card" ? t("invoice.undoPaidWithCard") : t("invoice.undoSplit")}
+						</Button>
+					</>
+				}
+			>
+				{problem ? <Callout tone="problem">{problem}</Callout> : null}
+			</Dialog>
+
+			<Dialog
+				open={interest !== null}
+				onOpenChange={(next) => !next && setInterest(null)}
+				title={t("invoice.chargeInterestTitle", { month: monthName })}
+				description={t("invoice.chargeInterestBody")}
+				closeLabel={t("actions.close")}
+				footer={
+					<>
+						<Button variant="quiet" onClick={() => setInterest(null)}>
+							{t("actions.cancel")}
+						</Button>
+						<Button
+							onClick={() => chargeInterest.mutate()}
+							disabled={chargeInterest.isPending || (interest ?? "").trim() === ""}
+						>
+							{t("invoice.chargeInterest")}
 						</Button>
 					</>
 				}
 			>
 				<div className="space-y-4">
-					<Select
-						label={t("invoice.payFrom")}
-						value={payFrom}
-						onChange={(event) => setPayFrom(event.target.value)}
-						options={accountOptions(payableFrom, t)}
-					/>
 					<Field
 						label={t("transactions.amount")}
-						hint={t("invoice.payPartHint")}
-						value={payAmount}
-						onChange={(event) => setPayAmount(event.target.value)}
+						value={interest ?? ""}
+						onChange={(event) => setInterest(event.target.value)}
 						numeric={true}
 						inputMode="decimal"
-					/>
-					<Field
-						label={t("transactions.day")}
-						type="date"
-						value={payOn}
-						onChange={(event) => setPayOn(event.target.value)}
+						placeholder={t("fields.amountPlaceholder")}
 					/>
 					{problem ? <Callout tone="problem">{problem}</Callout> : null}
 				</div>

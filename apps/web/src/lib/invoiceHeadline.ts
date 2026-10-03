@@ -22,6 +22,8 @@ export function invoiceHeadline(
 	if (!state) return t("invoice.headline", { month, card });
 	if (state.standing === "paid") return t("invoice.paidHeadline", { month, card });
 	if (state.standing === "inCredit") return t("invoice.inCreditHeadline", { month, card });
+	// Settled and still being paid, on the invoices after it: never late, nothing to pay here.
+	if (state.standing === "inParts") return t("invoice.inPartsHeadline", { month, card });
 	if (state.daysToClose > 0) {
 		return t("invoice.openHeadline", { month, card, count: state.daysToClose });
 	}

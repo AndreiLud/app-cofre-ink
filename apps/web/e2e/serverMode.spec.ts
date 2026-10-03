@@ -664,4 +664,39 @@ test.describe("server mode", () => {
 		await ana.goto(`/faturas?mes=${month}`);
 		await expect(ana.getByText(/Pagamento agendado para 05\//)).toBeVisible();
 	});
+
+	// Part 2, C.14.5 of the request for 2.0.0: splitting an invoice on a server, through the
+	// screen. The open invoice, split in three on the day it falls due, which is ahead, so it
+	// says the split is agreed for that day.
+	test("splits an invoice on the server", async ({ browser }) => {
+		const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
+
+		await go(ana, "Contas");
+		await ana.getByRole("button", { name: "Nova conta" }).first().click();
+		const making = ana.getByRole("dialog");
+		await making.getByLabel("Nome").fill("Cartao");
+		await making.getByLabel("Tipo").selectOption("credit");
+		await making.getByLabel("Dia do fechamento").selectOption("3");
+		await making.getByLabel("Dia do vencimento").selectOption("10");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(making).toHaveCount(0);
+
+		await go(ana, "Lançamentos");
+		await ana.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = ana.getByRole("dialog");
+		await form.getByLabel("Pago com").selectOption({ label: "Cartao" });
+		await form.getByLabel("Valor", { exact: true }).fill("600,00");
+		await form.getByLabel("Descrição").fill("Geladeira");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(form).toHaveCount(0);
+
+		await go(ana, "Faturas");
+		await ana.getByRole("button", { name: "Pagar fatura" }).click();
+		const paying = ana.getByRole("dialog");
+		await paying.getByText("Parcelando", { exact: true }).click();
+		await paying.getByLabel("Parcelas", { exact: true }).selectOption({ label: "3 vezes" });
+		await paying.getByRole("button", { name: "Parcelar" }).click();
+		await expect(paying).toHaveCount(0);
+		await expect(ana.getByText(/Parcelamento combinado para/)).toBeVisible();
+	});
 });

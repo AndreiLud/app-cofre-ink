@@ -19,6 +19,7 @@ import {
 	Icon,
 	Menu,
 	MenuItem,
+	MenuLabel,
 	MenuSeparator,
 	Panel,
 	SectionTitle,
@@ -70,6 +71,13 @@ export function TransactionsPage() {
 	const navigate = useNavigate();
 
 	const today = todayIn(currentSpace?.timezone ?? "America/Sao_Paulo");
+	/** A month in words, with the year only when it is not this one. */
+	const monthLong = (month: string) =>
+		new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+			month: "long",
+			year: month.slice(0, 4) === today.slice(0, 4) ? undefined : "numeric",
+			timeZone: "UTC",
+		}).format(new Date(`${month}-01T00:00:00Z`));
 	const thisMonth = monthOf(today);
 
 	/**
@@ -805,7 +813,19 @@ export function TransactionsPage() {
 													</Button>
 												}
 											>
-												{mayUpdate ? (
+												{/* A row of a split invoice, or of one paid with another card, changes
+												    only with the arrangement: this says why, and what to do instead. */}
+												{row.arrangedFor !== null ? (
+													<MenuLabel>
+														{t(
+															row.arrangedBy === "card"
+																? "arrangement.lockedCard"
+																: "arrangement.lockedParts",
+															{ month: monthLong(row.arrangedFor) },
+														)}
+													</MenuLabel>
+												) : null}
+												{mayUpdate && row.arrangedFor === null ? (
 													<MenuItem
 														onSelect={() => {
 															setEditing(row);
@@ -833,12 +853,17 @@ export function TransactionsPage() {
 												) : null}
 												{/* Money out that went into savings, or a payment written from both
 												    ends by the importer of 1.x, made into the move it was. */}
-												{mayMakeAMove && sideOfMove(row, accounts.data ?? []) !== null ? (
+												{mayMakeAMove &&
+												row.arrangedFor === null &&
+												sideOfMove(row, accounts.data ?? []) !== null ? (
 													<MenuItem onSelect={() => setMakingAMove(row)}>
 														{t("toMove.action")}
 													</MenuItem>
 												) : null}
-												{mayMoveInvoice && row.invoiceMonth !== null && row.kind !== "transfer" ? (
+												{mayMoveInvoice &&
+												row.arrangedFor === null &&
+												row.invoiceMonth !== null &&
+												row.kind !== "transfer" ? (
 													<>
 														<MenuItem
 															onSelect={() => moveToInvoice.mutate({ row, towards: "earlier" })}
@@ -857,7 +882,10 @@ export function TransactionsPage() {
 														{t("transactions.alwaysSortLikeThis")}
 													</MenuItem>
 												) : null}
-												{currentSpace.kind === "shared" && row.kind === "expense" && mayShare ? (
+												{currentSpace.kind === "shared" &&
+												row.kind === "expense" &&
+												row.arrangedFor === null &&
+												mayShare ? (
 													<MenuItem onSelect={() => setDividing(row)}>
 														{t("sharing.divide")}
 													</MenuItem>
@@ -876,13 +904,13 @@ export function TransactionsPage() {
 															: t("transactions.unreconcile")}
 													</MenuItem>
 												) : null}
-												{mayDelete ? <MenuSeparator /> : null}
-												{mayDelete ? (
+												{mayDelete && row.arrangedFor === null ? <MenuSeparator /> : null}
+												{mayDelete && row.arrangedFor === null ? (
 													<MenuItem onSelect={() => setDropping({ kind: "one", row })}>
 														{t("actions.delete")}
 													</MenuItem>
 												) : null}
-												{mayDeletePlan && row.installmentGroup ? (
+												{mayDeletePlan && row.installmentGroup && row.arrangedFor === null ? (
 													<MenuItem
 														onSelect={() =>
 															setDropping({

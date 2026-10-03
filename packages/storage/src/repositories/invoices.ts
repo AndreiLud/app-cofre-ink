@@ -70,6 +70,11 @@ export type CardStanding = {
 	/** What is charged to invoices after the open one, which is instalments still to come. */
 	later: number;
 	/**
+	 * The newest invoice that closed, whatever it owes. A split one owes nothing and is not in
+	 * `owing`, and the list of cards says it is in parts from this.
+	 */
+	lastClosed: InvoiceState | null;
+	/**
 	 * The limit less what is charged and not yet paid, when a limit is written down.
 	 *
 	 * Nothing when the card's account is in another currency than the space counts in. The
@@ -640,6 +645,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 						owing: [],
 						unpaid: null,
 						later: 0,
+						lastClosed: null,
 						available: null,
 						limitInAnotherCurrency: false,
 						cycleMissing: true,
@@ -681,6 +687,8 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 					owing,
 					unpaid,
 					later,
+					lastClosed:
+						states.filter((state) => state.closed && state.month < openMonth).at(-1) ?? null,
 					// The headroom is counted in one place, which is the core, because the invoice
 					// screen asks the same question about the same card and two subtractions in
 					// two packages are how two screens come to disagree.

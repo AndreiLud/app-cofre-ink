@@ -81,6 +81,13 @@ function placeOf(part: MonthPart, cardAccountId: string | null): string {
 	return part === "invoice" || part === "payment" ? `${part}:${cardAccountId ?? ""}` : part;
 }
 
+/** What the screen says of an invoice an arrangement pays, by which arrangement it is. */
+const ARRANGED = {
+	parts: "theMonth.invoiceSplit",
+	card: "theMonth.invoicePaidWithCard",
+	agreed: "theMonth.invoiceAgreed",
+} as const;
+
 const DESCRIPTION: Record<MonthPart, string> = {
 	income: "theMonth.descriptionIncome",
 	spending: "theMonth.descriptionSpending",
@@ -293,6 +300,55 @@ export function MonthPage() {
 			mine.has(placeOf("invoice", card.id)) ||
 			mine.has(placeOf("payment", card.id)),
 	);
+
+	/** The invoice of a card this month's fields are about. */
+	const invoiceMonthFor = (card: Account) => {
+		const cycle = cycleOf(card);
+		return cycle === null
+			? null
+			: invoiceMonthOf(monthPartDay(shown, "invoice", cycle, today), cycle);
+	};
+
+	/**
+	 * Which of those invoices an arrangement pays: split into parts, paid with another card, or
+	 * either agreed for a day to come. Part 2, C.10 of 2.0.0: saving the month wrote a payment
+	 * for each card anyway, which paid a split invoice a second time. Nothing for somebody who
+	 * only sees their own records, who does not read an invoice.
+	 */
+	const arranged = useQuery({
+		queryKey: [
+			"invoices",
+			"arranged",
+			spaceId,
+			shown,
+			today,
+			cardAccounts.map((card) => card.id).join(","),
+		],
+		enabled: Boolean(
+			session && enabled && shown !== "" && cardAccounts.length > 0 && !seesOwnRowsOnly,
+		),
+		queryFn: async () => {
+			const found: Record<string, "parts" | "card" | "agreed"> = {};
+			if (!session) return found;
+			for (const card of cardAccounts) {
+				const month = invoiceMonthFor(card);
+				if (month === null) continue;
+				const state = await session.invoices.get(card.id, month, today);
+				if (state.rolled > 0) found[card.id] = "parts";
+				else if (state.byCard > 0) found[card.id] = "card";
+				else if (state.scheduledBy !== null) found[card.id] = "agreed";
+			}
+			return found;
+		},
+	});
+	const monthOfInvoiceName = (card: Account) => {
+		const month = invoiceMonthFor(card);
+		if (month === null) return "";
+		return new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+			month: "long",
+			timeZone: "UTC",
+		}).format(new Date(`${month}-01T00:00:00Z`));
+	};
 
 	// Where the money of the month lands: where the saved income went, else the spending,
 	// else a payment. It opened on the likeliest account whatever had been saved, so saving
@@ -569,6 +625,10 @@ export function MonthPage() {
 				happenedOn: monthPartDay(shown, "invoice", cycle, today),
 				description: t(DESCRIPTION.invoice, { month: withYear, card: card.name }),
 			});
+			// An invoice split, paid with another card, or with either agreed for a day to come,
+			// is paid by that, and a payment written here would pay it a second time. Its
+			// payment row is left as it is, written or not.
+			if (arranged.data?.[card.id] !== undefined) continue;
 			rows.push({
 				place: placeOf("payment", card.id),
 				part: "payment",
@@ -863,25 +923,36 @@ export function MonthPage() {
 								{t("theMonth.invoicesHint", { month: monthName, count: cardAccounts.length })}
 							</p>
 							{cardAccounts.map((card) => (
-								<Field
-									key={card.id}
-									label={t("theMonth.invoiceOf", {
-										card:
-											card.archivedAt === null
-												? card.name
-												: `${card.name} (${t("invoice.archivedMark")})`,
-									})}
-									error={
-										unreadable.includes(placeOf("invoice", card.id))
-											? t("fields.amountError")
-											: null
-									}
-									numeric={true}
-									inputMode="decimal"
-									value={invoiceText(card.id)}
-									onChange={(event) => setInvoices({ ...invoices, [card.id]: event.target.value })}
-									placeholder={t("fields.amountPlaceholder")}
-								/>
+								<div key={card.id} className="space-y-1">
+									<Field
+										label={t("theMonth.invoiceOf", {
+											card:
+												card.archivedAt === null
+													? card.name
+													: `${card.name} (${t("invoice.archivedMark")})`,
+										})}
+										error={
+											unreadable.includes(placeOf("invoice", card.id))
+												? t("fields.amountError")
+												: null
+										}
+										numeric={true}
+										inputMode="decimal"
+										value={invoiceText(card.id)}
+										onChange={(event) =>
+											setInvoices({ ...invoices, [card.id]: event.target.value })
+										}
+										placeholder={t("fields.amountPlaceholder")}
+									/>
+									{arranged.data?.[card.id] ? (
+										<p className="text-quiet text-xs">
+											{t(ARRANGED[arranged.data[card.id] ?? "agreed"], {
+												month: monthOfInvoiceName(card),
+												card: card.name,
+											})}
+										</p>
+									) : null}
+								</div>
 							))}
 						</fieldset>
 					) : null}

@@ -51,7 +51,11 @@ const SELECT = `SELECT "id", "space_id", "kind", "status", "amount", "currency",
 	"paid_by", "external_id", "card_id", "created_by", "created_at", "updated_at",
 	(SELECT MAX(p."invoice_month") FROM "transactions" p
 	 WHERE p."installment_group" = "t"."installment_group" AND p."space_id" = "t"."space_id"
-	   AND p."origin_invoice_month" IS NOT NULL AND p."deleted_at" IS NULL) AS "arranged_for"
+	   AND p."origin_invoice_month" IS NOT NULL AND p."deleted_at" IS NULL) AS "arranged_for",
+	(SELECT MAX(CASE WHEN p."account_id" = p."counter_account_id" THEN 'parts' ELSE 'card' END)
+	 FROM "transactions" p
+	 WHERE p."installment_group" = "t"."installment_group" AND p."space_id" = "t"."space_id"
+	   AND p."origin_invoice_month" IS NOT NULL AND p."deleted_at" IS NULL) AS "arranged_by"
 	FROM "transactions" "t"`;
 
 export type CreateTransactionInput = {

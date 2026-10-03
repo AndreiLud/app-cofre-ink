@@ -207,6 +207,8 @@ export type Transaction = {
 	 * another card. Such a row changes only by undoing the arrangement. Nothing on any other row.
 	 */
 	arrangedFor: string | null;
+	/** Which arrangement: a split of the invoice, or its payment with another card. */
+	arrangedBy: "parts" | "card" | null;
 	categoryId: string | null;
 	/** Empty means the priority of its category, which is the usual case. */
 	priority: SpendingPriority | null;
@@ -516,6 +518,7 @@ export function toTransaction(row: Row): Transaction {
 		invoiceMonthByHand: asOptionalNumber(row.invoice_month_by_hand) === 1,
 		originInvoiceMonth: asOptionalText(row.origin_invoice_month),
 		arrangedFor: asOptionalText(row.arranged_for),
+		arrangedBy: row.arranged_by === "parts" || row.arranged_by === "card" ? row.arranged_by : null,
 		categoryId: asOptionalText(row.category_id),
 		priority: asOptionalText(row.priority) as SpendingPriority | null,
 		recurrenceId: asOptionalText(row.recurrence_id),
