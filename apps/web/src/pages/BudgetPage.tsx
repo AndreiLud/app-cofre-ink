@@ -116,7 +116,7 @@ export function BudgetPage() {
 	// records are the ones who set it.
 	const mine = useWhatIMayDo(spaceId);
 	const mayWrite = mine.may("plan.write");
-	// Putting money aside is writing a record, which is a question of its own: a Registrador
+	// Putting money aside is writing a record, which is a question of its own: a logger
 	// may not change the plan and may still move money into the savings account.
 	const mayMove = mine.mayCall("transactions.create");
 

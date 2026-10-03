@@ -486,7 +486,7 @@ test.describe("server mode", () => {
 	});
 
 	// Part 1, B.8 of the request for 2.0.0. In "Todos", a meal card from a space where this
-	// person is a Registrador said its allowance was missing, because the overview read the
+	// person is a logger said its allowance was missing, because the overview read the
 	// role of the space that happened to be open.
 	test("decides a meal card by the role in its own space, in every space", async ({ browser }) => {
 		const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
@@ -526,7 +526,7 @@ test.describe("server mode", () => {
 		await expect(bia.getByText("Você tem", { exact: true })).toBeVisible();
 		await expect(bia.getByText("Sem valor mensal cadastrado")).toHaveCount(0);
 		// The card is still listed where the money is, with no figure, which is what a
-		// Registrador is told about a card made of everybody's lunches.
+		// logger is told about a card made of everybody's lunches.
 		await expect(bia.getByText("Vale da casa").first()).toBeVisible();
 	});
 

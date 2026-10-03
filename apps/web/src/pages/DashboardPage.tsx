@@ -193,7 +193,7 @@ export function DashboardPage() {
 	// Which spaces show this person only their own records. The role is held per space and
 	// the space row does not carry it, so the member lists are what answers. Read for every
 	// space, because a benefit card is decided by the role in its own space: in "Todos", a
-	// card from a space where this person is a Registrador said its allowance was missing,
+	// card from a space where this person is a logger said its allowance was missing,
 	// because the role read was the one of the space that happened to be open.
 	const narrowed = useQuery({
 		queryKey: ["narrowedEverywhere", spaces.map((space) => space.id).join(","), user?.id],

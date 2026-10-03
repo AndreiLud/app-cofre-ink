@@ -31,7 +31,7 @@ export function VoucherAmount({
 	 * The model answers nothing about a benefit card to somebody who only sees their own
 	 * records, on purpose, because what is on the card is made of every lunch on it. Nothing is
 	 * not the same as no allowance written down, so for them this draws nothing at all, rather
-	 * than telling a Registrador that the allowance is missing on a card that has one.
+	 * than telling a logger that the allowance is missing on a card that has one.
 	 */
 	known: boolean;
 }) {
