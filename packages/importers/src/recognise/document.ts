@@ -708,10 +708,61 @@ export type RecogniseOptions = {
  * which is the part that can be wrong, so every way of deciding it carries a different
  * confidence and the least sure of them lands on the screen asking to be looked at.
  */
+/**
+ * A line with where its pieces were drawn, when the first layer knows it: what stands under a
+ * heading of debits and credits says which way the money went.
+ */
+export type PlacedLine = {
+	text: string;
+	page: number;
+	pieces: readonly { text: string; from: number; to: number; at: number }[];
+};
+
+/** Where a letter of a placed line is across the page, by its piece and its place in it. */
+function across(line: PlacedLine, index: number): number {
+	const piece = [...line.pieces].reverse().find((one) => one.at <= index) ?? line.pieces[0] ?? null;
+	if (!piece) return 0;
+	const share = Math.min(1, Math.max(0, (index - piece.at) / Math.max(1, piece.text.length)));
+	return piece.from + (piece.to - piece.from) * share;
+}
+
+type Columns = { debit: [number, number]; credit: [number, number] };
+
+/** A heading of a page with a column for money out and one for money in, and where they are. */
+function columnsOf(line: PlacedLine): Columns | null {
+	const folded = fold(line.text);
+	const debit = /\b(?:debitos?|saidas?)\b/.exec(folded);
+	const credit = /\b(?:creditos?|entradas?)\b/.exec(folded);
+	if (!debit || !credit) return null;
+	const span = (found: RegExpExecArray): [number, number] => [
+		across(line, found.index),
+		across(line, found.index + found[0].length),
+	];
+	return { debit: span(debit), credit: span(credit) };
+}
+
+/** Room either side of a heading, because the end of a piece is a guess from its letters. */
+const COLUMN_SLACK = 12;
+
+/** Which column an amount stands under: only one says a direction, both or neither say none. */
+function columnOf(columns: Columns, line: PlacedLine, amount: FoundAmount): 1 | -1 | 0 {
+	const from = across(line, amount.at);
+	const to = across(line, amount.at + amount.text.length);
+	const under = ([left, right]: [number, number]) =>
+		from <= right + COLUMN_SLACK && to >= left - COLUMN_SLACK;
+	const out = under(columns.debit);
+	const into = under(columns.credit);
+	if (out && !into) return -1;
+	if (into && !out) return 1;
+	return 0;
+}
+
 export function recogniseStatement(
-	lines: readonly string[],
+	given: readonly (string | PlacedLine)[],
 	options: RecogniseOptions = {},
 ): RecognisedDocument {
+	const placed = given.map((line) => (typeof line === "string" ? null : line));
+	const lines = given.map((line) => (typeof line === "string" ? line : line.text));
 	const today = options.today ?? "2026-01-01";
 	const kind = options.kind ?? kindOf(lines);
 	const currency = currencyOf(lines);
@@ -784,6 +835,9 @@ export function recogniseStatement(
 	let closing: number | null = null;
 	/** The lines of a statement whose direction nothing on them said. */
 	const plainLines = new Set<RecognisedEntry>();
+	/** The columns of money out and money in the page heads with, and which page that is. */
+	let columns: Columns | null = null;
+	let columnsPage = -1;
 
 	lines.forEach((text, index) => {
 		const line = tidy(text);
@@ -797,6 +851,13 @@ export function recogniseStatement(
 			if (findDate(line, order, year) === null) return;
 		}
 
+		const place = placed[index] ?? null;
+		// What a page heads with is that page's: the next page goes back to the words.
+		if (place && place.page !== columnsPage) {
+			columnsPage = place.page;
+			columns = null;
+		}
+
 		const heading = fold(line).trim();
 		if (FUTURE_SECTION.test(heading)) {
 			ahead = true;
@@ -804,6 +865,7 @@ export function recogniseStatement(
 		}
 		const amounts = findAmounts(line);
 		if (amounts.length === 0) {
+			if (place) columns = columnsOf(place) ?? columns;
 			if (INSTALLMENT_SECTION.test(heading)) {
 				inSection = true;
 				ahead = false;
@@ -942,6 +1004,21 @@ export function recogniseStatement(
 			confidence = 0.5;
 		}
 
+		// Under a heading of debits and credits, the column the amount stands under says which
+		// way it went, unless a running balance already did. The position was never read, so a
+		// credit with no balance beside it came out as money leaving.
+		let fromColumn = false;
+		if (columns && place && !fromBalance) {
+			const side = columnOf(columns, place, chosen);
+			if (side !== 0) {
+				amount = side * Math.abs(chosen.value);
+				confidence = 0.9;
+				fromColumn = true;
+			} else {
+				confidence = Math.min(confidence, 0.6);
+			}
+		}
+
 		if (date.sure) confidence += 0.03;
 		if (description.length >= 4) confidence += 0.02;
 		if (read.overTheCeiling) confidence = Math.min(confidence, 0.6);
@@ -972,7 +1049,7 @@ export function recogniseStatement(
 			line: index + 1,
 			source: line,
 		};
-		if (!fromBalance && !chosen.signed && said === 0) plainLines.add(entry);
+		if (!fromBalance && !fromColumn && !chosen.signed && said === 0) plainLines.add(entry);
 		entries.push(entry);
 	});
 

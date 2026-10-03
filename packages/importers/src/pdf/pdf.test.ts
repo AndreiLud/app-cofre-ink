@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { recogniseStatement } from "../recognise/index.ts";
 import { buildPdf, drawText as draw } from "./buildPdf.ts";
 import { looksLikePdf, readPdf } from "./index.ts";
 import { readToUnicode } from "./toUnicode.ts";
@@ -91,6 +92,61 @@ endcmap end end`;
 		const rubbish = new Uint8Array(512);
 		for (let index = 0; index < rubbish.length; index += 1) rubbish[index] = (index * 7) % 256;
 		expect(() => readPdf(rubbish)).not.toThrow();
+	});
+});
+
+// Part 2, E.19 of the request for 2.0.0: the columns of money out and money in. Without a
+// balance on each line, a credit came out as money leaving, because where it stood was not read.
+describe("a statement with a column for each direction", () => {
+	const file = buildPdf({
+		content: [
+			[
+				draw(50, 780, "Extrato da conta"),
+				draw(50, 760, "Data"),
+				draw(120, 760, "Historico"),
+				draw(300, 760, "Debito"),
+				draw(400, 760, "Credito"),
+				draw(50, 740, "05/09/2026"),
+				draw(120, 740, "Fulano Silva"),
+				draw(400, 740, "5.000,00"),
+				draw(50, 720, "10/09/2026"),
+				draw(120, 720, "Mercado"),
+				draw(300, 720, "42,90"),
+			].join(""),
+			[
+				draw(50, 780, "15/09/2026"),
+				draw(120, 780, "Pix recebido de Beltrano"),
+				draw(400, 780, "100,00"),
+				draw(50, 760, "16/09/2026"),
+				draw(120, 760, "Padaria"),
+				draw(300, 760, "10,00"),
+			].join(""),
+		],
+	});
+
+	it("keeps where each piece of a line was drawn, page by page", () => {
+		const read = readPdf(file);
+		expect(read.pages).toBe(2);
+		const header = read.lines.find((line) => line.text.startsWith("Data"));
+		expect(header?.pieces.map((piece) => [piece.text, piece.from])).toEqual([
+			["Data", 50],
+			["Historico", 120],
+			["Debito", 300],
+			["Credito", 400],
+		]);
+	});
+
+	it("takes the direction from the column, and goes back to the words on a page with none", () => {
+		const read = recogniseStatement(readPdf(file).lines, { today: "2026-09-22" });
+		expect(read.entries.map((entry) => [entry.description, entry.amount])).toEqual([
+			["Fulano Silva", 500_000],
+			["Mercado", -4290],
+			["Pix recebido de Beltrano", 10_000],
+			["Padaria", -1000],
+		]);
+		expect(read.entries[0]?.confidence).toBeGreaterThan(0.85);
+		// The second page has no heading: the words say the Pix, and nothing says the bakery.
+		expect(read.entries[3]?.confidence).toBeLessThan(2 / 3);
 	});
 });
 

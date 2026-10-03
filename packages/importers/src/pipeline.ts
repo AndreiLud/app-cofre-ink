@@ -185,15 +185,13 @@ function fromPdf(bytes: Uint8Array, options: ReadOptions): ReadFileResult {
 		};
 	}
 
-	const document = recognise(
-		read.lines.map((line) => line.text),
-		{
-			...(options.today ? { today: options.today } : {}),
-			...(options.kind ? { kind: options.kind } : {}),
-			...(options.convention ? { convention: options.convention } : {}),
-			...(options.cardBanks ? { cardBanks: options.cardBanks } : {}),
-		},
-	);
+	// The lines with where their pieces were drawn, which the columns of a statement need.
+	const document = recognise(read.lines, {
+		...(options.today ? { today: options.today } : {}),
+		...(options.kind ? { kind: options.kind } : {}),
+		...(options.convention ? { convention: options.convention } : {}),
+		...(options.cardBanks ? { cardBanks: options.cardBanks } : {}),
+	});
 
 	return {
 		format: "pdf",

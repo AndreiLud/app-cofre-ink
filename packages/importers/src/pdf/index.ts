@@ -12,7 +12,7 @@ import { textOf } from "./content.ts";
 import { readPdfObjects } from "./document.ts";
 
 export { type BuildPdfOptions, buildPdf, drawLines, drawText } from "./buildPdf.ts";
-export type { PdfLine, PdfText, TextRun } from "./content.ts";
+export type { PdfLine, PdfPiece, PdfText, TextRun } from "./content.ts";
 export { linesOf } from "./content.ts";
 export type { PdfDocument, PdfObject } from "./document.ts";
 export { readPdfObjects } from "./document.ts";

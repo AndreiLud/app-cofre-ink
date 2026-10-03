@@ -12,8 +12,11 @@
 import { strToU8, zlibSync } from "fflate";
 
 export type BuildPdfOptions = {
-	/** The instructions that draw the page. */
-	content: string;
+	/**
+	 * The instructions that draw the page, or one set for each page. A statement runs to
+	 * several, and what a page heads with applies to that page only.
+	 */
+	content: string | readonly string[];
 	compress?: boolean;
 	/** A map from the codes in the strings to the letters they stand for. */
 	toUnicode?: string;
@@ -46,17 +49,16 @@ export function buildPdf(options: BuildPdfOptions): Uint8Array {
 
 	push("%PDF-1.7\n");
 
-	const raw = strToU8(options.content);
-	const body = options.compress ? zlibSync(raw) : raw;
+	const contents = typeof options.content === "string" ? [options.content] : options.content;
 	const filter = options.compress ? " /Filter /FlateDecode" : "";
+	// The font and its map come first, so each page is a pair of objects after them.
+	const pageNumber = (index: number) => 7 + index * 2;
 
 	object(1, "<< /Type /Catalog /Pages 2 0 R >>");
-	object(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
 	object(
-		3,
-		"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+		2,
+		`<< /Type /Pages /Kids [${contents.map((_page, index) => `${pageNumber(index)} 0 R`).join(" ")}] /Count ${contents.length} >>`,
 	);
-	object(4, `<< /Length ${body.length}${filter} >>`, body);
 
 	if (options.toUnicode) {
 		const map = strToU8(options.toUnicode);
@@ -68,6 +70,16 @@ export function buildPdf(options: BuildPdfOptions): Uint8Array {
 	} else {
 		object(5, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
 	}
+
+	contents.forEach((content, index) => {
+		const raw = strToU8(content);
+		const body = options.compress ? zlibSync(raw) : raw;
+		object(
+			pageNumber(index),
+			`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents ${pageNumber(index) + 1} 0 R >>`,
+		);
+		object(pageNumber(index) + 1, `<< /Length ${body.length}${filter} >>`, body);
+	});
 
 	push(`trailer\n<< /Size ${count + 1} /Root 1 0 R >>\n%%EOF\n`);
 

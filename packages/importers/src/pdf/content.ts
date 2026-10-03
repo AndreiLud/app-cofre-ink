@@ -27,10 +27,24 @@ export type TextRun = {
 	text: string;
 };
 
+/**
+ * A piece of a line where it was drawn: its text, where it starts across the page, and where
+ * it ends. The end is worked out from the number of letters, which a font does not keep to,
+ * so whoever compares two of them leaves room.
+ */
+export type PdfPiece = {
+	text: string;
+	from: number;
+	to: number;
+	/** Where its text begins in the text of the line. */
+	at: number;
+};
+
 export type PdfLine = {
 	page: number;
 	y: number;
 	text: string;
+	pieces: PdfPiece[];
 };
 
 type Matrix = [number, number, number, number, number, number];
@@ -329,7 +343,24 @@ export function linesOf(runs: readonly TextRun[]): PdfLine[] {
 			}
 
 			const tidied = text.replace(/\s+/g, " ").trim();
-			if (tidied !== "") lines.push({ page, y: ordered[0]?.y ?? 0, text: tidied });
+			if (tidied === "") continue;
+			// Where each run landed, and where its text is in the line, found in order.
+			const pieces: PdfPiece[] = [];
+			let cursor = 0;
+			for (const run of ordered) {
+				const own = run.text.replace(/\s+/g, " ").trim();
+				if (own === "") continue;
+				const at = tidied.indexOf(own, cursor);
+				if (at < 0) continue;
+				cursor = at + own.length;
+				pieces.push({
+					text: own,
+					from: run.x,
+					to: run.x + run.text.length * run.size * 0.5,
+					at,
+				});
+			}
+			lines.push({ page, y: ordered[0]?.y ?? 0, text: tidied, pieces });
 		}
 	}
 

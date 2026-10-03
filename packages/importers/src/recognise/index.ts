@@ -7,6 +7,7 @@
 
 import {
 	kindOf,
+	type PlacedLine,
 	type RecognisedDocument,
 	type RecogniseOptions,
 	recogniseStatement,
@@ -18,6 +19,7 @@ export type {
 	DocumentKind,
 	InstallmentMark,
 	InvoiceConvention,
+	PlacedLine,
 	RecognisedDocument,
 	RecognisedEntry,
 	RecogniseOptions,
@@ -26,10 +28,11 @@ export { installmentOf, kindOf, recogniseStatement } from "./document.ts";
 export { recogniseReceipt } from "./receipt.ts";
 
 export function recognise(
-	lines: readonly string[],
+	lines: readonly (string | PlacedLine)[],
 	options: RecogniseOptions = {},
 ): RecognisedDocument {
-	return options.kind === undefined && kindOf(lines) === "receipt"
-		? recogniseReceipt(lines, options)
+	const texts = lines.map((line) => (typeof line === "string" ? line : line.text));
+	return options.kind === undefined && kindOf(texts) === "receipt"
+		? recogniseReceipt(texts, options)
 		: recogniseStatement(lines, options);
 }
