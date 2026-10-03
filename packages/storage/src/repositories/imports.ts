@@ -12,14 +12,21 @@
 // what they kept reaches here.
 
 import {
+	addMonths,
 	addMonthsToMonth,
 	type CalendarDate,
 	type CalendarMonth,
 	type CardCycle,
+	installmentRefusal,
 	invoiceMonthOf,
+	invoicePeriod,
+	money,
 	parseCalendarDate,
 	parseCalendarMonth,
 	pickRule,
+	purchaseDayOf,
+	statementParts,
+	uuidV7,
 } from "@cofre/core";
 import { transactions } from "@cofre/db";
 import { assertCan, seesOwnRowsOnly } from "../actor.ts";
@@ -28,6 +35,7 @@ import { type Account, type SpendingPriority, toAccount, toCategorizationRule } 
 import { marks } from "../sql.ts";
 import { insertRow, softDeleteRow } from "../writer.ts";
 import type { RepositoryContext } from "./context.ts";
+import { planRefused } from "./transactions.ts";
 
 /**
  * What a line of a file is, apart from its sign, as the reading side worked it out and the
@@ -69,6 +77,11 @@ export type ImportedRecord = {
 	 * same write and the refund is not written: the two cancel, and the month did not keep it.
 	 */
 	reverses?: string | null;
+	/**
+	 * The part of a plan the line is: the parts from it to the last are written, each on the
+	 * invoice after the one before, counted by number and never by the day.
+	 */
+	installment?: { number: number; count: number } | null;
 };
 
 export type ImportInput = {
@@ -115,6 +128,15 @@ export type KnownRecord = {
 	moved: boolean;
 	/** What kind of record it is, so a refund in the file finds the purchase it takes back. */
 	kind: "expense" | "income" | "transfer";
+	/** The other end of a move. */
+	counterAccountId: string | null;
+	cardId: string | null;
+	/** The invoice it is on, so a part printed on an invoice finds the part already written. */
+	invoiceMonth: string | null;
+	/** The series that wrote it, which a statement line of the same amount is. */
+	recurrenceId: string | null;
+	/** The plan it is a part of, and which part. */
+	installment: { group: string; number: number; count: number } | null;
 };
 
 function cycleOf(account: Account): CardCycle | undefined {
@@ -145,7 +167,16 @@ export function createImportsRepository(context: RepositoryContext) {
 		 */
 		async existing(
 			spaceId: string,
-			range: { from?: CalendarDate; to?: CalendarDate; accountId?: string } = {},
+			range: {
+				from?: CalendarDate;
+				to?: CalendarDate;
+				accountId?: string;
+				/**
+				 * The invoice a file is, so the plans of the account around it come back whatever
+				 * the day of their purchase: a part bought a year ago is on this invoice.
+				 */
+				invoiceMonth?: CalendarMonth;
+			} = {},
 		): Promise<KnownRecord[]> {
 			const actor = context.actor();
 			assertCan(actor, spaceId, "transaction.read");
@@ -176,13 +207,34 @@ export function createImportsRepository(context: RepositoryContext) {
 				params.push(range.to);
 			}
 
+			// The newest first. Oldest first, an old purchase stretched the window until the limit
+			// cut off the records of the days the file is about.
+			const columns = `"id", "happened_on", "amount", "description", "external_id", "kind",
+			        "account_id", "counter_account_id", "card_id", "invoice_month", "recurrence_id",
+			        "installment_group", "installment_number", "installment_count"`;
 			const rows = await context.driver.all(
-				`SELECT "id", "happened_on", "amount", "description", "external_id", "kind",
-				        "account_id"
-				 FROM "transactions" WHERE ${where.join(" AND ")}
-				 ORDER BY "happened_on" LIMIT 5000`,
+				`SELECT ${columns} FROM "transactions" WHERE ${where.join(" AND ")}
+				 ORDER BY "happened_on" DESC LIMIT 5000`,
 				params,
 			);
+			if (range.invoiceMonth && range.accountId) {
+				parseCalendarMonth(range.invoiceMonth);
+				const plans = await context.driver.all(
+					`SELECT ${columns} FROM "transactions"
+					 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "account_id" = ?
+					   AND "installment_group" IS NOT NULL AND "invoice_month" >= ? AND "invoice_month" <= ?
+					   ${seesOwnRowsOnly(actor, spaceId) ? `AND "created_by" = ?` : ""}`,
+					[
+						spaceId,
+						range.accountId,
+						addMonthsToMonth(range.invoiceMonth, -3),
+						addMonthsToMonth(range.invoiceMonth, 3),
+						...(seesOwnRowsOnly(actor, spaceId) ? [actor.userId] : []),
+					],
+				);
+				const known = new Set(rows.map((row) => String(row.id)));
+				rows.push(...plans.filter((row) => !known.has(String(row.id))));
+			}
 
 			return rows.map((row) => {
 				const moved = row.kind === "transfer";
@@ -197,6 +249,18 @@ export function createImportsRepository(context: RepositoryContext) {
 					externalId: row.external_id === null ? null : String(row.external_id),
 					moved,
 					kind: String(row.kind) as KnownRecord["kind"],
+					counterAccountId: row.counter_account_id === null ? null : String(row.counter_account_id),
+					cardId: row.card_id === null ? null : String(row.card_id),
+					invoiceMonth: row.invoice_month === null ? null : String(row.invoice_month),
+					recurrenceId: row.recurrence_id === null ? null : String(row.recurrence_id),
+					installment:
+						row.installment_group === null || row.installment_number === null
+							? null
+							: {
+									group: String(row.installment_group),
+									number: Number(row.installment_number),
+									count: Number(row.installment_count),
+								},
 				};
 			});
 		},
@@ -408,6 +472,21 @@ export function createImportsRepository(context: RepositoryContext) {
 				}
 			}
 
+			// A plan read off a statement is refused before anything is written, as one typed is.
+			for (const record of input.records) {
+				const part = record.installment;
+				if (!part || part.count < 2) continue;
+				const refusal = installmentRefusal({
+					kind: "expense",
+					accountKind: account.kind,
+					count: part.count,
+					total: Math.abs(record.amount) * part.count,
+					firstNumber: part.number,
+				});
+				if (refusal) throw planRefused(refusal);
+			}
+			const period = invoiceMonth !== null && cycle ? invoicePeriod(invoiceMonth, cycle) : null;
+
 			const ids = await context.driver.transaction(async (tx) => {
 				const write = { ...context.write(), driver: tx };
 				const written: string[] = [];
@@ -417,6 +496,65 @@ export function createImportsRepository(context: RepositoryContext) {
 				}
 
 				for (const record of input.records) {
+					// A part of a plan: the parts from it to the last, a group of their own.
+					const part = record.installment;
+					if (part && part.count >= 2) {
+						const purchasedOn = purchaseDayOf({
+							printedOn: record.happenedOn,
+							number: part.number,
+							period,
+						});
+						const firstDay = addMonths(purchasedOn, part.number - 1);
+						const invoice = invoiceMonth ?? (cycle ? invoiceMonthOf(firstDay, cycle) : undefined);
+						const parts = statementParts({
+							eachPart: money(Math.abs(record.amount), account.currency),
+							number: part.number,
+							count: part.count,
+							purchasedOn,
+							...(invoice ? { invoice } : {}),
+						});
+						const group = uuidV7();
+						const sorted = record.categoryId
+							? null
+							: pickRule(rules, {
+									description: record.description,
+									accountId: input.accountId,
+									kind: "expense",
+								});
+						for (const one of parts) {
+							written.push(
+								await insertRow(write, {
+									table: transactions,
+									spaceId: input.spaceId,
+									values: {
+										kind: "expense",
+										status: "settled",
+										amount: -one.amount.amount,
+										currency: account.currency,
+										fx_rate: null,
+										amount_in_base: -one.amount.amount,
+										happened_on: one.happenedOn,
+										description: `${record.description.trim()} ${one.number}/${one.count}`,
+										account_id: input.accountId,
+										counter_account_id: null,
+										notes: record.notes ?? null,
+										reconciled_at: null,
+										installment_group: group,
+										installment_number: one.number,
+										installment_count: one.count,
+										invoice_month: one.invoiceMonth ?? null,
+										invoice_month_by_hand: one.invoiceMonth ? 1 : null,
+										category_id: record.categoryId ?? sorted?.categoryId ?? null,
+										priority: record.priority ?? sorted?.priority ?? null,
+										external_id: null,
+										card_id: record.cardId || cardId,
+										created_by: context.actor().userId,
+									},
+								}),
+							);
+						}
+						continue;
+					}
 					// A refund of a purchase already written takes it out, and is not written itself.
 					if (record.reverses) {
 						await softDeleteRow(write, {

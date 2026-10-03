@@ -30,6 +30,8 @@ import type {
 import {
 	guessAccount,
 	markDuplicates,
+	matchPart,
+	type PartMatch,
 	readFile,
 	refundedPurchase,
 	refundsInFile,
@@ -84,6 +86,12 @@ const FIELDS: FieldName[] = [
 	"category",
 	"ignore",
 ];
+
+/** How many months from one to the other, as invoices are named. */
+function monthsBetween(from: string, to: string): number {
+	const count = (month: string) => Number(month.slice(0, 4)) * 12 + Number(month.slice(5, 7));
+	return count(to) - count(from);
+}
 
 /** What a line can be said to be, in the order the list offers them. */
 const NATURES: Nature[] = ["purchase", "fee", "credit", "installment", "payment", "cardPayment"];
@@ -532,13 +540,14 @@ export function ImportPage() {
 	}, [read, isInvoice]);
 
 	const existing = useQuery({
-		queryKey: ["importExisting", spaceId, chosen?.id, span.from, span.to],
+		queryKey: ["importExisting", spaceId, chosen?.id, span.from, span.to, invoiceMonth],
 		enabled: Boolean(session && spaceId !== "" && span.from !== undefined),
 		queryFn: () =>
 			session?.imports.existing(spaceId, {
 				from: span.from,
 				to: span.to,
 				accountId: chosen?.id,
+				...(isInvoice && invoiceMonth ? { invoiceMonth } : {}),
 			}) ?? [],
 	});
 
@@ -587,6 +596,30 @@ export function ImportPage() {
 	/** Refunds the person said not to take their purchase back, which they start doing. */
 	const [keepPurchase, setKeepPurchase] = useState<Set<number>>(new Set());
 
+	/**
+	 * Each part printed, against the plans already written: the same part, the same part on
+	 * another invoice, one that only looks the same, or the first of a new plan. A loose mark
+	 * counts once the person said it is a part.
+	 */
+	const partMatches = useMemo(() => {
+		const found = new Map<number, PartMatch>();
+		lines.forEach((record, index) => {
+			const mark = record.installment;
+			if (!mark || (!mark.sure && !asParts.has(index))) return;
+			found.set(
+				index,
+				matchPart(
+					{ ...record, installment: mark },
+					existing.data ?? [],
+					isInvoice ? invoiceMonth : null,
+				),
+			);
+		});
+		return found;
+	}, [lines, asParts, existing.data, isInvoice, invoiceMonth]);
+	/** Parts on another invoice the person said to move to this one, with the ones after them. */
+	const [moveParts, setMoveParts] = useState<Set<number>>(new Set());
+
 	// The rules of the space run at the moment of writing, so what they will do is
 	// worked out here with the same function and shown before anything is written.
 	const rules = useQuery({
@@ -624,7 +657,9 @@ export function ImportPage() {
 	 * started, which is what `left` holds.
 	 */
 	const startsOut = (record: MarkedRecord, index: number) =>
-		(isInvoice && record.nature === "payment" && paidAlready) || pairedInFile.has(index);
+		(isInvoice && record.nature === "payment" && paidAlready) ||
+		pairedInFile.has(index) ||
+		(partMatches.get(index)?.kind ?? "new") !== "new";
 	const isOut = (record: MarkedRecord, index: number) =>
 		(record.certain && record.duplicateOf !== null) || startsOut(record, index) !== left.has(index);
 
@@ -696,6 +731,7 @@ export function ImportPage() {
 		setKeepWrittenDown(false);
 		setPayers(new Map());
 		setKeepPurchase(new Set());
+		setMoveParts(new Set());
 
 		try {
 			setPicked({ name: file.name, bytes: await readPickedFile(file) });
@@ -737,6 +773,16 @@ export function ImportPage() {
 					...(takesBack.has(index) && !keepPurchase.has(index)
 						? { reverses: takesBack.get(index)?.id ?? null }
 						: {}),
+					// The first part of a new plan, written from this one to the last.
+					...(partMatches.get(index)?.kind === "new" && record.installment
+						? {
+								installment: {
+									number: record.installment.number,
+									count: record.installment.count,
+								},
+								nature: "installment" as const,
+							}
+						: {}),
 					...(card ? { cardId: card } : {}),
 				};
 			});
@@ -745,7 +791,7 @@ export function ImportPage() {
 			const cardId =
 				chosenWay?.cardId ??
 				(guessed?.cardId !== undefined && guessed.id === chosen.id ? guessed.cardId : null);
-			return session.imports.create({
+			const result = await session.imports.create({
 				spaceId,
 				accountId: chosen.id,
 				cardId,
@@ -755,6 +801,17 @@ export function ImportPage() {
 					? { removes: writtenDown.map((record) => record.id) }
 					: {}),
 			});
+			// A part already written on another invoice, moved to this one with the parts after it,
+			// one invoice at a time, the way the list moves them.
+			for (const index of moveParts) {
+				const match = partMatches.get(index);
+				if (match?.kind !== "elsewhere" || !invoiceMonth || !match.record.invoiceMonth) continue;
+				const steps = monthsBetween(match.record.invoiceMonth, invoiceMonth);
+				for (let step = 0; step < Math.abs(steps); step += 1) {
+					await session.invoices.move(match.record.id, steps > 0 ? "later" : "earlier");
+				}
+			}
+			return result;
 		},
 		onSuccess: (result) => {
 			// What this import took to get right is what the next one starts from.
@@ -1266,11 +1323,9 @@ export function ImportPage() {
 														{t("importing.paysInvoice", { month: monthName(paidMonth) })}
 													</span>
 												) : null}
-												{/* A part of a plan says what will be written. A loose "2/10" may be
-												    the day printed again, so it is offered and not taken. */}
-												{record.installment?.sure ? (
-													<span className="block text-xs text-quiet">{planSaid(record)}</span>
-												) : record.installment ? (
+												{/* A loose "2/10" may be the day printed again, so it is offered and not
+												    taken. A part says what it is against the plans already written. */}
+												{record.installment && !record.installment.sure ? (
 													<label className="flex items-center gap-2 text-xs text-quiet">
 														<input
 															type="checkbox"
@@ -1291,6 +1346,62 @@ export function ImportPage() {
 														})}
 													</label>
 												) : null}
+												{(() => {
+													const match = partMatches.get(index);
+													const mark = record.installment;
+													if (!match || !mark) return null;
+													if (match.kind === "new") {
+														return (
+															<span className="block text-xs text-quiet">{planSaid(record)}</span>
+														);
+													}
+													if (match.kind === "same") {
+														return (
+															<span className="block text-xs text-quiet">
+																{t("importing.partHere", {
+																	number: mark.number,
+																	count: mark.count,
+																	description: match.record.description,
+																})}
+															</span>
+														);
+													}
+													if (match.kind === "looksSame") {
+														return (
+															<span className="block text-xs text-quiet">
+																{t("importing.partLooksSame", {
+																	description: match.record.description,
+																})}
+															</span>
+														);
+													}
+													return (
+														<label className="flex items-center gap-2 text-xs text-quiet">
+															<input
+																type="checkbox"
+																checked={moveParts.has(index)}
+																onChange={() =>
+																	setMoveParts((current) => {
+																		const next = new Set(current);
+																		if (next.has(index)) next.delete(index);
+																		else next.add(index);
+																		return next;
+																	})
+																}
+																className="size-4 accent-[var(--ink)]"
+															/>
+															{t("importing.partElsewhere", {
+																number: mark.number,
+																count: mark.count,
+																description: match.record.description,
+																month: match.record.invoiceMonth
+																	? monthName(match.record.invoiceMonth)
+																	: "",
+																to: invoiceMonth ? monthName(invoiceMonth) : "",
+															})}
+														</label>
+													);
+												})()}
 											</TableCell>
 											<TableCell className="hidden text-xs text-quiet sm:table-cell">
 												{sortedInto[index] ?? ""}

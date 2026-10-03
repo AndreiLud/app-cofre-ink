@@ -1473,7 +1473,10 @@
 		"paysInvoice": "Pays the invoice of {{month}}.",
 		"paymentWaits": "\"{{description}}\" is the payment of the invoice before. Say which account the money came from to write it.",
 		"pairedInFile": "A purchase and its refund are both in this file: neither is written.",
-		"takesBack": "Take out the purchase {{description}} of {{day}}, which this refund undoes, instead of writing the refund."
+		"takesBack": "Take out the purchase {{description}} of {{day}}, which this refund undoes, instead of writing the refund.",
+		"partHere": "Already here: part {{number}} of {{count}} of {{description}}.",
+		"partLooksSame": "Looks like {{description}}, by the amount.",
+		"partElsewhere": "Part {{number}} of {{count}} of {{description}} is already here, on the invoice of {{month}}. Move it and the ones after it to the invoice of {{to}}."
 	},
 	"demo": {
 		"notice": "Made up data, for demonstration only."

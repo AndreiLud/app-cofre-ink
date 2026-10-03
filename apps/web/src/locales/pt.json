@@ -1473,7 +1473,10 @@
 		"paysInvoice": "Paga a fatura de {{month}}.",
 		"paymentWaits": "\"{{description}}\" é o pagamento da fatura anterior. Diga de qual conta o dinheiro saiu para gravar.",
 		"pairedInFile": "Uma compra e o estorno dela estão neste mesmo arquivo: os dois ficam de fora.",
-		"takesBack": "Tirar a compra {{description}} de {{day}}, que este estorno desfaz, em vez de gravar o estorno."
+		"takesBack": "Tirar a compra {{description}} de {{day}}, que este estorno desfaz, em vez de gravar o estorno.",
+		"partHere": "Já está no app: parcela {{number}} de {{count}} de {{description}}.",
+		"partLooksSame": "Parece o mesmo que {{description}}, pelo valor.",
+		"partElsewhere": "A parcela {{number}} de {{count}} de {{description}} já está no app, na fatura de {{month}}. Mover essa e as seguintes para a fatura de {{to}}."
 	},
 	"demo": {
 		"notice": "Dados fictícios, só para demonstração."

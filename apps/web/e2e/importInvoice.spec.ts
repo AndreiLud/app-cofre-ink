@@ -241,6 +241,39 @@ test.describe("reading a card invoice in", () => {
 		await expect(page.getByRole("row").filter({ hasText: "Loja X" })).toHaveCount(0);
 	});
 
+	// E.13: a part printed on an invoice was one loose record, and the next invoice another.
+	test("writes a plan from the first invoice that prints it, and finds it on the next", async ({
+		page,
+	}) => {
+		await twoCards(page);
+		await importPdf(page, [
+			"Fatura do cartao",
+			"Vencimento: 10/10/2026",
+			"Cartao final 1234",
+			"12/09/2026 Loja X PARC 05/10 150,00",
+		]);
+		await expect(
+			page.getByText(/Plano novo: grava as parcelas 5 a 10, de outubro a março/),
+		).toBeVisible();
+		await page.getByRole("button", { name: "Gravar 1 lançamento" }).click();
+		await expect(page.getByText("6 lançamentos gravados")).toBeVisible();
+
+		await importPdf(page, [
+			"Fatura do cartao",
+			"Vencimento: 10/11/2026",
+			"Cartao final 1234",
+			"12/10/2026 Loja X PARC 06/10 150,00",
+		]);
+		await expect(page.getByText("Já está no app: parcela 6 de 10 de Loja X 6/10.")).toBeVisible();
+		await expect(page.getByRole("checkbox", { name: "Gravar Loja X" })).not.toBeChecked();
+
+		await go(page, "Lançamentos");
+		await page.getByLabel("Mês", { exact: true }).fill("2026-10");
+		await expect(page.getByRole("row").filter({ hasText: "Loja X" })).toHaveCount(1);
+		await page.getByLabel("Mês", { exact: true }).fill("2027-02");
+		await expect(page.getByRole("row").filter({ hasText: "Loja X 10/10" })).toBeVisible();
+	});
+
 	// E.10.2: the card written down with what its open invoice held, and that invoice read in
 	// line by line, counted the same purchases twice.
 	test("takes out the record a card was written down with when its invoice comes in", async ({

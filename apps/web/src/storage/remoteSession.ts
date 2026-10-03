@@ -751,7 +751,7 @@ export function createRemoteSession(
 		imports: {
 			existing: (
 				spaceId: string,
-				range: { from?: string; to?: string; accountId?: string } = {},
+				range: { from?: string; to?: string; accountId?: string; invoiceMonth?: string } = {},
 			) => {
 				const query = new URLSearchParams();
 				for (const [name, value] of Object.entries(range)) {

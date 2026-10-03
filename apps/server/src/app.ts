@@ -325,6 +325,13 @@ const importedRecord = z.object({
 		.optional(),
 	paymentFrom: z.string().min(1).max(64).nullable().optional(),
 	reverses: z.string().min(1).max(64).nullable().optional(),
+	// The part of a plan the line is. More parts than a plan may have is the repository's to
+	// refuse, with its own sentence, and not a check here that would say nothing.
+	installment: z
+		.object({ number: z.number().int().min(1), count: z.number().int().min(2) })
+		.refine((part) => part.number <= part.count)
+		.nullable()
+		.optional(),
 });
 
 const importInput = z.object({
@@ -1745,6 +1752,8 @@ export function createApp({ config, database, auth }: AppDependencies) {
 				from: calendarDate.optional(),
 				to: calendarDate.optional(),
 				accountId: z.string().min(1).optional(),
+				// The invoice a file is, for the plans of the card around it.
+				invoiceMonth: existingMonth.optional(),
 			})
 			.parse(context.req.query());
 

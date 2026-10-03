@@ -5,6 +5,8 @@ import {
 	installmentRefusal,
 	MAX_INSTALLMENTS,
 	planInstallments,
+	purchaseDayOf,
+	statementParts,
 } from "./installments.ts";
 
 const early = { closingDay: 3, dueDay: 10 };
@@ -112,5 +114,34 @@ describe("a plan from an anchor", () => {
 		expect(invoices[0]).toBe("2026-02");
 		expect(invoices.at(-1)).toBe("2030-01");
 		expect(new Set(invoices).size).toBe(48);
+	});
+});
+
+// Part 2, E.13 of the request for 2.0.0: the parts a statement still has to write.
+describe("the parts printed on a statement", () => {
+	it("writes the part printed and the ones after it, by number", () => {
+		const parts = statementParts({
+			eachPart: money(15_000, "BRL"),
+			number: 5,
+			count: 10,
+			purchasedOn: "2026-05-12",
+			invoice: "2026-10",
+		});
+		expect(
+			parts.map((part) => [part.number, part.happenedOn, part.invoiceMonth, part.amount.amount]),
+		).toEqual([
+			[5, "2026-09-12", "2026-10", 15_000],
+			[6, "2026-10-12", "2026-11", 15_000],
+			[7, "2026-11-12", "2026-12", 15_000],
+			[8, "2026-12-12", "2027-01", 15_000],
+			[9, "2027-01-12", "2027-02", 15_000],
+			[10, "2027-02-12", "2027-03", 15_000],
+		]);
+	});
+
+	it("reads a day inside the invoice as the day of the part, and one before it as the purchase", () => {
+		const period = { from: "2026-09-03", to: "2026-10-02" };
+		expect(purchaseDayOf({ printedOn: "2026-09-12", number: 5, period })).toBe("2026-05-12");
+		expect(purchaseDayOf({ printedOn: "2026-05-12", number: 5, period })).toBe("2026-05-12");
 	});
 });

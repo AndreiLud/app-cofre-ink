@@ -429,6 +429,14 @@ export type ExistingRecord = {
 	moved?: boolean;
 	/** What kind of record it is, so a refund finds the purchase it takes back. */
 	kind?: "expense" | "income" | "transfer";
+	/** The invoice it is on, so a part printed on an invoice finds the part already written. */
+	invoiceMonth?: string | null;
+	/** The plan it is a part of, and which part. */
+	installment?: { group: string; number: number; count: number } | null;
+	/** The other end of a move, the plastic, and the series that wrote it. */
+	counterAccountId?: string | null;
+	cardId?: string | null;
+	recurrenceId?: string | null;
 };
 
 /** How far apart a line and the move it is may be dated. A slip can take two days. */

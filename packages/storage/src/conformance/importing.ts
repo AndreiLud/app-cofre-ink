@@ -287,6 +287,70 @@ export function runImportingConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// E.13: a part printed on an invoice was one record; the plan behind it went unwritten.
+		it("writes a plan from the part an invoice prints to the last", async () => {
+			const setup = await ready(adapter);
+			try {
+				const { on, spaceId } = setup;
+				const written = await on.imports.create({
+					spaceId,
+					accountId: setup.card.id,
+					invoiceMonth: "2026-10",
+					records: [
+						{
+							happenedOn: "2026-09-12",
+							amount: 15_000,
+							description: "Loja X",
+							nature: "installment",
+							installment: { number: 5, count: 10 },
+						},
+					],
+				});
+				const rows = await Promise.all(written.ids.map((id) => on.transactions.get(id)));
+				expect(
+					rows.map((row) => [row.description, row.happenedOn, row.invoiceMonth, row.amount]),
+				).toEqual([
+					["Loja X 5/10", "2026-09-12", "2026-10", -15_000],
+					["Loja X 6/10", "2026-10-12", "2026-11", -15_000],
+					["Loja X 7/10", "2026-11-12", "2026-12", -15_000],
+					["Loja X 8/10", "2026-12-12", "2027-01", -15_000],
+					["Loja X 9/10", "2027-01-12", "2027-02", -15_000],
+					["Loja X 10/10", "2027-02-12", "2027-03", -15_000],
+				]);
+				expect(new Set(rows.map((row) => row.installmentGroup)).size).toBe(1);
+
+				await expect(
+					on.imports.create({
+						spaceId,
+						accountId: setup.card.id,
+						invoiceMonth: "2026-10",
+						records: [
+							{
+								happenedOn: "2026-09-12",
+								amount: 1000,
+								description: "Loja Y",
+								nature: "installment",
+								installment: { number: 2, count: 49 },
+							},
+						],
+					}),
+				).rejects.toMatchObject({ rule: "tooManyInstallments" });
+
+				// What was already there comes back with its part, on this invoice.
+				const known = await on.imports.existing(spaceId, {
+					accountId: setup.card.id,
+					invoiceMonth: "2026-11",
+					from: "2026-11-01",
+					to: "2026-11-30",
+				});
+				expect(
+					known.filter((row) => row.installment?.number === 6).map((row) => row.invoiceMonth),
+				).toEqual(["2026-11"]);
+			} finally {
+				await setup.fixture.close();
+			}
+		});
+
 		// E.10.2: the one record a card was written down with for its open invoice is replaced by
 		// the invoice that details it, in the same write.
 		it("removes the record an invoice details, in the same write", async () => {

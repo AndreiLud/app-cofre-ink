@@ -5,6 +5,7 @@ export * from "./nature.ts";
 export * from "./ofx.ts";
 export * from "./pdf/index.ts";
 export * from "./pipeline.ts";
+export * from "./plans.ts";
 export * from "./qif.ts";
 export * from "./recognise/index.ts";
 export * from "./refunds.ts";

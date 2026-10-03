@@ -410,7 +410,7 @@ export type CofreSession = {
 		/** What the space already has around those days, so a repeat can be marked. */
 		existing: (
 			spaceId: string,
-			range?: { from?: string; to?: string; accountId?: string },
+			range?: { from?: string; to?: string; accountId?: string; invoiceMonth?: string },
 		) => Promise<KnownRecord[]>;
 		/** A whole file at once, all of it or none of it, with the invoice it is and what it replaces. */
 		create: (input: ImportInput) => Promise<ImportResult>;

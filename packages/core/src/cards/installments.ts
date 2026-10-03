@@ -106,6 +106,47 @@ export function anchorAfterPaid(input: {
 	};
 }
 
+/**
+ * The day of the purchase behind a part printed on an invoice or a statement.
+ *
+ * A bank prints either the day of the part, inside the days the invoice covers, or the day of
+ * the purchase, before them. The part n was charged n less one months after the purchase.
+ */
+export function purchaseDayOf(input: {
+	printedOn: CalendarDate;
+	number: number;
+	period: { from: CalendarDate; to: CalendarDate } | null;
+}): CalendarDate {
+	const inside =
+		input.period !== null &&
+		input.printedOn >= input.period.from &&
+		input.printedOn <= input.period.to;
+	return inside ? addMonths(input.printedOn, -(input.number - 1)) : input.printedOn;
+}
+
+/**
+ * The parts a statement still has to write, from the one it prints to the last: each one the
+ * amount printed, the part k on the day of the purchase plus k less one months and on the
+ * invoice of the statement plus k less n, counted by the number and never by the day.
+ */
+export function statementParts(input: {
+	/** What each part is, in minor units, as a positive number. */
+	eachPart: Money;
+	number: number;
+	count: number;
+	purchasedOn: CalendarDate;
+	/** The invoice the part printed is on, when the statement is a card's. */
+	invoice?: CalendarMonth;
+}): Installment[] {
+	return planInstallments({
+		total: { amount: input.eachPart.amount * input.count, currency: input.eachPart.currency },
+		count: input.count,
+		purchasedOn: addMonths(input.purchasedOn, input.number - 1),
+		firstNumber: input.number,
+		...(input.invoice ? { firstInvoice: input.invoice } : {}),
+	});
+}
+
 export type InstallmentRefusal =
 	| "tooManyInstallments"
 	| "onlyExpensesGoInInstallments"
