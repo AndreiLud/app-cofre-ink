@@ -351,6 +351,8 @@ export type CofreSession = {
 			mode: "percent" | "fixed";
 			value: number;
 			accountId?: string | null;
+			/** One holding of that investment account, which "Guardar agora" puts the money into. */
+			holdingId?: string | null;
 		}) => Promise<SavingsRule>;
 		clearRule: (spaceId: string) => Promise<void>;
 		savings: (input: { spaceId: string; month: string }) => Promise<SavingsProgress>;

@@ -156,6 +156,44 @@ test.describe("what is put aside", () => {
 		await expect(page.getByRole("button", { name: "Atualizar os índices" })).toBeVisible();
 	});
 
+	// Part 2, H.10.6 of 2.0.0: a goal in an investment account counted every holding of the
+	// account, and its shortcut opened Move between accounts, which offers no investment account.
+	test("keeps a goal in one caixinha, and puts money into it from the goal", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Investimentos");
+		for (const [name, amount] of [
+			["Viagem", "2000,00"],
+			["Reserva", "5000,00"],
+		]) {
+			const dialog = await newHolding(page, "Caixinha");
+			await dialog.getByLabel("Nome", { exact: true }).fill(name as string);
+			await dialog.getByLabel("Quanto colocou").fill(amount as string);
+			await page.getByRole("button", { name: "Salvar" }).click();
+			await expect(page.getByRole("dialog")).toHaveCount(0);
+		}
+
+		await go(page, "Orçamento");
+		await page.getByRole("button", { name: "Nova meta" }).click();
+		const goal = page.getByRole("dialog");
+		await goal.getByLabel("Nome").fill("Viagem");
+		await goal.getByLabel("Quanto", { exact: true }).fill("5.000,00");
+		await goal.getByLabel("Onde o dinheiro fica").selectOption({ label: "Corretora" });
+		await goal.getByLabel("Em qual aplicação").selectOption({ label: "Viagem" });
+		await page.getByRole("button", { name: "Salvar" }).click();
+
+		// The caixinha alone, and not the Reserva or the rest of the broker.
+		const line = page.getByRole("listitem").filter({ hasText: "Viagem" });
+		await expect(line).toContainText("R$ 2.000,00");
+
+		await line.getByRole("button", { name: "Pôr na meta" }).click();
+		const guardar = page.getByRole("dialog");
+		await expect(guardar.getByRole("heading", { name: "Guardar em Viagem" })).toBeVisible();
+		await guardar.getByLabel("Quanto", { exact: true }).fill("300,00");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(guardar).toHaveCount(0);
+		await expect(line).toContainText("R$ 2.300,00");
+	});
+
 	// Part 2, H.9.8 of 2.0.0: the overview, Accounts and Investments read the holdings under
 	// two keys, so putting money into a caixinha changed one screen and not the other two.
 	test("agrees on the overview, on Accounts and on Investments after Guardar", async ({ page }) => {

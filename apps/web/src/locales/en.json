@@ -623,7 +623,10 @@
 			"comfortable": "Within the limit",
 			"tight": "Close to the limit",
 			"over": "Over the limit"
-		}
+		},
+		"inWhichHolding": "In which holding",
+		"inWhichHoldingHint": "In an investment account, what counts is what is in the holding chosen. The whole account adds up every holding in it.",
+		"wholeAccount": "The whole account"
 	},
 	"sharing": {
 		"title": "Who owes whom",

@@ -6,11 +6,12 @@
 // helps somebody keep either one opens Move between accounts with the account and the amount
 // already in it, and the overview and the budget open it the same way from here.
 //
-// Only an account money can be moved into. A rule or a goal kept in an investment account
-// is kept in what is bought there, and that is put aside on the investments screen.
+// Only an account money can be moved into. A rule or a goal kept in an investment account is
+// kept in a holding there, and its shortcut opens Guardar on that holding instead, with the
+// same amount: moving money into the account itself would leave "Você tem" and arrive nowhere.
 
 import type { CurrencyCode } from "@cofre/core";
-import type { Account, GoalProgress, SavingsProgress } from "@cofre/storage";
+import type { Account, GoalProgress, HoldingValue, SavingsProgress } from "@cofre/storage";
 import { type MoveStart, movesInto, movesOutOf } from "../components/MoveDialog.tsx";
 import { fillAmount } from "./amounts.ts";
 import type { Translate } from "./sayWhy.ts";
@@ -40,6 +41,63 @@ export function saveNowStart(
 		amount: fillAmount(missing, language, into.currency as CurrencyCode),
 		title: t("move.saveNow"),
 		description: t("move.saveNowDescription"),
+	};
+}
+
+/** Guardar on a holding, opened from the rule or a goal, with what is already known. */
+export type HoldingStart = { holding: HoldingValue; amount?: string };
+
+/** The holding money would go into, when it exists and there is an account it can leave. */
+function holdingReachable(
+	holdings: readonly HoldingValue[],
+	accounts: readonly Account[],
+	id: string | null,
+): HoldingValue | null {
+	if (id === null) return null;
+	const holding = holdings.find((one) => one.id === id);
+	if (!holding) return null;
+	return accounts.some(movesOutOf) ? holding : null;
+}
+
+/** "Guardar agora" on the holding the rule names: what it still asks for this month. */
+export function saveNowHolding(
+	savings: SavingsProgress | null | undefined,
+	holdings: readonly HoldingValue[],
+	accounts: readonly Account[],
+	language: string | undefined,
+): HoldingStart | null {
+	const rule = savings?.rule;
+	if (!savings || !rule) return null;
+	const missing = savings.expected - savings.put;
+	if (missing <= 0) return null;
+	const holding = holdingReachable(holdings, accounts, rule.holdingId);
+	if (!holding) return null;
+	return {
+		holding,
+		amount: fillAmount(missing, language, holding.currency as CurrencyCode),
+	};
+}
+
+/** "Pôr na meta" on the holding the goal is in, with what a month needs when there is a date. */
+export function intoGoalHolding(
+	goal: GoalProgress,
+	holdings: readonly HoldingValue[],
+	accounts: readonly Account[],
+	language: string | undefined,
+): HoldingStart | null {
+	if (goal.left <= 0) return null;
+	const holding = holdingReachable(holdings, accounts, goal.holdingId);
+	if (!holding) return null;
+	return {
+		holding,
+		amount:
+			goal.monthlyNeeded === null
+				? undefined
+				: fillAmount(
+						Math.min(goal.monthlyNeeded, goal.left),
+						language,
+						holding.currency as CurrencyCode,
+					),
 	};
 }
 

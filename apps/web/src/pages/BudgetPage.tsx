@@ -28,10 +28,18 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { HoldingMoveDialog } from "../components/HoldingMoveDialog.tsx";
 import { MoveDialog, type MoveStart } from "../components/MoveDialog.tsx";
 import { Value } from "../components/Value.tsx";
 import { readAmount, readPercent } from "../lib/amounts.ts";
-import { intoGoalStart, saveNowStart } from "../lib/putAside.ts";
+import { HOLDINGS } from "../lib/holdings.ts";
+import {
+	type HoldingStart,
+	intoGoalHolding,
+	intoGoalStart,
+	saveNowHolding,
+	saveNowStart,
+} from "../lib/putAside.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { accountOptions } from "../lib/wayLabel.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
@@ -66,14 +74,19 @@ export function BudgetPage() {
 	const [savingMode, setSavingMode] = useState<"percent" | "fixed">("percent");
 	const [savingValue, setSavingValue] = useState("10");
 	const [savingAccount, setSavingAccount] = useState("");
+	/** The holding inside an investment account the rule sends money to, or the whole account. */
+	const [savingHolding, setSavingHolding] = useState("");
 
 	const [goalOpen, setGoalOpen] = useState(false);
 	const [goalName, setGoalName] = useState("");
 	const [goalAmount, setGoalAmount] = useState("");
 	const [goalAccount, setGoalAccount] = useState("");
+	const [goalHolding, setGoalHolding] = useState("");
 	const [goalDate, setGoalDate] = useState("");
 	/** Money being put aside, opened from the rule or from a goal. */
 	const [moving, setMoving] = useState<MoveStart | null>(null);
+	/** The same, into a holding, when the rule or the goal is kept in one. */
+	const [puttingIn, setPuttingIn] = useState<HoldingStart | null>(null);
 
 	const enabled = Boolean(session && currentSpace);
 
@@ -102,6 +115,11 @@ export function BudgetPage() {
 		enabled,
 		queryFn: () => session?.goals.savings({ spaceId, month }) ?? null,
 	});
+	const holdings = useQuery({
+		queryKey: [HOLDINGS, spaceId],
+		enabled,
+		queryFn: () => session?.investments.list(spaceId) ?? [],
+	});
 
 	const invalidate = () => {
 		void queries.invalidateQueries({ queryKey: ["budgets"] });
@@ -119,6 +137,8 @@ export function BudgetPage() {
 	// Putting money aside is writing a record, which is a question of its own: a logger
 	// may not change the plan and may still move money into the savings account.
 	const mayMove = mine.mayCall("transactions.create");
+	// Into a holding is a movement of it as well.
+	const mayPutIn = mayMove && mine.mayCall("investments.move");
 
 	const saveLimit = useMutation({
 		mutationFn: async () =>
@@ -156,6 +176,7 @@ export function BudgetPage() {
 				value:
 					savingMode === "percent" ? readPercent(savingValue) : readAmount(savingValue, currency),
 				accountId: savingAccount === "" ? null : savingAccount,
+				holdingId: savingHolding === "" ? null : savingHolding,
 			}),
 		onSuccess: () => {
 			setSavingOpen(false);
@@ -178,6 +199,7 @@ export function BudgetPage() {
 				name: goalName,
 				targetAmount: readAmount(goalAmount, currency),
 				accountId: goalAccount,
+				holdingId: goalHolding === "" ? null : goalHolding,
 				targetDate: goalDate === "" ? null : goalDate,
 			}),
 		onSuccess: () => {
@@ -205,6 +227,24 @@ export function BudgetPage() {
 	const saveNow = mayMove ? saveNowStart(savings.data, usable, i18n.resolvedLanguage, t) : null;
 	const intoGoalOf = (goal: GoalProgress) =>
 		mayMove ? intoGoalStart(goal, usable, i18n.resolvedLanguage, t) : null;
+	const owned = holdings.data ?? [];
+	const saveNowIn = mayPutIn
+		? saveNowHolding(savings.data, owned, usable, i18n.resolvedLanguage)
+		: null;
+	const intoGoalHoldingOf = (goal: GoalProgress) =>
+		mayPutIn ? intoGoalHolding(goal, owned, usable, i18n.resolvedLanguage) : null;
+	/** The holdings of an investment account, to choose one of for the rule or a goal. */
+	const holdingOptions = (accountId: string) => {
+		const inside = owned.filter((holding) => holding.accountId === accountId);
+		const isInvestment = usable.some(
+			(account) => account.id === accountId && account.kind === "investment",
+		);
+		if (!isInvestment || inside.length === 0) return null;
+		return [
+			{ value: "", label: t("budget.wholeAccount") },
+			...inside.map((holding) => ({ value: holding.id, label: holding.name })),
+		];
+	};
 
 	const nameOfLimit = (limit: BudgetWithProgress) => {
 		if (limit.scope === "total") return t("budget.everything");
@@ -253,6 +293,10 @@ export function BudgetPage() {
 							variant="secondary"
 							onClick={() => {
 								setProblem(null);
+								// What the rule already says, so changing one thing keeps the rest.
+								const rule = savings.data?.rule;
+								if (rule) setSavingAccount(rule.accountId ?? "");
+								setSavingHolding(savings.data?.rule?.holdingId ?? "");
 								setSavingOpen(true);
 							}}
 						>
@@ -294,6 +338,10 @@ export function BudgetPage() {
 								<Button size="small" variant="secondary" onClick={() => setMoving(saveNow)}>
 									{t("move.saveNow")}
 								</Button>
+							) : saveNowIn ? (
+								<Button size="small" variant="secondary" onClick={() => setPuttingIn(saveNowIn)}>
+									{t("move.saveNow")}
+								</Button>
 							) : null}
 							{mayWrite ? (
 								<Button size="small" variant="quiet" onClick={() => clearRule.mutate()}>
@@ -315,6 +363,7 @@ export function BudgetPage() {
 							onClick={() => {
 								setProblem(null);
 								setGoalAccount(usable[0]?.id ?? "");
+								setGoalHolding("");
 								setGoalOpen(true);
 							}}
 						>
@@ -345,6 +394,14 @@ export function BudgetPage() {
 											size="small"
 											variant="quiet"
 											onClick={() => setMoving(intoGoalOf(goal))}
+										>
+											{t("move.intoGoal")}
+										</Button>
+									) : intoGoalHoldingOf(goal) ? (
+										<Button
+											size="small"
+											variant="quiet"
+											onClick={() => setPuttingIn(intoGoalHoldingOf(goal))}
 										>
 											{t("move.intoGoal")}
 										</Button>
@@ -608,9 +665,21 @@ export function BudgetPage() {
 						label={t("budget.ruleAccount")}
 						hint={t("budget.ruleAccountHint")}
 						value={savingAccount}
-						onChange={(event) => setSavingAccount(event.target.value)}
+						onChange={(event) => {
+							setSavingAccount(event.target.value);
+							setSavingHolding("");
+						}}
 						options={[{ value: "", label: t("budget.noAccount") }, ...accountOptions(usable, t)]}
 					/>
+					{holdingOptions(savingAccount) ? (
+						<Select
+							label={t("budget.inWhichHolding")}
+							hint={t("budget.inWhichHoldingHint")}
+							value={savingHolding}
+							onChange={(event) => setSavingHolding(event.target.value)}
+							options={holdingOptions(savingAccount) ?? []}
+						/>
+					) : null}
 					{problem ? <Callout tone="problem">{problem}</Callout> : null}
 				</form>
 			</Dialog>
@@ -672,9 +741,21 @@ export function BudgetPage() {
 						label={t("budget.goalAccount")}
 						hint={t("budget.goalAccountHint")}
 						value={goalAccount}
-						onChange={(event) => setGoalAccount(event.target.value)}
+						onChange={(event) => {
+							setGoalAccount(event.target.value);
+							setGoalHolding("");
+						}}
 						options={accountOptions(usable, t)}
 					/>
+					{holdingOptions(goalAccount) ? (
+						<Select
+							label={t("budget.inWhichHolding")}
+							hint={t("budget.inWhichHoldingHint")}
+							value={goalHolding}
+							onChange={(event) => setGoalHolding(event.target.value)}
+							options={holdingOptions(goalAccount) ?? []}
+						/>
+					) : null}
 					{problem ? <Callout tone="problem">{problem}</Callout> : null}
 				</form>
 			</Dialog>
@@ -686,6 +767,16 @@ export function BudgetPage() {
 				accounts={usable}
 				today={today}
 				start={moving ?? undefined}
+			/>
+			<HoldingMoveDialog
+				open={puttingIn !== null}
+				onOpenChange={(next) => !next && setPuttingIn(null)}
+				spaceId={spaceId}
+				holding={puttingIn?.holding ?? null}
+				kind="in"
+				accounts={usable}
+				today={today}
+				amount={puttingIn?.amount}
 			/>
 		</div>
 	);

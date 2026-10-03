@@ -58,11 +58,18 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Findings } from "../components/Findings.tsx";
+import { HoldingMoveDialog } from "../components/HoldingMoveDialog.tsx";
 import { MoveDialog, type MoveStart, movesOutOf } from "../components/MoveDialog.tsx";
 import { Value } from "../components/Value.tsx";
 import { VoucherAmount } from "../components/VoucherAmount.tsx";
 import { estimateBehind, HOLDINGS, shortDay } from "../lib/holdings.ts";
-import { intoGoalStart, saveNowStart } from "../lib/putAside.ts";
+import {
+	type HoldingStart,
+	intoGoalHolding,
+	intoGoalStart,
+	saveNowHolding,
+	saveNowStart,
+} from "../lib/putAside.ts";
 import { EVERY_MONTH } from "../lib/recordFilters.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { ROUTES } from "../router.tsx";
@@ -152,6 +159,8 @@ export function DashboardPage() {
 	/** Whether the cards folded into one line in "Onde o dinheiro está" are opened. */
 	const [cardsOpen, setCardsOpen] = useState(false);
 	const [moving, setMoving] = useState<{ spaceId: string; start: MoveStart } | null>(null);
+	/** Guardar on a holding, when the rule or a goal is kept in one. */
+	const [puttingIn, setPuttingIn] = useState<HoldingStart | null>(null);
 
 	const mine = useWhatIMayDo(spaceId);
 	const mayUpdate = mine.mayCall("transactions.settle");
@@ -524,6 +533,14 @@ export function DashboardPage() {
 		: null;
 	const putIntoGoal = (goal: GoalProgress) =>
 		mayMoveHere ? intoGoalStart(goal, accountsHere, i18n.resolvedLanguage, t) : null;
+	// Kept in a holding: Guardar on it, which is a movement of the holding as well.
+	const mayPutIn = mayMoveHere && mine.mayCall("investments.move");
+	const holdingsHere = (holdings.data ?? []).filter((holding) => holding.spaceId === spaceId);
+	const saveNowIn = mayPutIn
+		? saveNowHolding(savings.data, holdingsHere, accountsHere, i18n.resolvedLanguage)
+		: null;
+	const putIntoGoalHolding = (goal: GoalProgress) =>
+		mayPutIn ? intoGoalHolding(goal, holdingsHere, accountsHere, i18n.resolvedLanguage) : null;
 
 	/** Whether any of the spaces being added together is narrowed to this person's rows. */
 	const narrowedSomewhere = Object.values(narrowed.data ?? {}).some(Boolean);
@@ -1310,11 +1327,21 @@ export function DashboardPage() {
 						>
 							{t("move.saveNow")}
 						</Button>
+					) : saveNowIn ? (
+						<Button
+							size="small"
+							variant="secondary"
+							className="mt-2"
+							onClick={() => setPuttingIn(saveNowIn)}
+						>
+							{t("move.saveNow")}
+						</Button>
 					) : null}
 					{(goals.data ?? []).length > 0 ? (
 						<ul className="mt-3 divide-y divide-line border-line border-t">
 							{(goals.data ?? []).slice(0, 3).map((goal) => {
 								const intoGoal = putIntoGoal(goal);
+								const intoGoalHolding = intoGoal ? null : putIntoGoalHolding(goal);
 								return (
 									<li
 										key={goal.id}
@@ -1331,6 +1358,14 @@ export function DashboardPage() {
 													size="small"
 													variant="quiet"
 													onClick={() => setMoving({ spaceId, start: intoGoal })}
+												>
+													{t("move.intoGoal")}
+												</Button>
+											) : intoGoalHolding ? (
+												<Button
+													size="small"
+													variant="quiet"
+													onClick={() => setPuttingIn(intoGoalHolding)}
 												>
 													{t("move.intoGoal")}
 												</Button>
@@ -1548,6 +1583,16 @@ export function DashboardPage() {
 				accounts={shownAccounts.filter((account) => account.spaceId === moving?.spaceId)}
 				today={today}
 				start={moving?.start}
+			/>
+			<HoldingMoveDialog
+				open={puttingIn !== null}
+				onOpenChange={(next) => !next && setPuttingIn(null)}
+				spaceId={spaceId}
+				holding={puttingIn?.holding ?? null}
+				kind="in"
+				accounts={accountsHere}
+				today={today}
+				amount={puttingIn?.amount}
 			/>
 		</div>
 	);

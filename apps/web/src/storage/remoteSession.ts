@@ -643,6 +643,7 @@ export function createRemoteSession(
 				mode: "percent" | "fixed";
 				value: number;
 				accountId?: string | null;
+				holdingId?: string | null;
 			}) => {
 				const { spaceId, ...rest } = input;
 				return send<SavingsRule>(`/api/spaces/${spaceId}/savings`, "POST", rest);

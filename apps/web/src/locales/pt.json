@@ -623,7 +623,10 @@
 			"comfortable": "Dentro do limite",
 			"tight": "Perto do limite",
 			"over": "Passou do limite"
-		}
+		},
+		"inWhichHolding": "Em qual aplicação",
+		"inWhichHoldingHint": "Numa conta de investimento, o que conta é o que está na aplicação escolhida. A conta inteira soma todas as aplicações dela.",
+		"wholeAccount": "A conta inteira"
 	},
 	"sharing": {
 		"title": "Quem deve para quem",
