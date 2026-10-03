@@ -89,7 +89,17 @@ export function runSeriesWritingConformance(adapter: AdapterUnderTest): void {
 					["2026-12-05", -150_000],
 				]);
 				// One line, with the amount it has now.
-				expect((await on.recurrences.list(spaceId)).map((one) => one.amount)).toEqual([150_000]);
+				const [head] = await on.recurrences.list(spaceId);
+				expect(head?.amount).toBe(150_000);
+				// And one list of what it wrote, through the series before it too.
+				const listed = await on.transactions.list({ spaceId, recurrenceId: head?.id ?? "" });
+				expect(listed.map((one) => one.happenedOn).sort()).toEqual([
+					"2026-10-05",
+					"2026-11-05",
+					"2026-12-05",
+				]);
+				const fromTheFirst = await on.transactions.summarize({ spaceId, recurrenceId: series.id });
+				expect([fromTheFirst.count, fromTheFirst.expense]).toEqual([3, 445_000]);
 			} finally {
 				await fixture.close();
 			}
@@ -315,12 +325,15 @@ export function runSeriesWritingConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
-		it("keeps the first day it wrote on the series, where a backup carries it", async () => {
+		it("keeps the first day a series from before 2.0.0 wrote, where a backup carries it", async () => {
 			const fixture = await prepare(adapter);
 			try {
 				const on = await onTheDay(fixture);
 				const { spaceId, series } = await aRent(on);
-				expect(series.writesFrom).toBeNull();
+				// A series written by a release before 2.0.0 has no first day of its own.
+				await fixture.driver.run(`UPDATE "recurrences" SET "writes_from" = NULL WHERE "id" = ?`, [
+					series.id,
+				]);
 				await on.recurrences.materialize({ spaceId });
 				expect((await on.recurrences.get(series.id)).writesFrom).toBe("2026-10-01");
 
@@ -333,7 +346,93 @@ export function runSeriesWritingConformance(adapter: AdapterUnderTest): void {
 				);
 				const said = (payload: unknown) =>
 					typeof payload === "string" ? payload : JSON.stringify(payload);
-				expect(logged.some((row) => said(row.payload).includes("writes_from"))).toBe(true);
+				expect(logged.some((row) => said(row.payload).includes("2026-10-01"))).toBe(true);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		// Part 2, G.2: "Academia", R$ 149,00, on the twenty eighth of October, every month, from
+		// the form of a record. One record on the twenty eighth, carrying the series, and the
+		// series itself.
+		it("writes a record that repeats as its series, with the day typed once", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const on = await onTheDay(fixture);
+				const space = await on.spaces.create({ name: "Casa" });
+				const account = await on.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Corrente",
+				});
+				const series = await on.recurrences.startWith({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 14_900,
+					accountId: account.id,
+					description: "Academia",
+					happenedOn: "2026-10-28" as CalendarDate,
+					frequency: "monthly",
+				});
+				expect(await on.recurrences.materialize({ spaceId: space.id })).toBe(0);
+				const written = await on.transactions.list({ spaceId: space.id });
+				expect(written.map((one) => one.happenedOn).sort()).toEqual([
+					"2026-10-28",
+					"2026-11-28",
+					"2026-12-28",
+				]);
+				expect(written.every((one) => one.recurrenceId === series.id)).toBe(true);
+				expect((await on.recurrences.list(space.id)).map((one) => one.description)).toEqual([
+					"Academia",
+				]);
+			} finally {
+				await fixture.close();
+			}
+		});
+
+		// Part 2, G.6: on the twenty eighth of October, R$ 149,00 every month since the fifth of
+		// August. The screen says it writes three days already gone, R$ 447,00, and the box
+		// leaves them out.
+		it("writes the days already gone only when they were not left out", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const on = await onTheDay(fixture);
+				const space = await on.spaces.create({ name: "Casa" });
+				const account = await on.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Corrente",
+				});
+				const gym = (leavePastOut: boolean, description: string) =>
+					on.recurrences.create({
+						spaceId: space.id,
+						description,
+						kind: "expense",
+						amount: 14_900,
+						accountId: account.id,
+						frequency: "monthly",
+						startsOn: "2026-08-05" as CalendarDate,
+						leavePastOut,
+					});
+				await gym(false, "Academia");
+				await gym(true, "Pilates");
+				await on.recurrences.materialize({ spaceId: space.id });
+				const written = await on.transactions.list({ spaceId: space.id });
+				const daysOf = (description: string) =>
+					written
+						.filter((one) => one.description === description)
+						.map((one) => one.happenedOn)
+						.sort();
+				const gone = written.filter(
+					(one) => one.description === "Academia" && one.happenedOn < "2026-10-28",
+				);
+				expect(gone.map((one) => one.happenedOn).sort()).toEqual([
+					"2026-08-05",
+					"2026-09-05",
+					"2026-10-05",
+				]);
+				expect(gone.reduce((sum, one) => sum - one.amount, 0)).toBe(44_700);
+				expect(daysOf("Pilates")).toEqual(["2026-11-05", "2026-12-05"]);
 			} finally {
 				await fixture.close();
 			}

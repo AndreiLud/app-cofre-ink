@@ -20,6 +20,7 @@ import {
 	occurrenceId,
 	occurrencesBetween,
 	parseCalendarDate,
+	pickRule,
 	type RecurrenceSpec,
 	type SeriesRecord,
 	type SpendingPriority,
@@ -35,6 +36,7 @@ import {
 	type Recurrence,
 	type RecurrenceFrequency,
 	type TransactionKind,
+	toCategorizationRule,
 	toRecurrence,
 } from "../models.ts";
 import { marks } from "../sql.ts";
@@ -70,10 +72,27 @@ export type CreateRecurrenceInput = {
 	notes?: string | null;
 	/**
 	 * Writes nothing before today. A series that starts on a day already gone writes the days
-	 * between, and they count in the balance; the person is asked first, and this is the box
+	 * between, and they count in the balance; the person is told first, and this is the box
 	 * that says to leave them out.
 	 */
 	leavePastOut?: boolean;
+};
+
+/** A record that repeats, written from the form that writes a record. */
+export type StartWithInput = {
+	spaceId: string;
+	kind: "income" | "expense";
+	/** Always positive. The direction comes from the kind. */
+	amount: number;
+	accountId: string;
+	cardId?: string | null;
+	categoryId?: string | null;
+	priority?: SpendingPriority | null;
+	description: string;
+	/** The day typed, which is the first record of the series. */
+	happenedOn: CalendarDate;
+	notes?: string | null;
+	frequency: RecurrenceFrequency;
 };
 
 export type UpdateRecurrenceInput = Partial<Omit<CreateRecurrenceInput, "spaceId" | "kind">> & {
@@ -495,6 +514,127 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 		return reachable(id);
 	}
 
+	/**
+	 * Writes what one series owes up to a day, inside the write it is given. A day it wrote, a day
+	 * deleted since and a day somebody said did not happen are not written again.
+	 */
+	async function writeDays(
+		one: Recurrence,
+		timezone: string,
+		until: CalendarDate,
+		write: WriteContext,
+	): Promise<number> {
+		// Never earlier than the month the series was written down in.
+		//
+		// A household writing down a rent that has been paid since 2019 was handed six
+		// years of promises nobody had made. What is behind that is history, and history
+		// is written by saying what happened rather than by a rule inventing it.
+		//
+		// The first day was worked out from the moment the row was created, every time,
+		// and a restore writes that moment again: a series restored in December wrote
+		// from December. So it is worked out once, the first time the series writes, and
+		// written on the series through the change log, where nothing undoes it.
+		let from = one.writesFrom;
+		if (from === null) {
+			from = `${monthOf(todayIn(timezone, new Date(one.createdAt)))}-01` as CalendarDate;
+			await updateRow(write, {
+				table: recurrenceTable,
+				spaceId: one.spaceId,
+				id: one.id,
+				values: { writes_from: from },
+			});
+		}
+		const start = compareCalendarDates(one.startsOn, from) > 0 ? one.startsOn : from;
+
+		const days = occurrencesBetween(specOf(one), start, until);
+		if (days.length === 0) return 0;
+
+		// Deleted days count as written, and so do the days somebody said did not happen.
+		// A day this series wrote and somebody then deleted is a day they said no to, and
+		// reading only the rows still there brought it back every time. A deleted row is
+		// not in a backup, so the answer is also kept where a backup carries it.
+		const already = await write.driver.all(
+			`SELECT "happened_on" FROM "transactions" WHERE "recurrence_id" = ?`,
+			[one.id],
+		);
+		const skipped = await write.driver.all(
+			`SELECT "day" FROM "recurrence_skips" WHERE "recurrence_id" = ? AND "deleted_at" IS NULL`,
+			[one.id],
+		);
+		const seen = new Set([
+			...already.map((row) => String(row.happened_on)),
+			...skipped.map((row) => String(row.day)),
+		]);
+		const taken = await periodsKeptBefore(one);
+		const missing = days.filter(
+			(day) => !seen.has(day) && !taken.has(seriesPeriodOf(one.frequency, day)),
+		);
+		if (missing.length === 0) return 0;
+
+		const amount = one.kind === "expense" ? -one.amount : one.amount;
+
+		// A subscription charged to a credit card lands on an invoice, like every other
+		// purchase on that card.
+		const cycle = await cycleOfAccount(one.accountId);
+
+		let written = 0;
+		for (const day of missing) {
+			const inserted = await insertRowIfAbsent(write, {
+				table: transactions,
+				spaceId: one.spaceId,
+				id: occurrenceId(one.id, day),
+				values: {
+					kind: one.kind,
+					// A fact, held back by its day until the day arrives, and then
+					// counted by itself.
+					status: "settled",
+					amount,
+					currency: one.currency,
+					fx_rate: null,
+					// The currency of a series is the currency of its space, so the
+					// amount is already the one reports add up.
+					amount_in_base: amount,
+					happened_on: day,
+					description: one.description,
+					account_id: one.accountId,
+					counter_account_id: one.counterAccountId,
+					notes: one.notes,
+					reconciled_at: null,
+					installment_group: null,
+					installment_number: null,
+					installment_count: null,
+					invoice_month: cycle ? invoiceMonthOf(day, cycle) : null,
+					category_id: one.categoryId,
+					priority: one.priority,
+					recurrence_id: one.id,
+					// The card a series of purchases is charged to, on every one of
+					// them, as on a purchase written by hand. It wrote none.
+					card_id: one.cardId,
+					created_by: context.actor().userId,
+				},
+			});
+			if (inserted) written += 1;
+		}
+		return written;
+	}
+
+	/** The category and the priority the rules of the space give a record, as a record gets them. */
+	async function suggestFor(
+		spaceId: string,
+		record: { description: string; accountId: string; kind: TransactionKind },
+	): Promise<{ categoryId: string | null; priority: SpendingPriority | null }> {
+		const rows = await context.driver.all(
+			`SELECT "id", "space_id", "match_text", "account_id", "kind", "category_id", "priority",
+			 "position", "disabled_at", "created_by", "created_at", "updated_at"
+			 FROM "categorization_rules"
+			 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "disabled_at" IS NULL
+			 ORDER BY "position", "created_at"`,
+			[spaceId],
+		);
+		const found = pickRule(rows.map(toCategorizationRule), record);
+		return { categoryId: found?.categoryId ?? null, priority: found?.priority ?? null };
+	}
+
 	return {
 		async list(spaceId: string): Promise<Recurrence[]> {
 			assertCan(context.actor(), spaceId, "recurrence.read");
@@ -536,9 +676,14 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 			const cardId = input.cardId
 				? await cardIn(input.spaceId, input.cardId, input.accountId)
 				: null;
+			// From its own first day, or from today when the person said to leave the days already
+			// gone out. The screen says how many those are and what they add up to before it
+			// saves, so writing them is a choice somebody made and not a rule inventing history.
+			// A series from before 2.0.0 has no first day and gets the first day of the month it
+			// was written down in, the first time it writes.
 			const writesFrom = input.leavePastOut
 				? todayIn(await timezoneOf(input.spaceId), new Date(context.now()))
-				: null;
+				: input.startsOn;
 
 			const id = await insertRow(context.write(), {
 				table: recurrenceTable,
@@ -725,109 +870,88 @@ export function createRecurrencesRepository(context: RepositoryContext) {
 			if (series.length === 0) return 0;
 
 			let written = 0;
-
 			for (const one of series) {
 				// An account or the card of the series was deleted or put away. It has stopped,
 				// and its screen says so: writing on an account that is gone made records nobody
 				// could see or remove.
 				if (one.stoppedBy !== null) continue;
-
-				// Never earlier than the month the series was written down in.
-				//
-				// A household writing down a rent that has been paid since 2019 was handed six
-				// years of promises nobody had made. What is behind that is history, and history
-				// is written by saying what happened rather than by a rule inventing it.
-				//
-				// The first day was worked out from the moment the row was created, every time,
-				// and a restore writes that moment again: a series restored in December wrote
-				// from December. So it is worked out once, the first time the series writes, and
-				// written on the series through the change log, where nothing undoes it.
-				let from = one.writesFrom;
-				if (from === null) {
-					from = `${monthOf(todayIn(timezone, new Date(one.createdAt)))}-01` as CalendarDate;
-					await updateRow(context.write(), {
-						table: recurrenceTable,
-						spaceId: one.spaceId,
-						id: one.id,
-						values: { writes_from: from },
-					});
-				}
-				const start = compareCalendarDates(one.startsOn, from) > 0 ? one.startsOn : from;
-
-				const days = occurrencesBetween(specOf(one), start, until);
-				if (days.length === 0) continue;
-
-				// Deleted days count as written, and so do the days somebody said did not happen.
-				// A day this series wrote and somebody then deleted is a day they said no to, and
-				// reading only the rows still there brought it back every time. A deleted row is
-				// not in a backup, so the answer is also kept where a backup carries it.
-				const already = await context.driver.all(
-					`SELECT "happened_on" FROM "transactions" WHERE "recurrence_id" = ?`,
-					[one.id],
+				written += await context.driver.transaction((tx) =>
+					writeDays(one, timezone, until, { ...context.write(), driver: tx }),
 				);
-				const skipped = await context.driver.all(
-					`SELECT "day" FROM "recurrence_skips" WHERE "recurrence_id" = ? AND "deleted_at" IS NULL`,
-					[one.id],
-				);
-				const seen = new Set([
-					...already.map((row) => String(row.happened_on)),
-					...skipped.map((row) => String(row.day)),
-				]);
-				const taken = await periodsKeptBefore(one);
-				const missing = days.filter(
-					(day) => !seen.has(day) && !taken.has(seriesPeriodOf(one.frequency, day)),
-				);
-				if (missing.length === 0) continue;
-
-				const amount = one.kind === "expense" ? -one.amount : one.amount;
-
-				// A subscription charged to a credit card lands on an invoice, like every other
-				// purchase on that card.
-				const cycle = await cycleOfAccount(one.accountId);
-
-				await context.driver.transaction(async (tx) => {
-					const write = { ...context.write(), driver: tx };
-					for (const day of missing) {
-						const inserted = await insertRowIfAbsent(write, {
-							table: transactions,
-							spaceId: one.spaceId,
-							id: occurrenceId(one.id, day),
-							values: {
-								kind: one.kind,
-								// A fact, held back by its day until the day arrives, and then
-								// counted by itself.
-								status: "settled",
-								amount,
-								currency: one.currency,
-								fx_rate: null,
-								// The currency of a series is the currency of its space, so the
-								// amount is already the one reports add up.
-								amount_in_base: amount,
-								happened_on: day,
-								description: one.description,
-								account_id: one.accountId,
-								counter_account_id: one.counterAccountId,
-								notes: one.notes,
-								reconciled_at: null,
-								installment_group: null,
-								installment_number: null,
-								installment_count: null,
-								invoice_month: cycle ? invoiceMonthOf(day, cycle) : null,
-								category_id: one.categoryId,
-								priority: one.priority,
-								recurrence_id: one.id,
-								// The card a series of purchases is charged to, on every one of
-								// them, as on a purchase written by hand. It wrote none.
-								card_id: one.cardId,
-								created_by: context.actor().userId,
-							},
-						});
-						if (inserted) written += 1;
-					}
-				});
 			}
-
 			return written;
+		},
+
+		/**
+		 * A record that repeats, from the form that writes one: the series, the record of the day
+		 * that was typed and the days ahead, in one write, the day typed once.
+		 *
+		 * Asked of the series and of the record both, because it writes both. The category a rule
+		 * gives the description is the series' category when none was chosen, as it is the
+		 * record's when the same form writes a record that does not repeat.
+		 */
+		async startWith(input: StartWithInput): Promise<Recurrence> {
+			assertCan(context.actor(), input.spaceId, "recurrence.write");
+			assertCan(context.actor(), input.spaceId, "transaction.create");
+			checkAmount(input.amount);
+			const day = parseCalendarDate(input.happenedOn);
+			if (input.description.trim() === "") {
+				throw new RuleError("descriptionIsRequired", "a recurrence needs a description");
+			}
+			const accountCurrency = await accountIn(input.spaceId, input.accountId);
+			const currency = await sameCurrency(input.spaceId, accountCurrency);
+			await accountRulesFor(input.spaceId, input.kind, input.accountId);
+			if (input.categoryId) await categoryIn(input.spaceId, input.categoryId);
+			const cardId = input.cardId
+				? await cardIn(input.spaceId, input.cardId, input.accountId)
+				: null;
+			const sorted = input.categoryId
+				? { categoryId: input.categoryId, priority: null }
+				: await suggestFor(input.spaceId, input);
+
+			const timezone = await timezoneOf(input.spaceId);
+			const today = todayIn(timezone, new Date(context.now()));
+			const horizon = addDays(today, DEFAULT_HORIZON_DAYS);
+			const until =
+				compareCalendarDates(input.happenedOn, horizon) > 0 ? input.happenedOn : horizon;
+
+			const id = await context.driver.transaction(async (tx) => {
+				const write = { ...context.write(), driver: tx };
+				const written = await insertRow(write, {
+					table: recurrenceTable,
+					spaceId: input.spaceId,
+					values: {
+						description: input.description.trim(),
+						kind: input.kind,
+						amount: input.amount,
+						currency,
+						account_id: input.accountId,
+						counter_account_id: null,
+						card_id: cardId,
+						category_id: sorted.categoryId,
+						priority: input.priority ?? sorted.priority,
+						frequency: input.frequency,
+						interval_count: 1,
+						day_of_month: input.frequency === "weekly" ? null : day.day,
+						weekday: null,
+						month_of_year: input.frequency === "yearly" ? day.month : null,
+						starts_on: input.happenedOn,
+						ends_on: null,
+						notes: input.notes ?? null,
+						paused_at: null,
+						// From the day typed, which is the first record of the series, whatever
+						// month it is in.
+						writes_from: input.happenedOn,
+						created_by: context.actor().userId,
+					},
+				});
+				const rows = await tx.all(`${SELECT} WHERE r."id" = ?`, [written]);
+				const first = rows[0];
+				if (!first) throw new NotFoundError("recurrence", written);
+				await writeDays(toRecurrence(first), timezone, until, write);
+				return written;
+			});
+			return reachable(id);
 		},
 	};
 }

@@ -59,7 +59,8 @@ export function runRecurrenceRepairConformance(adapter: AdapterUnderTest): void 
 					kind: "checking",
 					name: "Conta corrente",
 				});
-				// A rent that has been paid for years, written down today.
+				// A rent that has been paid for years, written down today, with the days already
+				// gone left out, which is what the screen offers before it saves.
 				await fixture.asAna.recurrences.create({
 					spaceId: space.id,
 					kind: "expense",
@@ -68,6 +69,7 @@ export function runRecurrenceRepairConformance(adapter: AdapterUnderTest): void 
 					accountId: account.id,
 					frequency: "monthly",
 					startsOn: "2019-01-05",
+					leavePastOut: true,
 				});
 
 				await fixture.asAna.recurrences.materialize({ spaceId: space.id });
@@ -75,11 +77,11 @@ export function runRecurrenceRepairConformance(adapter: AdapterUnderTest): void 
 				const today = todayIn("America/Sao_Paulo");
 
 				// Six years of them used to arrive, every one a bill the overview said was
-				// still to come. What is behind that is history, and a rule does not write
-				// history. This month's own day is kept, because it is the one somebody has
-				// to answer, and the overview puts it under what is late.
-				expect(written.every((one) => one.happenedOn >= `${today.slice(0, 7)}-01`)).toBe(true);
-				expect(written.length).toBeLessThan(6);
+				// still to come, and nobody had been asked. Now the screen says how many days
+				// already gone a series would write and what they add up to, and the box that
+				// leaves them out leaves out everything before today (part 2, G.6 of 2.0.0).
+				expect(written.every((one) => one.happenedOn >= today)).toBe(true);
+				expect(written.length).toBeLessThan(4);
 			} finally {
 				await fixture.close();
 			}

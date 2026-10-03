@@ -71,6 +71,8 @@ export const METHOD_PERMISSIONS = {
 	"recurrences.update": "recurrence.write",
 	"recurrences.remove": "recurrence.write",
 	"recurrences.removalPreview": "recurrence.write",
+	// "Repete" on the form of a record: a series, and the record of the day typed with it.
+	"recurrences.startWith": "recurrence.write",
 	"budgets.list": "plan.read",
 	"budgets.create": "plan.write",
 	"sharing.balances": "sharing.read",

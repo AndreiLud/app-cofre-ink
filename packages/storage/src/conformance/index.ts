@@ -347,6 +347,20 @@ const PROBES: Probe[] = [
 		run: (session, where) => session.recurrences.materialize({ spaceId: where.spaceId }),
 	},
 	{
+		method: "recurrences.startWith",
+		permission: "recurrence.write",
+		run: (session, where) =>
+			session.recurrences.startWith({
+				spaceId: where.spaceId,
+				kind: "expense",
+				amount: 14_900,
+				accountId: where.accountId,
+				description: "Academia",
+				happenedOn: "2026-09-10",
+				frequency: "monthly",
+			}),
+	},
+	{
 		method: "recurrences.update",
 		permission: "recurrence.write",
 		run: (session, where) =>

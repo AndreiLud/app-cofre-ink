@@ -426,6 +426,43 @@ describe("the api", () => {
 		expect(listed.map((one) => one.cardId)).toEqual([card.id]);
 	});
 
+	it("writes a record that repeats, with its series, in one call", async () => {
+		const ana = createClient(app);
+		await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+		const space = await ana.json<{ id: string }>("/api/spaces", {
+			method: "POST",
+			body: JSON.stringify({ name: "Casa" }),
+		});
+		const account = await ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+			method: "POST",
+			body: JSON.stringify({ kind: "checking", name: "Conta" }),
+		});
+		const today = todayIn("America/Sao_Paulo");
+		const series = await ana.json<{ id: string }>(`/api/spaces/${space.id}/recurrences/startWith`, {
+			method: "POST",
+			body: JSON.stringify({
+				kind: "expense",
+				amount: 14_900,
+				accountId: account.id,
+				description: "Academia",
+				happenedOn: today,
+				frequency: "monthly",
+			}),
+		});
+		const written = await ana.json<Array<{ happenedOn: string; recurrenceId: string | null }>>(
+			`/api/spaces/${space.id}/transactions`,
+		);
+		expect(written.filter((one) => one.happenedOn === today)).toEqual([
+			expect.objectContaining({ recurrenceId: series.id }),
+		]);
+		// And the list asked for by the series, which "Ver lançamentos" opens.
+		const bySeries = await ana.json<Array<{ recurrenceId: string | null }>>(
+			`/api/spaces/${space.id}/transactions?recurrenceId=${series.id}`,
+		);
+		expect(bySeries.length).toBe(written.length);
+		expect(bySeries.every((one) => one.recurrenceId === series.id)).toBe(true);
+	});
+
 	it("leaves the days gone out when asked, and says what deleting a series takes back", async () => {
 		const ana = createClient(app);
 		await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });

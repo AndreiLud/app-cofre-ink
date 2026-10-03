@@ -68,6 +68,7 @@ import type {
 	SpaceMember,
 	SplitInput,
 	SplitInvoiceInput,
+	StartWithInput,
 	Transaction,
 	TransactionFilter,
 	TransactionKind,
@@ -302,6 +303,8 @@ export type CofreSession = {
 	recurrences: {
 		list: (spaceId: string) => Promise<Recurrence[]>;
 		create: (input: CreateRecurrenceInput) => Promise<Recurrence>;
+		/** "Repete" on the form of a record: the series, and the record of the day typed. */
+		startWith: (input: StartWithInput) => Promise<Recurrence>;
 		update: (id: string, input: UpdateRecurrenceInput) => Promise<Recurrence>;
 		remove: (id: string, options?: { keepPlanned?: boolean }) => Promise<number>;
 		/** What deleting a series would take back: the records ahead nobody touched. */

@@ -231,6 +231,20 @@ const recurrenceInput = z.object({
 	leavePastOut: z.boolean().optional(),
 });
 
+/** "Repete" on the form of a record: the record of the day typed, and its series. */
+const startWithInput = z.object({
+	kind: z.enum(["income", "expense"]),
+	amount: z.number().int().positive(),
+	accountId: z.string().min(1),
+	cardId: cardIdentifier,
+	categoryId: z.string().min(1).nullable().optional(),
+	priority: priority.nullable().optional(),
+	description: z.string().trim().min(1).max(200),
+	happenedOn: calendarDate,
+	notes: z.string().trim().max(2000).nullable().optional(),
+	frequency: z.enum(["weekly", "monthly", "yearly"]),
+});
+
 const transactionInput = z.object({
 	kind: z.enum(["income", "expense", "transfer"]),
 	// Always positive: the direction comes from the kind, as registry 0010 says.
@@ -1032,6 +1046,8 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		to: query.to,
 		invoiceMonth: query.invoiceMonth,
 		installmentGroup: query.installmentGroup,
+		// What a series wrote, for "Ver lançamentos" on the screen of the series.
+		recurrenceId: query.recurrenceId,
 		search: query.search,
 		categoryIds:
 			query.categoryIds === undefined || query.categoryIds === ""
@@ -1250,6 +1266,14 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		const series = await context
 			.get("session")
 			.recurrences.create({ spaceId: context.req.param("id"), ...input });
+		return context.json(series, 201);
+	});
+
+	app.post("/api/spaces/:id/recurrences/startWith", async (context) => {
+		const input = startWithInput.parse(await context.req.json());
+		const series = await context
+			.get("session")
+			.recurrences.startWith({ spaceId: context.req.param("id"), ...input });
 		return context.json(series, 201);
 	});
 

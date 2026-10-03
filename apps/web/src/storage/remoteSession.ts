@@ -72,6 +72,7 @@ import type {
 	SpaceMember,
 	SplitInput,
 	SplitInvoiceInput,
+	StartWithInput,
 	Transaction,
 	TransactionFilter,
 	TransactionKind,
@@ -563,6 +564,10 @@ export function createRemoteSession(
 			create: (input: CreateRecurrenceInput) => {
 				const { spaceId, ...rest } = input;
 				return send<Recurrence>(`/api/spaces/${spaceId}/recurrences`, "POST", rest);
+			},
+			startWith: (input: StartWithInput) => {
+				const { spaceId, ...rest } = input;
+				return send<Recurrence>(`/api/spaces/${spaceId}/recurrences/startWith`, "POST", rest);
 			},
 			update: (id: string, input: UpdateRecurrenceInput) =>
 				send<Recurrence>(`/api/recurrences/${id}`, "PATCH", input),

@@ -169,6 +169,8 @@ export type TransactionFilter = {
 	 */
 	externalIds?: string[];
 	installmentGroup?: string;
+	/** What a series wrote, with the series before and after it in its chain. */
+	recurrenceId?: string;
 	/**
 	 * Which end of the range the page is taken from.
 	 *
@@ -527,6 +529,22 @@ export function createTransactionsRepository(context: RepositoryContext) {
 		if (filter.externalIds && filter.externalIds.length > 0) {
 			where.push(`"external_id" IN (${marks(filter.externalIds.length)})`);
 			params.push(...filter.externalIds);
+		}
+		// A series with the ones before and after it. A change to a series is a new series that
+		// follows the old one, and the two are one line on their screen, so they are one list.
+		if (filter.recurrenceId) {
+			where.push(`"recurrence_id" IN (
+				WITH RECURSIVE "before"("id") AS (
+					SELECT CAST(? AS TEXT)
+					UNION SELECT r."follows_id" FROM "recurrences" r
+					JOIN "before" b ON r."id" = b."id" WHERE r."follows_id" IS NOT NULL
+				), "after"("id") AS (
+					SELECT CAST(? AS TEXT)
+					UNION SELECT r."id" FROM "recurrences" r JOIN "after" a ON r."follows_id" = a."id"
+				)
+				SELECT "id" FROM "before" UNION SELECT "id" FROM "after"
+			)`);
+			params.push(filter.recurrenceId, filter.recurrenceId);
 		}
 		return { where, params };
 	}
