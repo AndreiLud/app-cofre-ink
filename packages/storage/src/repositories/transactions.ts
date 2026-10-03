@@ -6,6 +6,7 @@
 // it is written, so changing the closing day later does not move what already closed.
 
 import {
+	addMonthsToMonth,
 	type CalendarDate,
 	type CalendarMonth,
 	type CardCycle,
@@ -341,6 +342,57 @@ export function createTransactionsRepository(context: RepositoryContext) {
 		return String(first.base_currency);
 	}
 
+	/**
+	 * The invoice a record lands on, worked out again after its day or its account moved.
+	 *
+	 * A part of a purchase in instalments lands on the invoice of the first part plus its own
+	 * number, which is how the plan was written. Worked out from its own day instead, the
+	 * twenty eighth of February that the thirty first of January becomes a month later fell
+	 * before a closing day of the twenty eighth, and two parts landed on one invoice. An
+	 * invoice somebody chose stays chosen, which the callers ask before they get here.
+	 */
+	async function invoiceFor(
+		found: Transaction,
+		day: CalendarDate,
+		accountId: string,
+	): Promise<CalendarMonth | null> {
+		const cycle = cycleOf(await accountIn(found.spaceId, accountId));
+		if (!cycle) return null;
+		if (found.installmentGroup === null || found.installmentNumber === null) {
+			return invoiceMonthOf(day, cycle);
+		}
+
+		// The earliest part still there, which is the first one unless it was removed. The one
+		// being changed reads with its new day.
+		const parts = await listGroup(found.installmentGroup, found.spaceId);
+		const earliest = parts
+			.map((part) => (part.id === found.id ? { ...part, happenedOn: day } : part))
+			.filter((part) => part.installmentNumber !== null)
+			.sort((one, other) => (one.installmentNumber ?? 0) - (other.installmentNumber ?? 0))[0];
+		if (!earliest || earliest.installmentNumber === null) return invoiceMonthOf(day, cycle);
+		return addMonthsToMonth(
+			invoiceMonthOf(earliest.happenedOn, cycle),
+			found.installmentNumber - earliest.installmentNumber,
+		);
+	}
+
+	/**
+	 * What saying a record happened writes: a fact, on today when its day was still ahead.
+	 * A purchase whose day moves lands on the invoice of its new day, unless somebody chose
+	 * the invoice, and it stayed on the invoice of the old day before.
+	 */
+	async function settledValues(
+		found: Transaction,
+		today: CalendarDate,
+	): Promise<Record<string, SqlValue>> {
+		if (compareCalendarDates(found.happenedOn, today) <= 0) return { status: "settled" };
+		const values: Record<string, SqlValue> = { status: "settled", happened_on: today };
+		if (!found.invoiceMonthByHand) {
+			values.invoice_month = await invoiceFor(found, today, found.accountId);
+		}
+		return values;
+	}
+
 	/** What a change turns into, once the rules have had their say. */
 	async function valuesFor(
 		found: Transaction,
@@ -366,23 +418,21 @@ export function createTransactionsRepository(context: RepositoryContext) {
 		if (input.happenedOn !== undefined) {
 			parseCalendarDate(input.happenedOn);
 			values.happened_on = input.happenedOn;
-
-			if (!chosen) {
-				const account = await accountIn(found.spaceId, input.accountId ?? found.accountId);
-				const cycle = cycleOf(account);
-				values.invoice_month = cycle ? invoiceMonthOf(input.happenedOn, cycle) : null;
-			}
 		}
 		if (input.description !== undefined) values.description = input.description.trim();
 		if (input.accountId !== undefined) {
-			const account = await accountIn(found.spaceId, input.accountId);
+			await accountIn(found.spaceId, input.accountId);
 			values.account_id = input.accountId;
-			// The invoice a purchase lands on follows the card it was made with, so
-			// moving a record to another account has to work it out again.
-			if (input.happenedOn === undefined && !chosen) {
-				const cycle = cycleOf(account);
-				values.invoice_month = cycle ? invoiceMonthOf(found.happenedOn, cycle) : null;
-			}
+		}
+
+		// The invoice follows the day and the card, and only when one of them really moved.
+		// The form sends both on every save, so this used to work the invoice out again on
+		// any change at all: after the closing day was corrected under Accounts, giving an old
+		// purchase another category moved it to another invoice, one already paid included.
+		const day = input.happenedOn ?? found.happenedOn;
+		const accountId = input.accountId ?? found.accountId;
+		if (!chosen && (day !== found.happenedOn || accountId !== found.accountId)) {
+			values.invoice_month = await invoiceFor(found, day, accountId);
 		}
 		if (input.counterAccountId !== undefined) {
 			if (input.counterAccountId) await accountIn(found.spaceId, input.counterAccountId);
@@ -821,12 +871,11 @@ export function createTransactionsRepository(context: RepositoryContext) {
 		async settle(id: string, today: CalendarDate): Promise<Transaction> {
 			const found = await reachable(id);
 			assertCan(context.actor(), found.spaceId, "transaction.update");
-			const ahead = compareCalendarDates(found.happenedOn, today) > 0;
 			await updateRow(context.write(), {
 				table: transactions,
 				spaceId: found.spaceId,
 				id,
-				values: ahead ? { status: "settled", happened_on: today } : { status: "settled" },
+				values: await settledValues(found, today),
 			});
 			return reachable(id);
 		},
@@ -852,11 +901,7 @@ export function createTransactionsRepository(context: RepositoryContext) {
 			for (const id of ids) {
 				const found = await reachable(id);
 				assertCan(context.actor(), found.spaceId, "transaction.update");
-				const ahead = compareCalendarDates(found.happenedOn, today) > 0;
-				planned.push({
-					found,
-					values: ahead ? { status: "settled", happened_on: today } : { status: "settled" },
-				});
+				planned.push({ found, values: await settledValues(found, today) });
 			}
 
 			await context.driver.transaction(async (tx) => {

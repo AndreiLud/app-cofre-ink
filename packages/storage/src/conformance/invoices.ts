@@ -350,6 +350,135 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 1, A.7 of the request for 2.0.0. The form sends the day and the account on every
+		// save, and the invoice was worked out again whenever either was sent, changed or not.
+		describe("which invoice a record stays on", () => {
+			it("keeps an old purchase on its invoice when only its category changes", async () => {
+				const ready = await readyCard(adapter);
+				try {
+					const [purchase] = await ready.fixture.asAna.transactions.create({
+						spaceId: ready.spaceId,
+						kind: "expense",
+						amount: 40_000,
+						happenedOn: "2026-09-10",
+						description: "Mercado",
+						accountId: ready.card.id,
+					});
+					expect(purchase?.invoiceMonth).toBe("2026-10");
+					await ready.fixture.asAna.invoices.pay({
+						accountId: ready.card.id,
+						fromAccountId: ready.checking.id,
+						amount: 40_000,
+						happenedOn: "2026-10-10",
+						month: "2026-10",
+						description: "Pagamento",
+					});
+
+					// The closing day corrected under Accounts, from the third to the fifteenth.
+					await ready.fixture.asAna.accounts.update(ready.card.id, { closingDay: 15 });
+					const food = await ready.fixture.asAna.categories.create({
+						spaceId: ready.spaceId,
+						name: "Comida",
+						kind: "expense",
+					});
+					// What the form sends when only the category was changed.
+					const saved = await ready.fixture.asAna.transactions.update(purchase?.id ?? "", {
+						happenedOn: "2026-09-10",
+						accountId: ready.card.id,
+						categoryId: food.id,
+					});
+					expect(saved.invoiceMonth).toBe("2026-10");
+
+					const [october] = await ready.fixture.asAna.invoices.list(ready.card.id, "2026-10-11");
+					expect([october?.month, october?.standing]).toEqual(["2026-10", "paid"]);
+				} finally {
+					await ready.fixture.close();
+				}
+			});
+
+			it("keeps each part of a plan on the first part's invoice plus its number", async () => {
+				const ready = await readyCard(adapter);
+				try {
+					const late = await ready.fixture.asAna.accounts.create({
+						spaceId: ready.spaceId,
+						kind: "credit",
+						name: "Fecha tarde",
+						closingDay: 28,
+						dueDay: 5,
+					});
+					// The thirty first of January in three parts: the second falls on the twenty
+					// eighth of February, which is the closing day.
+					const parts = await ready.fixture.asAna.transactions.create({
+						spaceId: ready.spaceId,
+						kind: "expense",
+						amount: 90_000,
+						happenedOn: "2026-01-31",
+						description: "Sofa",
+						accountId: late.id,
+						installments: 3,
+					});
+					expect(parts.map((part) => [part.happenedOn, part.invoiceMonth])).toEqual([
+						["2026-01-31", "2026-02"],
+						["2026-02-28", "2026-03"],
+						["2026-03-31", "2026-04"],
+					]);
+
+					// The second part moved a day earlier stays on March's invoice, beside nothing.
+					const second = await ready.fixture.asAna.transactions.update(parts[1]?.id ?? "", {
+						happenedOn: "2026-02-27",
+						accountId: late.id,
+					});
+					expect(second.invoiceMonth).toBe("2026-03");
+					const invoices = await ready.fixture.asAna.invoices.list(late.id, "2026-01-31");
+					expect(invoices.map((one) => [one.month, one.charged])).toEqual([
+						["2026-02", 30_000],
+						["2026-03", 30_000],
+						["2026-04", 30_000],
+					]);
+				} finally {
+					await ready.fixture.close();
+				}
+			});
+
+			it("moves a purchase paid ahead of its day to the invoice of the day it was paid", async () => {
+				const ready = await readyCard(adapter);
+				try {
+					// The fifth of October is after the closing day, so November's invoice.
+					const [ahead] = await ready.fixture.asAna.transactions.create({
+						spaceId: ready.spaceId,
+						kind: "expense",
+						amount: 12_000,
+						happenedOn: "2026-10-05",
+						description: "Ingresso",
+						accountId: ready.card.id,
+					});
+					expect(ahead?.invoiceMonth).toBe("2026-11");
+
+					// Said to have happened on the twenty ninth of September, which is October's.
+					const settled = await ready.fixture.asAna.transactions.settle(ahead?.id ?? "", TODAY);
+					expect([settled.happenedOn, settled.invoiceMonth]).toEqual([TODAY, "2026-10"]);
+
+					// Unless somebody chose the invoice, which stays chosen.
+					const [chosen] = await ready.fixture.asAna.transactions.create({
+						spaceId: ready.spaceId,
+						kind: "expense",
+						amount: 5_000,
+						happenedOn: "2026-10-06",
+						description: "Livro",
+						accountId: ready.card.id,
+					});
+					await ready.fixture.asAna.transactions.setInvoiceMonth(chosen?.id ?? "", "2026-12");
+					expect(await ready.fixture.asAna.transactions.settleMany([chosen?.id ?? ""], TODAY)).toBe(
+						1,
+					);
+					const kept = await ready.fixture.asAna.transactions.get(chosen?.id ?? "");
+					expect([kept.happenedOn, kept.invoiceMonth]).toEqual([TODAY, "2026-12"]);
+				} finally {
+					await ready.fixture.close();
+				}
+			});
+		});
+
 		it("lets a payment with no invoice named on it pay down the oldest one owing", async () => {
 			const ready = await readyCard(adapter);
 			try {
