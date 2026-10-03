@@ -261,7 +261,9 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 	): Promise<MonthlyAmounts[]> {
 		if (seesOwnRowsOnly(context.actor(), spaceId)) return [];
 
-		const accounts = await needs.accounts.list(spaceId);
+		// Archived cards too, whose last invoice is still money that has to go: only what is
+		// left on an invoice is counted, so one paid in full adds nothing.
+		const accounts = await needs.accounts.list(spaceId, { includeArchived: true });
 		const cards = accounts.filter(
 			(account) =>
 				account.kind === "credit" && account.closingDay !== null && account.dueDay !== null,

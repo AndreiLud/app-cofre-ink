@@ -130,6 +130,30 @@ function assertQuota(
 }
 
 /**
+ * A credit card has the day it closes and the day it falls due, or it has no invoice at all.
+ *
+ * One written without them vanished from the overview, the invoices and the months ahead
+ * with nothing said, and the server took one without a word: the form always sends both, a
+ * call to the API need not. Both are days of a month.
+ */
+function assertCycle(closingDay: number | null | undefined, dueDay: number | null | undefined) {
+	for (const day of [closingDay, dueDay]) {
+		if (day === null || day === undefined) {
+			throw new RuleError(
+				"cardNeedsACycle",
+				"a credit card needs the day it closes and the day it falls due",
+			);
+		}
+		if (!Number.isInteger(day) || day < 1 || day > 31) {
+			throw new RuleError(
+				"dayIsADayOfTheMonth",
+				"a closing day and a due day are days of the month, one to thirty one",
+			);
+		}
+	}
+}
+
+/**
  * What somebody says is on a voucher today, which only a voucher that carries can hold.
  *
  * On a card that does not carry, what was there is taken back on the next landing anyway,
@@ -291,6 +315,7 @@ export function createAccountsRepository(context: RepositoryContext) {
 			assertQuota(input, input.kind);
 			assertQuotaHasADay(input.quotaAmount, input.quotaDay);
 			assertKnownAmount(input.knownAmount, input.kind, input.quotaCarries ?? null);
+			if (input.kind === "credit") assertCycle(input.closingDay, input.dueDay);
 			const known =
 				input.knownAmount === undefined || input.knownAmount === null
 					? null
@@ -438,6 +463,13 @@ export function createAccountsRepository(context: RepositoryContext) {
 					throw new RuleError(
 						"dayIsADayOfTheMonth",
 						"a closing day and a due day are days of the month, one to thirty one",
+					);
+				}
+				// Clearing a day takes every invoice of the card away, and the screens said nothing.
+				if (given === null && account.kind === "credit") {
+					throw new RuleError(
+						"cardNeedsACycle",
+						"a credit card needs the day it closes and the day it falls due",
 					);
 				}
 				values[name] = given;

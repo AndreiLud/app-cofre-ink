@@ -67,7 +67,39 @@ export type CardStanding = {
 	available: number | null;
 	/** Why there is no headroom, when there is a limit and no figure. */
 	limitInAnotherCurrency: boolean;
+	/**
+	 * A card from before 2.0.0 written down without the day it closes or the day it falls due,
+	 * which has no invoices to show. Its open invoice is an empty one dated today, so the card
+	 * still sorts and adds up as a card with nothing on it, and the screen says what to fill in.
+	 */
+	cycleMissing: boolean;
 };
+
+/** An invoice with nothing on it, closing and falling due today, for a card with no cycle. */
+function nothingOn(today: CalendarDate): InvoiceState {
+	return {
+		month: today.slice(0, 7) as CalendarMonth,
+		from: today,
+		to: today,
+		closesOn: today,
+		dueOn: today,
+		charged: 0,
+		paid: 0,
+		scheduled: 0,
+		scheduledOn: null,
+		opening: 0,
+		carriedIn: 0,
+		carriedOut: 0,
+		left: 0,
+		standing: "open",
+		closed: false,
+		daysToClose: 0,
+		daysToDue: 0,
+		late: false,
+		inOtherCurrencies: 0,
+		withoutRate: 0,
+	};
+}
 
 function cycleOf(account: Account): CardCycle | undefined {
 	if (account.kind !== "credit") return undefined;
@@ -392,15 +424,36 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 			assertCan(context.actor(), spaceId, "transaction.read");
 			if (seesOwnRowsOnly(context.actor(), spaceId)) return [];
 
-			const accounts = await needs.accounts.list(spaceId);
-			const cards = accounts.filter((account) => cycleOf(account) !== undefined);
+			// The archived ones too: a card put away with its last invoice still owed vanished
+			// from the overview, the months ahead and the invoices while the bank still wanted it.
+			const accounts = await needs.accounts.list(spaceId, { includeArchived: true });
+			const cards = accounts.filter((account) => account.kind === "credit");
 			const baseCurrency = await baseCurrencyOf(spaceId);
 
 			const standing: CardStanding[] = [];
 			for (const account of cards) {
 				const cycle = cycleOf(account);
-				if (!cycle) continue;
+				// A card from before 2.0.0 written without its two days has no invoices to show,
+				// and it used to vanish with nothing said. It comes back marked, with nothing on
+				// it, for the screen to say what is missing.
+				if (!cycle) {
+					if (account.archivedAt !== null) continue;
+					standing.push({
+						account,
+						open: nothingOn(today),
+						owing: [],
+						unpaid: null,
+						later: 0,
+						available: null,
+						limitInAnotherCurrency: false,
+						cycleMissing: true,
+					});
+					continue;
+				}
 				const states = await statesOf(account.id, today);
+				// Archived, it stays only while something on it is still owed, the debt it was
+				// written down with included.
+				if (account.archivedAt !== null && !states.some((state) => state.left > 0)) continue;
 				const openMonth = invoiceMonthOf(today, cycle);
 
 				const open =
@@ -430,6 +483,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 						? limitLeftOf({ creditLimit: account.creditLimit, states })
 						: null,
 					limitInAnotherCurrency: !limitComparable && account.creditLimit !== null,
+					cycleMissing: false,
 				});
 			}
 			return standing;

@@ -612,7 +612,8 @@
 		"splitIsNotAMove": "This record is divided between people. Undo the division first: money moved between your own accounts is not a household expense.",
 		"moveEndIsNotAllowed": "That account cannot be the other end. Money leaves a current account, savings or cash, and goes to one of them, to a benefit card or to a card's invoice.",
 		"moveNeedsAMoneyAccount": "Only money out of or into a current account, savings or cash, or a payment received on a card, becomes a move between accounts.",
-		"notTheOtherHalf": "That record is not the same money written on the other account. Nothing was changed."
+		"notTheOtherHalf": "That record is not the same money written on the other account. Nothing was changed.",
+		"cardNeedsACycle": "A credit card needs the day it closes and the day it falls due. Without them it has no invoice at all."
 	},
 	"transactions": {
 		"title": "Records",

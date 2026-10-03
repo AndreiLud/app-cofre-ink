@@ -36,6 +36,105 @@ async function readyCard(adapter: AdapterUnderTest) {
 
 export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 	describe("invoices", () => {
+		// Part 2, B.7.1, B.7.2 and B.7.5 of the request for 2.0.0: a card archived with its last
+		// invoice still owed vanished from the overview, the months ahead and the invoices,
+		// while the bank still wanted 640 of it. It stays while something is owed, it can be
+		// paid in either of the two ways an invoice is paid, and it goes once it is paid.
+		it("keeps an archived card while it still owes, and lets it be paid", async () => {
+			const ready = await readyCard(adapter);
+			try {
+				const on = ready.fixture.asAna;
+				await on.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 64_000,
+					happenedOn: "2026-09-10",
+					description: "Mercado",
+					accountId: ready.card.id,
+				});
+				await on.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "expense",
+					amount: 10_000,
+					happenedOn: "2026-08-10",
+					description: "Antes",
+					accountId: ready.card.id,
+				});
+				await on.accounts.archive(ready.card.id);
+
+				const owing = await on.invoices.standing(ready.spaceId, TODAY);
+				expect(owing.map((one) => [one.account.id, one.open.left])).toEqual([
+					[ready.card.id, 64_000],
+				]);
+				// The months ahead pay it: 640 open and 100 already late, in the first month.
+				const ahead = await on.projections.monthsAhead({
+					spaceId: ready.spaceId,
+					from: "2026-10",
+					months: 2,
+					today: TODAY,
+				});
+				expect(ahead.months[0]?.expenseFrom.written).toBe(74_000);
+
+				// The one before, by marking it paid, and the open one by paying it.
+				expect(
+					await on.invoices.markPaidUntil({
+						accountId: ready.card.id,
+						month: "2026-10",
+						fromAccountId: ready.checking.id,
+						today: TODAY,
+						description: "Pagamento {{month}}",
+					}),
+				).toBe(1);
+				await on.invoices.pay({
+					accountId: ready.card.id,
+					fromAccountId: ready.checking.id,
+					amount: 64_000,
+					happenedOn: TODAY,
+					month: "2026-10",
+					description: "Pagamento",
+				});
+				expect(await on.invoices.standing(ready.spaceId, TODAY)).toEqual([]);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		// Part 2, B.7.4: a credit account with no cycle has no invoices, and it vanished with
+		// nothing said. A new one is refused, and so is an edit that clears a day; one written
+		// before 2.0.0 comes back marked.
+		it("asks a card for its two days, and marks an old one written without them", async () => {
+			const ready = await readyCard(adapter);
+			try {
+				const on = ready.fixture.asAna;
+				await expect(
+					on.accounts.create({ spaceId: ready.spaceId, kind: "credit", name: "Sem dias" }),
+				).rejects.toMatchObject({ rule: "cardNeedsACycle" });
+				await expect(
+					on.accounts.create({
+						spaceId: ready.spaceId,
+						kind: "credit",
+						name: "Meio ciclo",
+						closingDay: 3,
+					}),
+				).rejects.toMatchObject({ rule: "cardNeedsACycle" });
+				await expect(on.accounts.update(ready.card.id, { dueDay: null })).rejects.toMatchObject({
+					rule: "cardNeedsACycle",
+				});
+
+				// As release 1.2.1 left one: the days taken away underneath the repository.
+				await ready.fixture.driver.run(
+					`UPDATE "accounts" SET "closing_day" = NULL, "due_day" = NULL WHERE "id" = ?`,
+					[ready.card.id],
+				);
+				const standing = await on.invoices.standing(ready.spaceId, TODAY);
+				expect(standing.map((one) => [one.account.id, one.cycleMissing])).toEqual([
+					[ready.card.id, true],
+				]);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		it("is open until something is paid against it", async () => {
 			const ready = await readyCard(adapter);
 			try {

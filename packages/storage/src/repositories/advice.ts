@@ -546,7 +546,13 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 				pendingCharges(input.spaceId, input.today, until),
 				possibleRepeats(input.spaceId, `${addMonthsToMonth(thisMonth, -1)}-01`, to),
 				needs.transactions.balances(input.spaceId, input.today),
-				needs.accounts.list(input.spaceId),
+				// The accounts in use, and an archived card as well: what it still owes is
+				// still owed, and leaving it out made money on hand look larger by that much.
+				needs.accounts
+					.list(input.spaceId, { includeArchived: true })
+					.then((all) =>
+						all.filter((account) => account.archivedAt === null || account.kind === "credit"),
+					),
 				categoryNames(input.spaceId),
 				lastPaidIn(input.spaceId),
 				closedInvoices(input.spaceId, firstMonth, thisMonth),
