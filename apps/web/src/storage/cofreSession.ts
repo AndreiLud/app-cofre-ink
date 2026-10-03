@@ -250,6 +250,11 @@ export type CofreSession = {
 		/** The same over several, all of them or none, each staying on its own day. */
 		settleMany: (ids: string[], today: CalendarDate) => Promise<number>;
 		reconcile: (id: string, reconciled: boolean) => Promise<Transaction>;
+		/** A purchase on a benefit card taken back, in whole or in part. */
+		refund: (
+			id: string,
+			input: { amount: number; happenedOn: CalendarDate; description: string },
+		) => Promise<Transaction>;
 		remove: (id: string) => Promise<void>;
 		removeMany: (ids: string[]) => Promise<number>;
 		removeGroup: (groupId: string) => Promise<number>;

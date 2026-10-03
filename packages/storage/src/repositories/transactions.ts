@@ -401,7 +401,12 @@ export function createTransactionsRepository(context: RepositoryContext) {
 		const values: Record<string, SqlValue> = {};
 
 		if (input.amount !== undefined) {
-			const amount = signFor(found.kind, input.amount);
+			// A refund on a benefit card is a purchase the other way round, and correcting how
+			// much was refunded keeps it one rather than turning it into a second purchase.
+			const refund = found.kind === "expense" && found.amount > 0;
+			const amount = refund
+				? -signFor(found.kind, input.amount)
+				: signFor(found.kind, input.amount);
 			values.amount = amount;
 			values.amount_in_base = baseAmount(
 				amount,
@@ -916,6 +921,81 @@ export function createTransactionsRepository(context: RepositoryContext) {
 				}
 			});
 			return planned.length;
+		},
+
+		/**
+		 * A purchase on a benefit card taken back, in whole or in part.
+		 *
+		 * Part 1, item B.5 of 2.0.0, decided with the owner: a refund on a voucher is a
+		 * purchase taken back. It is written as a purchase the other way round, on the same
+		 * card, in the same category, so it adds back to what is left on the card and takes
+		 * off what was spent in that category, and it is never income, because nothing came
+		 * in: the lunch was simply not paid for. The reader of statements writes the same
+		 * thing when it finds one. There was no way to write one before: a voucher takes no
+		 * income, and a purchase is always money going out.
+		 *
+		 * Up to what the purchase cost. On a card that is not a benefit card a refund is
+		 * money arriving on the invoice, which is a different thing.
+		 */
+		async refund(
+			id: string,
+			input: { amount: number; happenedOn: CalendarDate; description: string },
+		): Promise<Transaction> {
+			const found = await reachable(id);
+			assertCan(context.actor(), found.spaceId, "transaction.create");
+			if (found.kind !== "expense" || found.amount >= 0) {
+				throw new RuleError("onlyAPurchaseIsRefunded", "only a purchase can be taken back");
+			}
+			const account = await accountIn(found.spaceId, found.accountId);
+			if (account.kind !== "voucher") {
+				throw new RuleError(
+					"refundIsForVouchers",
+					"a refund taken back on the card itself is for a benefit card",
+				);
+			}
+			if (
+				!Number.isSafeInteger(input.amount) ||
+				input.amount <= 0 ||
+				input.amount > -found.amount
+			) {
+				throw new RuleError(
+					"refundIsUpToThePurchase",
+					"a refund is a positive amount no larger than the purchase",
+				);
+			}
+			parseCalendarDate(input.happenedOn);
+
+			const spaceCurrency = await spaceCurrencyOf(found.spaceId);
+			const written = await insertRow(context.write(), {
+				table: transactions,
+				spaceId: found.spaceId,
+				values: {
+					kind: "expense",
+					status: "settled",
+					// The other way round from the purchase, which is what makes it one taken back.
+					amount: input.amount,
+					currency: found.currency,
+					fx_rate: found.fxRate,
+					amount_in_base: baseAmount(input.amount, found.currency, spaceCurrency, found.fxRate),
+					happened_on: input.happenedOn,
+					description: input.description.trim(),
+					account_id: found.accountId,
+					counter_account_id: null,
+					notes: null,
+					reconciled_at: null,
+					installment_group: null,
+					installment_number: null,
+					installment_count: null,
+					invoice_month: null,
+					invoice_month_by_hand: null,
+					category_id: found.categoryId,
+					priority: found.priority,
+					external_id: null,
+					card_id: found.cardId,
+					created_by: context.actor().userId,
+				},
+			});
+			return reachable(written);
 		},
 
 		/**

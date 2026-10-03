@@ -602,7 +602,10 @@
 		"benefitDoesNotLeave": "Money on a benefit card is spent on the card and does not leave it. A top up by Pix goes in as a transfer into the card, because that one is real.",
 		"closingDayTooFar": "That day is too far from the expected closing. A bank moves a closing by a few days, for a weekend or a holiday; check the day, and the year.",
 		"quotaNeedsADay": "The allowance lands on a day of the month. Pick the day it lands on.",
-		"knownAmountIsForCarryingVouchers": "How much is on the card today is only for a benefit that carries. On one that resets, the monthly allowance already says what is on it."
+		"knownAmountIsForCarryingVouchers": "How much is on the card today is only for a benefit that carries. On one that resets, the monthly allowance already says what is on it.",
+		"onlyAPurchaseIsRefunded": "Only a purchase can be refunded.",
+		"refundIsForVouchers": "A refund that goes back on the card itself is for a benefit card.",
+		"refundIsUpToThePurchase": "A refund is more than nothing and at most what the purchase cost."
 	},
 	"transactions": {
 		"title": "Records",
@@ -682,7 +685,11 @@
 		"deleteWholeGroup": "All {{count}} instalments of {{description}} go, including the ones in months still to come.",
 		"deleteMany_one": "The 1 record you picked goes.",
 		"deleteMany_other": "The {{count}} records you picked go.",
-		"deleteForever": "There is no undo from here. If it was only the wrong category or the wrong amount, editing fixes it."
+		"deleteForever": "There is no undo from here. If it was only the wrong category or the wrong amount, editing fixes it.",
+		"refund": "Refund",
+		"refundTitle": "Refund the purchase",
+		"refundBody": "The amount goes back on the card and comes off the spending in the purchase's category. It does not count as money coming in.",
+		"refundOf": "Refund: {{description}}"
 	},
 	"rulesSection": {
 		"title": "Rules that sort on their own",

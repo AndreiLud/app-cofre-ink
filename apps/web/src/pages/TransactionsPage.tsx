@@ -2,7 +2,7 @@
 // people actually ask: what did I spend at that place, what is still to come, what
 // went through this card.
 
-import { addMonthsToMonth, addUpInBase, monthOf, todayIn } from "@cofre/core";
+import { addMonthsToMonth, addUpInBase, type CalendarDate, monthOf, todayIn } from "@cofre/core";
 import {
 	hasHappened,
 	type Transaction,
@@ -40,6 +40,7 @@ import { SplitDialog } from "../components/SplitDialog.tsx";
 import { TransactionForm } from "../components/TransactionForm.tsx";
 import { Value } from "../components/Value.tsx";
 import { afterRecordsChange } from "../lib/afterRecords.ts";
+import { fillAmount, readAmount } from "../lib/amounts.ts";
 import {
 	addressFromFilters,
 	type Filters,
@@ -140,6 +141,7 @@ export function TransactionsPage() {
 	const mayTeach = mayCall("rules.create");
 	const mayShare = mayCall("sharing.split");
 	const mayReconcile = mayCall("transactions.reconcile");
+	const mayRefund = mayCall("transactions.refund");
 	/** The checkboxes are worth drawing when at least one thing can be done with them. */
 	const mayPick = mayUpdate || mayDelete;
 	/** And the menu of a row, when at least one item of it would be drawn. */
@@ -289,6 +291,35 @@ export function TransactionsPage() {
 				}
 			}
 			await session.invoices.move(input.row.id, input.towards);
+			invalidate();
+		},
+		onError: complain,
+	});
+
+	/**
+	 * A purchase on a benefit card taken back. It comes back to the card and off the category
+	 * of the purchase, and it is never income, because nothing came in.
+	 */
+	const [refunding, setRefunding] = useState<Transaction | null>(null);
+	const [refundAmount, setRefundAmount] = useState("");
+	const [refundOn, setRefundOn] = useState("");
+	function openRefund(row: Transaction) {
+		setProblem(null);
+		setRefunding(row);
+		setRefundAmount(fillAmount(-row.amount, i18n.resolvedLanguage, row.currency));
+		setRefundOn(today);
+	}
+	const refund = useMutation({
+		mutationFn: async () => {
+			if (!session || !refunding) return;
+			await session.transactions.refund(refunding.id, {
+				amount: readAmount(refundAmount, refunding.currency),
+				happenedOn: refundOn as CalendarDate,
+				description: t("transactions.refundOf", { description: refunding.description }),
+			});
+		},
+		onSuccess: () => {
+			setRefunding(null);
 			invalidate();
 		},
 		onError: complain,
@@ -758,6 +789,15 @@ export function TransactionsPage() {
 												) : null}
 												{/* A purchase on a card the bank closed onto another invoice, moved
 												    from where somebody finds it, and not only from the invoice. */}
+												{mayRefund &&
+												row.kind === "expense" &&
+												row.amount < 0 &&
+												accounts.data?.find((one) => one.id === row.accountId)?.kind ===
+													"voucher" ? (
+													<MenuItem onSelect={() => openRefund(row)}>
+														{t("transactions.refund")}
+													</MenuItem>
+												) : null}
 												{mayMoveInvoice && row.invoiceMonth !== null && row.kind !== "transfer" ? (
 													<>
 														<MenuItem
@@ -831,6 +871,41 @@ export function TransactionsPage() {
 					</p>
 				</Panel>
 			) : null}
+
+			<Dialog
+				open={refunding !== null}
+				onOpenChange={(next) => !next && setRefunding(null)}
+				title={t("transactions.refundTitle")}
+				description={t("transactions.refundBody")}
+				closeLabel={t("actions.close")}
+				footer={
+					<>
+						<Button variant="quiet" onClick={() => setRefunding(null)}>
+							{t("actions.cancel")}
+						</Button>
+						<Button onClick={() => refund.mutate()} disabled={refund.isPending}>
+							{t("transactions.refund")}
+						</Button>
+					</>
+				}
+			>
+				<div className="space-y-4">
+					<Field
+						label={t("transactions.amount")}
+						value={refundAmount}
+						onChange={(event) => setRefundAmount(event.target.value)}
+						numeric={true}
+						inputMode="decimal"
+					/>
+					<Field
+						label={t("transactions.day")}
+						type="date"
+						value={refundOn}
+						onChange={(event) => setRefundOn(event.target.value)}
+					/>
+					{problem ? <Callout tone="problem">{problem}</Callout> : null}
+				</div>
+			</Dialog>
 
 			<Dialog
 				open={movingFirst !== null}

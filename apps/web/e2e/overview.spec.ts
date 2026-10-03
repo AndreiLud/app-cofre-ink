@@ -7,7 +7,16 @@
 // for a day already gone simply vanishing.
 
 import { expect, test } from "@playwright/test";
-import { dayField, figure, go, onTheDay, openCofre, promisesFromBefore, total } from "./support.ts";
+import {
+	dayField,
+	figure,
+	go,
+	onTheDay,
+	openCofre,
+	promisesFromBefore,
+	record,
+	total,
+} from "./support.ts";
 
 test.describe("the overview", () => {
 	test("answers the four questions the product promises, in one line", async ({ page }) => {
@@ -51,6 +60,35 @@ test.describe("the overview", () => {
 		await openCofre(page);
 		await expect(page.getByText("R$ 844,00").first()).toBeVisible();
 		await expect(page.getByText("de R$ 900,00").first()).toBeVisible();
+	});
+
+	// Part 1, B.5 of the request for 2.0.0: a refunded lunch comes back to the card, and a top
+	// up written as a move between accounts arrives on it.
+	test("puts a refunded lunch and a top up back on the meal card", async ({ page }) => {
+		await openCofre(page);
+		await expect(page.getByText("R$ 844,00").first()).toBeVisible();
+
+		await go(page, "Lançamentos");
+		await record(page, "Almoço perto do trabalho").getByRole("button", { name: "Ações" }).click();
+		await page.getByRole("menuitem", { name: "Estornar" }).click();
+		const dialog = page.getByRole("dialog");
+		await expect(dialog.getByLabel("Valor", { exact: true })).toHaveValue("56,00");
+		await dialog.getByRole("button", { name: "Estornar" }).click();
+		await expect(page.getByRole("dialog")).toHaveCount(0);
+		await expect(record(page, "Estorno: Almoço perto do trabalho")).toBeVisible();
+
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = page.getByRole("dialog");
+		await form.getByText("Transferência", { exact: true }).click();
+		await form.getByLabel("Valor", { exact: true }).fill("100,00");
+		await form.getByLabel("Descrição").fill("Recarga por Pix");
+		await form.getByLabel("Sai de").selectOption({ label: "Conta corrente" });
+		await form.getByLabel("Entra em").selectOption({ label: "Vale refeição" });
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("dialog")).toHaveCount(0);
+
+		await go(page, "Painel");
+		await expect(page.getByText("R$ 1.000,00").first()).toBeVisible();
 	});
 
 	test("says when a voucher renews, because the figure has to last until then", async ({

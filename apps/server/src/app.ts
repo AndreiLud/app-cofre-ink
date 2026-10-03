@@ -992,6 +992,22 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		);
 	});
 
+	// A purchase on a benefit card taken back, which is written as the purchase the other way
+	// round, so it comes back to the card and off its category and is never income.
+	app.post("/api/transactions/:id/refund", async (context) => {
+		const input = z
+			.object({
+				amount: z.number().int().positive(),
+				happenedOn: calendarDate,
+				description: z.string().max(500),
+			})
+			.parse(await context.req.json());
+		return context.json(
+			await context.get("session").transactions.refund(context.req.param("id"), input),
+			201,
+		);
+	});
+
 	app.delete("/api/transactions/:id", async (context) => {
 		await context.get("session").transactions.remove(context.req.param("id"));
 		return context.body(null, 204);

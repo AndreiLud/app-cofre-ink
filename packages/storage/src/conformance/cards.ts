@@ -226,6 +226,102 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 1, B.5 of the request for 2.0.0. A top up by Pix, written as a move between
+		// accounts the way the application says to, left the current account and arrived
+		// nowhere. And a refund on a voucher had no way in at all; decided with the owner, it is
+		// a purchase taken back: back on the card, off its category, never income.
+		it("counts a top up once its day comes, and takes a refunded lunch back", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const on = await openSession({
+					driver: fixture.driver,
+					userId: fixture.ana.id,
+					deviceId: "deviceAna",
+					now: () => Date.parse("2026-09-20T12:00:00-03:00"),
+				});
+				const space = await on.spaces.create({ name: "Pessoal", kind: "personal" });
+				const checking = await on.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+					initialBalance: 100_000,
+				});
+				const voucher = await on.accounts.create({
+					spaceId: space.id,
+					kind: "voucher",
+					name: "Vale refeicao",
+					benefit: "meal",
+					quotaAmount: 90_000,
+					quotaDay: 5,
+					quotaCarries: true,
+				});
+				const eating = await on.categories.create({
+					spaceId: space.id,
+					name: "Restaurante",
+					kind: "expense",
+				});
+
+				for (const [day, amount] of [
+					["2026-09-21", 10_000],
+					["2026-09-28", 20_000],
+				] as const) {
+					await on.transactions.create({
+						spaceId: space.id,
+						kind: "transfer",
+						amount,
+						happenedOn: day,
+						description: "Recarga por Pix",
+						accountId: checking.id,
+						counterAccountId: voucher.id,
+					});
+				}
+				const [lunch] = await on.transactions.create({
+					spaceId: space.id,
+					kind: "expense",
+					amount: 5_600,
+					happenedOn: "2026-09-22",
+					description: "Almoco",
+					accountId: voucher.id,
+					categoryId: eating.id,
+				});
+				const refund = await on.transactions.refund(lunch?.id ?? "", {
+					amount: 5_600,
+					happenedOn: "2026-09-23",
+					description: "Estorno: Almoco",
+				});
+				expect([refund.kind, refund.amount, refund.categoryId]).toEqual([
+					"expense",
+					5_600,
+					eating.id,
+				]);
+
+				// The allowance of the fifth, the top up of the twenty first, the lunch and its
+				// refund. The top up of the twenty eighth has not happened yet.
+				expect((await on.accounts.benefitLeft(voucher.id, "2026-09-25"))?.left).toBe(100_000);
+				expect((await on.accounts.benefitLeft(voucher.id, "2026-09-28"))?.left).toBe(120_000);
+
+				// The refund is not income, and the lunch is no longer spending.
+				const september = { spaceId: space.id, from: "2026-09-01", to: "2026-09-30" };
+				const totals = await on.reports.totals(september);
+				expect([totals.income, totals.expense]).toEqual([0, 0]);
+				const restaurant = (await on.reports.byCategory(september)).find(
+					(one) => one.categoryId === eating.id,
+				);
+				expect(restaurant?.total ?? 0).toBe(0);
+
+				// Only up to the purchase, and only on a benefit card.
+				await expect(
+					on.transactions.refund(lunch?.id ?? "", {
+						amount: 5_601,
+						happenedOn: "2026-09-23",
+						description: "Estorno",
+					}),
+				).rejects.toMatchObject({ rule: "refundIsUpToThePurchase" });
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		// Part 1, B.9 of the request for 2.0.0. An allowance was accepted with no day, the form
 		// wrote the first of the month under an example showing the fifth when the field was
 		// left empty, and the edit wrote no day at all, so the overview said there was none.

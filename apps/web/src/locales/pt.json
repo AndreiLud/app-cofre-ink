@@ -602,7 +602,10 @@
 		"benefitDoesNotLeave": "O dinheiro de um cartão de benefício é gasto no próprio cartão e não sai dele. Recarregar por Pix você lança como transferência para o cartão, que isso existe.",
 		"closingDayTooFar": "Esse dia está longe demais do fechamento previsto. Um banco muda o fechamento em poucos dias, por fim de semana ou feriado; confira o dia, e o ano.",
 		"quotaNeedsADay": "O valor do benefício cai num dia do mês. Escolha o dia em que ele cai.",
-		"knownAmountIsForCarryingVouchers": "Quanto tem no cartão hoje só vale para um benefício que acumula. Num que zera, o valor do mês já diz o que tem."
+		"knownAmountIsForCarryingVouchers": "Quanto tem no cartão hoje só vale para um benefício que acumula. Num que zera, o valor do mês já diz o que tem.",
+		"onlyAPurchaseIsRefunded": "Só uma compra pode ser estornada.",
+		"refundIsForVouchers": "O estorno que volta para o próprio cartão é de cartão de benefício.",
+		"refundIsUpToThePurchase": "O estorno é um valor maior que zero e até o valor da compra."
 	},
 	"transactions": {
 		"title": "Lançamentos",
@@ -682,7 +685,11 @@
 		"deleteWholeGroup": "Vão embora as {{count}} parcelas de {{description}}, inclusive as dos meses que ainda não chegaram.",
 		"deleteMany_one": "Vai embora 1 lançamento selecionado.",
 		"deleteMany_other": "Vão embora os {{count}} lançamentos selecionados.",
-		"deleteForever": "Não dá para desfazer daqui. Se foi só um erro de categoria ou de valor, editar resolve."
+		"deleteForever": "Não dá para desfazer daqui. Se foi só um erro de categoria ou de valor, editar resolve.",
+		"refund": "Estornar",
+		"refundTitle": "Estornar a compra",
+		"refundBody": "O valor volta para o cartão e sai do gasto na categoria da compra. Não conta como dinheiro que entrou.",
+		"refundOf": "Estorno: {{description}}"
 	},
 	"rulesSection": {
 		"title": "Regras que categorizam sozinhas",

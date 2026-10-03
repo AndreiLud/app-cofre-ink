@@ -55,6 +55,12 @@ export function startOf(account: Account, timezone: string): VoucherStart {
  * What happened on the card from a day up to today, in the card's own currency, which is
  * the one its allowance is written in. Only what has happened, by the one rule for it: a
  * lunch written for next Tuesday has not been eaten.
+ *
+ * A purchase is spent, and a refund is a purchase the other way round, so it comes back
+ * with its sign. Money moved onto the card by hand, a top up by Pix, is added: the
+ * application told people to write it as a move between accounts and then never read it,
+ * so the money left the current account and arrived nowhere. Money moved off the card,
+ * which nothing should write and an old record may hold, left it.
  */
 export async function movementsOf(
 	driver: Driver,
@@ -63,14 +69,18 @@ export async function movementsOf(
 	today: CalendarDate,
 ): Promise<VoucherMovement[]> {
 	const rows = await driver.all(
-		`SELECT "happened_on", "amount" FROM "transactions"
-		 WHERE "account_id" = ? AND "deleted_at" IS NULL AND "kind" = 'expense'
+		`SELECT "happened_on", "amount", "kind", "account_id", "counter_account_id"
+		 FROM "transactions"
+		 WHERE ("account_id" = ? OR ("counter_account_id" = ? AND "kind" = 'transfer'))
+		   AND "deleted_at" IS NULL AND "kind" IN ('expense', 'transfer')
 		   AND ${happenedBy(null)} AND "happened_on" >= ?`,
-		[accountId, today, from],
+		[accountId, accountId, today, from],
 	);
-	return rows.map((row) => ({
-		on: String(row.happened_on),
-		amount: -asNumber(row.amount),
-		kind: "spent" as const,
-	}));
+	return rows.map((row) => {
+		const amount = asNumber(row.amount);
+		const on = String(row.happened_on);
+		if (row.kind === "expense") return { on, amount: -amount, kind: "spent" as const };
+		if (row.counter_account_id === accountId) return { on, amount, kind: "added" as const };
+		return { on, amount, kind: "spent" as const };
+	});
 }

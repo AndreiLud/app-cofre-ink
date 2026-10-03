@@ -206,6 +206,18 @@ const PROBES: Probe[] = [
 		run: (session, where) => session.transactions.reconcile(where.transactionId, true),
 	},
 	{
+		// The purchase here is not on a benefit card, so whoever may write is refused for that
+		// reason, and whoever may not is refused before it.
+		method: "transactions.refund",
+		permission: "transaction.create",
+		run: (session, where) =>
+			session.transactions.refund(where.transactionId, {
+				amount: 100,
+				happenedOn: "2026-09-10",
+				description: "Estorno",
+			}),
+	},
+	{
 		method: "categories.list",
 		permission: "category.read",
 		run: (session, where) => session.categories.list(where.spaceId),

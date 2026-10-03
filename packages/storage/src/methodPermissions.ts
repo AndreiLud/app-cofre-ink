@@ -41,6 +41,7 @@ export const METHOD_PERMISSIONS = {
 	"transactions.settle": "transaction.update",
 	"transactions.remove": "transaction.delete",
 	"transactions.reconcile": "transaction.reconcile",
+	"transactions.refund": "transaction.create",
 	"invoices.pay": "transaction.create",
 	"categories.list": "category.read",
 	"categories.create": "category.write",
