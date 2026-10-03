@@ -699,4 +699,58 @@ test.describe("server mode", () => {
 		await expect(paying).toHaveCount(0);
 		await expect(ana.getByText(/Parcelamento combinado para/)).toBeVisible();
 	});
+
+	// Part 2, D.3.4.3 and D.4.3 of the request for 2.0.0: on a server the check of the request
+	// dropped what it did not know, so "Já paguei 10" wrote the whole plan.
+	test("writes a plan from the part after the ones paid, and one off a line, on a server", async ({
+		browser,
+	}) => {
+		const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
+		await go(ana, "Contas");
+		await ana.getByRole("button", { name: "Nova conta" }).first().click();
+		const making = ana.getByRole("dialog");
+		await making.getByLabel("Nome").fill("Cartao");
+		await making.getByLabel("Tipo").selectOption("credit");
+		await making.getByLabel("Dia do fechamento").selectOption("3");
+		await making.getByLabel("Dia do vencimento").selectOption("10");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(making).toHaveCount(0);
+
+		await go(ana, "Lançamentos");
+		await ana.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = ana.getByRole("dialog");
+		await form.getByLabel("Pago com").selectOption({ label: "Cartao" });
+		await form.getByLabel("Valor", { exact: true }).fill("2.400,00");
+		await form.getByLabel("Descrição").fill("Fogao");
+		await form.getByLabel("Parcelas", { exact: true }).selectOption({ label: "48 vezes" });
+		await form.getByLabel("Dia").fill("2025-12-28");
+		await form.getByLabel("Já paguei").fill("10");
+		await expect(form).toContainText(
+			"A primeira que fica é a 11/48, em 28/10/2026, na fatura de novembro.",
+		);
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(form).toHaveCount(0);
+
+		const inMonth = async (value: string) => {
+			await go(ana, "Lançamentos");
+			await ana.getByLabel("Mês", { exact: true }).fill(value);
+		};
+		await inMonth("2026-10");
+		await expect(ana.getByRole("row").filter({ hasText: "Fogao 11/48" })).toContainText(
+			"-R$ 50,00",
+		);
+		await inMonth("2029-11");
+		await expect(ana.getByRole("row").filter({ hasText: "Fogao 48/48" })).toBeVisible();
+		await inMonth("2026-09");
+		await expect(ana.getByRole("row").filter({ hasText: "Fogao" })).toHaveCount(0);
+
+		await go(ana, "Lançamentos");
+		await ana.getByLabel("Lançamento rápido").fill("geladeira 2400 48x cartao");
+		await ana.getByRole("button", { name: "Lançar", exact: true }).click();
+		await expect(ana.getByText("Lancei geladeira em 48 parcelas.")).toBeVisible();
+		await ana.getByRole("button", { name: "Desfazer" }).click();
+		await expect(ana.getByText("Lancei geladeira em 48 parcelas.")).toHaveCount(0);
+		await inMonth("2030-09");
+		await expect(ana.getByRole("row").filter({ hasText: "geladeira" })).toHaveCount(0);
+	});
 });

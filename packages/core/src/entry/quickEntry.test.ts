@@ -230,6 +230,55 @@ describe("installments", () => {
 	it("is one when nothing says otherwise", () => {
 		expect(read("mercado 50").installments).toBe(1);
 	});
+
+	// Part 2, D.4 of the request for 2.0.0: the amount after the parts is each one, the amount
+	// before them is the whole, and nothing over forty eight is cut down to it.
+	it("reads the amount written before the parts as the whole", () => {
+		const entry = read("tv 2400 em 48 vezes");
+		expect([entry.installments, entry.amount, entry.eachPart]).toEqual([48, 240_000, null]);
+		expect(entry.description).toBe("tv");
+	});
+
+	it("reads the amount written right after the parts as each one", () => {
+		for (const line of [
+			"tv 48 x 99,90",
+			"tv 48x de 99,90",
+			"tv 48 vezes de 99,90",
+			"tv 48x 99,90",
+		]) {
+			const entry = read(line);
+			expect([entry.installments, entry.amount, entry.eachPart]).toEqual([48, 479_520, 9_990]);
+			expect(entry.description).toBe("tv");
+			expect(entry.problems).toEqual([]);
+		}
+	});
+
+	it("says forty nine parts is too many instead of reading forty eight", () => {
+		const entry = read("tv 2400 49x");
+		expect(entry.installments).toBe(49);
+		expect(entry.problems).toEqual(["tooManyInstallments"]);
+		expect(read("tv 2400 em 120 vezes").problems).toEqual(["tooManyInstallments"]);
+	});
+
+	it("says money coming in is not paid in parts", () => {
+		expect(read("freela +6120 3x").problems).toEqual(["onlyExpensesGoInInstallments"]);
+	});
+
+	it("reads from one to forty eight parts, or says why not", () => {
+		fc.assert(
+			fc.property(
+				fc.integer({ min: 0, max: 999 }),
+				fc.constantFrom("x", " x", " vezes", " parcelas"),
+				fc.boolean(),
+				(count, word, each) => {
+					const parts = `${count}${word}`;
+					const entry = read(each ? `tv ${parts} de 99,90` : `tv 2400 ${parts}`);
+					const within = entry.installments >= 1 && entry.installments <= 48;
+					expect(within || entry.problems.includes("tooManyInstallments")).toBe(true);
+				},
+			),
+		);
+	});
 });
 
 describe("what is left becomes the description", () => {

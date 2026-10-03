@@ -9,6 +9,7 @@
 // to switch language to write "uber 30 today", and no word in one list collides with a
 // word in the other.
 
+import { MAX_INSTALLMENTS } from "../cards/installments.ts";
 import { type CurrencyCode, DEFAULT_CURRENCY, MoneyError } from "../money/money.ts";
 import { parseMoney } from "../money/parse.ts";
 import {
@@ -55,8 +56,18 @@ export type QuickEntryOptions = {
 	currency?: CurrencyCode;
 };
 
-/** What is missing before this can be written. Everything else has an answer. */
-export type QuickEntryProblem = "amountMissing" | "descriptionMissing";
+/**
+ * What is missing or wrong before this can be written. Everything else has an answer.
+ *
+ * More parts than the ceiling is a problem and never a cut: this file promises not to guess,
+ * and forty nine parts read as forty eight is a purchase somebody did not make. Parts on money
+ * coming in is a problem too, because only money out is paid in parts.
+ */
+export type QuickEntryProblem =
+	| "amountMissing"
+	| "descriptionMissing"
+	| "tooManyInstallments"
+	| "onlyExpensesGoInInstallments";
 
 export type QuickEntryReading = {
 	kind: QuickEntryKind;
@@ -70,6 +81,12 @@ export type QuickEntryReading = {
 	/** The card named on the line, when what was named was a card rather than an account. */
 	cardId: string | null;
 	installments: number;
+	/**
+	 * Each part, when the line said the amount of each ("48x de 99,90") rather than the whole
+	 * ("tv 2400 48x"). The amount above is always the whole, so a plan is written the same way
+	 * whichever was typed.
+	 */
+	eachPart: number | null;
 	problems: QuickEntryProblem[];
 };
 
@@ -122,7 +139,12 @@ const CURRENCY_WORDS = ["r$", "rs", "$", "brl", "reais", "real", "conto", "pila"
 const INSTALLMENTS_WORDS = ["vezes", "parcelas", "x", "times"];
 
 const AMOUNT = /^[\d.,]+$/;
-const INSTALLMENT = /^(\d{1,2})x$/;
+// Up to three digits, so a line asking for more parts than the ceiling is read as asking for
+// them, and is told so, rather than having the number end up in the description.
+const INSTALLMENT = /^(\d{1,3})x$/;
+const PARTS_COUNT = /^\d{1,3}$/;
+/** What may stand between the number of parts and the amount of each: "48x de 99,90". */
+const EACH_LINK = ["de", "of"];
 const SHORT_DATE = /^(\d{1,2})\/(\d{1,2})$/;
 const FULL_DATE = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -308,6 +330,9 @@ export function readQuickEntry(text: string, options: QuickEntryOptions): QuickE
 	let amount: number | null = null;
 	let happenedOn: CalendarDate | null = null;
 	let installments = 1;
+	/** Where the number of parts ended, and where the amount was read, to tell each from whole. */
+	let partsEndAt = -1;
+	let amountAt = -1;
 
 	const account = options.accounts ? findAccount(folded, options.accounts, kindOf(folded)) : null;
 	if (account) {
@@ -378,13 +403,15 @@ export function readQuickEntry(text: string, options: QuickEntryOptions): QuickE
 		if (split?.[1]) {
 			installments = Math.max(Number(split[1]), 1);
 			roles[index] = "installments";
+			partsEndAt = index;
 			continue;
 		}
 		// "3 vezes" and "em 3x" written with a space.
-		if (DAY_ONLY.test(token) && INSTALLMENTS_WORDS.includes(next)) {
+		if (PARTS_COUNT.test(token) && INSTALLMENTS_WORDS.includes(next)) {
 			installments = Math.max(Number(token), 1);
 			roles[index] = "installments";
 			roles[index + 1] = "installments";
+			partsEndAt = index + 1;
 			continue;
 		}
 
@@ -405,6 +432,7 @@ export function readQuickEntry(text: string, options: QuickEntryOptions): QuickE
 					// the amount is missing, which is the truth.
 					if (read > 0) {
 						amount = read;
+						amountAt = index;
 						if (sign === 1) kind = "income";
 						if (sign === -1) kind = "expense";
 						roles[index] = "amount";
@@ -433,9 +461,27 @@ export function readQuickEntry(text: string, options: QuickEntryOptions): QuickE
 
 	const description = kept.join(" ").trim();
 	const day = happenedOn ?? options.today;
+
+	/**
+	 * The amount of each part when it comes right after the number of parts, with nothing but
+	 * "de" or "of" between them: "48x de 99,90", "48 x 99,90", "48 vezes de 99,90". Written
+	 * before the parts it is the whole: "tv 2400 48x". The amount read is turned into the whole
+	 * either way, which is what a plan is written from.
+	 */
+	const between =
+		partsEndAt >= 0 && amountAt > partsEndAt ? folded.slice(partsEndAt + 1, amountAt) : null;
+	const isEach =
+		installments > 1 &&
+		amount !== null &&
+		between?.every((word) => EACH_LINK.includes(word)) === true;
+	const eachPart = isEach ? amount : null;
+	const whole = isEach && amount !== null ? amount * installments : amount;
+
 	const problems: QuickEntryProblem[] = [];
 	if (amount === null) problems.push("amountMissing");
 	if (description === "") problems.push("descriptionMissing");
+	if (installments > MAX_INSTALLMENTS) problems.push("tooManyInstallments");
+	if (installments > 1 && kind === "income") problems.push("onlyExpensesGoInInstallments");
 
 	return {
 		kind,
@@ -444,13 +490,14 @@ export function readQuickEntry(text: string, options: QuickEntryOptions): QuickE
 		// nothing new is one. The words that used to ask for one are still read, so they do
 		// not end up in the description, and they change nothing.
 		status: "settled",
-		amount,
+		amount: whole,
 		currency,
 		happenedOn: day,
 		description,
 		accountId: account?.id ?? null,
 		cardId: account?.cardId ?? null,
 		installments,
+		eachPart,
 		problems,
 	};
 }

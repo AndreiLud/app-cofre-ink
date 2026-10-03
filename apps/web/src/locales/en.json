@@ -862,14 +862,16 @@
 	},
 	"quick": {
 		"label": "Quick record",
-		"hint": "Write it in one line: what it was, how much, when and where. It reads today, yesterday, 15/09, 3x and the name of the account.",
+		"hint": "Write it in one line: what it was, how much, when and where. It reads today, yesterday, 15/09, the name of the account and parts: 48x of 99.90 is each part, 2400 48x is the whole.",
 		"placeholder": "coffee 4.20 yesterday wallet",
 		"add": "Record it",
 		"amountMissing": "The amount is missing.",
 		"descriptionMissing": "Say what it was.",
 		"written": "Recorded {{description}}.",
 		"writtenInParts": "Recorded {{description}} in {{count}} parts.",
-		"undo": "Undo"
+		"undo": "Undo",
+		"plan": "{{parts}} parts of {{amount}}, total {{total}}",
+		"planUneven": "{{parts}} parts, {{split}}, total {{total}}"
 	},
 	"savedFilters": {
 		"keep": "Save this filter",

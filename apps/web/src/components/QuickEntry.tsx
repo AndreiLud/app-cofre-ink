@@ -5,7 +5,14 @@
 // writing anything. Nothing is guessed silently: what it could not find is said out
 // loud, and what it did find can be undone in one click.
 
-import { type QuickEntryReading, readQuickEntry } from "@cofre/core";
+import {
+	allocateInstallments,
+	type CurrencyCode,
+	MAX_INSTALLMENTS,
+	money,
+	type QuickEntryReading,
+	readQuickEntry,
+} from "@cofre/core";
 import { type Account, hasHappened, type Transaction } from "@cofre/storage";
 import { Button, Callout, Field } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -30,7 +37,7 @@ function dayAndMonth(date: string): string {
 }
 
 export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const { session } = useCofre();
 	const queries = useQueryClient();
 
@@ -127,6 +134,39 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 			: null);
 	const ready = reading.problems.length === 0 && account !== null;
 
+	/**
+	 * What the plan comes to, said before it is written: "48 parcelas de R$ 99,90, total
+	 * R$ 4.795,20". "tv 48x de 99,90" split R$ 99,90 into forty eight with nothing on the line
+	 * to show it, so the purchase written was not the one typed.
+	 */
+	const currencyHere = (account?.currency ?? "BRL") as CurrencyCode;
+	const asMoney = (cents: number) =>
+		new Intl.NumberFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+			style: "currency",
+			currency: currencyHere,
+		}).format(cents / 100);
+	const planSaid = (() => {
+		const whole = reading.amount;
+		const parts = reading.installments;
+		if (whole === null || parts <= 1 || parts > MAX_INSTALLMENTS || whole < parts) return null;
+		const groups: { count: number; amount: number }[] = [];
+		for (const part of allocateInstallments(money(whole, currencyHere), parts)) {
+			const last = groups.at(-1);
+			if (last && last.amount === part.amount) last.count += 1;
+			else groups.push({ count: 1, amount: part.amount });
+		}
+		const [only] = groups;
+		if (groups.length === 1 && only) {
+			return t("quick.plan", { parts, amount: asMoney(only.amount), total: asMoney(whole) });
+		}
+		const split = groups
+			.map((group) =>
+				t("transactions.partsOf", { count: group.count, amount: asMoney(group.amount) }),
+			)
+			.join(` ${t("transactions.and")} `);
+		return t("quick.planUneven", { parts, split, total: asMoney(whole) });
+	})();
+
 	const invalidate = () => {
 		afterRecordsChange(queries);
 	};
@@ -209,6 +249,14 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 					{reading.problems.includes("descriptionMissing") ? (
 						<span className="text-ochre">{t("quick.descriptionMissing")}</span>
 					) : null}
+					{reading.problems.includes("tooManyInstallments") ? (
+						<span className="text-ochre">
+							{t("rules.tooManyInstallments", { max: MAX_INSTALLMENTS })}
+						</span>
+					) : null}
+					{reading.problems.includes("onlyExpensesGoInInstallments") ? (
+						<span className="text-ochre">{t("rules.onlyExpensesGoInInstallments")}</span>
+					) : null}
 
 					{reading.amount !== null ? (
 						<>
@@ -225,7 +273,9 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 					)}
 					<span>{dayAndMonth(reading.happenedOn)}</span>
 					{account ? <span>{account.name}</span> : null}
-					{reading.installments > 1 ? (
+					{planSaid ? (
+						<span>{planSaid}</span>
+					) : reading.installments > 1 ? (
 						<span>{t("transactions.timesOf", { count: reading.installments })}</span>
 					) : null}
 					{/* A day ahead waits for its day, and the line says so before it is written. */}

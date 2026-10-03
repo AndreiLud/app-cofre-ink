@@ -862,14 +862,16 @@
 	},
 	"quick": {
 		"label": "Lançamento rápido",
-		"hint": "Escreva numa linha só: o que foi, quanto, quando e onde. Entendo hoje, ontem, 15/09, 3x e o nome da conta.",
+		"hint": "Escreva numa linha só: o que foi, quanto, quando e onde. Entendo hoje, ontem, 15/09, o nome da conta e parcelas: 48x de 99,90 é o valor de cada uma, 2400 48x é o total.",
 		"placeholder": "ifood 42,90 ontem nubank",
 		"add": "Lançar",
 		"amountMissing": "Falta o valor.",
 		"descriptionMissing": "Falta dizer o que foi.",
 		"written": "Lancei {{description}}.",
 		"writtenInParts": "Lancei {{description}} em {{count}} parcelas.",
-		"undo": "Desfazer"
+		"undo": "Desfazer",
+		"plan": "{{parts}} parcelas de {{amount}}, total {{total}}",
+		"planUneven": "{{parts}} parcelas, {{split}}, total {{total}}"
 	},
 	"savedFilters": {
 		"keep": "Salvar este filtro",

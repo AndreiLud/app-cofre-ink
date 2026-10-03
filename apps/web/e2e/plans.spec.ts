@@ -75,6 +75,7 @@ test.describe("plans of up to forty eight parts", () => {
 	// D.3.4.3: bought on the twenty eighth of December of 2025, ten parts paid before.
 	test("writes a plan from the part after the ones already paid", async ({ page }) => {
 		await openCofre(page);
+		const leftBefore = await onCardLine(page, /Ainda dá para gastar no cartão/);
 		const form = await onTheCard(page, "Fogao", "2.400,00", "48 vezes");
 		await form.getByLabel("Dia").fill("2025-12-28");
 		await form.getByLabel("Já paguei").fill("10");
@@ -92,6 +93,38 @@ test.describe("plans of up to forty eight parts", () => {
 		await expect(page.getByRole("row").filter({ hasText: "Fogao 48/48" })).toBeVisible();
 		await month(page, "2026-09");
 		await expect(page.getByRole("row").filter({ hasText: "Fogao" })).toHaveCount(0);
+		// Thirty eight parts of R$ 50,00 still to pay, and nothing of the ten paid before.
+		expect(leftBefore - (await onCardLine(page, /Ainda dá para gastar no cartão/))).toBe(190_000);
+	});
+
+	// D.4: "tv 48x de 99,90" split R$ 99,90 into forty eight parts, and "freela +6120 3x" wrote
+	// three incomes. The line says the plan before it is written and refuses what it cannot write.
+	test("reads a plan off one line, says it, and takes all of it back", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Lançamentos");
+		const quick = page.getByLabel("Lançamento rápido");
+		const add = page.getByRole("button", { name: "Lançar", exact: true });
+
+		await quick.fill("tv 48x de 99,90");
+		await expect(page.getByText("48 parcelas de R$ 99,90, total R$ 4.795,20")).toBeVisible();
+		await quick.fill("tv 2400 49x");
+		await expect(page.getByText("Dá para parcelar em até 48 vezes.")).toBeVisible();
+		await expect(add).toBeDisabled();
+		await quick.fill("freela +6120 3x");
+		await expect(page.getByText("Só saídas podem ser parceladas.")).toBeVisible();
+		await expect(add).toBeDisabled();
+
+		await quick.fill("geladeira 2400 48x");
+		await expect(page.getByText("48 parcelas de R$ 50,00, total R$ 2.400,00")).toBeVisible();
+		await add.click();
+		await expect(page.getByText("Lancei geladeira em 48 parcelas.")).toBeVisible();
+		await page.getByLabel("Mês", { exact: true }).fill("2030-09");
+		await expect(page.getByRole("row").filter({ hasText: "geladeira 48/48" })).toBeVisible();
+
+		await page.getByRole("button", { name: "Desfazer" }).click();
+		await expect(page.getByRole("row").filter({ hasText: "geladeira" })).toHaveCount(0);
+		await month(page, "2026-10");
+		await expect(page.getByRole("row").filter({ hasText: "geladeira" })).toHaveCount(0);
 	});
 
 	// D.5.1: changing only the category of the whole plan rewrote the amount of every part with
