@@ -1,60 +1,186 @@
-// Which bills are coming, and which ones are already somebody's problem.
+// What falls due, said once.
 //
-// A list of what falls due in the next days looked forward from today and was built with
-// one bound: nothing further off than the horizon. For a record that is enough, because
-// the query that feeds it starts at today. For a card invoice it was not: an invoice that
-// fell due last week, or three months ago, passed the only test there was and was drawn
-// under a heading that said it was coming. A bill nobody paid is the opposite of a bill
-// that is coming, and it was the one line on the screen that needed answering.
+// Four places asked it and each answered it differently. The check up read records written
+// as promises and nothing else, so a card invoice, which is the bill most households have,
+// was never in what falls due; with nothing due and the cards netted off the money it still
+// said that one bill of R$ 0,00 was more than there was. The overview listed the invoices
+// and its own idea of the records. The plan asked how much was due with no window at all.
+// And the notices read the records of the next days, card purchases included, as bills.
 //
-// So the sorting is a rule of its own, here, rather than a filter inside a component.
+// So there is one function, here, read by the overview, the findings, the sign, the plan
+// and the notices (decision 14 of 2.0.0).
+//
+// 1. A record is a bill when it is money out still to come: a fact dated after today, or a
+//    promise from before 1.1.0, which is late once its day has gone. Not a purchase already
+//    on an invoice of a card with a cycle, because the invoice is the bill; not a lunch on a
+//    benefit card, which the allowance pays; never a move between accounts, and so never the
+//    payment of an invoice dated ahead: until its day the bill is the invoice, which says
+//    that a payment is waiting.
+// 2. An invoice is a bill on its due day for what is left on it. One whose due day has gone
+//    is late and counted, however old, because an old bill is still a bill. One holding a
+//    purchase in another currency with no rate has no honest total and is set apart.
+// 3. What is short is what falls due, the late included, less what can be spent today. The
+//    cards are not taken off the money: the invoice is already among the bills.
 
 import type { CalendarDate, CalendarMonth } from "../time/calendar.ts";
-import { compareCalendarDates } from "../time/calendar.ts";
+import { addDays, compareCalendarDates, daysBetween } from "../time/calendar.ts";
 
-/** One invoice, said in the little that a list of bills needs to know about it. */
-export type InvoiceFallingDue = {
+/** How many days ahead "soon" is, everywhere it is said. */
+export const SOON_DAYS = 15;
+
+/** A record that may be a bill, said in what the rule needs to know about it. */
+export type DueRecord = {
+	description: string;
+	/** In minor units of the currency of the space, as a positive number. */
+	amount: number;
+	day: CalendarDate;
+	kind: "expense" | "income" | "transfer";
+	status: "settled" | "planned";
+	invoiceMonth: string | null;
+	/** On a credit card that has a closing day and a due day, whose invoice holds what it marks. */
+	onCardWithCycle: boolean;
+	onBenefitCard: boolean;
+};
+
+/** One invoice of a card, as the invoices read it. */
+export type DueInvoice = {
+	/** The name of the card, which is what a sentence calls the bill. */
+	card: string;
 	accountId: string;
 	month: CalendarMonth;
 	dueOn: CalendarDate;
 	/** What is still to pay, in minor units. */
 	left: number;
+	/** Purchases in another currency with no rate, which leave the total without an honest figure. */
+	withoutRate: number;
+	/** What is marked to pay it on a day still to come, and that day, and what it is. */
+	scheduled: number;
+	scheduledOn: CalendarDate | null;
+	scheduledBy: "parts" | "card" | null;
 };
 
-export type InvoicesFallingDue<T extends InvoiceFallingDue> = {
-	/** Past the due day and still owing, oldest first. The bills to answer. */
-	toAnswer: T[];
-	/** Due today or later and inside the horizon, soonest first. The bills coming. */
-	coming: T[];
+export type Bill<R extends DueRecord = DueRecord, I extends DueInvoice = DueInvoice> = {
+	kind: "record" | "invoice";
+	/** What a sentence names: the description of a record, or the card of an invoice. */
+	subject: string;
+	amount: number;
+	dueOn: CalendarDate;
+	/** Days until it falls due, from today: nought today, negative once it has gone. */
+	days: number;
+	late: boolean;
+	/** What is waiting to pay it on a day still to come: money, a split, or another card. */
+	scheduledOn: CalendarDate | null;
+	scheduledBy: "money" | "parts" | "card" | null;
+	record: R | null;
+	invoice: I | null;
 };
+
+export type BillsFallingDue<R extends DueRecord = DueRecord, I extends DueInvoice = DueInvoice> = {
+	/** Due from today to the last day of the window, soonest first. */
+	coming: Bill<R, I>[];
+	/** Past their day and still owed, oldest first. Counted. */
+	late: Bill<R, I>[];
+	/** Invoices with no honest figure, which are said and not added. */
+	uncounted: Bill<R, I>[];
+	/** What the coming and the late add up to. */
+	total: number;
+	count: number;
+	/** What falls due less what can be spent today, never below nothing. */
+	short: number;
+	/** The bill a sentence names: the oldest of the late, or else the largest. */
+	naming: Bill<R, I> | null;
+};
+
+/** Whether a record is a bill at all, before any day is looked at. */
+function isABill(record: DueRecord): boolean {
+	if (record.kind !== "expense") return false;
+	if (record.onBenefitCard) return false;
+	// On an invoice already, which is the bill. A purchase on a card with no cycle, or one
+	// that lost its invoice, has no invoice to stand for it and is a bill of its own.
+	if (record.invoiceMonth !== null && record.onCardWithCycle) return false;
+	return true;
+}
 
 /**
- * The invoices a card still owes, split into the ones to answer and the ones coming.
- *
- * An invoice with nothing left on it is in neither list, because it is paid. One past its
- * due day is in `toAnswer` with no bound at the far end: a bill three months late is still
- * a bill, and hiding it because it is old is how it came to be three months late. One due
- * today counts as coming, because the day is not over.
+ * Everything that falls due from today to the end of the window, with what is late and what
+ * cannot be added, against what can be spent today.
  */
-export function splitInvoicesFallingDue<T extends InvoiceFallingDue>(input: {
-	invoices: ReadonlyArray<T | null | undefined>;
+export function billsFallingDue<R extends DueRecord, I extends DueInvoice>(input: {
 	today: CalendarDate;
-	/** The last day the forward list reaches. */
-	until: CalendarDate;
-}): InvoicesFallingDue<T> {
-	const toAnswer: T[] = [];
-	const coming: T[] = [];
+	/** The last day of the window, inclusive. Fifteen days from today when left out. */
+	until?: CalendarDate;
+	records: readonly R[];
+	invoices: readonly I[];
+	/** What can be spent today, the cards not taken off. */
+	spendable: number;
+}): BillsFallingDue<R, I> {
+	const until = input.until ?? addDays(input.today, SOON_DAYS);
+	const coming: Bill<R, I>[] = [];
+	const late: Bill<R, I>[] = [];
+	const uncounted: Bill<R, I>[] = [];
+	const inWindow = (day: CalendarDate) => compareCalendarDates(day, until) <= 0;
+	const before = (day: CalendarDate) => compareCalendarDates(day, input.today) < 0;
 
-	for (const invoice of input.invoices) {
-		if (!invoice || invoice.left <= 0) continue;
-
-		if (compareCalendarDates(invoice.dueOn, input.today) < 0) {
-			toAnswer.push(invoice);
-			continue;
-		}
-		if (compareCalendarDates(invoice.dueOn, input.until) <= 0) coming.push(invoice);
+	for (const record of input.records) {
+		if (!isABill(record)) continue;
+		// A fact whose day has come is in the balance already.
+		if (record.status === "settled" && !compareAfter(record.day, input.today)) continue;
+		const bill: Bill<R, I> = {
+			kind: "record",
+			subject: record.description,
+			amount: Math.abs(record.amount),
+			dueOn: record.day,
+			days: daysBetween(input.today, record.day),
+			late: record.status === "planned" && before(record.day),
+			scheduledOn: null,
+			scheduledBy: null,
+			record,
+			invoice: null,
+		};
+		if (bill.late) late.push(bill);
+		else if (inWindow(record.day)) coming.push(bill);
 	}
 
-	const byDueDay = (one: T, other: T) => compareCalendarDates(one.dueOn, other.dueOn);
-	return { toAnswer: toAnswer.sort(byDueDay), coming: coming.sort(byDueDay) };
+	for (const invoice of input.invoices) {
+		if (invoice.left <= 0) continue;
+		const bill: Bill<R, I> = {
+			kind: "invoice",
+			subject: invoice.card,
+			amount: invoice.left,
+			dueOn: invoice.dueOn,
+			days: daysBetween(input.today, invoice.dueOn),
+			late: before(invoice.dueOn),
+			scheduledOn: invoice.scheduled > 0 ? invoice.scheduledOn : null,
+			scheduledBy: invoice.scheduled > 0 ? (invoice.scheduledBy ?? "money") : null,
+			record: null,
+			invoice,
+		};
+		if (!bill.late && !inWindow(invoice.dueOn)) continue;
+		if (invoice.withoutRate > 0) uncounted.push(bill);
+		else if (bill.late) late.push(bill);
+		else coming.push(bill);
+	}
+
+	const byDay = (one: Bill<R, I>, other: Bill<R, I>) =>
+		compareCalendarDates(one.dueOn, other.dueOn);
+	coming.sort(byDay);
+	late.sort(byDay);
+	uncounted.sort(byDay);
+
+	const counted = [...late, ...coming];
+	const total = counted.reduce((sum, bill) => sum + bill.amount, 0);
+	const largest = [...coming].sort((one, other) => other.amount - one.amount)[0] ?? null;
+	return {
+		coming,
+		late,
+		uncounted,
+		total,
+		count: counted.length,
+		short: Math.max(0, total - input.spendable),
+		naming: late[0] ?? largest,
+	};
+}
+
+function compareAfter(day: CalendarDate, today: CalendarDate): boolean {
+	return compareCalendarDates(day, today) > 0;
 }

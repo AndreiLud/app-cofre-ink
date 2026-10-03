@@ -1330,9 +1330,14 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 				const everything = await ready.fixture.asAna.advice.snapshot({ spaceId, today });
 				expect(seen.thisMonth.expense).toBe(5000);
 				expect(everything.thisMonth.expense).toBe(15_000);
-				// The money on hand is the household's, so for them it is what they put
-				// through the accounts themselves and not the opening balances.
-				expect(seen.onHand).toBe(-5000);
+				// The money is the household's and the invoices are the whole card's, so nothing
+				// about money is read for them (part 2, J.6 of 2.0.0). This said the money was what
+				// they put through the accounts themselves, which registry 0041 (items 86 to 88)
+				// allowed and which made a reserve and a bill out of fifty reais.
+				expect(seen.money).toBeNull();
+				expect(seen.owedOnCards).toBeNull();
+				expect(seen.cardInvoices).toEqual([]);
+				expect(everything.money).not.toBeNull();
 			} finally {
 				await ready.fixture.close();
 			}

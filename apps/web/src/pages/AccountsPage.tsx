@@ -4,8 +4,13 @@ import {
 	carriesByDefault,
 	closedAndNotDue,
 	closedChargeOf,
+	currenciesOf,
+	isDebt,
+	isSpendable,
 	openingChargeOf,
+	owedOnCards,
 	parseMoney,
+	spendableNow,
 	todayIn,
 	worthByAccount,
 } from "@cofre/core";
@@ -536,6 +541,17 @@ export function AccountsPage() {
 
 	const rows = accounts.data ?? [];
 	const plastic = cards.data ?? [];
+	// What the accounts hold and what the cards owe, by the core's own reading of each kind.
+	const counted = {
+		accounts: rows.filter((one) => one.archivedAt === null || one.kind === "credit"),
+		balances: standing.data ?? [],
+	};
+	const oneCurrency =
+		currenciesOf(counted.accounts.filter((one) => isSpendable(one.kind) || isDebt(one.kind)))
+			.length <= 1;
+	const moneyHeld = spendableNow(counted);
+	const cardsOwe = owedOnCards(counted);
+	const baseCurrency = currentSpace.baseCurrency;
 
 	// A card that also works as debit spends a balance, and the likely one is a current
 	// account rather than whatever comes first alphabetically.
@@ -612,6 +628,28 @@ export function AccountsPage() {
 			    callout that only the Nova conta dialog drew, so it was invisible where it
 			    happened and then turned up, stale, in a form nobody had submitted. */}
 			{problem && !isOpen ? <Callout tone="problem">{problem}</Callout> : null}
+
+			{/* The two figures the check up's sentences are made of, so a sentence that says "nas
+			    contas há" can be checked here. Not for somebody who sees only their own rows, whose
+			    balances are made of those rows, and not over accounts in two currencies. */}
+			{rows.length > 0 && standing.isSuccess && !seesOwnRowsOnly && oneCurrency ? (
+				<dl className="flex flex-wrap gap-x-10 gap-y-2 text-sm">
+					<div>
+						<dt className="text-quiet">{t("accounts.inTheAccounts")}</dt>
+						<dd className="font-mono text-lg">
+							<Value amount={moneyHeld} currency={baseCurrency} tone="auto" />
+						</dd>
+					</div>
+					{cardsOwe !== 0 ? (
+						<div>
+							<dt className="text-quiet">{t("accounts.cardsOwe")}</dt>
+							<dd className="font-mono text-lg">
+								<Value amount={cardsOwe} currency={baseCurrency} tone="neutral" />
+							</dd>
+						</div>
+					) : null}
+				</dl>
+			) : null}
 
 			{accounts.isPending ? <Skeleton lines={4} /> : null}
 

@@ -18,7 +18,7 @@
 import { WORTH_SAYING } from "../money/money.ts";
 import { median } from "../plan/projection.ts";
 import type { CalendarMonth } from "../time/calendar.ts";
-import type { Snapshot } from "./findings.ts";
+import { reserveOf, type Snapshot } from "./findings.ts";
 
 export type MovementCode =
 	/** What came in, in an ordinary month of each window. */
@@ -48,9 +48,9 @@ export type Trend = {
 	/** The first month of the recent window, which is what the sentence says "since". */
 	since: CalendarMonth;
 	movements: Movement[];
-	/** Months of cover then and now, in tenths, measured with the same ordinary month. */
-	coverBefore: number;
-	coverNow: number;
+	/** Months of cover then and now, in tenths, measured with the same ordinary month. Nothing when the money is not said. */
+	coverBefore: number | null;
+	coverNow: number | null;
 };
 
 /** Three each side. Fewer is one month with an opinion, more is last year deciding today. */
@@ -91,7 +91,10 @@ export function trendOf(snapshot: Snapshot): Trend | null {
 	const moved = snapshot.netByMonth
 		.filter((entry) => entry.month >= since)
 		.reduce((total, entry) => total + entry.net, 0);
-	const onHandBefore = snapshot.onHand - moved;
+	// The reserve, which is the accounts less the cards: `netByMonth` moves the cards too, so
+	// the two are the same set of accounts. Nothing when the money is not said.
+	const reserve = reserveOf(snapshot);
+	const onHandBefore = reserve === null ? null : reserve - moved;
 
 	// Both sides are measured against the same ordinary month, so that what moved is the
 	// balance and not the yardstick. Saying a reserve grew because spending fell would
@@ -106,9 +109,11 @@ export function trendOf(snapshot: Snapshot): Trend | null {
 			movement("income", incomeBefore, incomeNow, true),
 			movement("expense", expenseBefore, expenseNow, false),
 			movement("kept", incomeBefore - expenseBefore, incomeNow - expenseNow, true),
-			movement("onHand", onHandBefore, snapshot.onHand, true),
+			...(reserve === null || onHandBefore === null
+				? []
+				: [movement("onHand", onHandBefore, reserve, true)]),
 		],
-		coverBefore: cover(onHandBefore),
-		coverNow: cover(snapshot.onHand),
+		coverBefore: onHandBefore === null ? null : cover(onHandBefore),
+		coverNow: reserve === null ? null : cover(reserve),
 	};
 }

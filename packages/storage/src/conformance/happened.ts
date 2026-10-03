@@ -9,7 +9,7 @@
 // is with no status at all, and reads it from the places that separate what has
 // happened from what is still to come: on the day before its day, and on it.
 
-import { addDays, monthOf, todayIn } from "@cofre/core";
+import { addDays, duesOf, monthOf, todayIn } from "@cofre/core";
 import { describe, expect, it } from "vitest";
 import { type AdapterUnderTest, prepare } from "./setup.ts";
 
@@ -164,8 +164,8 @@ export function runHappenedConformance(adapter: AdapterUnderTest): void {
 				expect(before.thisMonth.income).toBe(0);
 				expect(before.thisMonth.expense).toBe(0);
 				expect(before.netByMonth).toEqual([]);
-				// Still to come within the next days, which is what pending means now.
-				expect(before.pending.map((one) => one.description)).toEqual(["Internet"]);
+				// Still to come within the next days, which is what falls due.
+				expect(duesOf(before).coming.map((one) => one.subject)).toEqual(["Internet"]);
 
 				const on = await ready.fixture.asAna.advice.snapshot({
 					spaceId: ready.spaceId,
@@ -173,7 +173,7 @@ export function runHappenedConformance(adapter: AdapterUnderTest): void {
 				});
 				expect(on.thisMonth.income).toBe(600_000);
 				expect(on.thisMonth.expense).toBe(20_000);
-				expect(on.pending).toEqual([]);
+				expect(duesOf(on).count).toBe(0);
 			} finally {
 				await ready.fixture.close();
 			}

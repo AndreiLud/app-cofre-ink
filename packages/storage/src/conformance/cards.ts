@@ -6,7 +6,7 @@
 // it, and every screen that adds up a card would be adding up a story. So each rule is
 // checked from the outside, through the repository, exactly as a screen would hit it.
 
-import { todayIn } from "@cofre/core";
+import { duesOf, todayIn } from "@cofre/core";
 import { describe, expect, it } from "vitest";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { migrate } from "../migrate.ts";
@@ -511,7 +511,9 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 				expect(ahead.months[0]?.expenseFrom.written).toBe(0);
 
 				const snapshot = await on.advice.snapshot({ spaceId: space.id, today: "2026-09-20" });
-				expect(snapshot.pending).toEqual([]);
+				// Read, and left out by the rule of what falls due: the allowance pays it.
+				expect(snapshot.bills.every((one) => one.onBenefitCard)).toBe(true);
+				expect(duesOf(snapshot).count).toBe(0);
 			} finally {
 				await fixture.close();
 			}

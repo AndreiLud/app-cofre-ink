@@ -548,19 +548,21 @@
 		"weighedMost": "O que mais pesou",
 		"limitClose": "Perto do limite: {{name}}, {{spent}} de {{limit}}.",
 		"limitOver": "Passou do limite: {{name}}, {{spent}} de {{limit}}.",
-		"lastInParts": "Fatura de {{month}}: parcelada."
+		"lastInParts": "Fatura de {{month}}: parcelada.",
+		"findingsOfSpace": "No espaço {{space}}"
 	},
 	"notice": {
 		"budgetOver": "{{name}} passou do limite em {{over}}.",
 		"budgetTight": "{{name}} está apertado: sobram {{left}} para o resto do mês.",
 		"billDueToday": "{{description}} vence hoje: {{amount}}.",
-		"billDueSoon": "{{description}} vence em {{days}} dias: {{amount}}.",
 		"billLate": "{{description}} venceu há {{days}} dias e continua em aberto: {{amount}}.",
 		"savingsBehind": "Faltam {{missing}} para cumprir a sua regra de guardar este mês.",
 		"goalReached": "Você chegou na meta {{name}}.",
 		"invoiceClosing_zero": "{{name}}: a fatura de {{month}} fecha hoje.",
 		"invoiceClosing_one": "{{name}}: a fatura de {{month}} fecha amanhã.",
-		"invoiceClosing_other": "{{name}}: a fatura de {{month}} fecha em {{count}} dias."
+		"invoiceClosing_other": "{{name}}: a fatura de {{month}} fecha em {{count}} dias.",
+		"billDueSoon_one": "{{description}} vence amanhã: {{amount}}.",
+		"billDueSoon_other": "{{description}} vence em {{days}} dias: {{amount}}."
 	},
 	"budget": {
 		"headlineEmpty": "Nenhum limite definido ainda",
@@ -720,7 +722,9 @@
 		"closedSoFarRecord": "Fatura fechada quando o cartão foi cadastrado",
 		"cycleChangeHint": "Os dias novos valem para as compras lançadas daqui em diante. As que já estão numa fatura ficam onde estão: para mudar o dia em que uma fatura fechou, abra a fatura e use “Esta fatura fechou em outro dia”.",
 		"openingDebt": "Dívida de quando foi cadastrado",
-		"openingDebtHint": "Um cartão cadastrado antes da versão 1.1.0 trazia o que devia como saldo, e esse valor é a primeira fatura dele. Corrija aqui se estiver errado, ou deixe em branco se não devia nada."
+		"openingDebtHint": "Um cartão cadastrado antes da versão 1.1.0 trazia o que devia como saldo, e esse valor é a primeira fatura dele. Corrija aqui se estiver errado, ou deixe em branco se não devia nada.",
+		"inTheAccounts": "Nas contas (corrente, poupança e dinheiro)",
+		"cardsOwe": "Os cartões devem"
 	},
 	"rules": {
 		"notABackup": "Esse arquivo não é um backup do {{app}}. Um backup sai daqui mesmo, no botão Baixar cópia, e a cópia que esta tela guarda antes de trocar uma também. Extrato do banco entra por Importar extrato.",
@@ -1723,17 +1727,29 @@
 		"subscriptionRose": "{{subject}} subiu de {{was}} para {{now}}. São {{everyYear}} a mais por ano.",
 		"chargedTwice_one": "{{subject}} aparece duas vezes de {{amount}}, com um dia de diferença. Confira se não foi cobrado em dobro.",
 		"chargedTwice_other": "{{subject}} aparece duas vezes de {{amount}}, com {{count}} dias de diferença. Confira se não foi cobrado em dobro.",
-		"thinReserve": "Você tem {{onHand}} e gasta {{usualExpense}} por mês: dá para {{covers}} mês. Para chegar a três meses faltam {{missing}}, ou {{everyMonth}} por mês durante um ano.",
+		"thinReserve": "Nas contas há {{money}} e os cartões devem {{cards}}. Descontando os cartões sobram {{reserve}}, que dão para {{covers}} mês de um gasto de {{usualExpense}}. Para chegar a três meses faltam {{missing}}, ou {{everyMonth}} por mês durante um ano.",
 		"lowSavingRate": "Sobram {{left}} dos {{income}} que entram, {{percent}} por cento. Guardar dez por cento seria {{wanted}}, faltam {{missing}}.",
-		"invoiceOverBalance_one": "A fatura do cartão {{subject}} é {{amount}} e você tem {{onHand}}. Faltam {{short}} e ela vence amanhã.",
-		"invoiceOverBalance_other": "A fatura do cartão {{subject}} é {{amount}} e você tem {{onHand}}. Faltam {{short}} e ela vence em {{count}} dias.",
-		"duesOverBalance_one": "Uma conta vence nos próximos quinze dias, de {{total}}. Você tem {{onHand}}, faltam {{short}}.",
-		"duesOverBalance_other": "{{count}} contas vencem nos próximos quinze dias e somam {{total}}. Você tem {{onHand}}, faltam {{short}}.",
+		"invoiceOverBalance_one": "A fatura do cartão {{subject}}, de {{amount}}, vence amanhã.",
+		"invoiceOverBalance_other": "A fatura do cartão {{subject}}, de {{amount}}, vence em {{count}} dias.",
+		"duesOverBalance_one": "Uma conta vence nos próximos {{days}} dias: {{subject}}, de {{total}}.",
+		"duesOverBalance_other": "{{count}} contas vencem nos próximos {{days}} dias e somam {{total}}; a maior é {{subject}}.",
 		"goalStalled_one": "{{subject}} não recebe nada há um dia. Faltam {{still}}, ou {{everyMonth}} por mês para chegar na data.",
 		"goalStalled_other": "{{subject}} não recebe nada há {{count}} dias. Faltam {{still}}, ou {{everyMonth}} por mês para chegar na data.",
-		"idleCash": "Você tem {{spare}} além dos três meses de reserva. Vale separar esse dinheiro do que você usa no dia a dia.",
-		"idleCashLosing": "Você tem {{spare}} além dos três meses de reserva. Parado, isso perde {{losing}} de poder de compra em um ano, pela inflação de {{inflation}}% dos últimos doze meses.",
-		"betterThanUsual": "Este mês você gastou {{saved}} a menos que o normal. Foram {{expense}} contra os {{usual}} de sempre."
+		"idleCash": "Nas contas há {{spare}} além dos três meses de reserva, já descontado o que os cartões devem. Vale separar esse dinheiro do que você usa no dia a dia.",
+		"idleCashLosing": "Nas contas há {{spare}} além dos três meses de reserva, já descontado o que os cartões devem. Parado, isso perde {{losing}} de poder de compra em um ano, pela inflação de {{inflation}}% dos últimos doze meses.",
+		"betterThanUsual": "Este mês você gastou {{saved}} a menos que o normal. Foram {{expense}} contra os {{usual}} de sempre.",
+		"invoiceOverBalance_zero": "A fatura do cartão {{subject}}, de {{amount}}, vence hoje.",
+		"invoiceOverBalanceLate": "A fatura do cartão {{subject}}, de {{amount}}, já venceu e não foi paga.",
+		"duesOverBalanceLate_one": "Uma conta já venceu e não foi paga: {{subject}}, de {{total}}.",
+		"duesOverBalanceLate_other": "{{count}} contas somam {{total}} até os próximos {{days}} dias, e {{subject}} já venceu sem ser paga.",
+		"theInvoiceOf": "a fatura do cartão {{card}}",
+		"end": "Nas contas há {{money}}, faltam {{short}}.",
+		"endNegative": "As contas estão negativas em {{money}}, faltam {{short}}.",
+		"invoiceUncounted": "A fatura do cartão {{subject}} tem uma compra em outra moeda sem a cotação do dia e ficou fora da soma do que vence. Lance essa compra de novo com o valor na moeda do espaço para ela contar.",
+		"thinReserveNoCards": "Nas contas há {{money}} e você gasta {{usualExpense}} por mês: dá para {{covers}} mês. Para chegar a três meses faltam {{missing}}, ou {{everyMonth}} por mês durante um ano.",
+		"cardsOverAccounts": "Os cartões devem {{cards}} e nas contas há {{money}}: descontando os cartões, faltam {{short}} antes de começar uma reserva.",
+		"availableAnyDay": "Fora das contas, {{amount}} estão em aplicações de resgate no mesmo dia.",
+		"chargedTwice_zero": "{{subject}} aparece duas vezes de {{amount}}, no mesmo dia. Confira se não foi cobrado em dobro."
 	},
 	"sign": {
 		"savingRate": "Quanto sobra",
@@ -1750,7 +1766,7 @@
 	"signTarget": {
 		"savingRate": "Referência: sobrar 10% ou mais",
 		"reserve": "Referência: 3 meses de gasto",
-		"committed": "Referência: até metade do que você tem",
+		"committed": "Referência: até metade do que há nas contas",
 		"repeatingLoad": "Referência: até metade do que entra"
 	},
 	"step": {
@@ -1775,7 +1791,7 @@
 		"income": "O que entra",
 		"expense": "O que sai",
 		"kept": "O que sobra",
-		"onHand": "O que você tem"
+		"onHand": "Nas contas, descontados os cartões"
 	},
 	"movementDirection": {
 		"better": "melhor",
@@ -1806,9 +1822,9 @@
 		"signsBody": "Cada um é a divisão entre dois números que você já viu em outra tela. A referência está embaixo de cada leitura.",
 		"said": {
 			"savingRate": "Entram {{income}} por mês e saem {{expense}}. Sobram {{left}}.",
-			"reserve": "Você tem {{onHand}} e gasta {{usualExpense}} por mês. Três meses seriam {{wanted}}.",
-			"committed_one": "Uma conta vence nos próximos {{days}} dias, de {{due}}, contra os {{onHand}} que você tem.",
-			"committed_other": "{{count}} contas vencem nos próximos {{days}} dias e somam {{due}}, contra os {{onHand}} que você tem.",
+			"reserve": "Nas contas há {{money}} e os cartões devem {{cards}}; sobram {{reserve}}. O gasto normal é {{usualExpense}} por mês, e três meses seriam {{wanted}}.",
+			"committed_one": "Uma conta vence nos próximos {{days}} dias, de {{due}}, e nas contas há {{money}}.",
+			"committed_other": "{{count}} contas vencem nos próximos {{days}} dias e somam {{due}}, e nas contas há {{money}}.",
 			"committedNone": "Nada vence nos próximos {{days}} dias.",
 			"repeatingLoad_one": "Uma cobrança se repete todo mês e come {{everyMonth}} dos {{income}} que entram.",
 			"repeatingLoad_other": "{{count}} cobranças se repetem todo mês e somam {{everyMonth}} dos {{income}} que entram.",
@@ -1825,7 +1841,7 @@
 		"trendTitle": "O que mudou",
 		"trendBody": "Os {{count}} meses fechados mais recentes contra os {{count}} de antes deles.",
 		"fromTo": "de {{before}} para {{now}}",
-		"trendCover": "Desde {{month}}, o que você tem saiu de {{before}} para {{now}} de gasto normal.",
+		"trendCover": "Desde {{month}}, o que há nas contas, descontados os cartões, saiu de {{before}} para {{now}} de gasto normal.",
 		"cardTitle": "O cartão",
 		"cardUsual": "Uma fatura comum é {{usual}}, {{share}}% do que entra.",
 		"cardNoInvoices": "Nenhuma fatura fechada ainda.",
@@ -1841,7 +1857,7 @@
 		"exposureTitle": "De onde vem o dinheiro",
 		"exposureBody_one": "A única fonte de renda que os seus registros têm, num mês normal.",
 		"exposureBody_other": "As {{count}} fontes de renda dos seus registros, num mês normal.",
-		"wouldLast": "Se {{name}} parar, o que você tem hoje cobre {{cover}} de gasto normal.",
+		"wouldLast": "Se {{name}} parar, o que há nas contas, descontados os cartões, cobre {{cover}} de gasto normal.",
 		"wouldCover": "Se {{name}} parar, o que continua entrando ainda cobre um mês normal.",
 		"seasonTitle": "O que vem pela frente",
 		"seasonBody": "Os meses do ano passado que custaram mais que um mês normal de {{usual}}, e quando eles voltam.",

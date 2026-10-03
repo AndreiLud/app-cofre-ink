@@ -11,6 +11,9 @@ import {
 	type CalendarDate,
 	type ChargePair,
 	inflationOverAYear as compoundedYear,
+	currenciesOf,
+	type DueInvoice,
+	type DueRecord,
 	type Finding,
 	findEverything,
 	isDebt,
@@ -18,15 +21,16 @@ import {
 	lastWholeMonth,
 	monthOf,
 	owedOnCards,
-	type PendingCharge,
+	productOfHolding,
 	type Reading,
 	type RepeatingCharge,
 	readingOf,
 	type Snapshot,
+	SOON_DAYS,
 	spendableNow,
+	todayIn,
 } from "@cofre/core";
 import { assertCan, seesOwnRowsOnly } from "../actor.ts";
-import { notOnABenefitCard } from "../benefitCards.ts";
 import type { SqlValue } from "../driver.ts";
 import { asNumber } from "../driver.ts";
 import { happenedBy, stillToComeOn } from "../happened.ts";
@@ -35,6 +39,8 @@ import type { AccountsRepository } from "./accounts.ts";
 import type { BudgetsRepository } from "./budgets.ts";
 import type { RepositoryContext } from "./context.ts";
 import type { GoalsRepository } from "./goals.ts";
+import type { InvestmentsRepository } from "./investments.ts";
+import type { InvoicesRepository } from "./invoices.ts";
 import type { TransactionsRepository } from "./transactions.ts";
 import { benefitLandingsIn } from "./voucherReading.ts";
 
@@ -49,9 +55,6 @@ const WINDOW = 6;
  * package is still made of the six.
  */
 const LONGER = 18;
-
-/** What falls due inside this many days is what the person can still do something about. */
-const SOON = 15;
 
 /** Two charges this far apart, for the same amount, in the same account, look like one. */
 const REPEAT_DAYS = 3;
@@ -100,6 +103,10 @@ export type AdviceNeeds = {
 	goals: GoalsRepository;
 	accounts: AccountsRepository;
 	transactions: TransactionsRepository;
+	/** What each card owes, invoice by invoice, which is a bill on its due day. */
+	invoices: InvoicesRepository;
+	/** The holdings that come out the same day, named beside the reserve. */
+	investments: InvestmentsRepository;
 };
 
 export function createAdviceRepository(context: RepositoryContext, needs: AdviceNeeds) {
@@ -276,31 +283,82 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 		return charges.sort((left, right) => right.amount - left.amount);
 	}
 
-	async function pendingCharges(
-		spaceId: string,
-		today: CalendarDate,
-		until: CalendarDate,
-	): Promise<PendingCharge[]> {
+	/**
+	 * Money out still to come up to a day, and the promises from before 1.1.0 whose day has gone,
+	 * with what the rule of what falls due needs to know about each (`billsFallingDue` in the
+	 * core decides). It read promises only, from today, so a fact dated next week, which is what
+	 * every record written since 1.1.0 is, was never due, and a late promise was never late.
+	 */
+	async function billsUpTo(spaceId: string, today: CalendarDate, until: CalendarDate) {
 		const rows = await context.driver.all(
 			`SELECT t."description" AS description, t."amount_in_base" AS amount,
-			   t."happened_on" AS due, t."invoice_month" AS invoice_month, a."name" AS account,
-			   a."kind" AS account_kind
+			   t."happened_on" AS day, t."status" AS status, t."invoice_month" AS invoice_month,
+			   a."kind" AS account_kind, a."closing_day" AS closing_day, a."due_day" AS due_day
 			 FROM "transactions" t
 			 LEFT JOIN "accounts" a ON a."id" = t."account_id"
 			 WHERE t."space_id" = ? AND t."deleted_at" IS NULL AND ${stillToComeOn("t")}
-			   AND t."kind" = 'expense' AND t."happened_on" >= ? AND t."happened_on" <= ?
-			   AND ${notOnABenefitCard('t."account_id"')}
+			   AND t."kind" = 'expense' AND t."happened_on" <= ?
 			   ${mine(spaceId, "t").clause}
 			 ORDER BY t."happened_on"`,
-			[spaceId, today, today, until, ...mine(spaceId, "t").params],
+			[spaceId, today, until, ...mine(spaceId, "t").params],
 		);
 
-		return rows.map((row) => ({
-			description: String(row.description ?? ""),
-			amount: Math.abs(asNumber(row.amount)),
-			dueOn: String(row.due),
-			invoiceOf: row.invoice_month !== null && row.account !== null ? String(row.account) : null,
-		}));
+		return rows.map(
+			(row): DueRecord => ({
+				description: String(row.description ?? ""),
+				amount: Math.abs(asNumber(row.amount)),
+				day: String(row.day) as CalendarDate,
+				kind: "expense",
+				status: String(row.status) === "planned" ? "planned" : "settled",
+				invoiceMonth: row.invoice_month === null ? null : String(row.invoice_month),
+				onCardWithCycle:
+					row.account_kind === "credit" && row.closing_day !== null && row.due_day !== null,
+				onBenefitCard: row.account_kind === "voucher",
+			}),
+		);
+	}
+
+	/**
+	 * Every invoice of every card that is open or still owed, as a bill on its due day.
+	 *
+	 * Through the invoices, which own what an invoice is: this file holds no arithmetic of them.
+	 * Read as it stood for a day that has gone, which is what the month on paper asks for.
+	 */
+	async function invoicesOwed(spaceId: string, today: CalendarDate): Promise<DueInvoice[]> {
+		const now = todayIn(await timezoneOf(spaceId), new Date(context.now()));
+		const cards = await needs.invoices.standing(spaceId, today, { asItStood: today < now });
+		return cards.flatMap((card) =>
+			[card.open, ...card.owing].map((state) => ({
+				card: card.account.name,
+				accountId: card.account.id,
+				month: state.month,
+				dueOn: state.dueOn,
+				left: state.left,
+				withoutRate: state.withoutRate,
+				scheduled: state.scheduled,
+				scheduledOn: state.scheduledOn,
+				scheduledBy: state.scheduledBy,
+			})),
+		);
+	}
+
+	/** What is in holdings that come out the same day: a caixinha, money at a broker, a poupança. */
+	async function availableAnyDay(spaceId: string): Promise<number> {
+		const holdings = await needs.investments.list(spaceId);
+		return holdings
+			.filter(
+				(holding) =>
+					productOfHolding({ product: holding.product, kind: holding.kind }).group === "daily",
+			)
+			.reduce((total, holding) => total + holding.value, 0);
+	}
+
+	async function timezoneOf(spaceId: string): Promise<string> {
+		const rows = await context.driver.all(
+			`SELECT "timezone" FROM "spaces" WHERE "id" = ? AND "deleted_at" IS NULL`,
+			[spaceId],
+		);
+		return String(rows[0]?.timezone ?? "America/Sao_Paulo");
 	}
 
 	/**
@@ -553,7 +611,10 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			// What has happened, which ends today and not on the last day of the month: a
 			// record dated later this month is written as a fact and waits for its day.
 			const to = input.today;
-			const until = addDays(input.today, SOON);
+			const until = addDays(input.today, SOON_DAYS);
+			// A logger's balance is made of their own rows and the invoices are the whole card's,
+			// so nothing about money is said to them (part 2, J.6 of 2.0.0, registry 0041).
+			const narrowed = seesOwnRowsOnly(context.actor(), input.spaceId);
 			// One read of the totals covers both windows: the six the medians are made of
 			// are the first six of the eighteen the year ahead needs.
 			const fromLonger = `${addMonthsToMonth(thisMonth, -LONGER)}-01`;
@@ -564,7 +625,7 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 				budgets,
 				goals,
 				repeating,
-				pending,
+				bills,
 				repeats,
 				balances,
 				accounts,
@@ -574,13 +635,15 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 				instalments,
 				sources,
 				inflation,
+				cardInvoices,
+				anyDay,
 			] = await Promise.all([
 				monthlyTotals(input.spaceId, fromLonger, to),
 				spendingByCategory(input.spaceId, from, to),
 				needs.budgets.progress({ spaceId: input.spaceId, month: thisMonth, today: input.today }),
 				needs.goals.progress({ spaceId: input.spaceId, today: input.today }),
 				repeatingCharges(input.spaceId, from, to),
-				pendingCharges(input.spaceId, input.today, until),
+				billsUpTo(input.spaceId, input.today, until),
 				possibleRepeats(input.spaceId, `${addMonthsToMonth(thisMonth, -1)}-01`, to),
 				needs.transactions.balances(input.spaceId, input.today),
 				// The accounts in use, and an archived card as well: what it still owes is
@@ -596,13 +659,17 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 				instalmentsAhead(input.spaceId, input.today),
 				incomeBySource(input.spaceId, from, to),
 				inflationOverAYear(),
+				narrowed ? Promise.resolve([]) : invoicesOwed(input.spaceId, input.today),
+				// The holdings are read by whoever may read them, and named only, never counted.
+				narrowed ? Promise.resolve(0) : availableAnyDay(input.spaceId).catch(() => 0),
 			]);
 
-			// Money on hand is what is in the accounts somebody spends from, less what is
-			// owed on the cards. What is put aside is not a reserve of cash and counting it
-			// as one hides the problem, and the same is true of a meal voucher: it buys
-			// lunch and it will not cover the rent, so a reserve measured with it in is a
-			// reserve that looks healthy in exactly the month it is needed.
+			// The money is what is in the accounts somebody spends from, and what the cards owe
+			// is said beside it; the reserve is the one less the other, worked out in the core.
+			// What is put aside is not a reserve of cash and counting it as one hides the
+			// problem, and the same is true of a meal voucher: it buys lunch and it will not
+			// cover the rent, so a reserve measured with it in is a reserve that looks healthy in
+			// exactly the month it is needed.
 			//
 			// Which kinds those are is not decided here any more. It was decided here, and
 			// on the overview, and in the projection, and the three disagreed.
@@ -610,7 +677,12 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 				(account) => isSpendable(account.kind) || isDebt(account.kind),
 			);
 			const spendable = new Set(counted.map((account) => account.id));
-			const onHand = spendableNow({ accounts, balances }) - owedOnCards({ accounts, balances });
+			// Balances add each account in its own currency, so accounts in two of them add up
+			// to no amount at all, and nothing is said about money (part 2, J.3.4).
+			const oneCurrency = currenciesOf(counted).length <= 1;
+			const said = !narrowed && oneCurrency;
+			const money = said ? spendableNow({ accounts, balances }) : null;
+			const owed = said ? owedOnCards({ accounts, balances }) : null;
 
 			// After the others, because it is the one that needs to know which accounts
 			// those are. A balance from before is this walked backwards from today.
@@ -646,7 +718,11 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 
 			return {
 				today: input.today,
-				onHand,
+				money,
+				owedOnCards: owed,
+				bills,
+				cardInvoices,
+				availableAnyDay: anyDay,
 				thisMonth: current,
 				before: closed.slice(0, WINDOW),
 				categories: [...byCategory].map(([categoryId, found]) => ({ categoryId, ...found })),
@@ -672,7 +748,6 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 					dueOn: goal.targetDate,
 				})),
 				repeating,
-				pending,
 				possibleRepeats: repeats,
 				netByMonth: moved,
 				invoices,

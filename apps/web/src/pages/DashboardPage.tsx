@@ -19,11 +19,13 @@ import {
 	addUpInBase,
 	againstAUsualMonth,
 	amountToPay,
+	billsFallingDue,
 	type CalendarDate,
 	type CardsTogether,
 	canSpendThisMonth,
 	cardsByUrgency,
 	cardsTogether,
+	currenciesOf,
 	dateInMonth,
 	type InvoiceState,
 	isBenefit,
@@ -34,8 +36,9 @@ import {
 	monthOf,
 	noticesFor,
 	parseCalendarMonth,
+	SOON_DAYS,
+	spendableNow,
 	spendableThisMonth,
-	splitInvoicesFallingDue,
 	todayIn,
 	USUAL_WINDOW,
 	worthByAccount,
@@ -78,9 +81,6 @@ import { useWhatIMayDo } from "../storage/roles.ts";
 
 /** Lines about the months behind, here. The rest of them have a screen of their own. */
 const SHOWN = 4;
-
-/** How far ahead "the next days" looks. */
-const AHEAD = 15;
 
 function lastDayOf(month: string): CalendarDate {
 	const { year, month: index } = parseCalendarMonth(month);
@@ -139,7 +139,7 @@ export function DashboardPage() {
 	const [problem, setProblem] = useState<string | null>(null);
 	const consolidated = across === "everything" && spaces.length > 1;
 	/** The currencies the spaces count in, which "Todos" adds together. */
-	const currencies = [...new Set(spaces.map((space) => space.baseCurrency))].sort();
+	const currencies = currenciesOf(spaces.map((space) => ({ currency: space.baseCurrency })));
 
 	// Answering the whole overdue block at once. There is no undoing a confirmation, so the
 	// dialog is not decoration: it is the only stop between the button and the writes.
@@ -259,7 +259,7 @@ export function DashboardPage() {
 					// fact now and its day holds it back.
 					stillToComeOn: today,
 					from: today,
-					to: addDays(today, AHEAD),
+					to: addDays(today, SOON_DAYS),
 					order: "oldestFirst",
 					limit: 50,
 				});
@@ -605,14 +605,31 @@ export function DashboardPage() {
 	 * subtracts, so dropping a late bill here would quietly hand it back as money to spend.
 	 * The list below is bounded at the near end, which looks like an inconsistency and is
 	 * not: a list answers where a bill belongs, a total answers what is owed.
+	 *
+	 * By the one rule for what falls due, to the end of the month and with the late counted.
+	 * An invoice holding a purchase in another currency with no rate for the day has no honest
+	 * figure, and the rule sets it apart rather than folding it into what is left to spend; the
+	 * block for that card says so instead.
 	 */
-	const invoicesDue = shownCards
-		.flatMap((card) => [card.open, ...card.owing])
-		// An invoice holding a purchase in another currency with no rate for the day has no
-		// honest figure here, and a bill with no honest figure must not be folded into what is
-		// left to spend. The block for that card says so instead.
-		.filter((state) => state.left > 0 && state.withoutRate === 0 && state.dueOn <= endOfMonth)
-		.reduce((total, state) => total + state.left, 0);
+	const invoicesDue = billsFallingDue({
+		today,
+		until: endOfMonth,
+		records: [],
+		invoices: shownCards.flatMap((card) =>
+			[card.open, ...card.owing].map((state) => ({
+				card: card.account.name,
+				accountId: card.account.id,
+				month: state.month,
+				dueOn: state.dueOn,
+				left: state.left,
+				withoutRate: state.withoutRate,
+				scheduled: state.scheduled,
+				scheduledOn: state.scheduledOn,
+				scheduledBy: state.scheduledBy,
+			})),
+		),
+		spendable: 0,
+	}).total;
 	const fallingDue = goingOut + invoicesDue;
 
 	const putAside = consolidated ? savingsEverywhere.data : savings.data;
@@ -644,13 +661,17 @@ export function DashboardPage() {
 	 */
 	const invoiceBills = shownCards.flatMap((card) =>
 		[card.open, ...card.owing]
-			.filter((state) => state !== null && state.withoutRate === 0)
+			.filter((state) => state !== null)
 			.map((state) => ({
 				id: `invoice:${card.account.id}:${state.month}`,
+				card: card.account.name,
 				accountId: card.account.id,
 				month: state.month,
 				dueOn: state.dueOn,
 				left: state.left,
+				withoutRate: state.withoutRate,
+				scheduled: state.scheduled,
+				scheduledBy: state.scheduledBy,
 				on: state.dueOn,
 				description: t("dashboard.invoiceOf", { card: card.account.name }),
 				amount: -state.left,
@@ -670,41 +691,55 @@ export function DashboardPage() {
 			})),
 	);
 
-	// Coming, or already somebody's problem. A bill past its due day used to pass the only
-	// test there was, which asked whether it was inside the horizon, and was drawn under a
-	// heading saying it was still to come.
-	const bills = splitInvoicesFallingDue({
-		invoices: invoiceBills,
+	/**
+	 * What falls due in the next days, by the one rule for it (`billsFallingDue`, decision 14 of
+	 * 2.0.0), which the check up reads too: money out still to come that is not already on an
+	 * invoice, never a lunch on a benefit card and never a move, and every invoice on its due
+	 * day. A bill past its due day is late and is answered above; one with a purchase in another
+	 * currency and no rate is set apart, and the block of its card says so.
+	 */
+	const upcomingRows = (upcoming.data ?? []).map((row) => ({
+		id: row.id,
+		on: row.happenedOn,
+		description: row.description,
+		amount: row.amount,
+		currency: row.currency,
+		kind: row.kind,
+		invoice: false,
+		repeats: row.recurrenceId !== null,
+	}));
+	const bills = billsFallingDue({
 		today,
-		until: addDays(today, AHEAD),
+		until: addDays(today, SOON_DAYS),
+		// Weighed in the currency of the space, from the figure at the rate of the day.
+		records: (upcoming.data ?? []).map((row, index) => ({
+			description: row.description,
+			amount: Math.abs(row.amountInBase),
+			day: row.happenedOn,
+			kind: row.kind,
+			status: row.status,
+			invoiceMonth: row.invoiceMonth,
+			onCardWithCycle: cardWithCycle(row.accountId),
+			onBenefitCard: onABenefitCard(row.accountId),
+			shown: upcomingRows[index],
+		})),
+		invoices: invoiceBills,
+		spendable: spendableNow(counted),
 	});
 
-	/** What falls due next, with a card invoice as one bill on the day it falls due. */
-	const dues = [
-		...(upcoming.data ?? [])
-			.filter((row) => !open.has(row.accountId) || accountKind(row.accountId) !== "credit")
-			// Nor a lunch on a benefit card, which the allowance pays and the bank does not.
-			.filter((row) => !onABenefitCard(row.accountId))
-			// A payment into a card, dated ahead, is the invoice line below saying when it is
-			// paid. Listed here as well, the same money went out twice in this block.
-			.filter(
-				(row) =>
-					row.kind !== "transfer" ||
-					row.counterAccountId === null ||
-					accountKind(row.counterAccountId) !== "credit",
-			)
-			.map((row) => ({
-				id: row.id,
-				on: row.happenedOn,
-				description: row.description,
-				amount: row.amount,
-				currency: row.currency,
-				kind: row.kind,
-				invoice: false,
-				repeats: row.recurrenceId !== null,
-			})),
-		...bills.coming,
-	].sort((one, other) => (one.on < other.on ? -1 : 1));
+	/** What leaves, a card invoice as one bill on the day it falls due, soonest first. */
+	type DueLine = (typeof invoiceBills)[number] | (typeof upcomingRows)[number];
+	const goingSoon: DueLine[] = bills.coming.flatMap((bill): DueLine[] => {
+		if (bill.invoice) return [bill.invoice];
+		return bill.record?.shown ? [bill.record.shown] : [];
+	});
+	/** What comes in, which is listed and never weighed against anything. */
+	const comingSoon: DueLine[] = upcomingRows.filter((row) => row.kind === "income");
+	const dues: DueLine[] = [...goingSoon, ...comingSoon].sort((one, other) =>
+		one.on < other.on ? -1 : 1,
+	);
+	/** The invoices past their due day, which the block of late things answers. */
+	const toAnswer = bills.late.flatMap((bill) => (bill.invoice ? [bill.invoice] : []));
 
 	/**
 	 * What was promised for a day already gone, with the card purchases left out.
@@ -725,6 +760,12 @@ export function DashboardPage() {
 
 	function accountKind(id: string): string {
 		return shownAccounts.find((account) => account.id === id)?.kind ?? "";
+	}
+
+	/** A credit card with a closing day and a due day, whose invoice holds what it marks. */
+	function cardWithCycle(id: string): boolean {
+		const account = shownAccounts.find((one) => one.id === id);
+		return account?.kind === "credit" && account.closingDay !== null && account.dueDay !== null;
 	}
 
 	/** By the core's own list of which kinds of account are a benefit and not money. */
@@ -751,13 +792,15 @@ export function DashboardPage() {
 			limit: limit.progress.limit,
 			state: limit.progress.state,
 		})),
-		bills: (upcoming.data ?? [])
-			.filter((row) => !onABenefitCard(row.accountId))
-			.map((row) => ({
-				description: row.description,
-				amount: Math.abs(row.amount),
-				happenedOn: row.happenedOn,
-			})),
+		// The bills of the one rule, and nothing else: a purchase on a card is its invoice, money
+		// coming in never falls due, and each invoice says so on its due day. The late ones are
+		// in the block of what is late, above this one.
+		bills: bills.coming.map((bill) => ({
+			description:
+				bill.kind === "invoice" ? t("dashboard.invoiceOf", { card: bill.subject }) : bill.subject,
+			amount: bill.amount,
+			happenedOn: bill.dueOn,
+		})),
 		// Every card about to close, which was never handed over, so the notice was written and
 		// never shown.
 		invoicesClosing: shownCards
@@ -1044,7 +1087,7 @@ export function DashboardPage() {
 			) : null}
 
 			{/* Late first, because it is the only thing on this screen that is already wrong. */}
-			{lateRecords.length > 0 || bills.toAnswer.length > 0 ? (
+			{lateRecords.length > 0 || toAnswer.length > 0 ? (
 				<Callout
 					tone="problem"
 					title={t("dashboard.late")}
@@ -1059,9 +1102,9 @@ export function DashboardPage() {
 				>
 					{/* The bills above the promises, because an invoice past its due day is costing
 					    money every day it waits while a record is only waiting for a yes. */}
-					{bills.toAnswer.length > 0 ? (
+					{toAnswer.length > 0 ? (
 						<ul className="mt-1 space-y-2">
-							{bills.toAnswer.map((row) => (
+							{toAnswer.map((row) => (
 								<li key={row.id} className="flex flex-wrap items-baseline justify-between gap-2">
 									<span className="min-w-0">
 										<span className="font-mono text-quiet text-xs">{dayAndMonth(row.dueOn)}</span>{" "}
@@ -1156,6 +1199,12 @@ export function DashboardPage() {
 					</ul>
 					{found.length > 0 ? (
 						<div className="mt-3">
+							{/* The check up reads one space, the one open, whatever "Todos" adds up. */}
+							{consolidated ? (
+								<p className="mb-2 text-quiet text-xs">
+									{t("dashboard.findingsOfSpace", { space: currentSpace.name })}
+								</p>
+							) : null}
 							<Findings findings={found} money={money} limit={SHOWN} />
 						</div>
 					) : null}
@@ -1164,6 +1213,8 @@ export function DashboardPage() {
 
 			<Panel
 				title={t("dashboard.dueSoon")}
+				// Where the check up sends somebody about what falls due.
+				id="vence"
 				action={
 					<Link
 						to={ROUTES.transactions}

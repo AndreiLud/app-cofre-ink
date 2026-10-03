@@ -56,8 +56,12 @@ const WHERE: Partial<Record<Finding["code"], { to: string; label: string }>> = {
 	subscriptionLoad: { to: ROUTES.recurring, label: "nav.recurring" },
 	subscriptionRose: { to: ROUTES.transactions, label: "nav.allRecords" },
 	chargedTwice: { to: ROUTES.transactions, label: "nav.allRecords" },
+	// An invoice opens on its card and its month, below; what falls due opens on the block of the
+	// overview that lists it, by its anchor.
 	invoiceOverBalance: { to: ROUTES.invoices, label: "nav.invoices" },
-	duesOverBalance: { to: ROUTES.calendar, label: "nav.calendar" },
+	invoiceUncounted: { to: ROUTES.invoices, label: "nav.invoices" },
+	duesOverBalance: { to: ROUTES.dashboard, label: "dashboard.dueSoon" },
+	cardsOverAccounts: { to: ROUTES.accounts, label: "nav.accounts" },
 	goalStalled: { to: ROUTES.budget, label: "nav.budget" },
 };
 
@@ -292,14 +296,17 @@ export function AdvisorPage() {
 								))}
 							</ul>
 
-							{/* The one sentence somebody repeats to themselves afterwards. */}
-							<p className="mt-4 border-t border-line pt-4 text-sm leading-relaxed text-ink">
-								{t("advisor.trendCover", {
-									month: monthName(reading.data.trend.since),
-									before: cover(reading.data.trend.coverBefore),
-									now: cover(reading.data.trend.coverNow),
-								})}
-							</p>
+							{/* The one sentence somebody repeats to themselves afterwards, when the money
+							    can be said at all. */}
+							{reading.data.trend.coverBefore !== null && reading.data.trend.coverNow !== null ? (
+								<p className="mt-4 border-t border-line pt-4 text-sm leading-relaxed text-ink">
+									{t("advisor.trendCover", {
+										month: monthName(reading.data.trend.since),
+										before: cover(reading.data.trend.coverBefore),
+										now: cover(reading.data.trend.coverNow),
+									})}
+								</p>
+							) : null}
 						</Panel>
 					) : null}
 
@@ -479,11 +486,13 @@ export function AdvisorPage() {
 					{found.length > 0 ? (
 						<Panel title={t("advisor.allTitle")} description={t("advisor.allBody")}>
 							<ul className="space-y-4">
-								{found.map((finding) => {
+								{found.map((finding, index) => {
 									const where = WHERE[finding.code];
 									return (
 										<li
-											key={`${finding.code}${finding.subject ?? ""}`}
+											// By position: two findings can share a code and a subject.
+											// biome-ignore lint/suspicious/noArrayIndexKey: the list is drawn in one order and never reordered in place
+											key={index}
 											className={`border-l-2 pl-3 ${
 												finding.weight === "problem"
 													? "border-seal"
@@ -502,6 +511,13 @@ export function AdvisorPage() {
 											{where ? (
 												<Link
 													to={where.to}
+													// The invoice by its card and its month (part 2, B.4.6 and J.8.4).
+													search={
+														finding.invoice
+															? { cartao: finding.invoice.accountId, mes: finding.invoice.month }
+															: undefined
+													}
+													hash={finding.code === "duesOverBalance" ? "vence" : undefined}
 													className={buttonClasses({
 														variant: "secondary",
 														size: "small",

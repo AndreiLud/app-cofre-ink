@@ -10,7 +10,11 @@ import { leversIn, type PlanStep, planFrom } from "./plan.ts";
 function household(): Snapshot {
 	return {
 		today: "2026-09-20",
-		onHand: 200_000,
+		money: 200_000,
+		owedOnCards: 0,
+		bills: [],
+		cardInvoices: [],
+		availableAnyDay: 0,
 		thisMonth: { month: "2026-09", income: 600_000, expense: 500_000 },
 		before: [
 			{ month: "2026-08", income: 600_000, expense: 500_000 },
@@ -22,7 +26,6 @@ function household(): Snapshot {
 		budgets: [],
 		goals: [],
 		repeating: [],
-		pending: [],
 		possibleRepeats: [],
 		netByMonth: [],
 		invoices: [],
@@ -59,9 +62,19 @@ describe("the order of the steps", () => {
 
 	it("puts what is already owed in front of everything, with no date on it", () => {
 		const snapshot = household();
-		snapshot.onHand = 50_000;
-		snapshot.pending = [
-			{ description: "Fatura", amount: 300_000, dueOn: "2026-09-25", invoiceOf: "Nubank" },
+		snapshot.money = 50_000;
+		snapshot.cardInvoices = [
+			{
+				card: "Nubank",
+				accountId: "Nubank",
+				month: "2026-09",
+				dueOn: "2026-09-25",
+				left: 300_000,
+				withoutRate: 0,
+				scheduled: 0,
+				scheduledOn: null,
+				scheduledBy: null,
+			},
 		];
 
 		const plan = planFrom(snapshot);
@@ -69,6 +82,53 @@ describe("the order of the steps", () => {
 		// Two thousand five hundred short, and it is due this week rather than in a month.
 		expect(plan.steps[0]?.amount).toBe(250_000);
 		expect(plan.steps[0]?.finishesOn).toBeNull();
+	});
+
+	// Part 2, J.5.1 of the request for 2.0.0: the invoice is in what the cards owe, which the
+	// reserve already takes off, so taking it off again for the buffer counted it twice.
+	it("does not count the invoice twice, once owed and once in the buffer", () => {
+		const snapshot = household();
+		snapshot.before = snapshot.before.map((month) => ({ ...month, expense: 300_000 }));
+		snapshot.money = 120_000;
+		snapshot.owedOnCards = 230_000;
+		snapshot.cardInvoices = [
+			{
+				card: "Nubank",
+				accountId: "Nubank",
+				month: "2026-09",
+				dueOn: "2026-09-25",
+				left: 230_000,
+				withoutRate: 0,
+				scheduled: 0,
+				scheduledOn: null,
+				scheduledBy: null,
+			},
+		];
+
+		const steps = planFrom(snapshot).steps;
+		expect(step(steps, "coverDues").amount).toBe(110_000);
+		expect(step(steps, "buffer").amount).toBe(300_000);
+		expect(step(steps, "coverDues").amount + step(steps, "buffer").amount).toBe(410_000);
+	});
+
+	it("starts the buffer after the bills of the window that are not invoices", () => {
+		const snapshot = household();
+		snapshot.money = 500_000;
+		snapshot.bills = [
+			{
+				description: "Aluguel",
+				amount: 200_000,
+				day: "2026-09-25",
+				kind: "expense",
+				status: "settled",
+				invoiceMonth: null,
+				onCardWithCycle: false,
+				onBenefitCard: false,
+			},
+		];
+		// Five thousand in the bank, two of them about to leave for the rent: the buffer starts
+		// from three, two short of one ordinary month of five.
+		expect(step(planFrom(snapshot).steps, "buffer").amount).toBe(200_000);
 	});
 });
 
@@ -114,7 +174,7 @@ describe("the months on each step", () => {
 	it("leaves out a step that is already done", () => {
 		const snapshot = household();
 		// Four months of cover, which is past both lines.
-		snapshot.onHand = 2_000_000;
+		snapshot.money = 2_000_000;
 		expect(planFrom(snapshot).steps).toEqual([]);
 	});
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { DueInvoice, DueRecord } from "../cards/whatFallsDue.ts";
 import { median } from "../plan/projection.ts";
 import { type Finding, findEverything, type Snapshot } from "./findings.ts";
 
@@ -6,7 +7,11 @@ import { type Finding, findEverything, type Snapshot } from "./findings.ts";
 function quiet(): Snapshot {
 	return {
 		today: "2026-09-20",
-		onHand: 1_500_000,
+		money: 1_500_000,
+		owedOnCards: 0,
+		bills: [],
+		cardInvoices: [],
+		availableAnyDay: 0,
 		thisMonth: { month: "2026-09", income: 600_000, expense: 400_000 },
 		before: [
 			{ month: "2026-08", income: 600_000, expense: 400_000 },
@@ -18,7 +23,6 @@ function quiet(): Snapshot {
 		budgets: [],
 		goals: [],
 		repeating: [],
-		pending: [],
 		possibleRepeats: [],
 		netByMonth: [],
 		invoices: [],
@@ -215,47 +219,137 @@ describe("what repeats", () => {
 	});
 });
 
-describe("what falls due", () => {
-	it("says when a card invoice is bigger than the money there is", () => {
-		const snapshot = quiet();
-		snapshot.onHand = 80_000;
-		snapshot.pending = [
-			{ description: "Fatura", amount: 210_000, dueOn: "2026-09-25", invoiceOf: "Nubank" },
-		];
+/** An invoice of a card, due on a day, for what is left on it. */
+function invoiceOf(card: string, dueOn: string, left: number): DueInvoice {
+	return {
+		card,
+		accountId: card,
+		month: dueOn.slice(0, 7),
+		dueOn,
+		left,
+		withoutRate: 0,
+		scheduled: 0,
+		scheduledOn: null,
+		scheduledBy: null,
+	};
+}
 
-		const finding = one(findEverything(snapshot), "invoiceOverBalance");
-		expect(finding.subject).toBe("Nubank");
-		expect(finding.amounts.short).toBe(130_000);
-		expect(finding.amounts.days).toBe(5);
+/** A record of money out still to come. */
+function billOf(description: string, day: string, amount: number): DueRecord {
+	return {
+		description,
+		amount,
+		day,
+		kind: "expense",
+		status: "settled",
+		invoiceMonth: null,
+		onCardWithCycle: false,
+		onBenefitCard: false,
+	};
+}
+
+/** The findings about what falls due, which are the only ones these tests look at. */
+function dueFindings(snapshot: Snapshot): Finding[] {
+	return findEverything(snapshot).filter(
+		(finding) => finding.code === "invoiceOverBalance" || finding.code === "duesOverBalance",
+	);
+}
+
+// Part 2, J of the request for 2.0.0: with nothing falling due and the money negative, it said
+// that one bill of R$ 0,00 fell due, and the money had the cards netted off it.
+describe("what falls due", () => {
+	it("says the invoice when it is the only bill, against the money in the accounts", () => {
+		const snapshot = quiet();
+		snapshot.money = 120_000;
+		snapshot.owedOnCards = 230_000;
+		snapshot.cardInvoices = [invoiceOf("Nubank", "2026-09-25", 230_000)];
+
+		const found = dueFindings(snapshot);
+		expect(codes(found)).toEqual(["invoiceOverBalance"]);
+		expect(found[0]?.subject).toBe("Nubank");
+		expect(found[0]?.amounts).toMatchObject({ short: 110_000, days: 5, money: 120_000 });
 	});
 
-	it("adds the rest up when no single one is the problem", () => {
+	it("says all the bills in one sentence when there are more than one", () => {
 		const snapshot = quiet();
-		snapshot.onHand = 100_000;
-		snapshot.pending = [
-			{ description: "Aluguel", amount: 90_000, dueOn: "2026-09-25", invoiceOf: null },
-			{ description: "Luz", amount: 40_000, dueOn: "2026-09-28", invoiceOf: null },
+		snapshot.money = 120_000;
+		snapshot.cardInvoices = [
+			invoiceOf("Nubank", "2026-09-25", 90_000),
+			invoiceOf("Itaú", "2026-09-28", 80_000),
 		];
+		const found = dueFindings(snapshot);
+		expect(codes(found)).toEqual(["duesOverBalance"]);
+		expect(found[0]?.amounts).toMatchObject({ count: 2, short: 50_000 });
 
-		const finding = one(findEverything(snapshot), "duesOverBalance");
-		expect(finding.amounts.short).toBe(30_000);
-		expect(finding.amounts.count).toBe(2);
+		// Two invoices each larger than the money: still one finding, of the whole.
+		snapshot.money = 100_000;
+		snapshot.cardInvoices = [
+			invoiceOf("Nubank", "2026-09-25", 150_000),
+			invoiceOf("Itaú", "2026-09-28", 130_000),
+		];
+		const both = dueFindings(snapshot);
+		expect(codes(both)).toEqual(["duesOverBalance"]);
+		expect(both[0]?.amounts.short).toBe(180_000);
+		expect(both[0]?.subject).toBe("Nubank");
+	});
+
+	it("says nothing when nothing falls due, however negative the money is", () => {
+		const snapshot = quiet();
+		snapshot.money = -111_420;
+		expect(dueFindings(snapshot)).toEqual([]);
+	});
+
+	it("adds up records too, and names the largest", () => {
+		const snapshot = quiet();
+		snapshot.money = 100_000;
+		snapshot.bills = [billOf("Aluguel", "2026-09-25", 90_000), billOf("Luz", "2026-09-28", 40_000)];
+
+		const found = dueFindings(snapshot);
+		expect(found[0]?.code).toBe("duesOverBalance");
+		expect(found[0]?.subject).toBe("Aluguel");
+		expect(found[0]?.amounts).toMatchObject({ short: 30_000, count: 2, subjectIsInvoice: 0 });
 	});
 
 	it("ignores what is due next month, because that is next month's problem", () => {
 		const snapshot = quiet();
-		snapshot.onHand = 1_000;
-		snapshot.pending = [
-			{ description: "Aluguel", amount: 90_000, dueOn: "2026-10-25", invoiceOf: null },
-		];
-		expect(codes(findEverything(snapshot))).not.toContain("duesOverBalance");
+		snapshot.money = 1_000;
+		snapshot.bills = [billOf("Aluguel", "2026-10-25", 90_000)];
+		expect(dueFindings(snapshot)).toEqual([]);
+	});
+
+	it("says which invoice has a purchase with no rate, and leaves it out of the sum", () => {
+		const snapshot = quiet();
+		snapshot.money = 10_000;
+		snapshot.cardInvoices = [{ ...invoiceOf("Nubank", "2026-09-25", 230_000), withoutRate: 1 }];
+		const found = findEverything(snapshot);
+		expect(codes(found)).toContain("invoiceUncounted");
+		expect(dueFindings(snapshot)).toEqual([]);
+	});
+
+	it("says nothing about money when the money is not said, as for a logger", () => {
+		const snapshot = quiet();
+		snapshot.money = null;
+		snapshot.owedOnCards = null;
+		snapshot.cardInvoices = [invoiceOf("Nubank", "2026-09-25", 230_000)];
+		snapshot.before = snapshot.before.map((month) => ({ ...month, expense: 570_000 }));
+		const found = codes(findEverything(snapshot));
+		for (const code of [
+			"invoiceOverBalance",
+			"duesOverBalance",
+			"thinReserve",
+			"cardsOverAccounts",
+			"idleCash",
+			"lowSavingRate",
+		]) {
+			expect(found).not.toContain(code);
+		}
 	});
 });
 
 describe("what is put aside", () => {
 	it("measures the reserve in months of an ordinary month, and says the way out", () => {
 		const snapshot = quiet();
-		snapshot.onHand = 600_000;
+		snapshot.money = 600_000;
 
 		const finding = one(findEverything(snapshot), "thinReserve");
 		expect(finding.weight).toBe("attention");
@@ -265,19 +359,57 @@ describe("what is put aside", () => {
 		expect(finding.amounts.everyMonth).toBe(50_000);
 	});
 
+	it("takes what the cards owe off the reserve, and says so", () => {
+		const snapshot = quiet();
+		snapshot.money = 1_500_000;
+		snapshot.owedOnCards = 900_000;
+
+		const finding = one(findEverything(snapshot), "thinReserve");
+		expect(finding.amounts).toMatchObject({
+			money: 1_500_000,
+			cards: 900_000,
+			reserve: 600_000,
+			covers: 15,
+		});
+	});
+
+	it("says what the cards owe beyond the accounts, rather than a negative month", () => {
+		const snapshot = quiet();
+		snapshot.money = 120_000;
+		snapshot.owedOnCards = 230_000;
+
+		const found = findEverything(snapshot);
+		expect(codes(found)).not.toContain("thinReserve");
+		expect(one(found, "cardsOverAccounts").amounts.short).toBe(110_000);
+	});
+
 	it("calls it a problem when there is less than one month of it", () => {
 		const snapshot = quiet();
-		snapshot.onHand = 200_000;
+		snapshot.money = 200_000;
 		expect(one(findEverything(snapshot), "thinReserve").weight).toBe("problem");
 	});
 
 	it("says when rather more is sitting there than the next months need", () => {
 		const snapshot = quiet();
-		snapshot.onHand = 3_000_000;
+		snapshot.money = 3_000_000;
 
 		const finding = one(findEverything(snapshot), "idleCash");
 		expect(finding.weight).toBe("good");
 		expect(finding.amounts.spare).toBe(1_800_000);
+	});
+
+	// Part 2, H.10.3 of the request for 2.0.0: a caixinha is not counted in the reserve, and
+	// the sentence names it as information.
+	it("names the holdings that come out the same day without counting them", () => {
+		const snapshot = quiet();
+		snapshot.money = 200_000;
+		snapshot.availableAnyDay = 1_000_000;
+		const thin = one(findEverything(snapshot), "thinReserve");
+		expect(thin.amounts).toMatchObject({ missing: 1_000_000, availableAnyDay: 1_000_000 });
+
+		snapshot.money = 2_000_000;
+		snapshot.availableAnyDay = 1_500_000;
+		expect(one(findEverything(snapshot), "idleCash").amounts.spare).toBe(800_000);
 	});
 
 	it("says when almost nothing is left over each month", () => {

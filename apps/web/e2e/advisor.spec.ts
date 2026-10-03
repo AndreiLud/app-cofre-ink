@@ -123,7 +123,10 @@ test.describe("the check up", () => {
 		await expect(kept).toContainText("R$ 2.000,00");
 		await expect(kept).toContainText("R$ 2.500,00");
 		await expect(kept).toContainText("melhor");
-		await expect(page.getByText(/o que você tem saiu de/i)).toBeVisible();
+		// The accounts less the cards, which is the reserve (part 2, J.5 of 2.0.0).
+		await expect(
+			page.getByText(/o que há nas contas, descontados os cartões, saiu de/i),
+		).toBeVisible();
 
 		// And the card panel, which here is the instalments rather than an invoice.
 		await expect(page.getByRole("heading", { name: "O cartão" })).toBeVisible();

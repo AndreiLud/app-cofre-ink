@@ -56,6 +56,18 @@ export function isBenefit(kind: AccountKind): boolean {
 	return BENEFIT_KINDS.includes(kind);
 }
 
+/**
+ * The currencies some accounts, or some spaces, count in, each once and in order.
+ *
+ * A total of balances adds each account in its own currency, so a total over more than one of
+ * these is not one amount. The comment below promised a refusal higher up and there was none:
+ * "Todos" says so when its spaces differ, and the check up says nothing about money when the
+ * accounts it adds differ. One helper for both.
+ */
+export function currenciesOf(items: readonly { currency: string }[]): string[] {
+	return [...new Set(items.map((item) => item.currency))].sort();
+}
+
 /** Only what a total needs to know about an account. */
 export type CountedAccount = {
 	id: string;
@@ -142,7 +154,9 @@ export function spendableThisMonth(input: TotalInput, putAside: Iterable<string 
 
 /** What is owed on the cards, as a positive number, because a debt is not a small balance. */
 export function owedOnCards(input: TotalInput): number {
-	return -totalOver(input, isDebt);
+	// Taken from nought, so nothing owed is nought and not the negative zero a minus sign
+	// makes of it, which a screen prints as "-R$ 0,00".
+	return 0 - totalOver(input, isDebt);
 }
 
 /** What is left on the benefit accounts. Never part of the money. */

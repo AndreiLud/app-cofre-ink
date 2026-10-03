@@ -199,7 +199,8 @@ export function runAdviceConformance(adapter: AdapterUnderTest): void {
 				});
 
 				const snapshot = await fixture.asAna.advice.snapshot({ spaceId: space.id, today: TODAY });
-				expect(snapshot.onHand).toBe(300_000);
+				expect(snapshot.money).toBe(300_000);
+				expect(snapshot.owedOnCards).toBe(0);
 			} finally {
 				await fixture.close();
 			}

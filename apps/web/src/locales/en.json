@@ -548,19 +548,21 @@
 		"weighedMost": "What weighed most",
 		"limitClose": "Close to the limit: {{name}}, {{spent}} of {{limit}}.",
 		"limitOver": "Past the limit: {{name}}, {{spent}} of {{limit}}.",
-		"lastInParts": "The {{month}} invoice: split into parts."
+		"lastInParts": "The {{month}} invoice: split into parts.",
+		"findingsOfSpace": "In the space {{space}}"
 	},
 	"notice": {
 		"budgetOver": "{{name}} went over its limit by {{over}}.",
 		"budgetTight": "{{name}} is tight: {{left}} left for the rest of the month.",
 		"billDueToday": "{{description}} falls due today: {{amount}}.",
-		"billDueSoon": "{{description}} falls due in {{days}} days: {{amount}}.",
 		"billLate": "{{description}} fell due {{days}} days ago and is still open: {{amount}}.",
 		"savingsBehind": "{{missing}} short of your savings rule this month.",
 		"goalReached": "You reached the goal {{name}}.",
 		"invoiceClosing_zero": "{{name}}: the {{month}} invoice closes today.",
 		"invoiceClosing_one": "{{name}}: the {{month}} invoice closes tomorrow.",
-		"invoiceClosing_other": "{{name}}: the {{month}} invoice closes in {{count}} days."
+		"invoiceClosing_other": "{{name}}: the {{month}} invoice closes in {{count}} days.",
+		"billDueSoon_one": "{{description}} falls due tomorrow: {{amount}}.",
+		"billDueSoon_other": "{{description}} falls due in {{days}} days: {{amount}}."
 	},
 	"budget": {
 		"headlineEmpty": "No limits set yet",
@@ -720,7 +722,9 @@
 		"closedSoFarRecord": "Invoice closed when the card was written down",
 		"cycleChangeHint": "The new days apply to purchases written from now on. Those already on an invoice stay where they are: to change the day an invoice closed, open the invoice and use “This invoice closed on another day”.",
 		"openingDebt": "Debt it was written down with",
-		"openingDebtHint": "A card written down before version 1.1.0 brought what it owed as its balance, and that amount is its first invoice. Correct it here if it is wrong, or leave it empty if nothing was owed."
+		"openingDebtHint": "A card written down before version 1.1.0 brought what it owed as its balance, and that amount is its first invoice. Correct it here if it is wrong, or leave it empty if nothing was owed.",
+		"inTheAccounts": "In the accounts (current, savings and cash)",
+		"cardsOwe": "The cards owe"
 	},
 	"rules": {
 		"notABackup": "That file is not a {{app}} backup. A backup comes from here, from the Download a copy button, and so does the copy this screen saves before it replaces one. A statement from the bank goes in through Import a statement.",
@@ -1723,17 +1727,29 @@
 		"subscriptionRose": "{{subject}} went from {{was}} to {{now}}. That is {{everyYear}} more a year.",
 		"chargedTwice_one": "{{subject}} shows up twice at {{amount}}, one day apart. Check that it was not charged twice.",
 		"chargedTwice_other": "{{subject}} shows up twice at {{amount}}, {{count}} days apart. Check that it was not charged twice.",
-		"thinReserve": "You have {{onHand}} and spend {{usualExpense}} a month: that covers {{covers}} months. Three months is {{missing}} away, or {{everyMonth}} a month for a year.",
+		"thinReserve": "Your accounts hold {{money}} and the cards owe {{cards}}. Less the cards that leaves {{reserve}}, which covers {{covers}} months of spending {{usualExpense}}. Three months is {{missing}} away, or {{everyMonth}} a month for a year.",
 		"lowSavingRate": "{{left}} is left of the {{income}} that comes in, {{percent}} per cent. Ten per cent would be {{wanted}}, which is {{missing}} away.",
-		"invoiceOverBalance_one": "The {{subject}} card invoice is {{amount}} and you have {{onHand}}. That is {{short}} short, and it is due tomorrow.",
-		"invoiceOverBalance_other": "The {{subject}} card invoice is {{amount}} and you have {{onHand}}. That is {{short}} short, and it is due in {{count}} days.",
-		"duesOverBalance_one": "One bill falls due in the next fortnight, of {{total}}. You have {{onHand}}, which is {{short}} short.",
-		"duesOverBalance_other": "{{count}} bills fall due in the next fortnight and add up to {{total}}. You have {{onHand}}, which is {{short}} short.",
+		"invoiceOverBalance_one": "The {{subject}} card invoice, of {{amount}}, falls due tomorrow.",
+		"invoiceOverBalance_other": "The {{subject}} card invoice, of {{amount}}, falls due in {{count}} days.",
+		"duesOverBalance_one": "One bill falls due in the next {{days}} days: {{subject}}, of {{total}}.",
+		"duesOverBalance_other": "{{count}} bills fall due in the next {{days}} days and add up to {{total}}; the largest is {{subject}}.",
 		"goalStalled_one": "{{subject}} has had nothing put into it for a day. {{still}} to go, or {{everyMonth}} a month to arrive on time.",
 		"goalStalled_other": "{{subject}} has had nothing put into it for {{count}} days. {{still}} to go, or {{everyMonth}} a month to arrive on time.",
-		"idleCash": "You have {{spare}} beyond three months of cover. Worth keeping that apart from the money you spend.",
-		"idleCashLosing": "You have {{spare}} beyond three months of cover. Standing still, it loses {{losing}} of buying power in a year, at the {{inflation}}% inflation of the last twelve published months.",
-		"betterThanUsual": "This month you spent {{saved}} less than usual: {{expense}} against the usual {{usual}}."
+		"idleCash": "Your accounts hold {{spare}} beyond three months of cover, after what the cards owe. Worth keeping that apart from the money you spend.",
+		"idleCashLosing": "Your accounts hold {{spare}} beyond three months of cover, after what the cards owe. Standing still, it loses {{losing}} of buying power in a year, at the {{inflation}}% inflation of the last twelve published months.",
+		"betterThanUsual": "This month you spent {{saved}} less than usual: {{expense}} against the usual {{usual}}.",
+		"invoiceOverBalance_zero": "The {{subject}} card invoice, of {{amount}}, falls due today.",
+		"invoiceOverBalanceLate": "The {{subject}} card invoice, of {{amount}}, is past its due day and unpaid.",
+		"duesOverBalanceLate_one": "One bill is past its due day and unpaid: {{subject}}, of {{total}}.",
+		"duesOverBalanceLate_other": "{{count}} bills add up to {{total}} over the next {{days}} days, and {{subject}} is already past its due day.",
+		"theInvoiceOf": "the {{card}} card invoice",
+		"end": "Your accounts hold {{money}}, which is {{short}} short.",
+		"endNegative": "Your accounts are overdrawn by {{money}}, which is {{short}} short.",
+		"invoiceUncounted": "The {{subject}} card invoice has a purchase in another currency with no rate for the day, so it is left out of what falls due. Write that purchase again with the amount in the currency of the space for it to count.",
+		"thinReserveNoCards": "Your accounts hold {{money}} and you spend {{usualExpense}} a month: that covers {{covers}} months. Three months is {{missing}} away, or {{everyMonth}} a month for a year.",
+		"cardsOverAccounts": "The cards owe {{cards}} and your accounts hold {{money}}: less the cards, {{short}} is missing before a reserve can start.",
+		"availableAnyDay": "Outside the accounts, {{amount}} is in holdings that can be taken out the same day.",
+		"chargedTwice_zero": "{{subject}} shows up twice at {{amount}} on the same day. Check that it was not charged twice."
 	},
 	"sign": {
 		"savingRate": "What is left over",
@@ -1750,7 +1766,7 @@
 	"signTarget": {
 		"savingRate": "Reference: 10 per cent left over or more",
 		"reserve": "Reference: 3 months of spending",
-		"committed": "Reference: up to half of what you have",
+		"committed": "Reference: up to half of what your accounts hold",
 		"repeatingLoad": "Reference: up to half of what comes in"
 	},
 	"step": {
@@ -1775,7 +1791,7 @@
 		"income": "What comes in",
 		"expense": "What goes out",
 		"kept": "What is left over",
-		"onHand": "What you have"
+		"onHand": "In the accounts, less the cards"
 	},
 	"movementDirection": {
 		"better": "better",
@@ -1806,9 +1822,9 @@
 		"signsBody": "Each one is a division between two figures you have seen on another screen. The reference sits under every reading.",
 		"said": {
 			"savingRate": "{{income}} comes in each month and {{expense}} goes out. That leaves {{left}}.",
-			"reserve": "You have {{onHand}} and spend {{usualExpense}} a month. Three months would be {{wanted}}.",
-			"committed_one": "One bill falls due in the next {{days}} days, of {{due}}, against the {{onHand}} you have.",
-			"committed_other": "{{count}} bills fall due in the next {{days}} days and add up to {{due}}, against the {{onHand}} you have.",
+			"reserve": "Your accounts hold {{money}} and the cards owe {{cards}}, which leaves {{reserve}}. An ordinary month is {{usualExpense}}, and three months would be {{wanted}}.",
+			"committed_one": "One bill falls due in the next {{days}} days, of {{due}}, and your accounts hold {{money}}.",
+			"committed_other": "{{count}} bills fall due in the next {{days}} days and add up to {{due}}, and your accounts hold {{money}}.",
 			"committedNone": "Nothing falls due in the next {{days}} days.",
 			"repeatingLoad_one": "One charge repeats every month and takes {{everyMonth}} of the {{income}} that comes in.",
 			"repeatingLoad_other": "{{count}} charges repeat every month and add up to {{everyMonth}} of the {{income}} that comes in.",
@@ -1825,7 +1841,7 @@
 		"trendTitle": "What changed",
 		"trendBody": "The {{count}} most recent closed months against the {{count}} before them.",
 		"fromTo": "from {{before}} to {{now}}",
-		"trendCover": "Since {{month}}, what you have went from {{before}} to {{now}} of ordinary spending.",
+		"trendCover": "Since {{month}}, what your accounts hold, less the cards, went from {{before}} to {{now}} of ordinary spending.",
 		"cardTitle": "The card",
 		"cardUsual": "An ordinary invoice is {{usual}}, {{share}}% of what comes in.",
 		"cardNoInvoices": "No invoice has closed yet.",
@@ -1841,7 +1857,7 @@
 		"exposureTitle": "Where the money comes from",
 		"exposureBody_one": "The one source of income in your records, in an ordinary month.",
 		"exposureBody_other": "The {{count}} sources of income in your records, in an ordinary month.",
-		"wouldLast": "If {{name}} stopped, what you have today covers {{cover}} of ordinary spending.",
+		"wouldLast": "If {{name}} stopped, what your accounts hold, less the cards, covers {{cover}} of ordinary spending.",
 		"wouldCover": "If {{name}} stopped, what still comes in would cover an ordinary month.",
 		"seasonTitle": "What is coming",
 		"seasonBody": "The months of the year behind that cost more than an ordinary month of {{usual}}, and when they come round again.",

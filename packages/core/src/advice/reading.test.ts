@@ -11,7 +11,11 @@ import { readingOf, type SignCode, type VitalSign, verdictFrom, vitalSigns } fro
 function healthy(): Snapshot {
 	return {
 		today: "2026-09-20",
-		onHand: 1_500_000,
+		money: 1_500_000,
+		owedOnCards: 0,
+		bills: [],
+		cardInvoices: [],
+		availableAnyDay: 0,
 		thisMonth: { month: "2026-09", income: 600_000, expense: 400_000 },
 		before: [
 			{ month: "2026-08", income: 600_000, expense: 400_000 },
@@ -23,7 +27,6 @@ function healthy(): Snapshot {
 		budgets: [],
 		goals: [],
 		repeating: [],
-		pending: [],
 		possibleRepeats: [],
 		netByMonth: [],
 		invoices: [],
@@ -85,7 +88,7 @@ describe("what is left over", () => {
 describe("the reserve", () => {
 	it("is months of ordinary spending, in tenths, and says what a year of saving takes", () => {
 		const snapshot = healthy();
-		snapshot.onHand = 600_000;
+		snapshot.money = 600_000;
 
 		const found = sign(vitalSigns(snapshot), "reserve");
 		// Six thousand on hand against four thousand a month is a month and a half.
@@ -98,18 +101,67 @@ describe("the reserve", () => {
 
 	it("is poor under a single month of cover", () => {
 		const snapshot = healthy();
-		snapshot.onHand = 200_000;
+		snapshot.money = 200_000;
 		expect(sign(vitalSigns(snapshot), "reserve").state).toBe("poor");
 		expect(verdictFrom(vitalSigns(snapshot))).toBe("tight");
 	});
 });
 
 describe("what is about to be asked for", () => {
+	// Part 2, J.6 of the request for 2.0.0: a logger's balance is made of their own rows, so
+	// neither the reserve nor what falls due can be read for them.
+	it("is unknown, with the reserve, when the money is not said", () => {
+		const snapshot = healthy();
+		snapshot.money = null;
+		snapshot.owedOnCards = null;
+		const signs = vitalSigns(snapshot);
+		expect(sign(signs, "reserve").state).toBe("unknown");
+		expect(sign(signs, "committed").state).toBe("unknown");
+	});
+
+	it("takes the cards off the reserve and not off what pays the bills", () => {
+		const snapshot = healthy();
+		snapshot.money = 120_000;
+		snapshot.owedOnCards = 230_000;
+		snapshot.cardInvoices = [
+			{
+				card: "Nubank",
+				accountId: "Nubank",
+				month: "2026-09",
+				dueOn: "2026-09-25",
+				left: 230_000,
+				withoutRate: 0,
+				scheduled: 0,
+				scheduledOn: null,
+				scheduledBy: null,
+			},
+		];
+		const signs = vitalSigns(snapshot);
+		expect(sign(signs, "committed").amounts).toMatchObject({
+			due: 230_000,
+			money: 120_000,
+			short: 110_000,
+			count: 1,
+		});
+		// No reserve at all, said as nothing and never as a negative month.
+		expect(sign(signs, "reserve").value).toBe(0);
+		expect(sign(signs, "reserve").state).toBe("poor");
+	});
+
 	it("needs no history at all, which is what makes it readable in week one", () => {
 		const snapshot = healthy();
 		snapshot.before = [];
-		snapshot.pending = [
-			{ description: "Aluguel", amount: 300_000, dueOn: "2026-09-25", invoiceOf: null },
+		snapshot.bills = [
+			{
+				description: "Aluguel",
+				amount: 300_000,
+				day: "2026-09-25",
+				kind: "expense",
+				status: "settled",
+				invoiceMonth: null,
+				onCardWithCycle: false,
+				onBenefitCard: false,
+			},
 		];
 
 		const signs = vitalSigns(snapshot);
@@ -125,9 +177,27 @@ describe("what is about to be asked for", () => {
 
 	it("leaves out what is further off than the next fortnight", () => {
 		const snapshot = healthy();
-		snapshot.pending = [
-			{ description: "Aluguel", amount: 300_000, dueOn: "2026-09-25", invoiceOf: null },
-			{ description: "Escola", amount: 900_000, dueOn: "2026-11-10", invoiceOf: null },
+		snapshot.bills = [
+			{
+				description: "Aluguel",
+				amount: 300_000,
+				day: "2026-09-25",
+				kind: "expense",
+				status: "settled",
+				invoiceMonth: null,
+				onCardWithCycle: false,
+				onBenefitCard: false,
+			},
+			{
+				description: "Escola",
+				amount: 900_000,
+				day: "2026-11-10",
+				kind: "expense",
+				status: "settled",
+				invoiceMonth: null,
+				onCardWithCycle: false,
+				onBenefitCard: false,
+			},
 		];
 
 		expect(sign(vitalSigns(snapshot), "committed").amounts.due).toBe(300_000);
@@ -136,9 +206,19 @@ describe("what is about to be asked for", () => {
 
 	it("is poor when something is due and there is nothing to pay it with", () => {
 		const snapshot = healthy();
-		snapshot.onHand = 0;
-		snapshot.pending = [
-			{ description: "Fatura", amount: 120_000, dueOn: "2026-09-22", invoiceOf: "Nubank" },
+		snapshot.money = 0;
+		snapshot.cardInvoices = [
+			{
+				card: "Nubank",
+				accountId: "Nubank",
+				month: "2026-09",
+				dueOn: "2026-09-22",
+				left: 120_000,
+				withoutRate: 0,
+				scheduled: 0,
+				scheduledOn: null,
+				scheduledBy: null,
+			},
 		];
 
 		const found = sign(vitalSigns(snapshot), "committed");
@@ -148,7 +228,7 @@ describe("what is about to be asked for", () => {
 
 	it("is good when nothing is due, even with nothing on hand", () => {
 		const snapshot = healthy();
-		snapshot.onHand = 0;
+		snapshot.money = 0;
 		expect(sign(vitalSigns(snapshot), "committed").state).toBe("good");
 	});
 });
@@ -220,9 +300,18 @@ describe("the state of the money", () => {
 	it("still calls a problem a problem in the first week, before any history exists", () => {
 		const snapshot = healthy();
 		snapshot.before = [];
-		snapshot.onHand = 20_000;
-		snapshot.pending = [
-			{ description: "Aluguel", amount: 300_000, dueOn: "2026-09-25", invoiceOf: null },
+		snapshot.money = 20_000;
+		snapshot.bills = [
+			{
+				description: "Aluguel",
+				amount: 300_000,
+				day: "2026-09-25",
+				kind: "expense",
+				status: "settled",
+				invoiceMonth: null,
+				onCardWithCycle: false,
+				onBenefitCard: false,
+			},
 		];
 
 		expect(verdictFrom(vitalSigns(snapshot))).toBe("tight");
@@ -230,14 +319,14 @@ describe("the state of the money", () => {
 
 	it("is tight when any sign is poor, whatever the others say", () => {
 		const snapshot = healthy();
-		snapshot.onHand = 100_000;
+		snapshot.money = 100_000;
 		expect(verdictFrom(vitalSigns(snapshot))).toBe("tight");
 	});
 
 	it("is steady when nothing is poor and something is not yet good", () => {
 		const snapshot = healthy();
 		snapshot.before = snapshot.before.map((month) => ({ ...month, expense: 510_000 }));
-		snapshot.onHand = 2_000_000;
+		snapshot.money = 2_000_000;
 		expect(verdictFrom(vitalSigns(snapshot))).toBe("steady");
 	});
 });

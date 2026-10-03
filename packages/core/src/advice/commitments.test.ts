@@ -6,7 +6,11 @@ import type { Snapshot } from "./findings.ts";
 function household(): Snapshot {
 	return {
 		today: "2026-09-20",
-		onHand: 500_000,
+		money: 500_000,
+		owedOnCards: 0,
+		bills: [],
+		cardInvoices: [],
+		availableAnyDay: 0,
 		thisMonth: { month: "2026-09", income: 600_000, expense: 500_000 },
 		before: [
 			{ month: "2026-08", income: 600_000, expense: 500_000 },
@@ -17,7 +21,6 @@ function household(): Snapshot {
 		budgets: [],
 		goals: [],
 		repeating: [],
-		pending: [],
 		possibleRepeats: [],
 		netByMonth: [],
 		invoices: [],

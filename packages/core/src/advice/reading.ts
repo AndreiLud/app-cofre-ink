@@ -19,14 +19,17 @@
 // a program that guesses at it while sounding certain is worse than one that does not
 // try.
 
+import { SOON_DAYS } from "../cards/whatFallsDue.ts";
 import { median } from "../plan/projection.ts";
-import { type CalendarDate, daysBetween } from "../time/calendar.ts";
+import type { CalendarDate } from "../time/calendar.ts";
 import { type Commitments, commitmentsFrom } from "./commitments.ts";
 import { type Exposure, exposureFrom } from "./exposure.ts";
 import {
+	duesOf,
 	type Finding,
 	findEverything,
 	RESERVE_MONTHS,
+	reserveOf,
 	type Snapshot,
 	THIN_SAVING,
 } from "./findings.ts";
@@ -125,9 +128,6 @@ const ENOUGH_MONTHS = 3;
 /** Something has to happen this often to be a thing that repeats. */
 const REPEATS = 3;
 
-/** What falls due inside this many days is what is about to be asked for. */
-const SOON = 15;
-
 function share(part: number, whole: number): number {
 	return whole === 0 ? 0 : part / whole;
 }
@@ -185,47 +185,52 @@ export function vitalSigns(snapshot: Snapshot): VitalSign[] {
 		},
 	});
 
-	// 2. How long the money on hand would last at the usual rate of spending.
-	const covers = Math.round(share(snapshot.onHand, usualExpense) * 10);
+	// 2. How long the reserve would last at the usual rate of spending: the accounts less what
+	//    the cards owe, never below nothing in months. Unknown when the money is not said.
+	const reserve = reserveOf(snapshot);
+	const covers = Math.max(0, Math.round(share(reserve ?? 0, usualExpense) * 10));
 	const wanted = usualExpense * RESERVE_MONTHS;
 	signs.push({
 		code: "reserve",
 		wantMore: true,
 		target: RESERVE_GOOD,
-		...(enough && usualExpense > 0
+		...(reserve !== null && enough && usualExpense > 0
 			? { state: rising(covers, RESERVE_GOOD, RESERVE_FAIR), value: covers }
 			: UNKNOWN),
 		amounts: {
-			onHand: snapshot.onHand,
+			money: snapshot.money ?? 0,
+			cards: snapshot.owedOnCards ?? 0,
+			reserve: reserve ?? 0,
 			usualExpense,
 			wanted,
-			missing: Math.max(0, wanted - snapshot.onHand),
-			everyMonth: Math.max(0, Math.ceil((wanted - snapshot.onHand) / 12)),
+			missing: Math.max(0, wanted - (reserve ?? 0)),
+			everyMonth: Math.max(0, Math.ceil((wanted - (reserve ?? 0)) / 12)),
 		},
 	});
 
-	// 3. What is about to be asked for, against what is there to pay it with. This one
-	//    needs no history at all: a bill due on Friday is due on Friday in week one.
-	const due = snapshot.pending
-		.filter((charge) => daysBetween(snapshot.today, charge.dueOn) <= SOON)
-		.reduce((total, charge) => total + charge.amount, 0);
-	const committed = percent(share(due, snapshot.onHand));
+	// 3. What is about to be asked for, against what can be spent today, by the one rule for
+	//    what falls due. This one needs no history at all: a bill due on Friday is due on
+	//    Friday in week one.
+	const money = snapshot.money;
+	const dues = duesOf(snapshot);
+	const committed = percent(share(dues.total, money ?? 0));
 	signs.push({
 		code: "committed",
 		wantMore: false,
 		target: COMMITTED_GOOD,
 		// Owing something with nothing to pay it from is the worst reading there is, and
 		// a share of zero would otherwise round it into the best one.
-		...(due > 0 && snapshot.onHand <= 0
-			? { state: "poor" as const, value: committed }
-			: { state: falling(committed, COMMITTED_GOOD, COMMITTED_FAIR), value: committed }),
+		...(money === null
+			? UNKNOWN
+			: dues.total > 0 && money <= 0
+				? { state: "poor" as const, value: committed }
+				: { state: falling(committed, COMMITTED_GOOD, COMMITTED_FAIR), value: committed }),
 		amounts: {
-			due,
-			onHand: snapshot.onHand,
-			short: Math.max(0, due - snapshot.onHand),
-			days: SOON,
-			count: snapshot.pending.filter((charge) => daysBetween(snapshot.today, charge.dueOn) <= SOON)
-				.length,
+			due: dues.total,
+			money: money ?? 0,
+			short: dues.short,
+			days: SOON_DAYS,
+			count: dues.count,
 		},
 	});
 

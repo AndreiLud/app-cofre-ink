@@ -15,14 +15,17 @@ const STEADY: MonthlyTotals[] = [
 function household(): Snapshot {
 	return {
 		today: "2026-09-20",
-		onHand: 500_000,
+		money: 500_000,
+		owedOnCards: 0,
+		bills: [],
+		cardInvoices: [],
+		availableAnyDay: 0,
 		thisMonth: { month: "2026-09", income: 600_000, expense: 500_000 },
 		before: STEADY.map((month) => ({ ...month })),
 		categories: [],
 		budgets: [],
 		goals: [],
 		repeating: [],
-		pending: [],
 		possibleRepeats: [],
 		netByMonth: [],
 		invoices: [],
@@ -81,7 +84,7 @@ describe("the balance before", () => {
 	 */
 	it("is today's balance with everything since then undone", () => {
 		const snapshot = household();
-		snapshot.onHand = 500_000;
+		snapshot.money = 500_000;
 		snapshot.netByMonth = [
 			{ month: "2026-09", net: 50_000 },
 			{ month: "2026-08", net: 100_000 },
@@ -109,7 +112,7 @@ describe("the balance before", () => {
 	 */
 	it("counts money moved aside, and not only money spent", () => {
 		const snapshot = household();
-		snapshot.onHand = 200_000;
+		snapshot.money = 200_000;
 		// Kept a thousand a month and moved eight hundred of it into an investment.
 		snapshot.netByMonth = [
 			{ month: "2026-09", net: 20_000 },

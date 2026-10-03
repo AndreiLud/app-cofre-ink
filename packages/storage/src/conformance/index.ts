@@ -26,6 +26,7 @@ import { runArrangementConformance } from "./arrangements.ts";
 import { runCardConformance } from "./cards.ts";
 import { runCategoryConformance } from "./categories.ts";
 import { runErasureConformance } from "./erasure.ts";
+import { runFallsDueConformance } from "./fallsDue.ts";
 import { runFutureConformance } from "./future.ts";
 import { runHappenedConformance } from "./happened.ts";
 import { runHoldingsConformance } from "./holdings.ts";
@@ -1228,6 +1229,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 		runFutureConformance(adapter);
 		runHoldingsConformance(adapter);
 		runAdviceConformance(adapter);
+		runFallsDueConformance(adapter);
 		runPortabilityConformance(adapter);
 		runErasureConformance(adapter);
 		runSyncConformance(adapter);

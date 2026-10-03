@@ -17,6 +17,13 @@
 // produces codes and numbers, so that the same finding reads in Portuguese, in English
 // and in a table.
 
+import {
+	type BillsFallingDue,
+	billsFallingDue,
+	type DueInvoice,
+	type DueRecord,
+	SOON_DAYS,
+} from "../cards/whatFallsDue.ts";
 import { WORTH_SAYING } from "../money/money.ts";
 import { median } from "../plan/projection.ts";
 import {
@@ -46,8 +53,12 @@ export type FindingCode =
 	| "subscriptionRose"
 	/** Two records that look like the same charge twice. */
 	| "chargedTwice"
-	/** Money on hand, measured in months of ordinary spending. */
+	/** Money on hand, less what the cards owe, measured in months of ordinary spending. */
 	| "thinReserve"
+	/** The cards owe more than the accounts hold, so there is no reserve to measure yet. */
+	| "cardsOverAccounts"
+	/** An invoice with a purchase in another currency and no rate, left out of what is due. */
+	| "invoiceUncounted"
 	/** What is left over each month, as a share of what came in. */
 	| "lowSavingRate"
 	/** The card is going to ask for more than there is. */
@@ -79,6 +90,8 @@ export type Finding = {
 	 * order on the screen is made of, and it is never a made up score.
 	 */
 	atStake: number;
+	/** The invoice it is about, when it is about one, which is where the screen sends somebody. */
+	invoice?: { accountId: string; month: string };
 };
 
 export type MonthlyTotals = {
@@ -127,14 +140,6 @@ export type RepeatingCharge = {
 	occurrences: number;
 };
 
-export type PendingCharge = {
-	description: string;
-	amount: number;
-	dueOn: CalendarDate;
-	/** The card whose invoice this is, when it is one. */
-	invoiceOf: string | null;
-};
-
 export type ChargePair = {
 	description: string;
 	amount: number;
@@ -152,8 +157,26 @@ export type MonthlyAmount = {
 export type Snapshot = {
 	/** The day the reading is made on, which decides how much of the month is left. */
 	today: CalendarDate;
-	/** Money in every account that is not an investment. */
-	onHand: number;
+	/**
+	 * What the accounts somebody spends from hold: current, savings and cash. Not "VocÃª tem",
+	 * which counts what is invested too, and not less what the cards owe, which is the reserve.
+	 *
+	 * Nothing when the reading may not say it: somebody who sees only their own records, whose
+	 * balance is made of their own rows, or accounts in more than one currency, which add up to
+	 * no single amount. Every finding about money is then left out.
+	 */
+	money: number | null;
+	/** What the cards owe, as a positive number, when the money is said. */
+	owedOnCards: number | null;
+	/** The records that may fall due, which `billsFallingDue` sorts. */
+	bills: readonly DueRecord[];
+	/** Every invoice of every card that is open or still owed. */
+	cardInvoices: readonly DueInvoice[];
+	/**
+	 * What is in holdings that can be taken out the same day, a caixinha, money left at the
+	 * broker, a poupanÃ§a. Said beside the reserve, never counted in it (part 2, H.10.3).
+	 */
+	availableAnyDay: number;
 	/** The month being looked at, and the months behind it, most recent first. */
 	thisMonth: MonthlyTotals;
 	before: readonly MonthlyTotals[];
@@ -161,7 +184,6 @@ export type Snapshot = {
 	budgets: readonly BudgetLine[];
 	goals: readonly GoalLine[];
 	repeating: readonly RepeatingCharge[];
-	pending: readonly PendingCharge[];
 	/** Pairs that already look like the same charge twice. */
 	possibleRepeats: readonly ChargePair[];
 	/**
@@ -210,6 +232,26 @@ const STALLED_DAYS = 60;
 
 function share(part: number, whole: number): number {
 	return whole === 0 ? 0 : part / whole;
+}
+
+/**
+ * The reserve: what the accounts hold less what the cards owe (decision 14 of 2.0.0, and
+ * registry 0042). A purchase on a card is money already gone, and a reserve measured without
+ * it looks healthy until the invoice arrives. Nothing when the money is not said.
+ */
+export function reserveOf(snapshot: Snapshot): number | null {
+	if (snapshot.money === null || snapshot.owedOnCards === null) return null;
+	return snapshot.money - snapshot.owedOnCards;
+}
+
+/** What falls due in the next days, against what can be spent today, by the one rule for it. */
+export function duesOf(snapshot: Snapshot): BillsFallingDue {
+	return billsFallingDue({
+		today: snapshot.today,
+		records: snapshot.bills,
+		invoices: snapshot.cardInvoices,
+		spendable: snapshot.money ?? 0,
+	});
 }
 
 /** A share as a whole number of hundredths, so nothing carries a fraction. */
@@ -434,46 +476,76 @@ function aboutRepeating(snapshot: Snapshot): Finding[] {
 	return found;
 }
 
+/**
+ * What falls due against what can be spent, said at most once.
+ *
+ * It said "Uma conta vence nos prÃ³ximos quinze dias, de R$ 0,00" with nothing falling due:
+ * nothing checked that anything did, the money had the cards netted off it, and the list of
+ * an empty window agreed with every condition. Now nothing is said unless something falls due
+ * and the money does not reach it, and then one sentence: about the invoice when it is the only
+ * bill, about all of them otherwise, naming the oldest late one or the largest.
+ */
+/** The card and month of a bill that is an invoice, for the screen to send somebody to. */
+function invoiceOf(invoice: DueInvoice | null): Pick<Finding, "invoice"> {
+	return invoice ? { invoice: { accountId: invoice.accountId, month: invoice.month } } : {};
+}
+
 function aboutWhatIsComing(snapshot: Snapshot): Finding[] {
+	const money = snapshot.money;
+	if (money === null) return [];
 	const found: Finding[] = [];
+	const dues = duesOf(snapshot);
 
-	const soon = snapshot.pending.filter((charge) => daysBetween(snapshot.today, charge.dueOn) <= 15);
-	const invoices = soon.filter((charge) => charge.invoiceOf !== null);
-	const total = soon.reduce((sum, charge) => sum + charge.amount, 0);
-
-	for (const invoice of invoices) {
-		if (invoice.amount > snapshot.onHand) {
-			found.push({
-				code: "invoiceOverBalance",
-				weight: "problem",
-				subject: invoice.invoiceOf,
-				amounts: {
-					amount: invoice.amount,
-					onHand: snapshot.onHand,
-					short: invoice.amount - snapshot.onHand,
-					days: daysBetween(snapshot.today, invoice.dueOn),
-				},
-				atStake: invoice.amount - snapshot.onHand,
-			});
-		}
-	}
-
-	// The whole of what is due, when the invoices on their own were not the problem.
-	if (total > snapshot.onHand && invoices.every((one) => one.amount <= snapshot.onHand)) {
+	for (const bill of dues.uncounted) {
 		found.push({
-			code: "duesOverBalance",
-			weight: "problem",
-			subject: null,
-			amounts: {
-				total,
-				onHand: snapshot.onHand,
-				short: total - snapshot.onHand,
-				count: soon.length,
-			},
-			atStake: total - snapshot.onHand,
+			code: "invoiceUncounted",
+			weight: "attention",
+			subject: bill.subject,
+			amounts: { amount: bill.amount, days: Math.max(0, bill.days) },
+			atStake: bill.amount,
+			...invoiceOf(bill.invoice),
 		});
 	}
 
+	if (dues.count === 0 || dues.short <= 0 || dues.naming === null) return found;
+
+	const naming = dues.naming;
+	if (dues.count === 1 && naming.kind === "invoice") {
+		found.push({
+			code: "invoiceOverBalance",
+			weight: "problem",
+			subject: naming.subject,
+			amounts: {
+				amount: naming.amount,
+				money,
+				short: dues.short,
+				days: Math.max(0, naming.days),
+				late: naming.late ? 1 : 0,
+			},
+			atStake: dues.short,
+			...invoiceOf(naming.invoice),
+		});
+		return found;
+	}
+
+	found.push({
+		code: "duesOverBalance",
+		weight: "problem",
+		subject: naming.subject,
+		amounts: {
+			count: dues.count,
+			total: dues.total,
+			largest: naming.amount,
+			money,
+			short: dues.short,
+			days: SOON_DAYS,
+			late: dues.late.length,
+			subjectIsInvoice: naming.kind === "invoice" ? 1 : 0,
+			namingIsLate: naming.late ? 1 : 0,
+		},
+		atStake: dues.short,
+		...invoiceOf(naming.invoice),
+	});
 	return found;
 }
 
@@ -482,18 +554,39 @@ function aboutWhatIsSaved(snapshot: Snapshot): Finding[] {
 	const usualExpense = median(snapshot.before.map((month) => month.expense));
 	const usualIncome = median(snapshot.before.map((month) => month.income));
 
-	if (usualExpense > 0 && snapshot.before.length >= 3) {
-		const covers = snapshot.onHand / usualExpense;
-		const wanted = usualExpense * RESERVE_MONTHS;
+	// Nothing about money for somebody whose money is not said: a logger, whose balance is made
+	// of their own rows, or accounts in more than one currency (part 2, J.6 and J.3.4).
+	const reserve = reserveOf(snapshot);
+	const money = snapshot.money ?? 0;
+	const cards = snapshot.owedOnCards ?? 0;
 
-		if (covers < RESERVE_MONTHS) {
-			const missing = wanted - snapshot.onHand;
+	if (reserve !== null && usualExpense > 0 && snapshot.before.length >= 3) {
+		const covers = reserve / usualExpense;
+		const wanted = usualExpense * RESERVE_MONTHS;
+		// The holdings that come out the same day, named and never counted (part 2, H.10.3).
+		const aside: Record<string, number> =
+			snapshot.availableAnyDay > 0 ? { availableAnyDay: snapshot.availableAnyDay } : {};
+
+		if (reserve <= 0) {
+			// No reserve to measure in months: "dá para -0,4 mês" is not a sentence. What the
+			// cards owe beyond the accounts has to be found before a reserve starts.
+			found.push({
+				code: "cardsOverAccounts",
+				weight: "problem",
+				subject: null,
+				amounts: { money, cards, short: -reserve, usualExpense, wanted, ...aside },
+				atStake: wanted - reserve,
+			});
+		} else if (covers < RESERVE_MONTHS) {
+			const missing = wanted - reserve;
 			found.push({
 				code: "thinReserve",
 				weight: covers < 1 ? "problem" : "attention",
 				subject: null,
 				amounts: {
-					onHand: snapshot.onHand,
+					money,
+					cards,
+					reserve,
 					usualExpense,
 					wanted,
 					missing,
@@ -501,11 +594,12 @@ function aboutWhatIsSaved(snapshot: Snapshot): Finding[] {
 					covers: Math.round(covers * 10),
 					// What it takes to get there inside a year, which is the thing to do.
 					everyMonth: Math.ceil(missing / 12),
+					...aside,
 				},
 				atStake: missing,
 			});
-		} else if (snapshot.onHand > wanted + usualExpense) {
-			const spare = snapshot.onHand - wanted;
+		} else if (reserve > wanted + usualExpense) {
+			const spare = reserve - wanted;
 			// What a year of sitting still costs it, when the figure for that is known.
 			// Still good news, and still a number worth putting next to it: money that is
 			// not spent is not therefore unharmed.
@@ -515,7 +609,9 @@ function aboutWhatIsSaved(snapshot: Snapshot): Finding[] {
 				weight: "good",
 				subject: null,
 				amounts: {
-					onHand: snapshot.onHand,
+					money,
+					cards,
+					reserve,
 					wanted,
 					spare,
 					covers: Math.round(covers * 10),
@@ -531,7 +627,7 @@ function aboutWhatIsSaved(snapshot: Snapshot): Finding[] {
 		}
 	}
 
-	if (usualIncome > 0 && snapshot.before.length >= 3) {
+	if (snapshot.money !== null && usualIncome > 0 && snapshot.before.length >= 3) {
 		const left = usualIncome - usualExpense;
 		const rate = share(left, usualIncome);
 		if (rate < THIN_SAVING) {

@@ -22,7 +22,7 @@
 
 import { median } from "../plan/projection.ts";
 import { addMonthsToMonth, type CalendarMonth, monthOf } from "../time/calendar.ts";
-import { RESERVE_MONTHS, type Snapshot, THIN_SAVING } from "./findings.ts";
+import { duesOf, RESERVE_MONTHS, reserveOf, type Snapshot, THIN_SAVING } from "./findings.ts";
 
 export type StepCode =
 	/** More falls due in the next days than there is money to pay it with. */
@@ -115,19 +115,34 @@ export function planFrom(snapshot: Snapshot): Plan {
 	const steps: PlanStep[] = [];
 
 	// What is already owed. It is not funded out of next month's surplus, it is due now,
-	// so it carries no date: the date is this week.
-	const due = snapshot.pending.reduce((total, charge) => total + charge.amount, 0);
-	if (due > snapshot.onHand && due > 0) {
+	// so it carries no date: the date is this week. It is what falls due less what can be
+	// spent, by the one rule for it, the same figure the finding says; it read every promise
+	// ever written, with no window.
+	const money = snapshot.money;
+	const dues = duesOf(snapshot);
+	const coverDues = money === null ? 0 : dues.short;
+	if (coverDues > 0) {
 		steps.push({
 			code: "coverDues",
 			subject: null,
-			amount: due - snapshot.onHand,
+			amount: coverDues,
 			everyMonth: 0,
 			months: 0,
 			finishesOn: null,
 			late: false,
 		});
 	}
+
+	// Where the buffer and the reserve start from: the reserve, less the cards, once what is
+	// due is covered and the bills of the window that are not invoices have left. An invoice is
+	// already in what the cards owe, so taking it off again counted it twice: R$ 1.200,00 in
+	// the bank, an invoice of R$ 2.300,00 that is all the card owes and an ordinary month of
+	// R$ 3.000,00 asked for R$ 5.200,00 before the second month instead of R$ 4.100,00.
+	const reserve = reserveOf(snapshot);
+	const otherBills = [...dues.coming, ...dues.late]
+		.filter((bill) => bill.kind === "record")
+		.reduce((total, bill) => total + bill.amount, 0);
+	const base = reserve === null ? null : reserve + coverDues - otherBills;
 
 	if (!enough) return { surplus, stuck, steps, doneOn: null };
 
@@ -170,8 +185,11 @@ export function planFrom(snapshot: Snapshot): Plan {
 	const oneMonth = usualExpense;
 	const threeMonths = usualExpense * RESERVE_MONTHS;
 
-	fund("buffer", oneMonth - snapshot.onHand, null, null);
-	fund("reserve", threeMonths - Math.max(snapshot.onHand, oneMonth), null, null);
+	// Not for somebody whose money is not said: there is nothing to start from.
+	if (base !== null) {
+		fund("buffer", oneMonth - base, null, null);
+		fund("reserve", threeMonths - Math.max(base, oneMonth), null, null);
+	}
 
 	// Their own goals, in the order they asked for them. A goal with no date goes last,
 	// because a date is somebody saying this one matters more.

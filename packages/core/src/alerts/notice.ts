@@ -95,7 +95,8 @@ export function noticesFor(input: NoticeInput): Notice[] {
 			notices.push({
 				kind: "billDueSoon",
 				level: "attention",
-				values: { description: bill.description, days, amount: bill.amount },
+				// The count picks the sentence, so tomorrow is not "in 1 days".
+				values: { description: bill.description, days, count: days, amount: bill.amount },
 				weight: 90 - days,
 			});
 		}

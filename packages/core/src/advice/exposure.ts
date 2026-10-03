@@ -17,7 +17,7 @@
 // freelance landed would call it reliable income, and reliable is exactly what it is not.
 
 import { median } from "../plan/projection.ts";
-import type { Snapshot } from "./findings.ts";
+import { reserveOf, type Snapshot } from "./findings.ts";
 
 export type IncomeSource = {
 	name: string;
@@ -80,6 +80,7 @@ export function exposureFrom(snapshot: Snapshot): Exposure | null {
 
 	const usualExpense = median(snapshot.before.map((month) => month.expense));
 	const short = usualExpense - without;
+	const reserve = reserveOf(snapshot);
 
 	return {
 		sources: sources.slice(0, MOST).map((source) => ({
@@ -89,6 +90,7 @@ export function exposureFrom(snapshot: Snapshot): Exposure | null {
 		concentration: income === 0 ? 0 : Math.round((biggest / income) * 100),
 		income,
 		without,
-		lasts: short <= 0 ? null : Math.round((snapshot.onHand / short) * 10),
+		// The reserve, less the cards, and nothing when the money is not said.
+		lasts: short <= 0 || reserve === null ? null : Math.max(0, Math.round((reserve / short) * 10)),
 	};
 }
