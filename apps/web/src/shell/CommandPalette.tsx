@@ -156,12 +156,8 @@ export function CommandPalette({ state }: { state: PaletteState }) {
 				label: t("importing.title"),
 				run: go(ROUTES.import),
 			},
-			{
-				id: "goDesignSystem",
-				group: t("palette.navigate"),
-				label: t("designSystem.title"),
-				run: go(ROUTES.designSystem),
-			},
+			// Not the page of the design system, which is for whoever works on the code and
+			// stays at its address: this list is the screens a person uses.
 		];
 
 		for (const space of cofre.spaces) {

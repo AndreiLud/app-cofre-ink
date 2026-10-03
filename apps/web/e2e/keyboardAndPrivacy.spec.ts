@@ -25,6 +25,21 @@ test.describe("the command palette", () => {
 		await expect(page.getByRole("banner")).toContainText("Casa");
 	});
 
+	// Part 2, L.6.2 of the request for 2.0.0: the palette is for the screens a person uses, and
+	// it offered the page of the design system among them. The page stays at its address.
+	test("offers the screens a person uses, and not the design system", async ({ page }) => {
+		await openCofre(page);
+
+		await page.keyboard.press("Control+k");
+		const palette = page.getByRole("dialog");
+		await page.getByRole("textbox", { name: "Digite para buscar" }).fill("design");
+		await expect(palette.getByText("Design system")).toHaveCount(0);
+		await page.keyboard.press("Escape");
+
+		await page.goto("/designSystem");
+		await expect(page.getByRole("heading", { name: "Design system", level: 1 })).toBeVisible();
+	});
+
 	test("closes with the escape key", async ({ page }) => {
 		await openCofre(page);
 
