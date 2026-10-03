@@ -219,7 +219,9 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 		onSuccess: async () => {
 			setOpen(false);
 			setProblem(null);
-			// What it owes goes on the screens straight away, so the person sees what they set up.
+			// The line first, so the series is there the moment the dialog closes, and then what
+			// it owes, on the screens straight away.
+			void queries.invalidateQueries({ queryKey: ["recurrences"] });
 			await session?.recurrences.materialize({ spaceId });
 			invalidate();
 		},
