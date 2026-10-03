@@ -322,6 +322,124 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 1, B.7 of the request for 2.0.0. The two rules of a benefit card were asked only
+		// when a record was created: editing one, moving a selection, a series and a file
+		// brought in all wrote what creating refused. And an income written on a card before
+		// 2.0.0 was counted on top of the allowance worked out for the same month; decided with
+		// the owner, that income stands for the allowance of its month.
+		it("asks a benefit card's rules on every path, and counts an old income once", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const on = await openSession({
+					driver: fixture.driver,
+					userId: fixture.ana.id,
+					deviceId: "deviceAna",
+					now: () => Date.parse("2026-09-20T12:00:00-03:00"),
+				});
+				const space = await on.spaces.create({ name: "Pessoal", kind: "personal" });
+				const checking = await on.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+				});
+				const voucher = await on.accounts.create({
+					spaceId: space.id,
+					kind: "voucher",
+					name: "Vale refeicao",
+					benefit: "meal",
+					quotaAmount: 90_000,
+					quotaDay: 5,
+					quotaCarries: true,
+				});
+
+				const [salary] = await on.transactions.create({
+					spaceId: space.id,
+					kind: "income",
+					amount: 100_000,
+					happenedOn: "2026-09-10",
+					description: "Salario",
+					accountId: checking.id,
+				});
+				await expect(
+					on.transactions.update(salary?.id ?? "", { accountId: voucher.id }),
+				).rejects.toMatchObject({ rule: "benefitIsNotIncome" });
+				await expect(
+					on.transactions.updateMany([salary?.id ?? ""], { accountId: voucher.id }),
+				).rejects.toMatchObject({ rule: "benefitIsNotIncome" });
+
+				const savings = await on.accounts.create({
+					spaceId: space.id,
+					kind: "savings",
+					name: "Poupanca",
+				});
+				const [move] = await on.transactions.create({
+					spaceId: space.id,
+					kind: "transfer",
+					amount: 10_000,
+					happenedOn: "2026-09-11",
+					description: "Guardar",
+					accountId: checking.id,
+					counterAccountId: savings.id,
+				});
+				await expect(
+					on.transactions.update(move?.id ?? "", { accountId: voucher.id }),
+				).rejects.toMatchObject({ rule: "benefitDoesNotLeave" });
+
+				await expect(
+					on.recurrences.create({
+						spaceId: space.id,
+						description: "Salario",
+						kind: "income",
+						amount: 100_000,
+						accountId: voucher.id,
+						frequency: "monthly",
+						startsOn: "2026-10-05",
+					}),
+				).rejects.toMatchObject({ rule: "benefitIsNotIncome" });
+				const series = await on.recurrences.create({
+					spaceId: space.id,
+					description: "Salario",
+					kind: "income",
+					amount: 100_000,
+					accountId: checking.id,
+					frequency: "monthly",
+					startsOn: "2026-10-05",
+				});
+				await expect(
+					on.recurrences.update(series.id, { accountId: voucher.id }),
+				).rejects.toMatchObject({ rule: "benefitIsNotIncome" });
+
+				// A line that adds, in a file read into the card, is a refund and not income.
+				const imported = await on.imports.create({
+					spaceId: space.id,
+					accountId: voucher.id,
+					records: [{ happenedOn: "2026-09-12", amount: 2_000, description: "Estorno Loja" }],
+				});
+				const refund = await on.transactions.get(imported.ids[0] ?? "");
+				expect([refund.kind, refund.amount]).toEqual(["expense", 2_000]);
+
+				// An income on the card from before 2.0.0, which was the allowance of September
+				// written by hand: September counts once, by that income.
+				await fixture.driver.run(
+					`INSERT INTO "transactions" ("id", "space_id", "kind", "status", "amount", "currency",
+					   "amount_in_base", "happened_on", "description", "account_id", "created_by",
+					   "created_at", "updated_at", "hlc")
+					 VALUES ('oldAllowance', ?, 'income', 'settled', 90000, 'BRL', 90000,
+					   '2026-09-05', 'Credito do vale', ?, ?, 0, 0, 'stamp1')`,
+					[space.id, voucher.id, fixture.ana.id],
+				);
+				expect((await on.accounts.benefitLeft(voucher.id, "2026-09-25"))?.left).toBe(92_000);
+				const september = await on.reports.totals({
+					spaceId: space.id,
+					from: "2026-09-01",
+					to: "2026-09-30",
+				});
+				expect([september.income, september.benefits]).toEqual([190_000, 0]);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		// Part 1, B.9 of the request for 2.0.0. An allowance was accepted with no day, the form
 		// wrote the first of the month under an example showing the fifth when the field was
 		// left empty, and the edit wrote no day at all, so the overview said there was none.

@@ -232,7 +232,10 @@ export function createImportsRepository(context: RepositoryContext) {
 				const written: string[] = [];
 
 				for (const record of input.records) {
-					const kind = record.amount < 0 ? "expense" : "income";
+					// On a benefit card a line that adds is a refund, which is a purchase taken
+					// back (registry 0055), because a benefit card takes no income. Written as
+					// income it was the one path that put income on a voucher.
+					const kind = record.amount < 0 || account.kind === "voucher" ? "expense" : "income";
 					const sorted = record.categoryId
 						? null
 						: pickRule(rules, {

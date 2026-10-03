@@ -335,7 +335,11 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 							label={t("transactions.account")}
 							value={accountId}
 							onChange={(event) => setAccountId(event.target.value)}
-							options={usable.map((account) => ({ value: account.id, label: account.name }))}
+							// An income lands on money and never on a benefit card, which takes no
+							// income: a series of one wrote every month what a record may not.
+							options={usable
+								.filter((account) => kind !== "income" || account.kind !== "voucher")
+								.map((account) => ({ value: account.id, label: account.name }))}
 						/>
 					</div>
 

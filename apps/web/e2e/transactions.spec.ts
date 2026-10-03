@@ -180,6 +180,29 @@ test.describe("records", () => {
 		await expect(record(page, "Seguro do carro")).toContainText("Previsto");
 	});
 
+	// Part 1, B.7 of the request for 2.0.0: the form offered the meal card as somewhere money
+	// comes in and somewhere a move starts, and creating either was refused.
+	test("never offers a benefit card for money coming in or a move starting", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = page.getByRole("dialog");
+
+		await form.getByText("Receita", { exact: true }).click();
+		await expect(
+			form.getByLabel("Entrou em").locator("option", { hasText: "Vale refeição" }),
+		).toHaveCount(0);
+
+		await form.getByText("Transferência", { exact: true }).click();
+		await expect(
+			form.getByLabel("Sai de").locator("option", { hasText: "Vale refeição" }),
+		).toHaveCount(0);
+		// A top up still goes onto it.
+		await expect(
+			form.getByLabel("Entra em").locator("option", { hasText: "Vale refeição" }),
+		).toHaveCount(1);
+	});
+
 	test("asks what it was paid with, once, and says which invoice it lands on", async ({ page }) => {
 		await openCofre(page);
 

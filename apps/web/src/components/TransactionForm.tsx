@@ -321,6 +321,14 @@ export function TransactionForm({
 	}
 
 	const accountOptions = usable.map((account) => ({ value: account.id, label: account.name }));
+	/**
+	 * Where money comes in, or where a move starts: never a benefit card, which takes no
+	 * income and lets nothing out, so offering one was offering a refusal. The record's own
+	 * account stays, so an income written on a card before 2.0.0 still opens to be corrected.
+	 */
+	const sourceOptions = usable
+		.filter((account) => account.kind !== "voucher" || account.id === editing?.accountId)
+		.map((account) => ({ value: account.id, label: account.name }));
 
 	// The list reads as the tree it is: a category, then the ones under it, set in from
 	// the margin by a couple of spaces rather than by a decoration.
@@ -436,7 +444,7 @@ export function TransactionForm({
 							label={kind === "transfer" ? t("transactions.from") : t("transactions.landsIn")}
 							value={accountId}
 							onChange={(event) => setAccountId(event.target.value)}
-							options={accountOptions}
+							options={sourceOptions}
 						/>
 						{kind === "transfer" ? (
 							<Select

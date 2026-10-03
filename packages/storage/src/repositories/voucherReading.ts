@@ -72,7 +72,7 @@ export async function movementsOf(
 		`SELECT "happened_on", "amount", "kind", "account_id", "counter_account_id"
 		 FROM "transactions"
 		 WHERE ("account_id" = ? OR ("counter_account_id" = ? AND "kind" = 'transfer'))
-		   AND "deleted_at" IS NULL AND "kind" IN ('expense', 'transfer')
+		   AND "deleted_at" IS NULL
 		   AND ${happenedBy(null)} AND "happened_on" >= ?`,
 		[accountId, accountId, today, from],
 	);
@@ -80,7 +80,33 @@ export async function movementsOf(
 		const amount = asNumber(row.amount);
 		const on = String(row.happened_on);
 		if (row.kind === "expense") return { on, amount: -amount, kind: "spent" as const };
+		// An income on the card, which only a release before 2.0.0 could write, and which
+		// was the allowance written by hand: decided with the owner, it stands for the
+		// allowance of its month, so that month counts once.
+		if (row.kind === "income") return { on, amount, kind: "income" as const };
 		if (row.counter_account_id === accountId) return { on, amount, kind: "added" as const };
 		return { on, amount, kind: "spent" as const };
 	});
+}
+
+/**
+ * The incomes written on a card before 2.0.0, which a report needs to leave the computed
+ * allowance of their months out, because the income itself is already counted as income.
+ */
+export async function incomesOf(
+	driver: Driver,
+	accountId: string,
+	until: CalendarDate,
+): Promise<VoucherMovement[]> {
+	const rows = await driver.all(
+		`SELECT "happened_on", "amount" FROM "transactions"
+		 WHERE "account_id" = ? AND "kind" = 'income' AND "deleted_at" IS NULL
+		   AND ${happenedBy(null)}`,
+		[accountId, until],
+	);
+	return rows.map((row) => ({
+		on: String(row.happened_on),
+		amount: asNumber(row.amount),
+		kind: "income" as const,
+	}));
 }

@@ -17,7 +17,7 @@ import { happenedBy } from "../happened.ts";
 import { type SpendingPriority, toAccount } from "../models.ts";
 import { marks } from "../sql.ts";
 import type { RepositoryContext } from "./context.ts";
-import { startOf, versionsOf } from "./voucherReading.ts";
+import { incomesOf, startOf, versionsOf } from "./voucherReading.ts";
 
 export type ReportRange = {
 	/** Empty for the consolidated view, which is every space this person can read. */
@@ -175,10 +175,12 @@ export function createReportsRepository(context: RepositoryContext) {
 			// on it. Somebody who adds a meal card halfway through a month is looking at that
 			// month, and the lunches they typed are in the same period as the landing that paid
 			// for them, so the credit belongs beside them.
+			// A month with an income written on the card by hand has that income, which is
+			// counted as income already, and not the allowance besides it.
 			const landings = voucherLandings({
 				versions,
 				start: startOf(account, zone),
-				movements: [],
+				movements: await incomesOf(context.driver, account.id, until),
 				until,
 			});
 			for (const landing of landings) {

@@ -158,6 +158,33 @@ function signFor(kind: TransactionKind, amount: number): number {
 	return kind === "expense" ? -amount : amount;
 }
 
+/**
+ * The two rules of a benefit card, which every path that puts a record on an account asks.
+ *
+ * A benefit card is an allowance, not an account. The money on it was put there by an
+ * employer and it does not come back out: it buys lunch or a fare and that is the whole of
+ * what it does. So it takes no income, which the allowance already is, and nothing moves
+ * out of it. Putting money in is real, because cards like Caju and Flash take a top up.
+ *
+ * Only creating a record asked, so editing one, moving a selection to another account, a
+ * series and a file brought in all wrote what creating refused.
+ */
+export function assertBenefitRules(kind: TransactionKind, account: { kind: string }): void {
+	if (account.kind !== "voucher") return;
+	if (kind === "income") {
+		throw new RuleError(
+			"benefitIsNotIncome",
+			"a benefit card is credited by whoever gives it, and that credit is not a record",
+		);
+	}
+	if (kind === "transfer") {
+		throw new RuleError(
+			"benefitDoesNotLeave",
+			"money on a benefit card is spent on the card and does not move out of it",
+		);
+	}
+}
+
 function cycleOf(account: Account): CardCycle | undefined {
 	if (account.kind !== "credit") return undefined;
 	if (account.closingDay === null || account.dueDay === null) return undefined;
@@ -426,7 +453,10 @@ export function createTransactionsRepository(context: RepositoryContext) {
 		}
 		if (input.description !== undefined) values.description = input.description.trim();
 		if (input.accountId !== undefined) {
-			await accountIn(found.spaceId, input.accountId);
+			const moved = await accountIn(found.spaceId, input.accountId);
+			// Onto a benefit card only what a benefit card can hold. A record already there,
+			// an income written on one before 2.0.0, stays editable where it is.
+			if (input.accountId !== found.accountId) assertBenefitRules(found.kind, moved);
 			values.account_id = input.accountId;
 		}
 
@@ -495,16 +525,7 @@ export function createTransactionsRepository(context: RepositoryContext) {
 				);
 			}
 
-			// A benefit card is an allowance, not an account. The money on it was put there
-			// by an employer and it does not come back out: it buys lunch or a fare and
-			// that is the whole of what it does. Putting money in is real, because cards
-			// like Caju and Flash take a top up, so only the other direction is refused.
-			if (input.kind === "income" && account.kind === "voucher") {
-				throw new RuleError(
-					"benefitIsNotIncome",
-					"a benefit card is credited by whoever gives it, and that credit is not a record",
-				);
-			}
+			assertBenefitRules(input.kind, account);
 
 			if (input.kind === "transfer") {
 				if (!input.counterAccountId) {
@@ -514,12 +535,6 @@ export function createTransactionsRepository(context: RepositoryContext) {
 					throw new RuleError(
 						"transferNeedsTwoAccounts",
 						"a transfer needs two different accounts",
-					);
-				}
-				if (account.kind === "voucher") {
-					throw new RuleError(
-						"benefitDoesNotLeave",
-						"money on a benefit card is spent on the card and does not move out of it",
 					);
 				}
 				await accountIn(input.spaceId, input.counterAccountId);
