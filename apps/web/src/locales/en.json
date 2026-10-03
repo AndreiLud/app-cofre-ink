@@ -957,7 +957,8 @@
 		"archivedMark": "archived",
 		"noCard": "No card",
 		"cardOfAnotherSpace": "This card belongs to the space {{space}}.",
-		"openInSpace": "Open in the space {{space}}"
+		"openInSpace": "Open in the space {{space}}",
+		"headline": "{{card}}: the {{month}} invoice"
 	},
 	"transactionKind": {
 		"expense": "Money out",

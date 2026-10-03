@@ -53,6 +53,7 @@ import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
 import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { fillAmount, readAmount } from "../lib/amounts.ts";
+import { invoiceHeadline } from "../lib/invoiceHeadline.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { accountOptions, cardOptions } from "../lib/wayLabel.ts";
 import { ROUTES } from "../router.tsx";
@@ -61,34 +62,6 @@ import { useWhatIMayDo } from "../storage/roles.ts";
 
 function dayAndMonth(date: string): string {
 	return `${date.slice(8)}/${date.slice(5, 7)}`;
-}
-
-/**
- * The sentence at the top says where this invoice stands, which is the thing a person
- * opens the screen to find out.
- *
- * Paid comes before every question about days, because an invoice that is settled is not
- * one anybody needs to be told is three days late.
- */
-function headline(
-	t: (key: string, values?: Record<string, unknown>) => string,
-	month: string,
-	card: string,
-	state: InvoiceState | undefined,
-): string {
-	// The card first and then the sentence, which reads right whatever the card is called:
-	// "da fatura do Caixa" is wrong in Portuguese, and "Caixa: a fatura" never is.
-	if (!state) return t("invoice.openHeadline", { month, card, count: 0 });
-	if (state.standing === "paid") return t("invoice.paidHeadline", { month, card });
-	if (state.standing === "inCredit") return t("invoice.inCreditHeadline", { month, card });
-	if (state.daysToClose > 0) {
-		return t("invoice.openHeadline", { month, card, count: state.daysToClose });
-	}
-	if (state.daysToDue > 0) {
-		return t("invoice.closedHeadline", { month, card, count: state.daysToDue });
-	}
-	if (state.daysToDue === 0) return t("invoice.dueTodayHeadline", { month, card });
-	return t("invoice.pastHeadline", { month, card, count: Math.abs(state.daysToDue) });
 }
 
 export function InvoicePage() {
@@ -517,7 +490,7 @@ export function InvoicePage() {
 							: undefined
 					}
 				>
-					{headline(t, monthName, invoiceAccount?.name ?? "", state)}
+					{invoiceHeadline(t, monthName, invoiceAccount?.name ?? "", state)}
 				</InsightTitle>
 
 				<div className="flex flex-wrap items-end gap-3">

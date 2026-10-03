@@ -957,7 +957,8 @@
 		"archivedMark": "arquivado",
 		"noCard": "Sem cartão",
 		"cardOfAnotherSpace": "Este cartão é do espaço {{space}}.",
-		"openInSpace": "Abrir no espaço {{space}}"
+		"openInSpace": "Abrir no espaço {{space}}",
+		"headline": "{{card}}: a fatura de {{month}}"
 	},
 	"transactionKind": {
 		"expense": "Saída",
