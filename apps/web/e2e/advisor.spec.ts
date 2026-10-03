@@ -143,6 +143,49 @@ test.describe("the check up", () => {
 		await expect(page.getByText(/chega lá sem susto/)).toBeVisible();
 	});
 
+	// Part 1, F.4 and I.3 of the request for 2.0.0: the fixed day of the suite never falls on the
+	// last day of a month, and that is the day the check up got wrong. With August, September and
+	// October written, the thirtieth of October has two closed months and cannot tell yet; the
+	// thirty first has three, because a month counts as over on its last day.
+	test("counts the month as over on its last day", async ({ page }) => {
+		await openCofre(page, { demo: false });
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		await page.getByLabel("Nome").fill("Banco");
+		await page.getByLabel("Saldo de abertura").fill("1.000,00");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Banco", exact: true })).toBeVisible();
+
+		await go(page, "Lançamentos");
+		const quick = page.getByLabel("Lançamento rápido");
+		for (const month of ["2026-08", "2026-09", "2026-10"]) {
+			for (const line of [
+				`recebi Trabalho 6000,00 ${month}-05 banco`,
+				`Mercado 4000,00 ${month}-12 banco`,
+			]) {
+				await quick.fill(line);
+				await page.getByRole("button", { name: "Lançar", exact: true }).click();
+				await expect(page.getByRole("button", { name: "Desfazer" })).toBeVisible();
+			}
+		}
+
+		await page.clock.setFixedTime(new Date("2026-10-30T12:00:00-03:00"));
+		await page.reload();
+		await go(page, "Diagnóstico");
+		await expect(page.getByRole("heading", { level: 1 })).toContainText("Ainda não dá para dizer", {
+			timeout: 45_000,
+		});
+
+		// A verdict, and not merely something other than "cannot tell", which a page still
+		// loading would also be.
+		await page.clock.setFixedTime(new Date("2026-10-31T12:00:00-03:00"));
+		await page.reload();
+		await expect(page.getByRole("heading", { level: 1 })).toContainText(
+			/A sua situação está (apertada|equilibrada|confortável)/,
+			{ timeout: 45_000 },
+		);
+	});
+
 	test("is in the planning section, and reads a space with no history honestly", async ({
 		page,
 	}) => {
