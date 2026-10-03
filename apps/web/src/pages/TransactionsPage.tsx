@@ -50,6 +50,7 @@ import {
 	narrowedIn,
 } from "../lib/recordFilters.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
+import { accountOptions, cardOptions } from "../lib/wayLabel.ts";
 import { ROUTES } from "../routes.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
@@ -505,10 +506,7 @@ export function TransactionsPage() {
 							onChange={(event) => change({ accountId: event.target.value })}
 							options={[
 								{ value: "", label: t("transactions.anyAccount") },
-								...(accounts.data ?? []).map((account) => ({
-									value: account.id,
-									label: account.name,
-								})),
+								...accountOptions(accounts.data ?? [], t),
 							]}
 						/>
 						{/* Only when there is one. A space with no card should not be asked
@@ -520,7 +518,7 @@ export function TransactionsPage() {
 								onChange={(event) => change({ cardId: event.target.value })}
 								options={[
 									{ value: "", label: t("filters.anyCard") },
-									...(cards.data ?? []).map((card) => ({ value: card.id, label: card.name })),
+									...cardOptions(cards.data ?? [], t),
 								]}
 							/>
 						) : null}

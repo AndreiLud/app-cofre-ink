@@ -15,6 +15,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { sayWhy } from "../lib/sayWhy.ts";
+import { accountOptions } from "../lib/wayLabel.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
@@ -149,7 +150,7 @@ export function CardDialog({ card, accounts, onClose }: CardDialogProps) {
 						hint={t("cards.creditAccountHint")}
 						value={creditAccountId}
 						onChange={(event) => setCreditAccountId(event.target.value)}
-						options={invoices.map((account) => ({ value: account.id, label: account.name }))}
+						options={accountOptions(invoices, t)}
 					/>
 				) : null}
 				{needs.debit && balances.length > 0 ? (
@@ -158,7 +159,7 @@ export function CardDialog({ card, accounts, onClose }: CardDialogProps) {
 						hint={t("cards.debitAccountHint")}
 						value={debitAccountId}
 						onChange={(event) => setDebitAccountId(event.target.value)}
-						options={balances.map((account) => ({ value: account.id, label: account.name }))}
+						options={accountOptions(balances, t)}
 					/>
 				) : null}
 

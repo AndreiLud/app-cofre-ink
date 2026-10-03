@@ -33,6 +33,7 @@ import { Value } from "../components/Value.tsx";
 import { readAmount, readPercent } from "../lib/amounts.ts";
 import { intoGoalStart, saveNowStart } from "../lib/putAside.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
+import { accountOptions } from "../lib/wayLabel.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
@@ -608,10 +609,7 @@ export function BudgetPage() {
 						hint={t("budget.ruleAccountHint")}
 						value={savingAccount}
 						onChange={(event) => setSavingAccount(event.target.value)}
-						options={[
-							{ value: "", label: t("budget.noAccount") },
-							...usable.map((account) => ({ value: account.id, label: account.name })),
-						]}
+						options={[{ value: "", label: t("budget.noAccount") }, ...accountOptions(usable, t)]}
 					/>
 					{problem ? <Callout tone="problem">{problem}</Callout> : null}
 				</form>
@@ -675,7 +673,7 @@ export function BudgetPage() {
 						hint={t("budget.goalAccountHint")}
 						value={goalAccount}
 						onChange={(event) => setGoalAccount(event.target.value)}
-						options={usable.map((account) => ({ value: account.id, label: account.name }))}
+						options={accountOptions(usable, t)}
 					/>
 					{problem ? <Callout tone="problem">{problem}</Callout> : null}
 				</form>

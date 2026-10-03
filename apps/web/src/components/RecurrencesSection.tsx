@@ -26,6 +26,7 @@ import { useTranslation } from "react-i18next";
 import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { fillAmount, readAmount } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
+import { accountOptions } from "../lib/wayLabel.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 import { Value } from "./Value.tsx";
@@ -337,9 +338,10 @@ export function RecurrencesSection({ spaceId, today }: RecurrencesSectionProps) 
 							onChange={(event) => setAccountId(event.target.value)}
 							// An income lands on money and never on a benefit card, which takes no
 							// income: a series of one wrote every month what a record may not.
-							options={usable
-								.filter((account) => kind !== "income" || account.kind !== "voucher")
-								.map((account) => ({ value: account.id, label: account.name }))}
+							options={accountOptions(
+								usable.filter((account) => kind !== "income" || account.kind !== "voucher"),
+								t,
+							)}
 						/>
 					</div>
 

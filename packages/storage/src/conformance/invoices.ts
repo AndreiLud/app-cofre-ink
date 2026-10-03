@@ -626,14 +626,26 @@ export function runInvoiceConformance(adapter: AdapterUnderTest): void {
 				const announced = before.filter((one) => one.month < "2026-10" && one.left > 0).length;
 				expect(announced).toBe(3);
 
+				// Part 2, B.1.3 of the request for 2.0.0: each payment names its month the way the
+				// screen spells it, and the code where the screen did not spell one.
 				const paid = await ready.fixture.asAna.invoices.markPaidUntil({
 					accountId: ready.card.id,
 					month: "2026-10",
 					fromAccountId: ready.checking.id,
 					today: TODAY,
-					description: "Pagamento da fatura {{month}}",
+					description: "Pagamento da fatura de {{month}} (Cartao)",
+					monthNames: { "2026-07": "julho de 2026", "2026-08": "agosto de 2026" },
 				});
 				expect(paid).toBe(announced);
+				const payments = await ready.fixture.asAna.transactions.list({
+					spaceId: ready.spaceId,
+					kind: "transfer",
+				});
+				expect(payments.map((one) => one.description).sort()).toEqual([
+					"Pagamento da fatura de 2026-09 (Cartao)",
+					"Pagamento da fatura de agosto de 2026 (Cartao)",
+					"Pagamento da fatura de julho de 2026 (Cartao)",
+				]);
 
 				const invoices = await ready.fixture.asAna.invoices.list(ready.card.id, TODAY);
 				expect(invoices.map((one) => [one.month, one.standing])).toEqual([

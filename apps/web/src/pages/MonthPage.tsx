@@ -64,6 +64,7 @@ import { Value } from "../components/Value.tsx";
 import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { fillAmount } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
+import { accountOptions } from "../lib/wayLabel.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
@@ -742,7 +743,7 @@ export function MonthPage() {
 							hint={t("theMonth.whereHint")}
 							value={account?.id ?? ""}
 							onChange={(event) => setAccountId(event.target.value)}
-							options={moneyAccounts.map((one) => ({ value: one.id, label: one.name }))}
+							options={accountOptions(moneyAccounts, t)}
 						/>
 					) : null}
 					{cardAccounts.length > 1 ? (
@@ -750,7 +751,7 @@ export function MonthPage() {
 							label={t("theMonth.whichCard")}
 							value={cardAccount?.id ?? ""}
 							onChange={(event) => setCardAccountId(event.target.value)}
-							options={cardAccounts.map((one) => ({ value: one.id, label: one.name }))}
+							options={accountOptions(cardAccounts, t)}
 						/>
 					) : null}
 

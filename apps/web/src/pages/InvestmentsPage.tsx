@@ -39,6 +39,7 @@ import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
 import { readAmount, readAmountOrZero, readPercentOrZero, readQuantity } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
+import { accountOptions } from "../lib/wayLabel.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
@@ -594,9 +595,10 @@ export function InvestmentsPage() {
 						label={t("investments.account")}
 						value={accountId}
 						onChange={(event) => setAccountId(event.target.value)}
-						options={(accounts.data ?? [])
-							.filter((account) => account.archivedAt === null)
-							.map((account) => ({ value: account.id, label: account.name }))}
+						options={accountOptions(
+							(accounts.data ?? []).filter((account) => account.archivedAt === null),
+							t,
+						)}
 						hint={t("investments.accountHint")}
 					/>
 					{/* The one field on this form whose separator is read differently from the

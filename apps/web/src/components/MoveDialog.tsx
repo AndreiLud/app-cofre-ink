@@ -20,6 +20,7 @@ import { useTranslation } from "react-i18next";
 import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { readAmount } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
+import { accountOptions } from "../lib/wayLabel.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
@@ -196,13 +197,13 @@ export function MoveDialog({
 						label={t("move.from")}
 						value={fromId}
 						onChange={(event) => pickFrom(event.target.value)}
-						options={origins.map((account) => ({ value: account.id, label: account.name }))}
+						options={accountOptions(origins, t)}
 					/>
 					<Select
 						label={t("move.to")}
 						value={toId}
 						onChange={(event) => setToId(event.target.value)}
-						options={landings.map((account) => ({ value: account.id, label: account.name }))}
+						options={accountOptions(landings, t)}
 					/>
 				</div>
 				<p className="text-quiet text-sm">{t("move.notHere")}</p>

@@ -927,7 +927,7 @@
 		"reallyClosedOnHint": "The bank sometimes closes a day or two either side, because of a weekend or a holiday. Say the day it really closed and the purchases in between move to the right invoice, all at once.",
 		"closedOnDay": "It closed on",
 		"moveThem": "Move those purchases",
-		"paymentOf": "Payment of the {{month}} invoice",
+		"paymentOf": "Payment of the {{month}} invoice ({{card}})",
 		"see": "See the invoice",
 		"countedIn": "Added up in {{currency}}, at the rate written down with each purchase. Each purchase appears below in the currency it was made in.",
 		"noRateTitle": "This invoice has no total",
@@ -1623,5 +1623,11 @@
 		"invoiceOption": "{{month}}, due {{day}}",
 		"keeps": "The day, the description and the bank's mark stay. The category, the card and the priority go, because moving money is not spending.",
 		"join": "Join with \"{{description}}\", of {{day}}, which is the same money written on the other account. That record is deleted, so the money is not counted twice."
+	},
+	"ways": {
+		"cards": "Cards",
+		"accounts": "Accounts",
+		"side": "{{name}} ({{side}})",
+		"withEnding": "{{name}}, ending {{ending}}"
 	}
 }

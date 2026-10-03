@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
+import { accountOptions } from "../lib/wayLabel.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { movesInto, movesOutOf } from "./MoveDialog.tsx";
 
@@ -163,7 +164,7 @@ export function ToTransferDialog({ record, onClose, accounts, today }: ToTransfe
 					label={side === "out" ? t("toMove.wentTo") : t("toMove.cameFrom")}
 					value={otherId}
 					onChange={(event) => setOtherId(event.target.value)}
-					options={others.map((account) => ({ value: account.id, label: account.name }))}
+					options={accountOptions(others, t)}
 				/>
 				{cardId ? (
 					<Select

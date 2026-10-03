@@ -34,6 +34,7 @@ import { Value } from "../components/Value.tsx";
 import { VoucherAmount } from "../components/VoucherAmount.tsx";
 import { fillAmount, readAmount } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
+import { accountOptions } from "../lib/wayLabel.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
 
@@ -879,7 +880,7 @@ export function AccountsPage() {
 							hint={t("cards.debitAccountHint")}
 							value={debitAccountId}
 							onChange={(event) => setDebitAccountId(event.target.value)}
-							options={balances.map((account) => ({ value: account.id, label: account.name }))}
+							options={accountOptions(balances, t)}
 						/>
 					) : null}
 

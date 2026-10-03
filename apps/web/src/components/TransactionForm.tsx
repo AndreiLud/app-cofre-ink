@@ -30,6 +30,7 @@ import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { fillAmount, readAmount } from "../lib/amounts.ts";
 import { lastWayUsed, rememberWayUsed } from "../lib/lastWay.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
+import { accountOptions, waysToPay } from "../lib/wayLabel.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { MoveDialog, type MoveStart, movesInto, movesOutOf } from "./MoveDialog.tsx";
 
@@ -99,43 +100,6 @@ export function TransactionForm({
 	const canSplit = kind === "expense" && chosen?.kind === "credit";
 
 	/**
-	 * One entry per way to pay rather than one per card, because that is the choice
-	 * somebody actually makes at the till. A cartao multiplo appears twice, as credit
-	 * and as debit, and picking one of the two is what decides whether the purchase
-	 * lands on the invoice or leaves the balance today.
-	 */
-	const byCard = useMemo(
-		() =>
-			(cards.data ?? []).flatMap((card) => {
-				const both = card.creditAccountId !== null && card.debitAccountId !== null;
-				const entries: {
-					value: string;
-					label: string;
-					cardId: string | null;
-					accountId: string;
-				}[] = [];
-				if (card.creditAccountId) {
-					entries.push({
-						value: `${card.id}:${card.creditAccountId}`,
-						label: both ? `${card.name} (${t("cardKind.credit")})` : card.name,
-						cardId: card.id,
-						accountId: card.creditAccountId,
-					});
-				}
-				if (card.debitAccountId) {
-					entries.push({
-						value: `${card.id}:${card.debitAccountId}`,
-						label: both ? `${card.name} (${t("cardKind.debit")})` : card.name,
-						cardId: card.id,
-						accountId: card.debitAccountId,
-					});
-				}
-				return entries.filter((entry) => usable.some((account) => account.id === entry.accountId));
-			}),
-		[cards.data, usable, t],
-	);
-
-	/**
 	 * Every way to pay, as one list.
 	 *
 	 * The card and the account were two fields that already behaved as one: picking the
@@ -143,33 +107,14 @@ export function TransactionForm({
 	 * controls for one decision, and the decision at the till is not "which account" but
 	 * "what did I pay with".
 	 *
-	 * A cartao multiplo appears twice, as credit and as debit, because that is two
-	 * different answers: one lands on the invoice and the other leaves the balance today.
-	 * A current account with a debit card on it appears a third time, on its own, because
-	 * a Pix and a bank slip come out of it without any card being involved. A credit
-	 * account and a benefit card appear only through their plastic, because there is no
-	 * other way to spend from either.
+	 * One entry per way to pay rather than one per card: a cartao multiplo appears twice, as
+	 * credit and as debit, and a current account with a debit card on it appears again on its
+	 * own, because a Pix leaves it with no card involved. Cards and accounts sit under two
+	 * headings, because the card and the current account of one bank carry the same name.
+	 * The value of an option carries the card and the account with a colon between them, and
+	 * the card half is nothing rather than an empty string when there is no plastic.
 	 */
-	const ways = useMemo(
-		() => [
-			...byCard,
-			...usable
-				.filter((account) => account.kind !== "credit" && account.kind !== "voucher")
-				.map((account) => ({
-					value: `:${account.id}`,
-					label: account.name,
-					// Nothing, and not an empty string. The value of the option carries the two
-					// halves with a colon between them, and reading the first half back gave a
-					// card called "", which the server refused as an identifier that is too
-					// short: writing a record on an account with no card failed on a server and
-					// worked in a browser, because the repository reads an empty string as no
-					// card and the route reads it as a wrong one.
-					cardId: null,
-					accountId: account.id,
-				})),
-		],
-		[byCard, usable],
-	);
+	const ways = useMemo(() => waysToPay(cards.data ?? [], usable, t), [cards.data, usable, t]);
 
 	const chosenWay = ways.find((entry) => entry.value === way) ?? null;
 
@@ -354,25 +299,28 @@ export function TransactionForm({
 	 * The record's own account stays, so an income written on a card before 2.0.0 still
 	 * opens to be corrected.
 	 */
-	const sourceOptions = usable
-		.filter((account) => countsAsMoney(account.kind) || account.id === editing?.accountId)
-		.map((account) => ({ value: account.id, label: account.name }));
+	const sourceOptions = accountOptions(
+		usable.filter((account) => countsAsMoney(account.kind) || account.id === editing?.accountId),
+		t,
+	);
 
 	/**
 	 * The two ends of a move that already exists: the lists of Move between accounts, and the
 	 * accounts the row already has, so an old move from a card or into an investment opens to
 	 * be corrected rather than to be changed behind somebody's back.
 	 */
-	const movesFrom = accounts
-		.filter((account) => movesOutOf(account) || account.id === editing?.accountId)
-		.map((account) => ({ value: account.id, label: account.name }));
-	const movesTo = accounts
-		.filter(
+	const movesFrom = accountOptions(
+		accounts.filter((account) => movesOutOf(account) || account.id === editing?.accountId),
+		t,
+	);
+	const movesTo = accountOptions(
+		accounts.filter(
 			(account) =>
 				account.id !== accountId &&
 				(movesInto(account) || account.id === editing?.counterAccountId),
-		)
-		.map((account) => ({ value: account.id, label: account.name }));
+		),
+		t,
+	);
 
 	/**
 	 * What was typed, handed to Move between accounts: a spend into the savings account or
@@ -494,7 +442,7 @@ export function TransactionForm({
 								label={t("transactions.paidWith")}
 								value={way}
 								onChange={(event) => pickWay(event.target.value)}
-								options={ways.map((entry) => ({ value: entry.value, label: entry.label }))}
+								options={ways.map(({ value, label, group }) => ({ value, label, group }))}
 							/>
 							{canSplit && !editing ? (
 								<Select

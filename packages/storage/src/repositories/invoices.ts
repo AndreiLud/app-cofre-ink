@@ -506,6 +506,11 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 			 * package holds no copy and the screen is what knows the language.
 			 */
 			description: string;
+			/**
+			 * What each month is called, by its code, for the hole above. The code itself when a
+			 * month is missing: the screen spells the months it knows, and this package cannot.
+			 */
+			monthNames?: Record<string, string>;
 		}): Promise<number> {
 			const { account } = await cardAccount(input.accountId);
 			assertCan(context.actor(), account.spaceId, "transaction.create");
@@ -521,7 +526,10 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 					kind: "transfer",
 					amount: amountToPay(state),
 					happenedOn: state.dueOn,
-					description: input.description.replace("{{month}}", state.month),
+					description: input.description.replace(
+						"{{month}}",
+						input.monthNames?.[state.month] ?? state.month,
+					),
 					accountId: input.fromAccountId,
 					counterAccountId: input.accountId,
 					invoiceMonth: state.month,

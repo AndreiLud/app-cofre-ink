@@ -4,7 +4,24 @@ import { cn } from "../lib/cn.ts";
 export type SelectOption = {
 	value: string;
 	label: string;
+	/**
+	 * The heading the option sits under, as an `optgroup`. Options next to each other with the
+	 * same heading share one; an option with none sits on its own. A current account and a
+	 * credit card can carry the same name, and the heading is what tells them apart.
+	 */
+	group?: string;
 };
+
+/** The options in their order, with the ones next to each other under one heading together. */
+function inGroups(options: readonly SelectOption[]) {
+	const runs: { group: string | undefined; options: SelectOption[] }[] = [];
+	for (const option of options) {
+		const last = runs[runs.length - 1];
+		if (last && last.group === option.group) last.options.push(option);
+		else runs.push({ group: option.group, options: [option] });
+	}
+	return runs;
+}
 
 export type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, "id" | "children"> & {
 	label: ReactNode;
@@ -42,11 +59,24 @@ export function Select({ label, options, hint, error, className, ...rest }: Sele
 				)}
 				{...rest}
 			>
-				{options.map((option) => (
-					<option key={option.value} value={option.value}>
-						{option.label}
-					</option>
-				))}
+				{inGroups(options).map((run) =>
+					run.group === undefined ? (
+						run.options.map((option) => (
+							<option key={option.value} value={option.value}>
+								{option.label}
+							</option>
+						))
+					) : (
+						// The first option names the run: a value appears once in a list.
+						<optgroup key={`group:${run.options[0]?.value ?? ""}`} label={run.group}>
+							{run.options.map((option) => (
+								<option key={option.value} value={option.value}>
+									{option.label}
+								</option>
+							))}
+						</optgroup>
+					),
+				)}
 			</select>
 			{hint ? (
 				<p id={hintId} className="text-xs text-quiet">

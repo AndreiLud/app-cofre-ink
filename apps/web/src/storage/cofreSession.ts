@@ -202,6 +202,8 @@ export type CofreSession = {
 			today: CalendarDate;
 			/** With `{{month}}` where the month of each invoice goes. */
 			description: string;
+			/** What each month is called in the language of the screen, by its code. */
+			monthNames?: Record<string, string>;
 		}) => Promise<number>;
 		move: (id: string, towards: "earlier" | "later") => Promise<number>;
 		closedOn: (input: { accountId: string; month: string; day: CalendarDate }) => Promise<number>;

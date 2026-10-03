@@ -721,6 +721,7 @@ export function createApp({ config, database, auth }: AppDependencies) {
 				month: calendarMonth,
 				today: calendarDate,
 				description: z.string().trim().min(1).max(200),
+				monthNames: z.record(calendarMonth, z.string().trim().min(1).max(60)).optional(),
 			})
 			.parse(await context.req.json());
 		return context.json({

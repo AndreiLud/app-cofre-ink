@@ -38,6 +38,7 @@ import { useTranslation } from "react-i18next";
 import { Value } from "../components/Value.tsx";
 import { readPickedFile } from "../lib/download.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
+import { accountOptions } from "../lib/wayLabel.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import {
@@ -432,7 +433,7 @@ export function ImportPage() {
 								label={t("importing.account")}
 								value={chosen?.id ?? ""}
 								onChange={(event) => setAccountId(event.target.value)}
-								options={usable.map((account) => ({ value: account.id, label: account.name }))}
+								options={accountOptions(usable, t)}
 								hint={
 									guessed && chosen?.id === guessed.id
 										? t(`importing.chose.${guessed.why}`)

@@ -927,7 +927,7 @@
 		"reallyClosedOnHint": "O banco às vezes fecha um ou dois dias antes ou depois, por causa de fim de semana ou feriado. Diga o dia de verdade e as compras entre um e outro passam para a fatura certa, todas de uma vez.",
 		"closedOnDay": "Fechou no dia",
 		"moveThem": "Mover as compras",
-		"paymentOf": "Pagamento da fatura de {{month}}",
+		"paymentOf": "Pagamento da fatura de {{month}} ({{card}})",
 		"see": "Ver fatura",
 		"countedIn": "Somado em {{currency}}, pela cotação registrada em cada compra. Cada compra aparece abaixo na moeda em que foi feita.",
 		"noRateTitle": "Esta fatura não tem total",
@@ -1623,5 +1623,11 @@
 		"invoiceOption": "{{month}}, vence {{day}}",
 		"keeps": "O dia, a descrição e a marca do banco ficam. A categoria, o cartão e a prioridade saem, porque mover dinheiro não é gasto.",
 		"join": "Juntar com \"{{description}}\", de {{day}}, que é o mesmo dinheiro lançado na outra conta. Esse lançamento é apagado, para o dinheiro não contar duas vezes."
+	},
+	"ways": {
+		"cards": "Cartões",
+		"accounts": "Contas",
+		"side": "{{name}} ({{side}})",
+		"withEnding": "{{name}}, final {{ending}}"
 	}
 }

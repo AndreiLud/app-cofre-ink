@@ -51,6 +51,7 @@ import { Value } from "../components/Value.tsx";
 import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { fillAmount, readAmount } from "../lib/amounts.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
+import { accountOptions } from "../lib/wayLabel.ts";
 import { ROUTES } from "../router.tsx";
 import { useCofre } from "../storage/CofreProvider.tsx";
 import { useWhatIMayDo } from "../storage/roles.ts";
@@ -195,6 +196,18 @@ export function InvoicePage() {
 		setPayOn(state.dueOn);
 	}
 
+	/**
+	 * The month of an invoice as a payment names it, with the year, which a record found a
+	 * year later needs. A payment said "Pagamento da fatura de 2026-10", and with two cards
+	 * nothing said which card it paid.
+	 */
+	const spelled = (month: string) =>
+		new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+			month: "long",
+			year: "numeric",
+			timeZone: "UTC",
+		}).format(new Date(`${month}-01T00:00:00Z`));
+
 	const pay = useMutation({
 		mutationFn: async () => {
 			if (!session || !invoiceAccount || !paying) throw new Error("no session");
@@ -204,7 +217,10 @@ export function InvoicePage() {
 				amount: readAmount(payAmount, invoiceAccount.currency),
 				happenedOn: payOn as CalendarDate,
 				month: paying.month,
-				description: t("invoice.paymentOf", { month: paying.month }),
+				description: t("invoice.paymentOf", {
+					month: spelled(paying.month),
+					card: invoiceAccount.name,
+				}),
 			});
 		},
 		onSuccess: () => {
@@ -223,8 +239,11 @@ export function InvoicePage() {
 				fromAccountId: payFrom === "" ? (payableFrom[0]?.id ?? "") : payFrom,
 				today,
 				// The month is put in by the model, one record at a time, so what travels is
-				// the sentence with a hole in it.
-				description: t("invoice.paymentOf", { month: "{{month}}" }),
+				// the sentence with a hole in it, and the name of every month it may fill it with.
+				description: t("invoice.paymentOf", { month: "{{month}}", card: invoiceAccount.name }),
+				monthNames: Object.fromEntries(
+					(older.data ?? []).map((state) => [state.month, spelled(state.month)]),
+				),
 			});
 		},
 		onSuccess: () => {
@@ -421,7 +440,7 @@ export function InvoicePage() {
 								setInvoiceAccountId(event.target.value);
 								setMonth("");
 							}}
-							options={invoiceAccounts.map((one) => ({ value: one.id, label: one.name }))}
+							options={accountOptions(invoiceAccounts, t)}
 						/>
 					) : null}
 					<div className="flex items-center gap-1">
@@ -737,7 +756,7 @@ export function InvoicePage() {
 						label={t("invoice.payFrom")}
 						value={payFrom}
 						onChange={(event) => setPayFrom(event.target.value)}
-						options={payableFrom.map((one) => ({ value: one.id, label: one.name }))}
+						options={accountOptions(payableFrom, t)}
 					/>
 					<Field
 						label={t("transactions.amount")}
@@ -779,7 +798,7 @@ export function InvoicePage() {
 						label={t("invoice.payFrom")}
 						value={payFrom === "" ? (payableFrom[0]?.id ?? "") : payFrom}
 						onChange={(event) => setPayFrom(event.target.value)}
-						options={payableFrom.map((one) => ({ value: one.id, label: one.name }))}
+						options={accountOptions(payableFrom, t)}
 					/>
 					<p className="text-quiet text-sm">{t("invoice.payOldHint")}</p>
 					{problem ? <Callout tone="problem">{problem}</Callout> : null}
