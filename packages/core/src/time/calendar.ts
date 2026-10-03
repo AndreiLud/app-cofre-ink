@@ -60,6 +60,21 @@ export function lastDayOfMonth(year: number, month: number): number {
 	return new Date(Date.UTC(year, month, 0)).getUTCDate();
 }
 
+/**
+ * The newest month that is over on a day.
+ *
+ * A month counts as over once its last day has come, which is registries 0019 and 0046:
+ * a report about a month that has gone is read as that month stood on its last day, so on
+ * that day the month is whole. Any other day, the month before. Every reading of whole
+ * months asks this one question, and two of them answered it apart: the months ahead
+ * counted the month on its last day, and the check up never did.
+ */
+export function lastWholeMonth(today: CalendarDate): CalendarMonth {
+	const { year, month, day } = parseCalendarDate(today);
+	const current = formatCalendarMonth(year, month);
+	return day === lastDayOfMonth(year, month) ? current : addMonthsToMonth(current, -1);
+}
+
 /** How much of the month a day is in has gone, counting that day as gone. */
 export function shareOfMonthGone(today: CalendarDate): number {
 	const { year, month, day } = parseCalendarDate(today);

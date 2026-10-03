@@ -10,6 +10,7 @@ import {
 	dateInMonth,
 	daysBetween,
 	lastDayOfMonth,
+	lastWholeMonth,
 	monthOf,
 	parseCalendarDate,
 	todayIn,
@@ -77,6 +78,30 @@ describe("calendar dates", () => {
 	it("names the month of a day", () => {
 		expect(monthOf("2026-09-21")).toBe("2026-09");
 		expect(dateInMonth("2026-02", 31)).toBe("2026-02-28");
+	});
+});
+
+describe("the newest month that is over", () => {
+	// Part 1, F.4 of the request for 2.0.0: the month on paper for September reads the check
+	// up on the thirtieth, and September was left out as if it were still being lived in.
+	it("is the month of the day on its last day, and the month before on any other", () => {
+		expect(lastWholeMonth("2026-09-30")).toBe("2026-09");
+		expect(lastWholeMonth("2026-09-29")).toBe("2026-08");
+		expect(lastWholeMonth("2026-10-01")).toBe("2026-09");
+		expect(lastWholeMonth("2028-02-29")).toBe("2028-02");
+		expect(lastWholeMonth("2027-02-28")).toBe("2027-02");
+		expect(lastWholeMonth("2027-01-15")).toBe("2026-12");
+	});
+
+	it("is never after the month of the day, and never two months before it", () => {
+		fc.assert(
+			fc.property(anyDate, (day) => {
+				const whole = lastWholeMonth(day);
+				const month = monthOf(day);
+				expect(whole <= month).toBe(true);
+				expect(whole >= addMonthsToMonth(month, -1)).toBe(true);
+			}),
+		);
 	});
 });
 

@@ -14,6 +14,7 @@ import {
 	findEverything,
 	isDebt,
 	isSpendable,
+	lastWholeMonth,
 	monthOf,
 	owedOnCards,
 	type PendingCharge,
@@ -599,7 +600,13 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 
 			// Every closed month that was read, and then the six the medians are made of.
 			// The order is newest first, which both windows count on.
-			const closed = months.filter((month) => month.month !== thisMonth);
+			//
+			// Closed is over by the one rule for it, which counts the month of the day on its
+			// last day. This left the month of the day out every day, so on the thirtieth of
+			// September the file of September read only July and August, fewer than the three
+			// months a reading needs, and said it could not tell yet.
+			const whole = lastWholeMonth(input.today);
+			const closed = months.filter((month) => month.month <= whole);
 
 			return {
 				today: input.today,

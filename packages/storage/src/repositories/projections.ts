@@ -14,6 +14,7 @@ import {
 	addMonthsToMonth,
 	type CalendarDate,
 	type CalendarMonth,
+	lastWholeMonth,
 	type MonthlyAmounts,
 	moneyOnHand,
 	monthOf,
@@ -376,9 +377,7 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 			 * about a month that has gone asks for: it is read as that month stood on its last
 			 * day, so that month is whole and belongs in the history.
 			 */
-			const nowMonth = monthOf(input.today);
-			const lastWhole =
-				input.today === lastDayOf(nowMonth) ? nowMonth : addMonthsToMonth(nowMonth, -1);
+			const lastWhole = lastWholeMonth(input.today);
 			const behindTo =
 				addMonthsToMonth(input.from, -1) < lastWhole ? addMonthsToMonth(input.from, -1) : lastWhole;
 			const behindFrom = addMonthsToMonth(behindTo, -(window - 1));

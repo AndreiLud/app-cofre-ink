@@ -75,6 +75,65 @@ export function runAdviceConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 1, F.4 of the request for 2.0.0: a month counts as closed on its last day (registries
+		// 0019 and 0046), and the check up always left the month of the day out. The paper of
+		// September reads it on the thirtieth, so only July and August came in, fewer than the
+		// three a reading needs, and it said it could not tell yet while the overview had a finding.
+		it("counts the month of the day as closed on its last day", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Casa" });
+				const account = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+					initialBalance: 500_000,
+				});
+				for (const month of ["2026-07", "2026-08", "2026-09"]) {
+					await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "income",
+						amount: 600_000,
+						happenedOn: `${month}-05`,
+						description: "Salario",
+						accountId: account.id,
+					});
+					await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "expense",
+						amount: 400_000,
+						happenedOn: `${month}-12`,
+						description: "Mercado",
+						accountId: account.id,
+					});
+				}
+
+				const lastDay = await fixture.asAna.advice.snapshot({
+					spaceId: space.id,
+					today: "2026-09-30",
+				});
+				expect(lastDay.before.map((month) => month.month)).toEqual([
+					"2026-09",
+					"2026-08",
+					"2026-07",
+				]);
+				const reading = await fixture.asAna.advice.reading({
+					spaceId: space.id,
+					today: "2026-09-30",
+				});
+				expect(reading.verdict).not.toBe("tooSoon");
+
+				// The day before, September is still the month being lived in.
+				const dayBefore = await fixture.asAna.advice.snapshot({
+					spaceId: space.id,
+					today: "2026-09-29",
+				});
+				expect(dayBefore.before.map((month) => month.month)).toEqual(["2026-08", "2026-07"]);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		it("counts money on hand without counting what is put aside as cash", async () => {
 			const fixture = await prepare(adapter);
 			try {
