@@ -424,6 +424,40 @@ export function ImportPage() {
 				.map((month) => ({ value: month, label: monthName(month) }))
 		: [];
 
+	// The invoices of the card, to say when the month is one the card was written down owing.
+	const cardInvoices = useQuery({
+		queryKey: ["invoices", "list", chosen?.id, today],
+		enabled: Boolean(session && isInvoice && chosen?.kind === "credit" && cycle !== null),
+		queryFn: () => (chosen ? (session?.invoices.list(chosen.id, today) ?? []) : []),
+	});
+	/** The last invoice the debt the card was written down with sits on. */
+	const openingMonth =
+		(cardInvoices.data ?? []).filter((state) => state.opening > 0).at(-1)?.month ?? null;
+	const inTheOpening =
+		invoiceMonth !== null && openingMonth !== null && invoiceMonth <= openingMonth;
+
+	// The record a card was written down with for the invoice it had open, or closed, on that
+	// day: the invoice in the file details it, and both would count it twice.
+	const onThatInvoice = useQuery({
+		queryKey: ["transactions", spaceId, "importReplaces", chosen?.id, invoiceMonth],
+		enabled: Boolean(session && isInvoice && chosen && invoiceMonth),
+		queryFn: () =>
+			chosen && invoiceMonth
+				? (session?.transactions.list({ spaceId, accountId: chosen.id, invoiceMonth }) ?? [])
+				: [],
+	});
+	const writtenDown = useMemo(() => {
+		const names = new Set(
+			["pt", "en"].flatMap((language) => {
+				const said = i18n.getFixedT(language);
+				return [said("accounts.invoiceSoFarRecord"), said("accounts.closedSoFarRecord")];
+			}),
+		);
+		return (onThatInvoice.data ?? []).filter((record) => names.has(record.description));
+	}, [onThatInvoice.data, i18n]);
+	/** Whether the person kept the offer to take that record out, which starts taken. */
+	const [keepWrittenDown, setKeepWrittenDown] = useState(false);
+
 	/**
 	 * The plastic of a line: the card whose digits head the part of the invoice it is under,
 	 * when that card is on the account the file goes to.
@@ -572,6 +606,7 @@ export function ImportPage() {
 		setNatures(new Map());
 		setLineCards(new Map());
 		setAsParts(new Set());
+		setKeepWrittenDown(false);
 
 		try {
 			setPicked({ name: file.name, bytes: await readPickedFile(file) });
@@ -604,6 +639,7 @@ export function ImportPage() {
 					description: record.description,
 					notes: record.notes,
 					externalId: record.externalId,
+					nature: record.nature,
 					...(card ? { cardId: card } : {}),
 				};
 			});
@@ -612,7 +648,16 @@ export function ImportPage() {
 			const cardId =
 				chosenWay?.cardId ??
 				(guessed?.cardId !== undefined && guessed.id === chosen.id ? guessed.cardId : null);
-			return session.imports.create({ spaceId, accountId: chosen.id, cardId, records });
+			return session.imports.create({
+				spaceId,
+				accountId: chosen.id,
+				cardId,
+				records,
+				...(isInvoice && invoiceMonth ? { invoiceMonth } : {}),
+				...(isInvoice && !keepWrittenDown && writtenDown.length > 0
+					? { removes: writtenDown.map((record) => record.id) }
+					: {}),
+			});
 		},
 		onSuccess: (result) => {
 			// What this import took to get right is what the next one starts from.
@@ -867,6 +912,36 @@ export function ImportPage() {
 								</div>
 							) : null}
 						</section>
+					) : null}
+
+					{/* A month the card was written down owing: its purchases are in that debt. */}
+					{isInvoice && inTheOpening && openingMonth ? (
+						<Callout tone="attention" title={t("importing.inTheOpeningTitle")}>
+							{t("importing.inTheOpeningBody", { month: monthName(openingMonth) })}
+						</Callout>
+					) : null}
+					{/* The one record the card was written down with for this invoice, which the file
+					    details line by line. */}
+					{isInvoice && writtenDown.length > 0 ? (
+						<label className="flex max-w-[60ch] items-start gap-2 text-sm text-ink">
+							<input
+								type="checkbox"
+								checked={!keepWrittenDown}
+								onChange={() => setKeepWrittenDown((current) => !current)}
+								className="mt-1 size-4 accent-[var(--ink)]"
+							/>
+							<span>
+								{t("importing.replacesWrittenDown", {
+									description: writtenDown[0]?.description ?? "",
+									amount: new Intl.NumberFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+										style: "currency",
+										currency: chosen?.currency ?? "BRL",
+									}).format(
+										Math.abs(writtenDown.reduce((sum, record) => sum + record.amount, 0)) / 100,
+									),
+								})}
+							</span>
+						</label>
 					) : null}
 
 					{read.records.length > 0 ? (

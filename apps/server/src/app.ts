@@ -319,11 +319,19 @@ const importedRecord = z.object({
 	priority: priority.nullable().optional(),
 	// The plastic of the line, when an invoice heads each card's purchases with its digits.
 	cardId: z.string().min(1).max(64).nullable().optional(),
+	nature: z
+		.enum(["purchase", "fee", "credit", "installment", "payment", "cardPayment"])
+		.nullable()
+		.optional(),
 });
 
 const importInput = z.object({
 	accountId: z.string().min(1),
 	cardId: z.string().min(1).max(64).nullable().optional(),
+	// The invoice the file is, and the records it replaces. Dropped by this schema before, so a
+	// server wrote every line of an invoice on the invoice of its own day.
+	invoiceMonth: existingMonth.nullable().optional(),
+	removes: z.array(z.string().min(1).max(64)).max(50).optional(),
 	// A statement of a whole year fits. Anything larger is two files.
 	records: z.array(importedRecord).min(1).max(3000),
 });

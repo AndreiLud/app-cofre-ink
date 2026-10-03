@@ -44,7 +44,7 @@ import type {
 	GoalProgress,
 	HoldingPrice,
 	HoldingValue,
-	ImportedRecord,
+	ImportInput,
 	ImportResult,
 	IndexRate,
 	IndexSeries,
@@ -762,12 +762,7 @@ export function createRemoteSession(
 					`/api/spaces/${spaceId}/imports/existing${search === "" ? "" : `?${search}`}`,
 				);
 			},
-			create: (input: {
-				spaceId: string;
-				accountId: string;
-				cardId?: string | null;
-				records: ImportedRecord[];
-			}) => {
+			create: (input: ImportInput) => {
 				const { spaceId, ...rest } = input;
 				return send<ImportResult>(`/api/spaces/${spaceId}/imports`, "POST", rest);
 			},

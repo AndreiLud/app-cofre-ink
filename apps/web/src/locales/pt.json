@@ -676,7 +676,10 @@
 		"onlyExpensesGoInInstallments": "Só saídas podem ser parceladas.",
 		"benefitIsNotInInstallments": "O que se gasta no vale não é parcelado.",
 		"partBelowOneCent": "Esse valor não chega a um centavo por parcela.",
-		"firstInstallmentOutsidePlan": "A primeira parcela que fica precisa ser uma das parcelas do plano."
+		"firstInstallmentOutsidePlan": "A primeira parcela que fica precisa ser uma das parcelas do plano.",
+		"invoiceIsOfACard": "Uma fatura vai para um cartão de crédito, e esta conta não é um.",
+		"invoiceNeedsItsMonth": "Este cartão não tem dia de fechamento. Diga de qual fatura é o arquivo.",
+		"replacedRecordIsNotHere": "Um lançamento que o arquivo ia substituir não é desta conta ou não pode ser apagado."
 	},
 	"transactions": {
 		"title": "Lançamentos",
@@ -1458,7 +1461,10 @@
 		"checkDiffersTitle": "As linhas não somam o que o documento diz",
 		"checkOver": "Somam {{amount}} a mais do que o documento diz.",
 		"checkUnder": "Somam {{amount}} a menos do que o documento diz.",
-		"checkDiffersBody": "Confira os sinais e as linhas que ficaram de fora antes de gravar."
+		"checkDiffersBody": "Confira os sinais e as linhas que ficaram de fora antes de gravar.",
+		"inTheOpeningTitle": "Esta fatura já está no saldo de abertura do cartão",
+		"inTheOpeningBody": "O cartão foi cadastrado devendo o que vinha até a fatura de {{month}}. Gravar as compras desta fatura conta essa dívida duas vezes.",
+		"replacesWrittenDown": "Tirar \"{{description}}\" ({{amount}}), que esta fatura detalha linha por linha."
 	},
 	"demo": {
 		"notice": "Dados fictícios, só para demonstração."

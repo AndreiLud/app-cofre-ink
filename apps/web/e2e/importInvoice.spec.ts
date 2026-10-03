@@ -133,6 +133,72 @@ test.describe("reading a card invoice in", () => {
 		await expect(page.getByLabel("O que é Estorno Loja")).toHaveValue("credit");
 	});
 
+	// E.7.4 and E.10: every line went on the invoice of its own day, so the invoice of the card
+	// did not show what the document said it charged.
+	test("puts the whole invoice on the month it is, so the card shows its total", async ({
+		page,
+	}) => {
+		await twoCards(page);
+		// A purchase on the closing day itself, which the bank put on this invoice and the day
+		// alone puts on the next one.
+		await importPdf(page, [
+			"Fatura do cartao",
+			"Vencimento: 10/10/2026",
+			"Total desta fatura R$ 160,00",
+			"12/09/2026 Padaria 50,00",
+			"13/09/2026 Mercado 100,00",
+			"03/10/2026 Cafe 10,00",
+		]);
+		await page.getByLabel("Cartão", { exact: true }).selectOption({ label: "Itaú" });
+		await expect(page.getByLabel("Fatura de").locator("option:checked")).toHaveText(
+			"outubro de 2026",
+		);
+		await page.getByRole("button", { name: "Gravar 3 lançamentos" }).click();
+		await expect(page.getByText("3 lançamentos gravados")).toBeVisible();
+
+		// The October invoice of the Itaú is owed and late now, so the invoices open on that card.
+		await go(page, "Faturas");
+		await expect(page.getByRole("heading", { level: 1 })).toContainText("Itaú");
+		await page.getByRole("button", { name: "Fatura anterior", exact: true }).click();
+		await expect(page.getByRole("heading", { level: 1 })).toContainText("outubro");
+		await expect(page.getByText("R$ 160,00").first()).toBeVisible();
+	});
+
+	// E.10.2: the card written down with what its open invoice held, and that invoice read in
+	// line by line, counted the same purchases twice.
+	test("takes out the record a card was written down with when its invoice comes in", async ({
+		page,
+	}) => {
+		await openCofre(page, { demo: false });
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByLabel("Nome").fill("Nubank");
+		await dialog.getByLabel("Tipo").selectOption("credit");
+		await dialog.getByLabel("Dia do fechamento").selectOption("3");
+		await dialog.getByLabel("Dia do vencimento").selectOption("10");
+		await dialog.getByLabel("Fatura em aberto hoje").fill("150,00");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(dialog).toHaveCount(0);
+
+		await importPdf(page, [
+			"Fatura do cartao",
+			"Vencimento: 10/11/2026",
+			"Total desta fatura R$ 150,00",
+			"12/10/2026 Padaria 50,00",
+			"13/10/2026 Mercado 100,00",
+		]);
+		const replace = page.getByRole("checkbox", { name: /Tirar "Fatura em aberto/ });
+		await expect(replace).toBeChecked();
+		await page.getByRole("button", { name: "Gravar 2 lançamentos" }).click();
+		await expect(page.getByText("2 lançamentos gravados")).toBeVisible();
+
+		await go(page, "Lançamentos");
+		await page.getByLabel("Mês", { exact: true }).fill("2026-10");
+		await expect(page.getByRole("row").filter({ hasText: "Padaria" })).toBeVisible();
+		await expect(page.getByRole("row").filter({ hasText: "Fatura em aberto" })).toHaveCount(0);
+	});
+
 	// E.7.3: the invoices of a card open the import on that card and that month.
 	test("opens the import from an invoice on its card and its month", async ({ page }) => {
 		await twoCards(page);

@@ -676,7 +676,10 @@
 		"onlyExpensesGoInInstallments": "Only money out can be split into instalments.",
 		"benefitIsNotInInstallments": "What is spent on a benefit card is not split into instalments.",
 		"partBelowOneCent": "That amount does not reach one cent a part.",
-		"firstInstallmentOutsidePlan": "The first part kept has to be one of the parts of the plan."
+		"firstInstallmentOutsidePlan": "The first part kept has to be one of the parts of the plan.",
+		"invoiceIsOfACard": "An invoice goes on a credit card, and this account is not one.",
+		"invoiceNeedsItsMonth": "This card has no closing day. Say which invoice the file is.",
+		"replacedRecordIsNotHere": "A record the file was to replace is not on this account or cannot be removed."
 	},
 	"transactions": {
 		"title": "Records",
@@ -1458,7 +1461,10 @@
 		"checkDiffersTitle": "The lines do not add up to what the document says",
 		"checkOver": "They come to {{amount}} more than the document says.",
 		"checkUnder": "They come to {{amount}} less than the document says.",
-		"checkDiffersBody": "Look at the signs and at the lines left out before writing."
+		"checkDiffersBody": "Look at the signs and at the lines left out before writing.",
+		"inTheOpeningTitle": "This invoice is already in the card's opening balance",
+		"inTheOpeningBody": "The card was written down owing what came up to the invoice of {{month}}. Writing the purchases of this invoice counts that debt twice.",
+		"replacesWrittenDown": "Take out \"{{description}}\" ({{amount}}), which this invoice details line by line."
 	},
 	"demo": {
 		"notice": "Made up data, for demonstration only."

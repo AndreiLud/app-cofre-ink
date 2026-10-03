@@ -39,7 +39,7 @@ import type {
 	GoalProgress,
 	HoldingPrice,
 	HoldingValue,
-	ImportedRecord,
+	ImportInput,
 	ImportResult,
 	IndexRate,
 	IndexSeries,
@@ -412,14 +412,8 @@ export type CofreSession = {
 			spaceId: string,
 			range?: { from?: string; to?: string; accountId?: string },
 		) => Promise<KnownRecord[]>;
-		/** A whole file at once, all of it or none of it. */
-		create: (input: {
-			spaceId: string;
-			accountId: string;
-			/** The plastic the file named, when it named one. */
-			cardId?: string | null;
-			records: ImportedRecord[];
-		}) => Promise<ImportResult>;
+		/** A whole file at once, all of it or none of it, with the invoice it is and what it replaces. */
+		create: (input: ImportInput) => Promise<ImportResult>;
 	};
 	backup: {
 		exportSpace: (spaceId: string) => Promise<Backup>;

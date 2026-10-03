@@ -13,9 +13,11 @@
 
 import {
 	type CalendarDate,
+	type CalendarMonth,
 	type CardCycle,
 	invoiceMonthOf,
 	parseCalendarDate,
+	parseCalendarMonth,
 	pickRule,
 } from "@cofre/core";
 import { transactions } from "@cofre/db";
@@ -23,8 +25,20 @@ import { assertCan, seesOwnRowsOnly } from "../actor.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { type Account, type SpendingPriority, toAccount, toCategorizationRule } from "../models.ts";
 import { marks } from "../sql.ts";
-import { insertRow } from "../writer.ts";
+import { insertRow, softDeleteRow } from "../writer.ts";
 import type { RepositoryContext } from "./context.ts";
+
+/**
+ * What a line of a file is, apart from its sign, as the reading side worked it out and the
+ * person left it. Only an invoice uses it to decide what is written.
+ */
+export type ImportNature =
+	| "purchase"
+	| "fee"
+	| "credit"
+	| "installment"
+	| "payment"
+	| "cardPayment";
 
 /** One line of a statement, the way a file gives it: a signed amount and a day. */
 export type ImportedRecord = {
@@ -42,6 +56,7 @@ export type ImportedRecord = {
 	 * and each additional card's under headings of their own. Left out, the one of the file.
 	 */
 	cardId?: string | null;
+	nature?: ImportNature | null;
 };
 
 export type ImportInput = {
@@ -53,6 +68,17 @@ export type ImportInput = {
 	 * its four digits, so this is usually worked out rather than chosen.
 	 */
 	cardId?: string | null;
+	/**
+	 * The invoice the file is, when it is a card's invoice. Every line goes on it, chosen by
+	 * hand, whatever its day: an invoice is what the bank says is on it, and working each line
+	 * out again from its day put the purchases of the closing day on the next invoice.
+	 */
+	invoiceMonth?: CalendarMonth | null;
+	/**
+	 * Records the file replaces, removed in the same write: the one line a card was written
+	 * down with for its open invoice, which the invoice now details.
+	 */
+	removes?: string[];
 	records: ImportedRecord[];
 };
 
@@ -166,10 +192,30 @@ export function createImportsRepository(context: RepositoryContext) {
 			if (input.records.length === 0) return { written: 0, ids: [] };
 
 			const account = await accountIn(input.spaceId, input.accountId);
-			if (account.archivedAt !== null) {
+			const invoiceMonth = input.invoiceMonth ?? null;
+			if (invoiceMonth !== null) {
+				// "2026-13" was written as it came, and every reading of an invoice failed after it.
+				parseCalendarMonth(invoiceMonth);
+				if (account.kind !== "credit") {
+					throw new RuleError(
+						"invoiceIsOfACard",
+						"an invoice is read into a credit card, and this account is not one",
+					);
+				}
+			}
+			// A card put away still owes what it owes, and the invoice that says so is read into it.
+			if (account.archivedAt !== null && invoiceMonth === null) {
 				throw new RuleError(
 					"accountIsArchived",
 					"this account is archived, bring it back before writing to it",
+				);
+			}
+			// A card written down without its two days has no invoice to work a line out to, so a
+			// file read into it has to say which invoice it is.
+			if (account.kind === "credit" && cycleOf(account) === undefined && invoiceMonth === null) {
+				throw new RuleError(
+					"invoiceNeedsItsMonth",
+					"this card has no closing day, so say which invoice the file is",
 				);
 			}
 
@@ -254,15 +300,52 @@ export function createImportsRepository(context: RepositoryContext) {
 				}
 			}
 
+			// What the file replaces, each one on this account and removable by this person, checked
+			// before anything is written.
+			const removes = [...new Set(input.removes ?? [])];
+			if (removes.length > 0) {
+				assertCan(context.actor(), input.spaceId, "transaction.delete");
+				const rows = await context.driver.all(
+					`SELECT "id", "created_by", "installment_group" FROM "transactions"
+					 WHERE "id" IN (${marks(removes.length)}) AND "space_id" = ? AND "account_id" = ?
+					   AND "deleted_at" IS NULL`,
+					[...removes, input.spaceId, input.accountId],
+				);
+				const own = seesOwnRowsOnly(context.actor(), input.spaceId);
+				const fit = rows.filter(
+					(row) =>
+						row.installment_group === null &&
+						(!own || String(row.created_by) === context.actor().userId),
+				);
+				if (fit.length !== removes.length) {
+					throw new RuleError(
+						"replacedRecordIsNotHere",
+						"a record the file was to replace is not one of this account that can be removed",
+					);
+				}
+			}
+
 			const ids = await context.driver.transaction(async (tx) => {
 				const write = { ...context.write(), driver: tx };
 				const written: string[] = [];
 
+				for (const id of removes) {
+					await softDeleteRow(write, { table: transactions, spaceId: input.spaceId, id });
+				}
+
 				for (const record of input.records) {
 					// On a benefit card a line that adds is a refund, which is a purchase taken
 					// back (registry 0055), because a benefit card takes no income. Written as
-					// income it was the one path that put income on a voucher.
-					const kind = record.amount < 0 || account.kind === "voucher" ? "expense" : "income";
+					// income it was the one path that put income on a voucher. On an invoice a
+					// purchase and a fee are money out, whatever sign the bank printed.
+					const spent =
+						invoiceMonth !== null &&
+						(record.nature === "purchase" ||
+							record.nature === "fee" ||
+							record.nature === "installment");
+					const kind =
+						spent || record.amount < 0 || account.kind === "voucher" ? "expense" : "income";
+					const amount = spent ? -Math.abs(record.amount) : record.amount;
 					const sorted = record.categoryId
 						? null
 						: pickRule(rules, {
@@ -277,10 +360,10 @@ export function createImportsRepository(context: RepositoryContext) {
 						values: {
 							kind,
 							status: "settled",
-							amount: record.amount,
+							amount,
 							currency: account.currency,
 							fx_rate: null,
-							amount_in_base: record.amount,
+							amount_in_base: amount,
 							happened_on: record.happenedOn,
 							description: record.description.trim(),
 							account_id: input.accountId,
@@ -290,7 +373,10 @@ export function createImportsRepository(context: RepositoryContext) {
 							installment_group: null,
 							installment_number: null,
 							installment_count: null,
-							invoice_month: cycle ? invoiceMonthOf(record.happenedOn, cycle) : null,
+							// The invoice the file is, chosen by hand, or worked out from the day.
+							invoice_month:
+								invoiceMonth ?? (cycle ? invoiceMonthOf(record.happenedOn, cycle) : null),
+							invoice_month_by_hand: invoiceMonth === null ? null : 1,
 							category_id: record.categoryId ?? sorted?.categoryId ?? null,
 							priority: record.priority ?? sorted?.priority ?? null,
 							external_id: record.externalId ?? null,
