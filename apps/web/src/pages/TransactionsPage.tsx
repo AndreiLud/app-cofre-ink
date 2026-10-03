@@ -37,6 +37,7 @@ import { useTranslation } from "react-i18next";
 import { QuickEntry } from "../components/QuickEntry.tsx";
 import { type FilterQuery, SavedFilters } from "../components/SavedFilters.tsx";
 import { SplitDialog } from "../components/SplitDialog.tsx";
+import { sideOfMove, ToTransferDialog } from "../components/ToTransferDialog.tsx";
 import { TransactionForm } from "../components/TransactionForm.tsx";
 import { Value } from "../components/Value.tsx";
 import { afterRecordsChange } from "../lib/afterRecords.ts";
@@ -142,6 +143,7 @@ export function TransactionsPage() {
 	const mayShare = mayCall("sharing.split");
 	const mayReconcile = mayCall("transactions.reconcile");
 	const mayRefund = mayCall("transactions.refund");
+	const mayMakeAMove = mayCall("transactions.toTransfer");
 	/** The checkboxes are worth drawing when at least one thing can be done with them. */
 	const mayPick = mayUpdate || mayDelete;
 	/** And the menu of a row, when at least one item of it would be drawn. */
@@ -301,6 +303,8 @@ export function TransactionsPage() {
 	 * of the purchase, and it is never income, because nothing came in.
 	 */
 	const [refunding, setRefunding] = useState<Transaction | null>(null);
+	/** A record being made into the move between accounts it really was. */
+	const [makingAMove, setMakingAMove] = useState<Transaction | null>(null);
 	const [refundAmount, setRefundAmount] = useState("");
 	const [refundOn, setRefundOn] = useState("");
 	function openRefund(row: Transaction) {
@@ -799,6 +803,13 @@ export function TransactionsPage() {
 														{t("transactions.refund")}
 													</MenuItem>
 												) : null}
+												{/* Money out that went into savings, or a payment written from both
+												    ends by the importer of 1.x, made into the move it was. */}
+												{mayMakeAMove && sideOfMove(row, accounts.data ?? []) !== null ? (
+													<MenuItem onSelect={() => setMakingAMove(row)}>
+														{t("toMove.action")}
+													</MenuItem>
+												) : null}
 												{mayMoveInvoice && row.invoiceMonth !== null && row.kind !== "transfer" ? (
 													<>
 														<MenuItem
@@ -872,6 +883,13 @@ export function TransactionsPage() {
 					</p>
 				</Panel>
 			) : null}
+
+			<ToTransferDialog
+				record={makingAMove}
+				onClose={() => setMakingAMove(null)}
+				accounts={accounts.data ?? []}
+				today={today}
+			/>
 
 			<Dialog
 				open={refunding !== null}

@@ -229,6 +229,176 @@ export function runTransactionConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 2, A.4 and A.8.6 of the request for 2.0.0: the importer of 1.2.1 wrote the payment
+		// of an invoice as money out of the bank, "PAGAMENTO FATURA", and the same payment as
+		// money in on the card, "PAGAMENTO RECEBIDO", so 1,234.56 was spending and income at once
+		// and the invoice was paid by an income rather than by a payment.
+		it("turns a payment written from both ends into one, and takes the other half away", async () => {
+			const ready = await readySpace(adapter);
+			try {
+				const on = ready.fixture.asAna;
+				const write = (
+					kind: "income" | "expense",
+					accountId: string,
+					description: string,
+					day: string,
+				) =>
+					on.transactions.create({
+						spaceId: ready.spaceId,
+						kind,
+						amount: 123_456,
+						happenedOn: day,
+						description,
+						accountId,
+					});
+				const [purchase] = await write("expense", ready.card.id, "Geladeira", "2026-08-20");
+				const month = purchase?.invoiceMonth ?? "";
+				const [paidOut] = await write(
+					"expense",
+					ready.checking.id,
+					"PAGAMENTO FATURA",
+					"2026-09-10",
+				);
+				const [received] = await write("income", ready.card.id, "PAGAMENTO RECEBIDO", "2026-09-10");
+				const september = { spaceId: ready.spaceId, from: "2026-09-01", to: "2026-09-30" };
+				const before = await on.reports.totals(september);
+
+				const moved = await on.transactions.toTransfer(paidOut?.id ?? "", {
+					otherAccountId: ready.card.id,
+					invoiceMonth: month,
+					mergeWith: received?.id,
+				});
+				expect(moved).toMatchObject({
+					kind: "transfer",
+					amount: 123_456,
+					accountId: ready.checking.id,
+					counterAccountId: ready.card.id,
+					invoiceMonth: month,
+					description: "PAGAMENTO FATURA",
+					categoryId: null,
+				});
+				const all = await on.transactions.list({ spaceId: ready.spaceId });
+				expect(all.map((one) => one.description).sort()).toEqual(["Geladeira", "PAGAMENTO FATURA"]);
+
+				// Paid once, and no credit left on the card.
+				const invoice = await on.invoices.get(ready.card.id, month, LATER);
+				expect(invoice.paid).toBe(123_456);
+				expect(invoice.left).toBe(0);
+				const next = await on.invoices.get(ready.card.id, "2026-10", LATER);
+				expect(next.left).toBe(0);
+
+				const after = await on.reports.totals(september);
+				expect(before.income - after.income).toBe(123_456);
+				expect(before.expense - after.expense).toBe(123_456);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		// Part 2, A.8.5 of the request for 2.0.0: "PIX POUPANCA" of 500 on two statements, money
+		// out of the current account and money into savings, joined into one move.
+		it("joins money out of one account and into another into one move", async () => {
+			const ready = await readySpace(adapter);
+			try {
+				const on = ready.fixture.asAna;
+				const write = (kind: "income" | "expense", accountId: string) =>
+					on.transactions.create({
+						spaceId: ready.spaceId,
+						kind,
+						amount: 50_000,
+						happenedOn: "2026-09-10",
+						description: "PIX POUPANCA",
+						accountId,
+						externalId: `pix-${kind}`,
+					});
+				const [out] = await write("expense", ready.checking.id);
+				const [into] = await write("income", ready.savings.id);
+
+				// Taken from the other end: money in on savings, from the current account.
+				const moved = await on.transactions.toTransfer(into?.id ?? "", {
+					otherAccountId: ready.checking.id,
+					mergeWith: out?.id,
+				});
+				expect(moved).toMatchObject({
+					kind: "transfer",
+					accountId: ready.checking.id,
+					counterAccountId: ready.savings.id,
+					externalId: "pix-income",
+				});
+				const balances = await on.transactions.balances(ready.spaceId, LATER);
+				expect(balanceOf(balances, ready.savings.id).settled).toBe(50_000);
+				expect(balanceOf(balances, ready.checking.id).settled).toBe(50_000);
+				expect(await on.transactions.list({ spaceId: ready.spaceId })).toHaveLength(1);
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
+		it("leaves a record that is not a move as it was, and joins nothing that is not its half", async () => {
+			const ready = await readySpace(adapter);
+			try {
+				const on = ready.fixture.asAna;
+				const voucher = await on.accounts.create({
+					spaceId: ready.spaceId,
+					kind: "voucher",
+					name: "Vale",
+					benefit: "meal",
+					quotaAmount: 90_000,
+					quotaDay: 5,
+				});
+				const spend = (accountId: string, extra: { installments?: number } = {}) =>
+					on.transactions.create({
+						spaceId: ready.spaceId,
+						kind: "expense",
+						amount: 30_000,
+						happenedOn: "2026-09-10",
+						description: "Gasto",
+						accountId,
+						...extra,
+					});
+				const refused = (id: string, rule: string, otherAccountId = ready.savings.id) =>
+					expect(on.transactions.toTransfer(id, { otherAccountId })).rejects.toMatchObject({
+						rule,
+					});
+
+				const [part] = await spend(ready.card.id, { installments: 3 });
+				await refused(part?.id ?? "", "planIsNotAMove");
+				const [lunch] = await spend(voucher.id);
+				await refused(lunch?.id ?? "", "moveNeedsAMoneyAccount");
+				const [purchase] = await spend(ready.card.id);
+				await refused(purchase?.id ?? "", "moveNeedsAMoneyAccount");
+				const [ticked] = await spend(ready.checking.id);
+				await on.transactions.reconcile(ticked?.id ?? "", true);
+				await refused(ticked?.id ?? "", "reconciledIsFrozen");
+
+				// Not the other half: another amount, so nothing is written at all.
+				const [plain] = await spend(ready.checking.id);
+				const [unlike] = await on.transactions.create({
+					spaceId: ready.spaceId,
+					kind: "income",
+					amount: 29_999,
+					happenedOn: "2026-09-10",
+					description: "Outra",
+					accountId: ready.savings.id,
+				});
+				await expect(
+					on.transactions.toTransfer(plain?.id ?? "", {
+						otherAccountId: ready.savings.id,
+						mergeWith: unlike?.id,
+					}),
+				).rejects.toMatchObject({ rule: "notTheOtherHalf" });
+				const still = await on.transactions.get(plain?.id ?? "");
+				expect(still.kind).toBe("expense");
+
+				const [moved] = [
+					await on.transactions.toTransfer(plain?.id ?? "", { otherAccountId: ready.savings.id }),
+				];
+				await refused(moved.id, "alreadyAMove");
+			} finally {
+				await ready.fixture.close();
+			}
+		});
+
 		it("splits a purchase into installments that add up to it", async () => {
 			const ready = await readySpace(adapter);
 			try {

@@ -1,8 +1,9 @@
 // Moving money between two accounts of the same person, which is not spending and not
 // money coming in, and which used to be the third kind on the form for a record.
 
+import { readFile } from "node:fs/promises";
 import { expect, type Page, test } from "@playwright/test";
-import { figure, go, openCofre } from "./support.ts";
+import { figure, go, openCofre, record } from "./support.ts";
 
 /** An amount as the screen writes it, in cents, sign included. */
 function cents(text: string): number {
@@ -16,7 +17,186 @@ async function balanceOf(page: Page, name: string): Promise<number> {
 	return cents(await row.getByRole("cell").nth(3).innerText());
 }
 
+/** A statement with one line, in the format a bank hands out with a mark on every entry. */
+function statement(mark: string, amount: string, memo: string): string {
+	return `OFXHEADER:100
+DATA:OFXSGML
+
+<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS>
+<CURDEF>BRL
+<BANKTRANLIST>
+<STMTTRN><TRNTYPE>OTHER<DTPOSTED>20261020<TRNAMT>${amount}<FITID>${mark}<MEMO>${memo}</STMTTRN>
+</BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>`;
+}
+
+/** Reads one statement into one account, and says what the screen offered to write. */
+async function readInto(page: Page, account: string, name: string, body: string): Promise<void> {
+	await go(page, "Dados");
+	await page.getByRole("button", { name: "Abrir a importação" }).click();
+	await page.getByLabel("Arquivo do banco").setInputFiles({
+		name,
+		mimeType: "text/plain",
+		buffer: Buffer.from(body, "utf8"),
+	});
+	await page.getByLabel("Em qual conta").selectOption({ label: account });
+}
+
 test.describe("moving money between accounts", () => {
+	// Part 2, A.8.5 of the request for 2.0.0: "PIX POUPANCA" of 500 on two statements, money
+	// out of the current account and money into savings. Joined, it is one move and 500 more
+	// in savings, not 1,000, and reading both statements again writes nothing.
+	test("joins a Pix read from two statements into one move, and reads neither again", async ({
+		page,
+	}) => {
+		await openCofre(page);
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		await page.getByRole("dialog").getByLabel("Nome").fill("Reserva");
+		await page.getByRole("dialog").getByLabel("Tipo").selectOption("savings");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("cell", { name: "Reserva", exact: true })).toBeVisible();
+
+		const out = statement("corr1", "-500.00", "PIX POUPANCA");
+		const into = statement("poup1", "500.00", "PIX POUPANCA");
+		await readInto(page, "Conta corrente", "corrente.ofx", out);
+		await page.getByRole("button", { name: "Gravar 1 lançamento" }).click();
+		await expect(page.getByText("1 lançamento gravado")).toBeVisible();
+		await readInto(page, "Reserva", "reserva.ofx", into);
+		await page.getByRole("button", { name: "Gravar 1 lançamento" }).click();
+		await expect(page.getByText("1 lançamento gravado")).toBeVisible();
+
+		await go(page, "Lançamentos");
+		await record(page, "PIX POUPANCA")
+			.filter({ hasText: "-R$ 500,00" })
+			.getByRole("button", { name: "Ações" })
+			.click();
+		await page.getByRole("menuitem", { name: "Era entre contas suas" }).click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByLabel("Foi para").selectOption({ label: "Reserva" });
+		const join = dialog.getByRole("checkbox", { name: /Juntar com "PIX POUPANCA"/ });
+		await expect(join).toBeChecked();
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(dialog).toHaveCount(0);
+
+		await expect(record(page, "PIX POUPANCA")).toHaveCount(1);
+		await expect(record(page, "PIX POUPANCA")).toContainText("Conta corrente → Reserva");
+
+		await go(page, "Contas");
+		await expect.poll(() => balanceOf(page, "Reserva")).toBe(50_000);
+
+		// Both statements again: the current account knows its line by the bank's mark, and
+		// savings knows its line as the move that reached it.
+		for (const [account, name, body] of [
+			["Conta corrente", "corrente.ofx", out],
+			["Reserva", "reserva.ofx", into],
+		] as const) {
+			await readInto(page, account, name, body);
+			await expect(page.getByRole("button", { name: "Nada para gravar" })).toBeDisabled();
+		}
+	});
+
+	// Part 2, A.8.6 of the request for 2.0.0: the importer of 1.2.1 wrote the payment of an
+	// invoice twice, "PAGAMENTO FATURA" as money out of the bank and "PAGAMENTO RECEBIDO" as
+	// money in on the card. Written here as that importer wrote them, by a backup edited the
+	// way 1.2.1 left it, because nothing in this release writes money in on a card.
+	test("joins an invoice payment written from both ends, paid once and no longer income", async ({
+		browser,
+	}) => {
+		const first = await browser.newContext({ acceptDownloads: true });
+		const second = await browser.newContext({ acceptDownloads: true });
+		try {
+			const one = await first.newPage();
+			await openCofre(one);
+			await go(one, "Lançamentos");
+			const write = async (
+				kind: "Saída" | "Entrada",
+				description: string,
+				day: string,
+				way?: string,
+			) => {
+				await one.getByRole("button", { name: "Novo lançamento" }).first().click();
+				const form = one.getByRole("dialog");
+				await form.getByText(kind, { exact: true }).click();
+				if (way) await form.getByLabel("Pago com").selectOption({ label: way });
+				await form.getByLabel("Valor", { exact: true }).fill("1.234,56");
+				await form.getByLabel("Descrição").fill(description);
+				await form.getByLabel("Dia").fill(day);
+				await one.getByRole("button", { name: "Salvar" }).click();
+				await expect(form).toHaveCount(0);
+			};
+			// The purchase on the invoice that closed on the third of October and fell due on the tenth.
+			await write("Saída", "Geladeira", "2026-09-20", "Cartão do banco (Crédito)");
+			await write("Saída", "PAGAMENTO FATURA", "2026-10-10", "Conta corrente");
+			await write("Entrada", "PAGAMENTO RECEBIDO", "2026-10-10");
+
+			await go(one, "Dados");
+			const download = one.waitForEvent("download");
+			await one.getByRole("button", { name: "Baixar", exact: true }).first().click();
+			const backup = JSON.parse(await readFile(await (await download).path(), "utf8")) as {
+				spaces: { tables: Record<string, Record<string, unknown>[]> }[];
+			};
+			let cardId = "";
+			for (const space of backup.spaces) {
+				const card = (space.tables.accounts ?? []).find((row) => row.kind === "credit");
+				if (!card) continue;
+				cardId = String(card.id);
+				for (const row of space.tables.transactions ?? []) {
+					if (row.description !== "PAGAMENTO RECEBIDO") continue;
+					// Money in on the card, on the invoice a purchase of that day would land on.
+					row.account_id = cardId;
+					row.invoice_month = "2026-11";
+					row.category_id = null;
+				}
+			}
+			expect(cardId).not.toBe("");
+
+			const page = await second.newPage();
+			await openCofre(page, { demo: false });
+			await go(page, "Dados");
+			await page.getByLabel("Escolher arquivo").setInputFiles({
+				name: "cofre_backup_da_versao_1_2_1.json",
+				mimeType: "application/json",
+				buffer: Buffer.from(JSON.stringify(backup)),
+			});
+			await page.getByRole("dialog").getByRole("button", { name: "Trazer de volta" }).click();
+			await expect(page.getByText("Restaurado", { exact: true })).toBeVisible({ timeout: 20_000 });
+
+			// October of the sample came in 6,120 and 900 of benefit and went out 726.40, and the
+			// payment written twice is in both.
+			await go(page, "Painel");
+			await expect(figure(page, "Entrou")).toHaveText("R$ 8.254,56");
+			await expect(figure(page, "Saiu")).toHaveText("-R$ 1.960,96");
+
+			await go(page, "Lançamentos");
+			await record(page, "PAGAMENTO FATURA").getByRole("button", { name: "Ações" }).click();
+			await page.getByRole("menuitem", { name: "Era entre contas suas" }).click();
+			const dialog = page.getByRole("dialog");
+			await dialog.getByLabel("Foi para").selectOption({ label: "Cartão de crédito" });
+			await expect(dialog.getByLabel("Fatura paga").locator("option:checked")).toContainText(
+				"outubro de 2026",
+			);
+			await expect(
+				dialog.getByRole("checkbox", { name: /Juntar com "PAGAMENTO RECEBIDO"/ }),
+			).toBeChecked();
+			await page.getByRole("button", { name: "Salvar" }).click();
+			await expect(dialog).toHaveCount(0);
+			await expect(record(page, "PAGAMENTO RECEBIDO")).toHaveCount(0);
+
+			// Paid once, and the next invoice holds no credit the payment left behind.
+			await page.goto(`/faturas?cartao=${cardId}&mes=2026-10`);
+			await expect(page.getByText("Paga", { exact: true }).first()).toBeVisible();
+			await page.goto(`/faturas?cartao=${cardId}&mes=2026-11`);
+			await expect(page.getByText(/crédito a (seu )?favor/)).toHaveCount(0);
+
+			await go(page, "Painel");
+			await expect(figure(page, "Entrou")).toHaveText("R$ 7.020,00");
+			await expect(figure(page, "Saiu")).toHaveText("-R$ 726,40");
+		} finally {
+			await first.close();
+			await second.close();
+		}
+	});
+
 	// Part 2, A.3.2 of the request for 2.0.0: the rule counts only money moved into its
 	// account, so its shortcut is a move with the account and what is missing already in it,
 	// and so is the one of a goal.

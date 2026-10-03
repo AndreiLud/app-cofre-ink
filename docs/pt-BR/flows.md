@@ -24,7 +24,9 @@ sessão estão segurando.
 
 Quatro caminhos de entrada, todos caindo no mesmo método de repositório.
 
-1. **O formulário.** Todos os campos, para o lançamento que precisa deles.
+1. **O formulário.** Todos os campos, para o lançamento que precisa deles. Ele tem dois
+   tipos, Saída e Entrada. Dinheiro movido entre duas contas suas não é nenhum dos dois, e
+   tem uma porta própria: veja a seção depois desta.
 2. **Uma linha de texto.** `mercado 42,90 ontem nubank 3x` vira uma despesa de 42,90 em
    mercado, com a data de ontem, no cartão Nubank, em três parcelas. O leitor está no
    `packages/core`, é puro, e é a coisa mais testada do repositório. O que ele não
@@ -43,6 +45,35 @@ só.
 Um lançamento num cartão de crédito é colocado na fatura a que pertence, decidida pelo
 dia de fechamento da conta e não pelo mês do calendário.
 
+## Mover dinheiro entre as suas contas
+
+Dinheiro que sai de uma conta sua e chega em outra não é gasto nem entrada, então ele não
+se lança no formulário. **Mover entre contas** lança: de uma conta corrente, de uma
+poupança ou do dinheiro em espécie, para uma delas ou para um cartão de benefício, num dia,
+com uma descrição, uma vez ou todo mês.
+
+Ele abre de onde o dinheiro está:
+
+1. **Contas**, no topo, e "Mover dinheiro daqui" em cada conta de onde o dinheiro pode sair.
+2. **Recarregar** em cada cartão de benefício, no Painel e em Contas, para uma recarga por
+   Pix.
+3. **Guardar agora** embaixo da regra de guardar, no Painel e no Orçamento, com a conta da
+   regra e o que ainda falta no mês.
+4. **Pôr na meta** em cada meta, com a conta da meta.
+5. **O formulário**, por uma linha embaixo de Saída, com o que já foi digitado.
+
+Um cartão de crédito nunca é de onde uma movimentação sai: o que sai de um cartão é compra,
+na fatura, e a fatura se paga na tela Faturas, que diz qual mês foi pago. Uma conta de
+investimento nunca é para onde ela vai, porque vale pelo que se compra nela.
+
+Um lançamento que era uma movimentação, um Pix para a poupança lido como Saída, ou um
+pagamento de fatura que a importação da 1.x gravou como Saída no banco e de novo como Entrada
+no cartão, vira uma pelo menu dele na lista: **Era entre contas suas**. Ele pergunta a outra
+ponta e, num cartão, a fatura paga, e oferece juntar a mesma movimentação lançada na outra
+conta, que então é apagada para o dinheiro não contar duas vezes. O
+[registro de decisão 0057](../adr/0057_moving_money_is_not_a_kind_of_record.md) tem o
+raciocínio.
+
 ## Ler um extrato
 
 ```
@@ -56,7 +87,8 @@ arquivo -> leitor -> lançamentos -> revisão -> gravado
 3. **As colunas ficam guardadas por formato de arquivo**, então o mesmo banco é mapeado
    uma vez.
 4. **As repetições são encontradas** comparando o que já existe no espaço em volta dos
-   dias que o arquivo cobre.
+   dias que o arquivo cobre. Uma movimentação entre contas que toca a conta é encontrada
+   pelo valor e pelos dias, seja qual for o nome que o banco deu.
 5. **Nada é gravado até alguém ver.** A revisão é uma tela, não uma caixa de confirmar.
 
 ## O mês em três números

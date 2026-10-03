@@ -10,6 +10,7 @@ export * from "./happened.ts";
 export * from "./housekeeping.ts";
 export * from "./methodPermissions.ts";
 export * from "./migrate.ts";
+export * from "./mirror.ts";
 export * from "./models.ts";
 export * from "./repairEverySpace.ts";
 export * from "./repositories/accounts.ts";

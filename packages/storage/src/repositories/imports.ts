@@ -60,9 +60,16 @@ export type ImportResult = {
 export type KnownRecord = {
 	id: string;
 	happenedOn: string;
+	/** As the account the file is read into sees it: a move out of it is money out. */
 	amount: number;
 	description: string;
 	externalId: string | null;
+	/**
+	 * A move between two accounts that touches this one, either end. The line a statement
+	 * has for it is the same money, whatever the bank called it, and joining the two halves
+	 * of a move deleted the record that carried this statement's mark.
+	 */
+	moved: boolean;
 };
 
 function cycleOf(account: Account): CardCycle | undefined {
@@ -110,9 +117,10 @@ export function createImportsRepository(context: RepositoryContext) {
 				params.push(actor.userId);
 			}
 
+			// The records of the account, and the moves that reach it from another one.
 			if (range.accountId) {
-				where.push(`"account_id" = ?`);
-				params.push(range.accountId);
+				where.push(`("account_id" = ? OR ("counter_account_id" = ? AND "kind" = 'transfer'))`);
+				params.push(range.accountId, range.accountId);
 			}
 			if (range.from) {
 				where.push(`"happened_on" >= ?`);
@@ -124,19 +132,27 @@ export function createImportsRepository(context: RepositoryContext) {
 			}
 
 			const rows = await context.driver.all(
-				`SELECT "id", "happened_on", "amount", "description", "external_id"
+				`SELECT "id", "happened_on", "amount", "description", "external_id", "kind",
+				        "account_id"
 				 FROM "transactions" WHERE ${where.join(" AND ")}
 				 ORDER BY "happened_on" LIMIT 5000`,
 				params,
 			);
 
-			return rows.map((row) => ({
-				id: String(row.id),
-				happenedOn: String(row.happened_on),
-				amount: Number(row.amount),
-				description: String(row.description),
-				externalId: row.external_id === null ? null : String(row.external_id),
-			}));
+			return rows.map((row) => {
+				const moved = row.kind === "transfer";
+				// A move is written positive, leaving its first account: from that side it is
+				// money out, which is the sign the line of that account's statement carries.
+				const leaves = moved && row.account_id === range.accountId;
+				return {
+					id: String(row.id),
+					happenedOn: String(row.happened_on),
+					amount: leaves ? -Number(row.amount) : Number(row.amount),
+					description: String(row.description),
+					externalId: row.external_id === null ? null : String(row.external_id),
+					moved,
+				};
+			});
 		},
 
 		/** Every line of the file, in one database transaction, or nothing at all. */

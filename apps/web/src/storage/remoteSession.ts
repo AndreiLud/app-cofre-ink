@@ -426,6 +426,10 @@ export function createRemoteSession(
 				id: string,
 				input: { amount: number; happenedOn: CalendarDate; description: string },
 			) => send<Transaction>(`/api/transactions/${id}/refund`, "POST", input),
+			toTransfer: (
+				id: string,
+				input: { otherAccountId: string; invoiceMonth?: string | null; mergeWith?: string | null },
+			) => send<Transaction>(`/api/transactions/${id}/toTransfer`, "POST", input),
 			remove: (id: string) => send<void>(`/api/transactions/${id}`, "DELETE"),
 			removeMany: async (ids: string[]) =>
 				ids.length === 0

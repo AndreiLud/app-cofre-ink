@@ -606,7 +606,13 @@
 		"onlyAPurchaseIsRefunded": "Só uma compra pode ser estornada.",
 		"refundIsForVouchers": "O estorno que volta para o próprio cartão é de cartão de benefício.",
 		"refundIsUpToThePurchase": "O estorno é um valor maior que zero e até o valor da compra.",
-		"cardIsNotAnOrigin": "Dinheiro não sai de um cartão de crédito para outra conta: o que sai dele é compra, na fatura. Para pagar a fatura, use Pagar fatura."
+		"cardIsNotAnOrigin": "Dinheiro não sai de um cartão de crédito para outra conta: o que sai dele é compra, na fatura. Para pagar a fatura, use Pagar fatura.",
+		"alreadyAMove": "Esse lançamento já é uma movimentação entre contas.",
+		"planIsNotAMove": "Uma parcela ou uma ocorrência de série faz parte de um plano e não vira movimentação entre contas.",
+		"splitIsNotAMove": "Esse lançamento está dividido entre pessoas. Desfaça a divisão antes: dinheiro movido entre as suas contas não é um gasto da casa.",
+		"moveEndIsNotAllowed": "Essa conta não pode ser a outra ponta. O dinheiro sai de uma conta corrente, de uma poupança ou do dinheiro em espécie, e vai para uma delas, para um vale ou para a fatura de um cartão.",
+		"moveNeedsAMoneyAccount": "Só uma saída ou uma entrada numa conta corrente, numa poupança ou no dinheiro em espécie, ou um pagamento recebido no cartão, vira movimentação entre contas.",
+		"notTheOtherHalf": "Esse lançamento não é o mesmo dinheiro lançado na outra conta. Nada foi mudado."
 	},
 	"transactions": {
 		"title": "Lançamentos",
@@ -1606,5 +1612,16 @@
 		"intoGoal": "Pôr na meta",
 		"intoGoalTitle": "Pôr na meta {{name}}",
 		"intoGoalDescription": "Para a meta {{name}}"
+	},
+	"toMove": {
+		"action": "Era entre contas suas",
+		"title": "Era entre contas suas",
+		"explain": "Dinheiro que foi de uma conta sua para outra não é gasto nem entrada. Diga a outra ponta e isto vira uma movimentação entre contas.",
+		"wentTo": "Foi para",
+		"cameFrom": "Veio de",
+		"invoicePaid": "Fatura paga",
+		"invoiceOption": "{{month}}, vence {{day}}",
+		"keeps": "O dia, a descrição e a marca do banco ficam. A categoria, o cartão e a prioridade saem, porque mover dinheiro não é gasto.",
+		"join": "Juntar com \"{{description}}\", de {{day}}, que é o mesmo dinheiro lançado na outra conta. Esse lançamento é apagado, para o dinheiro não contar duas vezes."
 	}
 }

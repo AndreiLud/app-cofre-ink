@@ -185,6 +185,38 @@ describe("marking what is already here", () => {
 		expect(marked[0]?.certain).toBe(false);
 	});
 
+	// Part 2, A.4.5 of the request for 2.0.0: a Pix into savings joined into one move took away
+	// the record that carried the savings statement's mark, so reading that statement again
+	// wrote the 500 a second time. The move touches the account, and it is the same money.
+	it("knows a move into this account by its amount and its days, whatever it is called", () => {
+		const line = {
+			happenedOn: "2026-10-21",
+			amount: 50_000,
+			description: "PIX RECEBIDO",
+			notes: null,
+			externalId: "poup1",
+			category: null,
+			line: 1,
+			confidence: 1,
+			source: null,
+		};
+		const move = {
+			id: "move",
+			happenedOn: "2026-10-20",
+			amount: 50_000,
+			description: "PIX POUPANCA",
+			externalId: "corr1",
+			moved: true,
+		};
+		expect(markDuplicates([line], [move])[0]?.duplicateOf).toBe("move");
+		// Four days apart is another move.
+		expect(markDuplicates([{ ...line, happenedOn: "2026-10-24" }], [move])[0]?.duplicateOf).toBe(
+			null,
+		);
+		// And a record that is not a move still needs its words to match.
+		expect(markDuplicates([line], [{ ...move, moved: false }])[0]?.duplicateOf).toBe(null);
+	});
+
 	it("never points two records at the same one", () => {
 		const twice = Array.from({ length: 2 }, (_unused, index) => ({
 			happenedOn: "2026-09-10",

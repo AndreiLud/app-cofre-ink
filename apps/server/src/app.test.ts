@@ -437,6 +437,56 @@ describe("the api", () => {
 		expect(byMark.map((one) => one.externalId)).toEqual(["mes:2026-09:income"]);
 	});
 
+	// Part 2, A.4 of the request for 2.0.0: "Era entre contas suas" on a server, with the other
+	// half taken away in the same request, and a month that does not exist refused.
+	it("turns a record into a move and takes away the other half", async () => {
+		const ana = createClient(app);
+		await ana.signUp({ name: "Ana", email: "ana@exemplo.com" });
+		const space = await ana.json<{ id: string }>("/api/spaces", {
+			method: "POST",
+			body: JSON.stringify({ name: "Casa" }),
+		});
+		const account = (kind: string, name: string) =>
+			ana.json<{ id: string }>(`/api/spaces/${space.id}/accounts`, {
+				method: "POST",
+				body: JSON.stringify({ kind, name }),
+			});
+		const checking = await account("checking", "Conta");
+		const savings = await account("savings", "Reserva");
+		const write = async (kind: string, accountId: string) =>
+			(
+				await ana.json<Array<{ id: string }>>(`/api/spaces/${space.id}/transactions`, {
+					method: "POST",
+					body: JSON.stringify({
+						kind,
+						amount: 50_000,
+						happenedOn: "2026-10-20",
+						description: "PIX POUPANCA",
+						accountId,
+					}),
+				})
+			)[0]?.id ?? "";
+		const out = await write("expense", checking.id);
+		const into = await write("income", savings.id);
+
+		const refused = await ana.request(`/api/transactions/${out}/toTransfer`, {
+			method: "POST",
+			body: JSON.stringify({ otherAccountId: savings.id, invoiceMonth: "2026-13" }),
+		});
+		expect(refused.status).toBe(400);
+
+		const moved = await ana.json<{ kind: string; counterAccountId: string }>(
+			`/api/transactions/${out}/toTransfer`,
+			{
+				method: "POST",
+				body: JSON.stringify({ otherAccountId: savings.id, mergeWith: into }),
+			},
+		);
+		expect(moved).toMatchObject({ kind: "transfer", counterAccountId: savings.id });
+		const left = await ana.json<Array<{ id: string }>>(`/api/spaces/${space.id}/transactions`);
+		expect(left.map((one) => one.id)).toEqual([out]);
+	});
+
 	// The overview lists what is still to come by the day, and a record dated ahead is
 	// written as a fact. The route dropped both filters, so on a server the overview listed
 	// what had already happened under "coming" and the late list stayed whole.

@@ -349,7 +349,12 @@ export type ExistingRecord = {
 	amount: number;
 	description: string;
 	externalId: string | null;
+	/** A move between two accounts touching the one the file is read into. */
+	moved?: boolean;
 };
+
+/** How far apart a line and the move it is may be dated. A slip can take two days. */
+const MOVE_DAYS = 3;
 
 export type MarkedRecord = DraftRecord & {
 	/** The record already here that this one looks like, when there is one. */
@@ -391,8 +396,27 @@ export function markDuplicates(
 			return { ...record, duplicateOf: likely, certain: false };
 		}
 
+		// A move already here that touches this account, by the amount and the days around
+		// it and not by the words: the two statements of one Pix name it differently, and
+		// the record that carried this statement's mark may have been joined into the move.
+		const move = existing.find(
+			(known) =>
+				known.moved === true &&
+				!taken.has(known.id) &&
+				known.amount === record.amount &&
+				Math.abs(daysApart(known.happenedOn, record.happenedOn)) <= MOVE_DAYS,
+		);
+		if (move) {
+			taken.add(move.id);
+			return { ...record, duplicateOf: move.id, certain: false };
+		}
+
 		return { ...record, duplicateOf: null, certain: false };
 	});
+}
+
+function daysApart(left: string, right: string): number {
+	return (Date.parse(`${right}T00:00:00Z`) - Date.parse(`${left}T00:00:00Z`)) / 86_400_000;
 }
 
 function fingerprint(record: { happenedOn: string; amount: number; description: string }): string {

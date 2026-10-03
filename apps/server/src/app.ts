@@ -1008,6 +1008,23 @@ export function createApp({ config, database, auth }: AppDependencies) {
 		);
 	});
 
+	app.post("/api/transactions/:id/toTransfer", async (context) => {
+		const input = z
+			.object({
+				otherAccountId: z.string().min(1),
+				invoiceMonth: z
+					.string()
+					.regex(/^\d{4}-(0[1-9]|1[0-2])$/, "expected a month that exists")
+					.nullable()
+					.optional(),
+				mergeWith: z.string().min(1).nullable().optional(),
+			})
+			.parse(await context.req.json());
+		return context.json(
+			await context.get("session").transactions.toTransfer(context.req.param("id"), input),
+		);
+	});
+
 	app.delete("/api/transactions/:id", async (context) => {
 		await context.get("session").transactions.remove(context.req.param("id"));
 		return context.body(null, 204);

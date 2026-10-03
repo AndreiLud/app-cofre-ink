@@ -255,6 +255,10 @@ export type CofreSession = {
 			id: string,
 			input: { amount: number; happenedOn: CalendarDate; description: string },
 		) => Promise<Transaction>;
+		toTransfer: (
+			id: string,
+			input: { otherAccountId: string; invoiceMonth?: string | null; mergeWith?: string | null },
+		) => Promise<Transaction>;
 		remove: (id: string) => Promise<void>;
 		removeMany: (ids: string[]) => Promise<number>;
 		removeGroup: (groupId: string) => Promise<number>;

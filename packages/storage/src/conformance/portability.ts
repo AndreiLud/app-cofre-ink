@@ -200,6 +200,42 @@ export function runPortabilityConformance(adapter: AdapterUnderTest): void {
 				await fixture.close();
 			}
 		});
+
+		// Part 2, A.4.5 of the request for 2.0.0: a move reached the account it left and not the
+		// one it landed in, and it came back positive on the side it left, so the statement of
+		// either account read the same Pix as something new.
+		it("gives the reading side the moves that touch an account, as that account sees them", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const space = await fixture.asAna.spaces.create({ name: "Pessoal", kind: "personal" });
+				const checking = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta corrente",
+				});
+				const savings = await fixture.asAna.accounts.create({
+					spaceId: space.id,
+					kind: "savings",
+					name: "Reserva",
+				});
+				await fixture.asAna.transactions.create({
+					spaceId: space.id,
+					kind: "transfer",
+					amount: 50_000,
+					happenedOn: "2026-10-20",
+					description: "PIX POUPANCA",
+					accountId: checking.id,
+					counterAccountId: savings.id,
+				});
+
+				const out = await fixture.asAna.imports.existing(space.id, { accountId: checking.id });
+				expect(out).toMatchObject([{ amount: -50_000, moved: true }]);
+				const into = await fixture.asAna.imports.existing(space.id, { accountId: savings.id });
+				expect(into).toMatchObject([{ amount: 50_000, moved: true }]);
+			} finally {
+				await fixture.close();
+			}
+		});
 	});
 
 	describe("taking everything with you", () => {

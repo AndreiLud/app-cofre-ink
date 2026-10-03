@@ -218,6 +218,15 @@ const PROBES: Probe[] = [
 			}),
 	},
 	{
+		method: "transactions.toTransfer",
+		permission: "transaction.update",
+		run: (session, where) =>
+			session.transactions.toTransfer(where.transactionId, {
+				otherAccountId: where.cardAccountId,
+				invoiceMonth: "2026-09",
+			}),
+	},
+	{
 		method: "categories.list",
 		permission: "category.read",
 		run: (session, where) => session.categories.list(where.spaceId),

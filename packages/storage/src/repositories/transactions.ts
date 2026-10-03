@@ -14,6 +14,7 @@ import {
 	invoiceMonthOf,
 	money,
 	parseCalendarDate,
+	parseCalendarMonth,
 	pickRule,
 	planInstallments,
 	uuidV7,
@@ -23,6 +24,7 @@ import { assertCan, readableSpaceIds, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber, type Row, type SqlValue } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { happenedBy, stillToComeOn } from "../happened.ts";
+import { isMirrorOf } from "../mirror.ts";
 import {
 	type Account,
 	type AccountBalance,
@@ -1023,6 +1025,148 @@ export function createTransactionsRepository(context: RepositoryContext) {
 				},
 			});
 			return reachable(written);
+		},
+
+		/**
+		 * A record that was really money moved between two accounts of the same person.
+		 *
+		 * A statement read in says what left the current account and not where it went, so a
+		 * Pix into savings arrives as money out, and the importer of 1.x wrote the payment of
+		 * an invoice as money out of the bank and the same payment as money in on the card.
+		 * Each of those counts as spending, or as income, money that never left the household.
+		 *
+		 * Money out of an account that holds money becomes a move to the other end, an account
+		 * of Move between accounts or a card whose invoice it paid. Money in becomes a move from
+		 * an account money can leave, and money in on a card, the payment the bank received,
+		 * becomes the payment of the invoice named. The day, the description and the mark of
+		 * the bank stay; the category, the card and the priority go, because a move is not
+		 * spending. A part of a plan, an occurrence of a series, a record divided between people,
+		 * one ticked off against the bank and one on a benefit card stay as they are.
+		 *
+		 * The other half, the same move written on the other account, is taken away in the same
+		 * step when it is named, all or nothing, so the money is not counted twice.
+		 */
+		async toTransfer(
+			id: string,
+			input: {
+				otherAccountId: string;
+				invoiceMonth?: CalendarMonth | null;
+				mergeWith?: string | null;
+			},
+		): Promise<Transaction> {
+			const found = await reachable(id);
+			assertCan(context.actor(), found.spaceId, "transaction.update");
+			assertChangeable(found, "changing");
+
+			if (found.kind === "transfer") {
+				throw new RuleError("alreadyAMove", "this record already moves money between accounts");
+			}
+			if (found.installmentGroup !== null || found.recurrenceId !== null) {
+				throw new RuleError(
+					"planIsNotAMove",
+					"a part of a purchase or an occurrence of a series is part of a plan, not a move",
+				);
+			}
+			const divided = await context.driver.all(
+				`SELECT "id" FROM "expense_splits" WHERE "transaction_id" = ? AND "deleted_at" IS NULL`,
+				[id],
+			);
+			if (divided.length > 0) {
+				throw new RuleError(
+					"splitIsNotAMove",
+					"a record divided between people is shared spending, undo the division first",
+				);
+			}
+
+			const own = await accountIn(found.spaceId, found.accountId);
+			const other = await accountIn(found.spaceId, input.otherAccountId);
+			if (other.id === own.id) {
+				throw new RuleError("transferNeedsTwoAccounts", "a transfer needs two different accounts");
+			}
+			if (other.archivedAt !== null) {
+				throw new RuleError(
+					"accountIsArchived",
+					"this account is archived, bring it back before writing to it",
+				);
+			}
+
+			// Where the money left and where it arrived, from the side of the record.
+			const holdsMoney = (account: Account) =>
+				account.kind === "checking" || account.kind === "savings" || account.kind === "cash";
+			let from: Account;
+			let to: Account;
+			if (found.kind === "expense" && holdsMoney(own)) {
+				from = own;
+				to = other;
+				if (!holdsMoney(to) && to.kind !== "voucher" && to.kind !== "credit") {
+					throw new RuleError(
+						"moveEndIsNotAllowed",
+						"money moves into an account that holds money, a benefit card, or pays a card",
+					);
+				}
+			} else if (found.kind === "income" && (holdsMoney(own) || own.kind === "credit")) {
+				from = other;
+				to = own;
+				if (!holdsMoney(from)) {
+					assertAccountRules("transfer", from);
+					throw new RuleError(
+						"moveEndIsNotAllowed",
+						"money moves out of an account that holds money",
+					);
+				}
+			} else {
+				throw new RuleError(
+					"moveNeedsAMoneyAccount",
+					"only money out of or into an account that holds money, or a payment a card received, is a move",
+				);
+			}
+
+			const month = to.kind === "credit" ? (input.invoiceMonth ?? null) : null;
+			if (month !== null) parseCalendarMonth(month);
+
+			// The other half, checked before anything is written.
+			let mirror: Transaction | null = null;
+			if (input.mergeWith) {
+				mirror = await reachable(input.mergeWith);
+				assertCan(context.actor(), mirror.spaceId, "transaction.delete");
+				assertChangeable(mirror, "removing");
+				if (!isMirrorOf(found, mirror, other.id)) {
+					throw new RuleError(
+						"notTheOtherHalf",
+						"that record is not the same move written on the other account",
+					);
+				}
+			}
+
+			await context.driver.transaction(async (tx) => {
+				const write = { ...context.write(), driver: tx };
+				await updateRow(write, {
+					table: transactions,
+					spaceId: found.spaceId,
+					id,
+					values: {
+						kind: "transfer",
+						// A move is written positive, leaving the first account and reaching the second.
+						amount: Math.abs(found.amount),
+						amount_in_base: Math.abs(found.amountInBase),
+						account_id: from.id,
+						counter_account_id: to.id,
+						invoice_month: month,
+						invoice_month_by_hand: month === null ? null : 1,
+						category_id: null,
+						card_id: null,
+						priority: null,
+					},
+				});
+				if (mirror) {
+					await softDeleteRow(write, {
+						table: transactions,
+						spaceId: mirror.spaceId,
+						id: mirror.id,
+					});
+				}
+			});
+			return reachable(id);
 		},
 
 		/**

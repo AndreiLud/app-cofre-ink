@@ -606,7 +606,13 @@
 		"onlyAPurchaseIsRefunded": "Only a purchase can be refunded.",
 		"refundIsForVouchers": "A refund that goes back on the card itself is for a benefit card.",
 		"refundIsUpToThePurchase": "A refund is more than nothing and at most what the purchase cost.",
-		"cardIsNotAnOrigin": "Money does not move out of a credit card into another account: what leaves a card is a purchase, on its invoice. To pay the invoice, use Pay the invoice."
+		"cardIsNotAnOrigin": "Money does not move out of a credit card into another account: what leaves a card is a purchase, on its invoice. To pay the invoice, use Pay the invoice.",
+		"alreadyAMove": "This record already moves money between accounts.",
+		"planIsNotAMove": "A part of a purchase or an occurrence of a series belongs to a plan and does not become a move between accounts.",
+		"splitIsNotAMove": "This record is divided between people. Undo the division first: money moved between your own accounts is not a household expense.",
+		"moveEndIsNotAllowed": "That account cannot be the other end. Money leaves a current account, savings or cash, and goes to one of them, to a benefit card or to a card's invoice.",
+		"moveNeedsAMoneyAccount": "Only money out of or into a current account, savings or cash, or a payment received on a card, becomes a move between accounts.",
+		"notTheOtherHalf": "That record is not the same money written on the other account. Nothing was changed."
 	},
 	"transactions": {
 		"title": "Records",
@@ -1606,5 +1612,16 @@
 		"intoGoal": "Add to the goal",
 		"intoGoalTitle": "Add to the goal {{name}}",
 		"intoGoalDescription": "For the goal {{name}}"
+	},
+	"toMove": {
+		"action": "It was between your accounts",
+		"title": "It was between your accounts",
+		"explain": "Money that went from one of your accounts to another is neither money out nor money in. Say where the other end is and this becomes a move between accounts.",
+		"wentTo": "Went to",
+		"cameFrom": "Came from",
+		"invoicePaid": "Invoice paid",
+		"invoiceOption": "{{month}}, due {{day}}",
+		"keeps": "The day, the description and the bank's mark stay. The category, the card and the priority go, because moving money is not spending.",
+		"join": "Join with \"{{description}}\", of {{day}}, which is the same money written on the other account. That record is deleted, so the money is not counted twice."
 	}
 }

@@ -24,7 +24,9 @@ which session they are holding.
 
 Four ways in, all landing in the same repository method.
 
-1. **The form.** Every field, for the record that needs them.
+1. **The form.** Every field, for the record that needs them. It has two kinds, money out
+   and money in. Money moved between two of your own accounts is not either, and has a door
+   of its own: see the section after this one.
 2. **One line of text.** `mercado 42,90 ontem nubank 3x` becomes an expense of 42.90 in
    groceries, dated yesterday, on the Nubank card, in three instalments. The parser is
    in `packages/core`, is pure, and is the most heavily tested single thing in the
@@ -42,6 +44,35 @@ the whole set can be removed as one thing.
 A record on a credit card is placed in the invoice it belongs to, which is decided by
 the closing day of the account and not by the calendar month.
 
+## Moving money between your accounts
+
+Money that leaves one of your accounts and reaches another is neither spending nor money
+coming in, so it is not written on the form. **Mover entre contas** (Move between accounts)
+writes it: from a current account, a savings account or cash, to one of those or to a
+benefit card, on a day, with a description, and once or every month.
+
+It opens from where the money is:
+
+1. **Accounts**, at the top, and "Move money from here" on each account money can leave.
+2. **Recarregar** (Top up) on each benefit card, on the overview and under Accounts, for a
+   top up by Pix.
+3. **Guardar agora** (Put aside now) under the savings rule, on the overview and in the
+   budget, with the rule's account and what the month still asks for.
+4. **Pôr na meta** (Add to the goal) on each goal, with the goal's account.
+5. **The form**, from a line under money out, with what was already typed.
+
+A credit card is never where a move starts: what leaves a card is a purchase on its invoice,
+and the invoice is paid from the invoice screen, which says which month it paid. An
+investment account is never where a move lands, because it is worth what is bought in it.
+
+A record that was really a move, a Pix into savings read in as money out, or an invoice
+payment the importer of 1.x wrote as money out of the bank and again as money in on the card,
+becomes one from its menu in the list: **Era entre contas suas** (It was between your
+accounts). It asks for the other end and, for a card, the invoice paid, and offers to join
+the same move written on the other account, which is then deleted so the money is not counted
+twice. [Decision record 0057](../adr/0057_moving_money_is_not_a_kind_of_record.md) has the
+reasoning.
+
 ## Reading a statement
 
 ```
@@ -54,7 +85,8 @@ file -> reader -> records -> review -> written
    file, an institution in the text, a card number.
 3. **Columns are remembered per file shape**, so the same bank is mapped once.
 4. **Repeats are found** by comparing what is already in the space around the days the
-   file covers.
+   file covers. A move between accounts that touches the account is found by its amount and
+   its days, whatever the bank called it.
 5. **Nothing is written until somebody has seen it.** The review is a screen, not a
    confirmation dialog.
 
