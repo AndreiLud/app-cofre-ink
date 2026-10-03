@@ -27,6 +27,7 @@ import {
 	monthPartDay,
 	parseMoney,
 	readMonthMark,
+	type TookLine,
 	todayIn,
 	USUAL_WINDOW,
 	whatTookIt,
@@ -367,6 +368,13 @@ export function MonthPage() {
 		timeZone: "UTC",
 	}).format(new Date(`${shown}-01T00:00:00Z`));
 
+	// A title begins with a capital letter. In Portuguese a month is written in small letters,
+	// so the title read "outubro em três números".
+	const titled = t("theMonth.headline", { month: monthName });
+	const headline =
+		titled.charAt(0).toLocaleUpperCase(i18n.resolvedLanguage === "en" ? "en" : "pt-BR") +
+		titled.slice(1);
+
 	// Inside a sentence, where the component that draws an amount cannot go. The same
 	// thing the check up and the budget do with the figures in their own sentences.
 	const asMoney = (cents: number) =>
@@ -405,6 +413,32 @@ export function MonthPage() {
 			? t("reports.noCategory")
 			: (categories.data?.find((one) => one.id === categoryId)?.name ?? t("reports.noCategory"));
 
+	/**
+	 * The five lines that spent most, and the rest as one more line.
+	 *
+	 * Every share is of the whole that was itemised, so five lines on their own added up to
+	 * less than it, with nothing said about the rest. Registry 0049.
+	 */
+	const tookLines = (ranked: readonly TookLine[]) => {
+		const lines = ranked.slice(0, 5).map((line) => ({
+			key: line.categoryId ?? "none",
+			name: nameOfCategory(line.categoryId),
+			amount: line.amount,
+			share: line.share,
+		}));
+		const rest = ranked.slice(5);
+		if (rest.length === 0) return lines;
+		return [
+			...lines,
+			{
+				key: "rest",
+				name: t("theMonth.tookRest", { count: rest.length }),
+				amount: rest.reduce((total, line) => total + line.amount, 0),
+				share: rest.reduce((total, line) => total + line.share, 0),
+			},
+		];
+	};
+
 	const risks = reads
 		? limitsNearBreaking(
 				(limits.data ?? []).map((one) => ({
@@ -425,6 +459,14 @@ export function MonthPage() {
 	// only those is told rather than left reading silence as safety.
 	const onlyNarrowLimits =
 		(limits.data ?? []).length > 0 && (limits.data ?? []).every((one) => one.scope !== "total");
+	/**
+	 * Whether money out was typed for this month: the spending, or an invoice of a card.
+	 *
+	 * The sentence about limits on a category is about typed spending they cannot see, and it
+	 * showed in months where none was typed, beside an income and nothing else.
+	 */
+	const typedOut =
+		mine.has("spending") || cardAccounts.some((card) => mine.has(placeOf("invoice", card.id)));
 
 	const withYear = new Intl.DateTimeFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
 		month: "long",
@@ -699,7 +741,7 @@ export function MonthPage() {
 		<div className="space-y-8">
 			<div className="flex flex-wrap items-end justify-between gap-4">
 				<InsightTitle level="h1" detail={t("theMonth.subtitle")}>
-					{t("theMonth.headline", { month: monthName })}
+					{headline}
 				</InsightTitle>
 				{/* On a wide screen this sits at the far end of the line the title is on. The
 				    title takes the whole width long before that, so when it wraps onto its
@@ -763,7 +805,9 @@ export function MonthPage() {
 							</li>
 						))}
 					</ul>
-					{onlyNarrowLimits ? <p className="mt-1">{t("theMonth.limitsTotalOnly")}</p> : null}
+					{onlyNarrowLimits && typedOut ? (
+						<p className="mt-1">{t("theMonth.limitsTotalOnly")}</p>
+					) : null}
 					<p className="mt-1">
 						<Link to={ROUTES.budget} className="underline">
 							{t("theMonth.limitsSeeBudget")}
@@ -776,7 +820,7 @@ export function MonthPage() {
 			    When every limit of the month is on a category, none of them can see a typed
 			    total, so none of them is ever near breaking and the warning above is never
 			    drawn: the silence read as safety, which is the one thing it had to avoid. */}
-			{risks.length === 0 && onlyNarrowLimits && mine.size > 0 ? (
+			{risks.length === 0 && onlyNarrowLimits && typedOut ? (
 				<Callout tone="neutral">
 					{t("theMonth.limitsTotalOnly")}{" "}
 					<Link to={ROUTES.budget} className="underline">
@@ -1004,7 +1048,9 @@ export function MonthPage() {
 				</Panel>
 			) : null}
 
-			{took ? (
+			{/* Not for a month with no spending at all, which it told that nothing in it had a
+			    category, as if something in it could have. */}
+			{took && (took.ranked.length > 0 || took.notItemised > 0) ? (
 				<Panel title={t("theMonth.tookTitle")}>
 					{took.ranked.length === 0 ? (
 						<p className="text-sm text-quiet">{t("theMonth.tookNothing", { month: monthName })}</p>
@@ -1018,13 +1064,13 @@ export function MonthPage() {
 								</p>
 							) : null}
 							<ul className="mt-3 divide-y divide-line">
-								{took.ranked.slice(0, 5).map((line) => (
+								{tookLines(took.ranked).map((line) => (
 									<li
-										key={line.categoryId ?? "none"}
+										key={line.key}
 										className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3 first:pt-0 last:pb-0"
 									>
 										<span className="min-w-0">
-											<span className="truncate">{nameOfCategory(line.categoryId)}</span>{" "}
+											<span className="truncate">{line.name}</span>{" "}
 											<span className="text-quiet text-xs">
 												{t("theMonth.tookLine", { share: Math.round(line.share * 100) })}
 											</span>

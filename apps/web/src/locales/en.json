@@ -898,7 +898,7 @@
 		"usualTooEarly": "Too early in {{month}} to say. A month spends what it spends by the end of it, so this waits until the month is nearly through.",
 		"usualTooFew": "There is no usual month yet. It takes three closed months before a comparison means anything, and this space has {{count}}.",
 		"tookTitle": "What took it",
-		"tookBody": "Only the records that carry a category. The three numbers carry none, so {{amount}} of this month is a total nobody itemised.",
+		"tookBody": "The three numbers have no category, so {{amount}} of this month is a total nobody broke down, and it stays out of the list. The list is what was written one at a time, with what has no category on a line of its own.",
 		"tookNothing": "Nothing in {{month}} carries a category. Three numbers say how much went out and cannot say what on, and that is the honest trade.",
 		"tookLine": "{{share}} per cent of what is itemised",
 		"tookSeeReports": "See every category, with the totals, in Reports",
@@ -911,7 +911,9 @@
 		"invoices": "Invoices",
 		"invoicesHint_one": "The total of the invoice that closes in {{month}}. Paying it is written too, on the day it falls due.",
 		"invoicesHint_other": "The total of each card's invoice that closes in {{month}}. Paying each is written too, on the day its card falls due.",
-		"invoiceOf": "The {{card}} card invoice"
+		"invoiceOf": "The {{card}} card invoice",
+		"tookRest_one": "The rest, in 1 category",
+		"tookRest_other": "The rest, in {{count}} categories"
 	},
 	"invoice": {
 		"noCardTitle": "No credit card in this space",

@@ -292,6 +292,53 @@ test.describe("a month in three numbers", () => {
 		await expect(took.getByRole("listitem").filter({ hasText: "R$ 2.200,00" })).toHaveCount(0);
 	});
 
+	// Part 1, H.1.3 and H.1.4 of the request for 2.0.0: the title began with a small letter, and
+	// the ranking drew five lines whose shares were of every line, so a month that went on more
+	// than five things showed shares that added up to less than the whole, with nothing said
+	// about the rest. Registry 0049 promised a line for it.
+	test("names the month with a capital, and adds the rest up to the whole", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "O mês");
+		await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Outubro em três números/);
+
+		const took = page.locator("section").filter({ hasText: "No que foi" });
+		await expect(took.getByRole("listitem").filter({ hasText: "O resto" })).toBeVisible();
+		let total = 0;
+		for (const line of await took.getByRole("listitem").all()) {
+			total += Number(/(\d+) por cento/.exec(await line.innerText())?.[1] ?? 0);
+		}
+		// Each share is rounded on its own, so six of them may miss a hundred by a little.
+		expect(Math.abs(total - 100)).toBeLessThanOrEqual(3);
+	});
+
+	// Part 1, H.1.3 and H.1.6: an empty month said nothing in it had a category, and a month
+	// where only what came in was typed said a limit on a category could not see the typed
+	// spending, which was not there.
+	test("says nothing about categories or limits in a month they do not touch", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Orçamento");
+		await page.getByRole("button", { name: "Novo limite" }).first().click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByText("Uma categoria", { exact: true }).click();
+		await dialog.getByLabel("Categoria", { exact: true }).selectOption({ label: "Família" });
+		await dialog.getByLabel("Quanto por mês").fill("500,00");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(dialog).toHaveCount(0);
+
+		await go(page, "O mês");
+		// June, before the sample data starts.
+		for (let step = 0; step < 4; step += 1) {
+			await page.getByRole("button", { name: "Mês anterior" }).click();
+		}
+		await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Junho em três números/);
+		await expect(page.getByText(/tem categoria\. Três números/)).toHaveCount(0);
+
+		await page.getByLabel("Quanto entrou").fill("5.000,00");
+		await page.getByRole("button", { name: "Guardar o mês" }).click();
+		await expect(page.getByText("Está tudo no lugar de sempre")).toBeVisible();
+		await expect(page.getByText(/Um limite por categoria não conta nada aqui/)).toHaveCount(0);
+	});
+
 	test("says which limit the month has broken, read as a whole month", async ({ page }) => {
 		await openCofre(page);
 

@@ -898,7 +898,7 @@
 		"usualTooEarly": "Ainda é cedo em {{month}} para dizer. Um mês gasta o que gasta até o fim dele, então esta comparação espera o mês estar quase no fim.",
 		"usualTooFew": "Ainda não existe um mês comum. São precisos três meses fechados para a comparação dizer algo, e este espaço tem {{count}}.",
 		"tookTitle": "No que foi",
-		"tookBody": "Só os lançamentos que têm categoria. Os três números não têm nenhuma, então {{amount}} deste mês é um total que ninguém detalhou.",
+		"tookBody": "Os três números não têm categoria, então {{amount}} deste mês é um total que ninguém detalhou e fica fora da lista. A lista é do que foi lançado um a um, com o que ficou sem categoria numa linha própria.",
 		"tookNothing": "Nada em {{month}} tem categoria. Três números dizem quanto saiu e não dizem no que, e essa é a troca honesta.",
 		"tookLine": "{{share}} por cento do que está detalhado",
 		"tookSeeReports": "Ver todas as categorias, com os totais, nos Relatórios",
@@ -911,7 +911,9 @@
 		"invoices": "Faturas",
 		"invoicesHint_one": "O total da fatura que fecha em {{month}}. O pagamento dela também é escrito, no dia do vencimento.",
 		"invoicesHint_other": "O total da fatura de cada cartão que fecha em {{month}}. O pagamento de cada uma também é escrito, no dia do vencimento do cartão dela.",
-		"invoiceOf": "Fatura do cartão {{card}}"
+		"invoiceOf": "Fatura do cartão {{card}}",
+		"tookRest_one": "O resto, em 1 categoria",
+		"tookRest_other": "O resto, em {{count}} categorias"
 	},
 	"invoice": {
 		"noCardTitle": "Nenhum cartão de crédito neste espaço",
