@@ -126,6 +126,10 @@ export function PaperReportPage() {
 			year: "numeric",
 			timeZone: "UTC",
 		}).format(new Date(`${day}T00:00:00Z`));
+	const longMonth = (value: string) =>
+		new Intl.DateTimeFormat(locale, { month: "long", year: "numeric", timeZone: "UTC" }).format(
+			new Date(`${value}-01T00:00:00Z`),
+		);
 	const dayOfMonth = (day: string) =>
 		new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "UTC" }).format(
 			new Date(`${day}T00:00:00Z`),
@@ -675,6 +679,16 @@ export function PaperReportPage() {
 							))}
 						</TableBody>
 					</Table>
+					{/* What the cards still charge after the six months on paper. */}
+					{projection.data.after && projection.data.months.length > 0 ? (
+						<p className="text-sm">
+							{t("projection.after", {
+								month: longMonth(projection.data.months.at(-1)?.month ?? ""),
+								amount: money(projection.data.after.amount),
+								last: longMonth(projection.data.after.last ?? ""),
+							})}
+						</p>
+					) : null}
 				</Part>
 			) : null}
 

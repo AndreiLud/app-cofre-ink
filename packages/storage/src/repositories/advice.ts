@@ -55,9 +55,6 @@ const SOON = 15;
 /** Two charges this far apart, for the same amount, in the same account, look like one. */
 const REPEAT_DAYS = 3;
 
-/** How many months ahead of instalments to read. Two years is longer than anybody buys. */
-const AHEAD = 24;
-
 export type {
 	Commitments,
 	Exposure,
@@ -456,6 +453,11 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 	 * dated in February is money that will leave in February however it is marked
 	 * today. Read by the day it falls rather than by the invoice it lands on, because a
 	 * household without a card buys in instalments too.
+	 *
+	 * All of it, however far. It stopped at twenty four months, and a plan of forty eight
+	 * parts, which 2.0.0 allows, or of four hundred and twenty, which 1.2.1 wrote, ran past it
+	 * with nothing said: the check up told a household it was committed for two years less
+	 * than it was. The core says the months after the first twelve a year at a time.
 	 */
 	async function instalmentsAhead(
 		spaceId: string,
@@ -479,8 +481,7 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			     ${mine(spaceId).clause}
 			 ) AS ahead
 			 GROUP BY month
-			 ORDER BY month
-			 LIMIT ${AHEAD}`,
+			 ORDER BY month`,
 			[
 				spaceId,
 				after,

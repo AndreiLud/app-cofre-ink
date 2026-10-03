@@ -21,11 +21,17 @@ import type { CalendarMonth } from "../time/calendar.ts";
 import type { Snapshot } from "./findings.ts";
 
 export type MonthAhead = {
+	/** A month, or, past the first twelve, a whole year written as its four digits. */
 	month: CalendarMonth;
 	amount: number;
 	/** Already more than an ordinary month leaves over, before that month has begun. */
 	overSurplus: boolean;
+	/** Whether this line is a year, after the first twelve months, rather than one month. */
+	year?: boolean;
 };
+
+/** How many months ahead are said one at a time, before the rest is said a year at a time. */
+export const MONTHS_ONE_BY_ONE = 12;
 
 export type Commitments = {
 	/** An ordinary invoice: the middle one of the closed invoices in the window. */
@@ -83,11 +89,26 @@ export function commitmentsFrom(snapshot: Snapshot): Commitments | null {
 	// A month is tight when what is already bought takes more than a month leaves over.
 	// With nothing left over, anything already bought is more than nothing, which is the
 	// true and useful reading.
-	const ahead = snapshot.instalments.map((month) => ({
+	const every = snapshot.instalments.map((month) => ({
 		month: month.month,
 		amount: month.amount,
 		overSurplus: month.amount > Math.max(0, surplus),
 	}));
+
+	// The first twelve one at a time, and the rest a year at a time, a year tight when any month
+	// of it is: forty eight lines of instalments is a list nobody reads to the end. The total,
+	// the last month and the count of tight months are over every month, whatever the lines.
+	const ahead: MonthAhead[] = every.slice(0, MONTHS_ONE_BY_ONE);
+	for (const month of every.slice(MONTHS_ONE_BY_ONE)) {
+		const year = month.month.slice(0, 4);
+		const last = ahead.at(-1);
+		if (last?.year && last.month === year) {
+			last.amount += month.amount;
+			last.overSurplus = last.overSurplus || month.overSurplus;
+		} else {
+			ahead.push({ month: year, amount: month.amount, overSurplus: month.overSurplus, year: true });
+		}
+	}
 
 	return {
 		usual,
@@ -95,8 +116,8 @@ export function commitmentsFrom(snapshot: Snapshot): Commitments | null {
 		shareOfIncome: Math.round(share(usual, usualIncome) * 100),
 		direction,
 		ahead,
-		aheadTotal: ahead.reduce((total, month) => total + month.amount, 0),
-		lastMonth: ahead[ahead.length - 1]?.month ?? null,
-		tight: ahead.filter((month) => month.overSurplus).length,
+		aheadTotal: every.reduce((total, month) => total + month.amount, 0),
+		lastMonth: every[every.length - 1]?.month ?? null,
+		tight: every.filter((month) => month.overSurplus).length,
 	};
 }

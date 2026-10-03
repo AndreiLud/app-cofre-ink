@@ -139,6 +139,57 @@ export function runPlanOfPartsConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// D.7: the check up stopped at twenty four months ahead.
+		it("reads every part ahead in the check up, however far", async () => {
+			const setup = await ready(adapter);
+			try {
+				const { on, spaceId } = setup;
+				await on.transactions.create({
+					spaceId,
+					kind: "expense",
+					amount: 240_000,
+					happenedOn: "2026-10-28",
+					description: "Geladeira",
+					accountId: setup.card.id,
+					installments: 48,
+				});
+				const snapshot = await on.advice.snapshot({ spaceId, today: "2026-10-28" });
+				expect(snapshot.instalments).toHaveLength(47);
+				expect(snapshot.instalments.reduce((sum, one) => sum + one.amount, 0)).toBe(235_000);
+				expect(snapshot.instalments.at(-1)?.month).toBe("2030-09");
+			} finally {
+				await setup.fixture.close();
+			}
+		});
+
+		// D.8: the months ahead stop at thirty six, and what the card still charges after them
+		// was skipped with nothing said. From October 2026, the last month read is September 2029.
+		it("says what the parts still charge after the months ahead, and until when", async () => {
+			const setup = await ready(adapter);
+			try {
+				const { on, spaceId } = setup;
+				await on.transactions.create({
+					spaceId,
+					kind: "expense",
+					amount: 240_000,
+					happenedOn: "2026-10-28",
+					description: "Geladeira",
+					accountId: setup.card.id,
+					installments: 48,
+				});
+				const ahead = await on.projections.monthsAhead({
+					spaceId,
+					from: "2026-10",
+					months: 36,
+					today: "2026-10-28",
+				});
+				expect(ahead.months.at(-1)?.month).toBe("2029-09");
+				expect(ahead.after).toEqual({ amount: 65_000, last: "2030-10" });
+			} finally {
+				await setup.fixture.close();
+			}
+		});
+
 		// D.6: converted part by part, US$ 1.000,00 in forty eight at 5,4321 came to R$ 5.432,00.
 		it("converts a plan in another currency once, so it adds up", async () => {
 			const setup = await ready(adapter);

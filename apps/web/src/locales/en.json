@@ -145,7 +145,8 @@
 		"emptyBody": "The projection uses what you have already written down. Record a few months and it appears.",
 		"thinHistoryTitle": "Not much history",
 		"thinHistoryBody": "I have only {{count}} months to work your usual month out from, so the habit is an educated guess. The more months you record, the better it gets.",
-		"partOfMonth": "In the month you are in, the habit counts only the days still to come, because today's balance already holds the days that have gone."
+		"partOfMonth": "In the month you are in, the habit counts only the days still to come, because today's balance already holds the days that have gone.",
+		"after": "After {{month}} there is still {{amount}} in instalments, until {{last}}."
 	},
 	"investments": {
 		"headline": "You have {{amount}} put aside",
@@ -693,7 +694,7 @@
 		"to": "Into",
 		"pickAccount": "Pick the account",
 		"installments": "Instalments",
-		"installmentsHint": "Each part lands on the right invoice of the card.",
+		"installmentsHint": "Up to {{max}} parts. Each part lands on the right invoice of the card.",
 		"inFull": "In full",
 		"timesOf": "{{count}} times",
 		"notes": "Note",
@@ -762,8 +763,17 @@
 		"wasAMove": "Did it go into an account of yours, like savings or the meal card? That is not spending:",
 		"useMove": "use Move between accounts.",
 		"kindMoves": "Invoice payments and moves",
-		"installmentsHintMonth": "Each part counts in its own month.",
-		"deleteOccurrence": "This is a record of a series: only this one goes, and it is not written again. The next ones carry on."
+		"installmentsHintMonth": "Up to {{max}} parts. Each part counts in its own month.",
+		"deleteOccurrence": "This is a record of a series: only this one goes, and it is not written again. The next ones carry on.",
+		"amountIs": "The amount typed",
+		"amountEachPart": "Amount of each part",
+		"planTotal": "Total {{amount}}",
+		"partsOf": "{{count}} of {{amount}}",
+		"and": "and",
+		"paidBefore": "Already paid",
+		"paidBeforeHint": "Optional. How many parts were paid before the purchase was written down here. Only the ones after are written.",
+		"firstKept": "The first one kept is {{number}}/{{count}}, on {{day}}.",
+		"firstKeptOnInvoice": "The first one kept is {{number}}/{{count}}, on {{day}}, on the {{month}} invoice."
 	},
 	"rulesSection": {
 		"title": "Rules that sort on their own",
@@ -1567,7 +1577,8 @@
 		"how_one": "All of this is arithmetic over your own records, one month of them, done on this device. There is no model, no score and no opinion about what you ought to want: every line carries the figures it was made from, so you can check it by hand.",
 		"how_other": "All of this is arithmetic over your own records, {{count}} months of them, done on this device. There is no model, no score and no opinion about what you ought to want: every line carries the figures it was made from, so you can check it by hand.",
 		"assumes": "The one opinion is the order of the plan: cover before a goal, because a household with no cover pays for the next bad week with a card. Beyond that, the arithmetic assumes the months ahead look like the months behind, and the dates redraw themselves as you write things down.",
-		"notAdvice": "This is not investment advice. {{app}} reads what you wrote down and says what it found. Telling somebody where to put their money is a different job, done by people who are licensed to do it."
+		"notAdvice": "This is not investment advice. {{app}} reads what you wrote down and says what it found. Telling somebody where to put their money is a different job, done by people who are licensed to do it.",
+		"inYear": "Over {{year}}"
 	},
 	"benefitKind": {
 		"meal": "Meal or food voucher",

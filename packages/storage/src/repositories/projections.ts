@@ -56,6 +56,11 @@ export type ProjectionInput = {
 export type Projection = {
 	months: ProjectedMonth[];
 	opening: number;
+	/**
+	 * What the cards still charge after the last month read, and the month of the last of it:
+	 * a plan of forty eight parts runs on past thirty six months. Nothing when nothing does.
+	 */
+	after: { amount: number; last: CalendarMonth | null } | null;
 	/** What the habit was worked out from, so the screen can show it. */
 	history: MonthlyAmounts[];
 };
@@ -259,8 +264,9 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 		from: CalendarMonth,
 		to: CalendarMonth,
 		today: CalendarDate,
-	): Promise<MonthlyAmounts[]> {
-		if (seesOwnRowsOnly(context.actor(), spaceId)) return [];
+	): Promise<{ months: MonthlyAmounts[]; beyond: { amount: number; last: CalendarMonth | null } }> {
+		const beyond = { amount: 0, last: null as CalendarMonth | null };
+		if (seesOwnRowsOnly(context.actor(), spaceId)) return { months: [], beyond };
 
 		// Archived cards too, whose last invoice is still money that has to go: only what is
 		// left on an invoice is counted, so one paid in full adds nothing.
@@ -276,7 +282,13 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 				if (state.left <= 0) continue;
 				const falls = monthOf(state.dueOn);
 				const month = falls < from ? from : falls;
-				if (month > to) continue;
+				// Past the months read, said apart rather than skipped: a plan of forty eight parts
+				// runs on after the horizon, and what is left of it was in no figure at all.
+				if (month > to) {
+					beyond.amount += state.left;
+					if (beyond.last === null || month > beyond.last) beyond.last = month as CalendarMonth;
+					continue;
+				}
 
 				const entry = byMonth.get(month) ?? {
 					month: month as CalendarMonth,
@@ -288,7 +300,10 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 			}
 		}
 
-		return [...byMonth.values()].sort((one, other) => one.month.localeCompare(other.month));
+		return {
+			months: [...byMonth.values()].sort((one, other) => one.month.localeCompare(other.month)),
+			beyond,
+		};
 	}
 
 	/** Two lists of monthly amounts added together, month by month. */
@@ -407,11 +422,12 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 				withoutCards: true,
 			});
 			const invoices = await invoicesByMonth(input.spaceId, input.from, to, input.today);
-			const written = together(planned, invoices);
+			const written = together(planned, invoices.months);
 
 			return {
 				opening,
 				history,
+				after: invoices.beyond.amount > 0 ? invoices.beyond : null,
 				months: project({
 					opening,
 					from: input.from,

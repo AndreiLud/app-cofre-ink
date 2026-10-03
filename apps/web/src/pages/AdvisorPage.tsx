@@ -415,7 +415,11 @@ export function AdvisorPage() {
 												key={month.month}
 												className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2 first:pt-0 last:pb-0"
 											>
-												<span className="text-sm text-ink">{monthName(month.month)}</span>
+												<span className="text-sm text-ink">
+													{month.year
+														? t("advisor.inYear", { year: month.month })
+														: monthName(month.month)}
+												</span>
 												<span className="flex flex-wrap items-baseline gap-x-3">
 													<span className="font-mono text-sm text-ink">{money(month.amount)}</span>
 													{month.overSurplus ? (

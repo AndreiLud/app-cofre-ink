@@ -61,6 +61,29 @@ describe("the card", () => {
 });
 
 describe("the months already bought", () => {
+	// Part 2, D.7 of the request for 2.0.0: R$ 2.400,00 in forty eight from the twenty eighth of
+	// October, forty seven parts ahead, said a month at a time for a year and then a year at a time.
+	it("says a year at a time what lies past the first twelve months, and counts all of it", () => {
+		const snapshot = household();
+		snapshot.instalments = Array.from({ length: 47 }, (_unused, index) => {
+			const total = 2026 * 12 + 10 + index;
+			return {
+				month: `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, "0")}`,
+				amount: 5_000,
+			};
+		});
+		const card = commitmentsFrom(snapshot);
+		expect(card?.aheadTotal).toBe(235_000);
+		expect(card?.lastMonth).toBe("2030-09");
+		expect(card?.ahead.slice(0, 12).every((line) => !line.year)).toBe(true);
+		expect(card?.ahead.slice(12).map((line) => [line.month, line.amount, line.year])).toEqual([
+			["2027", 10_000, true],
+			["2028", 60_000, true],
+			["2029", 60_000, true],
+			["2030", 45_000, true],
+		]);
+	});
+
 	it("adds up what instalments take from each month ahead, and when they end", () => {
 		const snapshot = household();
 		snapshot.instalments = [

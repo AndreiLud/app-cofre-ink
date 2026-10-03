@@ -145,7 +145,8 @@
 		"emptyBody": "A projeção usa o que você já registrou. Lance alguns meses e ela aparece.",
 		"thinHistoryTitle": "Pouco histórico",
 		"thinHistoryBody": "Só tenho {{count}} meses para estimar o seu mês de sempre, então a parte do hábito é um chute educado. Quanto mais meses registrados, melhor ela fica.",
-		"partOfMonth": "No mês em que você está, o hábito conta só os dias que ainda faltam, porque o saldo de hoje já contém os dias que passaram."
+		"partOfMonth": "No mês em que você está, o hábito conta só os dias que ainda faltam, porque o saldo de hoje já contém os dias que passaram.",
+		"after": "Depois de {{month}} ainda há {{amount}} em parcelas, até {{last}}."
 	},
 	"investments": {
 		"headline": "Você tem {{amount}} guardados",
@@ -693,7 +694,7 @@
 		"to": "Entra em",
 		"pickAccount": "Escolha a conta",
 		"installments": "Parcelas",
-		"installmentsHint": "Cada parcela cai na fatura certa do cartão.",
+		"installmentsHint": "Até {{max}} vezes. Cada parcela cai na fatura certa do cartão.",
 		"inFull": "À vista",
 		"timesOf": "{{count}} vezes",
 		"notes": "Observação",
@@ -762,8 +763,17 @@
 		"wasAMove": "Foi para uma conta sua, como a poupança ou o vale? Isso não é gasto:",
 		"useMove": "use Mover entre contas.",
 		"kindMoves": "Pagamentos de fatura e movimentações",
-		"installmentsHintMonth": "Cada parcela conta no mês dela.",
-		"deleteOccurrence": "É um lançamento de uma recorrência: só este vai embora, e ele não volta a ser lançado. Os próximos continuam."
+		"installmentsHintMonth": "Até {{max}} vezes. Cada parcela conta no mês dela.",
+		"deleteOccurrence": "É um lançamento de uma recorrência: só este vai embora, e ele não volta a ser lançado. Os próximos continuam.",
+		"amountIs": "O valor digitado",
+		"amountEachPart": "Valor de cada parcela",
+		"planTotal": "Total {{amount}}",
+		"partsOf": "{{count}} de {{amount}}",
+		"and": "e",
+		"paidBefore": "Já paguei",
+		"paidBeforeHint": "Opcional. Quantas parcelas já foram pagas antes de lançar a compra aqui. Só as seguintes são gravadas.",
+		"firstKept": "A primeira que fica é a {{number}}/{{count}}, em {{day}}.",
+		"firstKeptOnInvoice": "A primeira que fica é a {{number}}/{{count}}, em {{day}}, na fatura de {{month}}."
 	},
 	"rulesSection": {
 		"title": "Regras que categorizam sozinhas",
@@ -1567,7 +1577,8 @@
 		"how_one": "Tudo aqui é conta feita sobre os seus próprios registros, um mês deles, neste aparelho. Não existe modelo, nem nota, nem opinião sobre o que você deveria querer: cada linha carrega os números que a produziram, para você conferir na mão.",
 		"how_other": "Tudo aqui é conta feita sobre os seus próprios registros, {{count}} meses deles, neste aparelho. Não existe modelo, nem nota, nem opinião sobre o que você deveria querer: cada linha carrega os números que a produziram, para você conferir na mão.",
 		"assumes": "A única opinião é a ordem do plano: uma reserva antes de uma meta, porque quem não tem reserva paga a próxima semana ruim no cartão. Fora isso, a conta assume que os próximos meses se parecem com os que passaram, e as datas se refazem sozinhas conforme você anota.",
-		"notAdvice": "Isto não é recomendação de investimento. O {{app}} lê o que você escreveu e diz o que encontrou. Dizer onde colocar dinheiro é outro trabalho, de quem tem registro para fazer isso."
+		"notAdvice": "Isto não é recomendação de investimento. O {{app}} lê o que você escreveu e diz o que encontrou. Dizer onde colocar dinheiro é outro trabalho, de quem tem registro para fazer isso.",
+		"inYear": "Ao longo de {{year}}"
 	},
 	"benefitKind": {
 		"meal": "VA/VR",

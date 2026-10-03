@@ -380,6 +380,19 @@ export function ProjectionPage() {
 								))}
 							</TableBody>
 						</Table>
+						{/* What the cards still charge after the last month read, which a plan of forty
+						    eight parts does past thirty six months, and which was in no figure at all. */}
+						{ahead.data?.after && base.length > 0 ? (
+							<p className="mt-3 text-sm text-quiet">
+								{t("projection.after", {
+									month: monthName(base[base.length - 1]?.month ?? ""),
+									amount: new Intl.NumberFormat(locale, { style: "currency", currency }).format(
+										ahead.data.after.amount / 100,
+									),
+									last: monthName(ahead.data.after.last ?? ""),
+								})}
+							</p>
+						) : null}
 					</Panel>
 
 					{ahead.data && ahead.data.history.length < 3 ? (
