@@ -53,4 +53,13 @@ describe("how to update", () => {
 		expect(lines.indexOf("docker inspect cofre")).toBeLessThan(lines.indexOf("docker rm cofre"));
 		expect(lines.at(-1)).toContain("--env-file cofre.env");
 	});
+
+	it("follows the line of the major version the copy runs", () => {
+		const two = updateSteps(WAYS[1] as UpdateWay).flatMap((step) => step.lines);
+		expect(two).toContain("docker pull ghcr.io/andreilud/app-cofre-ink:2");
+		const three = updateSteps({ ...(WAYS[1] as UpdateWay), version: "3.1.0" }).flatMap(
+			(step) => step.lines,
+		);
+		expect(three).toContain("docker pull ghcr.io/andreilud/app-cofre-ink:3");
+	});
 });

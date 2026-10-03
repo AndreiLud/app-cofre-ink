@@ -11,6 +11,8 @@
 // when the folder exists: a folder Docker mounts is made by Docker when it is missing, in both
 // shells, so the copy makes its own folder.
 
+import { parseVersion } from "@cofre/core";
+
 /** How a copy was installed, which the server reads from its environment. */
 export type InstalledWith = "compose" | "dockerRun" | "built" | "source";
 
@@ -31,11 +33,11 @@ export type UpdateStep = { step: "copy" | "update"; lines: string[] };
 // biome-ignore lint/suspicious/noTemplateCurlyInString: it is the shell that reads ${HOME}
 export const BACKUPS = "${HOME}/cofreBackups";
 
-const IMAGE = "ghcr.io/andreilud/app-cofre-ink:2";
-
 /** The steps, in the order they are run. */
 export function updateSteps(way: UpdateWay): UpdateStep[] {
 	const copy = `cofre_v${way.version.replace(/^v/, "")}`;
+	// The line of the major version this copy runs, which a pull follows and never leaves.
+	const IMAGE = `ghcr.io/andreilud/app-cofre-ink:${parseVersion(way.version)?.major ?? 2}`;
 
 	if (way.database === "postgres") {
 		return [
