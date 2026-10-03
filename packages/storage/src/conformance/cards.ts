@@ -440,6 +440,81 @@ export function runCardConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Part 1, B.6 of the request for 2.0.0. The lunches on a meal card were read as the
+		// household's money leaving: the months ahead took them off a balance that never held
+		// the allowance, and the bills due soon listed a lunch planned for next week.
+		it("leaves a benefit card out of every reading of the household's money", async () => {
+			const fixture = await prepare(adapter);
+			try {
+				const on = await openSession({
+					driver: fixture.driver,
+					userId: fixture.ana.id,
+					deviceId: "deviceAna",
+					now: () => Date.parse("2026-09-20T12:00:00-03:00"),
+				});
+				const space = await on.spaces.create({ name: "Pessoal", kind: "personal" });
+				const checking = await on.accounts.create({
+					spaceId: space.id,
+					kind: "checking",
+					name: "Conta",
+					initialBalance: 300_000,
+				});
+				const voucher = await on.accounts.create({
+					spaceId: space.id,
+					kind: "voucher",
+					name: "Vale refeicao",
+					benefit: "meal",
+					quotaAmount: 90_000,
+					quotaDay: 5,
+					quotaCarries: true,
+				});
+				const write = (
+					kind: "income" | "expense",
+					amount: number,
+					day: string,
+					accountId: string,
+				) =>
+					on.transactions.create({
+						spaceId: space.id,
+						kind,
+						amount,
+						happenedOn: day,
+						description: kind === "income" ? "Salario" : "Gasto",
+						accountId,
+					});
+				for (const month of ["2026-06", "2026-07", "2026-08"]) {
+					await write("income", 500_000, `${month}-05`, checking.id);
+					await write("expense", 450_000, `${month}-10`, checking.id);
+					await write("expense", 90_000, `${month}-12`, voucher.id);
+				}
+				await write("expense", 3_000, "2026-09-24", voucher.id);
+				await on.recurrences.create({
+					spaceId: space.id,
+					description: "Almoco da firma",
+					kind: "expense",
+					amount: 2_000,
+					accountId: voucher.id,
+					frequency: "monthly",
+					startsOn: "2026-10-12",
+				});
+
+				const ahead = await on.projections.monthsAhead({
+					spaceId: space.id,
+					from: "2026-10",
+					months: 1,
+					today: "2026-09-20",
+				});
+				expect(ahead.history.map((month) => month.expense)).toEqual([450_000, 450_000, 450_000]);
+				expect(ahead.months[0]?.expenseFrom.recurring).toBe(0);
+				expect(ahead.months[0]?.expenseFrom.written).toBe(0);
+
+				const snapshot = await on.advice.snapshot({ spaceId: space.id, today: "2026-09-20" });
+				expect(snapshot.pending).toEqual([]);
+			} finally {
+				await fixture.close();
+			}
+		});
+
 		// Part 1, B.9 of the request for 2.0.0. An allowance was accepted with no day, the form
 		// wrote the first of the month under an example showing the fifth when the field was
 		// left empty, and the edit wrote no day at all, so the overview said there was none.

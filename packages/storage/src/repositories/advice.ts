@@ -24,6 +24,7 @@ import {
 	spendableNow,
 } from "@cofre/core";
 import { assertCan, seesOwnRowsOnly } from "../actor.ts";
+import { notOnABenefitCard } from "../benefitCards.ts";
 import type { SqlValue } from "../driver.ts";
 import { asNumber } from "../driver.ts";
 import { happenedBy, stillToComeOn } from "../happened.ts";
@@ -269,6 +270,7 @@ export function createAdviceRepository(context: RepositoryContext, needs: Advice
 			 LEFT JOIN "accounts" a ON a."id" = t."account_id"
 			 WHERE t."space_id" = ? AND t."deleted_at" IS NULL AND ${stillToComeOn("t")}
 			   AND t."kind" = 'expense' AND t."happened_on" >= ? AND t."happened_on" <= ?
+			   AND ${notOnABenefitCard('t."account_id"')}
 			   ${mine(spaceId, "t").clause}
 			 ORDER BY t."happened_on"`,
 			[spaceId, today, today, until, ...mine(spaceId, "t").params],

@@ -23,6 +23,7 @@ import {
 	type RecurrenceSpec,
 } from "@cofre/core";
 import { assertCan, seesOwnRowsOnly } from "../actor.ts";
+import { notOnABenefitCard } from "../benefitCards.ts";
 import type { SqlValue } from "../driver.ts";
 import { asNumber } from "../driver.ts";
 import { stillToComeOn } from "../happened.ts";
@@ -136,6 +137,7 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 			 WHERE t."space_id" = ? AND t."deleted_at" IS NULL AND t."kind" <> 'transfer'
 			   AND a."deleted_at" IS NULL
 			   AND t."happened_on" >= ? AND t."happened_on" <= ?
+			   AND ${notOnABenefitCard('t."account_id"')}
 			   ${notCounted.clause}
 			   ${options.withoutCards ? `AND a."kind" <> 'credit'` : ""}
 			   ${only.clause}
@@ -163,6 +165,8 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 		// household's bills into a projection of one person's own spending.
 		if (seesOwnRowsOnly(context.actor(), spaceId)) return [];
 
+		// Not a series charged to a benefit card, whose lunches are not the household's money
+		// leaving, for the same reason the records behind are read without them.
 		const rules = (
 			await context.driver.all(
 				`SELECT "id", "space_id", "description", "kind", "amount", "currency", "account_id",
@@ -170,7 +174,8 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 				        "day_of_month", "weekday", "month_of_year", "starts_on", "ends_on",
 				        "notes", "paused_at", "created_by", "created_at", "updated_at"
 				 FROM "recurrences"
-				 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "paused_at" IS NULL`,
+				 WHERE "space_id" = ? AND "deleted_at" IS NULL AND "paused_at" IS NULL
+				   AND ${notOnABenefitCard('"recurrences"."account_id"')}`,
 				[spaceId],
 			)
 		).map(toRecurrence);

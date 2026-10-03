@@ -110,6 +110,28 @@ test.describe("the overview", () => {
 		expect(seen).toBe(false);
 	});
 
+	// Part 1, B.6 of the request for 2.0.0: a lunch dated ahead on the meal card was counted
+	// as money still to leave the bank and listed among the bills.
+	test("leaves a lunch on the meal card out of what is still to leave", async ({ page }) => {
+		await openCofre(page);
+		const before = await figure(page, "Vence até o fim do mês").innerText();
+
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = page.getByRole("dialog");
+		await form.getByLabel("Pago com").selectOption({ label: "Vale refeição" });
+		await form.getByLabel("Valor", { exact: true }).fill("30,00");
+		await form.getByLabel("Descrição").fill("Almoço marcado");
+		await form.getByLabel("Dia").fill(dayField(2));
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(page.getByRole("dialog")).toHaveCount(0);
+
+		await go(page, "Painel");
+		await expect(figure(page, "Vence até o fim do mês")).toHaveText(before);
+		const due = page.locator("section").filter({ hasText: "Vence nos próximos dias" });
+		await expect(due.getByText("Almoço marcado")).toHaveCount(0);
+	});
+
 	test("says when a voucher renews, because the figure has to last until then", async ({
 		page,
 	}) => {

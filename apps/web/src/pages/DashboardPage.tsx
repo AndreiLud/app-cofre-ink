@@ -21,6 +21,7 @@ import {
 	canSpendThisMonth,
 	dateInMonth,
 	type InvoiceState,
+	isBenefit,
 	lastDayOfMonth,
 	moneyOnHand,
 	monthOf,
@@ -437,8 +438,14 @@ export function DashboardPage() {
 	/** Whether any of the spaces being added together is narrowed to this person's rows. */
 	const narrowedSomewhere = Object.values(narrowed.data ?? {}).some(Boolean);
 
-	/** Money still to arrive and still to leave before the month ends. */
-	const rest = consolidated ? (restEverywhere.data ?? []) : (restOfMonth.data ?? []);
+	/**
+	 * Money still to arrive and still to leave before the month ends, which is the household's
+	 * money only. A lunch on a benefit card dated next week is not money leaving the bank, and
+	 * counting it took what was left to spend down by what the allowance pays for.
+	 */
+	const rest = (consolidated ? (restEverywhere.data ?? []) : (restOfMonth.data ?? [])).filter(
+		(row) => !onABenefitCard(row.accountId),
+	);
 	const shownCards = consolidated ? (cardsEverywhere.data ?? []) : (cards.data ?? []);
 
 	// In the currency of the space, from the figure worked out at the rate of the day, and
@@ -544,6 +551,8 @@ export function DashboardPage() {
 	const dues = [
 		...(upcoming.data ?? [])
 			.filter((row) => !open.has(row.accountId) || accountKind(row.accountId) !== "credit")
+			// Nor a lunch on a benefit card, which the allowance pays and the bank does not.
+			.filter((row) => !onABenefitCard(row.accountId))
 			// A payment into a card, dated ahead, is the invoice line below saying when it is
 			// paid. Listed here as well, the same money went out twice in this block.
 			.filter(
@@ -585,6 +594,12 @@ export function DashboardPage() {
 		return shownAccounts.find((account) => account.id === id)?.kind ?? "";
 	}
 
+	/** By the core's own list of which kinds of account are a benefit and not money. */
+	function onABenefitCard(id: string): boolean {
+		const kind = shownAccounts.find((account) => account.id === id)?.kind;
+		return kind !== undefined && isBenefit(kind);
+	}
+
 	const nameOfLimit = (limit: {
 		scope: string;
 		priority?: string | null;
@@ -603,11 +618,13 @@ export function DashboardPage() {
 			limit: limit.progress.limit,
 			state: limit.progress.state,
 		})),
-		bills: (upcoming.data ?? []).map((row) => ({
-			description: row.description,
-			amount: Math.abs(row.amount),
-			happenedOn: row.happenedOn,
-		})),
+		bills: (upcoming.data ?? [])
+			.filter((row) => !onABenefitCard(row.accountId))
+			.map((row) => ({
+				description: row.description,
+				amount: Math.abs(row.amount),
+				happenedOn: row.happenedOn,
+			})),
 		savings: savings.data ?? null,
 		goals: (goals.data ?? []).map((goal) => ({
 			name: goal.name,
