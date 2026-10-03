@@ -140,6 +140,7 @@ export function DashboardPage() {
 
 	const mine = useWhatIMayDo(spaceId);
 	const mayUpdate = mine.mayCall("transactions.settle");
+	const maySettleAll = mine.mayCall("transactions.settleMany");
 	const mayDrop = mine.mayCall("transactions.remove");
 	const mayMakeAnAccount = mine.mayCall("accounts.create");
 	const ready = mine.ready;
@@ -886,7 +887,7 @@ export function DashboardPage() {
 					title={t("dashboard.late")}
 					action={
 						// From two upwards. With one record its own button is already the shortest path.
-						mayUpdate && lateRecords.length > 1 ? (
+						maySettleAll && lateRecords.length > 1 ? (
 							<Button size="small" variant="secondary" onClick={() => setAskingAll(true)}>
 								{t("dashboard.confirmAllLate", { count: lateRecords.length })}
 							</Button>

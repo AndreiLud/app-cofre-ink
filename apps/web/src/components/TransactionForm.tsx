@@ -32,6 +32,7 @@ import { lastWayUsed, rememberLandingUsed, rememberWayUsed } from "../lib/lastWa
 import { sayWhy } from "../lib/sayWhy.ts";
 import { accountOptions, waysToPay } from "../lib/wayLabel.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { useWhatIMayDo } from "../storage/roles.ts";
 import { MoveDialog, type MoveStart, movesInto, movesOutOf } from "./MoveDialog.tsx";
 
 export type TransactionFormProps = {
@@ -76,6 +77,7 @@ export function TransactionForm({
 	 * would change a month somebody has already read.
 	 */
 	const [reach, setReach] = useState<"this" | "onwards">("this");
+	const mayReachOnwards = useWhatIMayDo(spaceId).mayCall("transactions.updateFrom");
 	const [problem, setProblem] = useState<string | null>(null);
 	/** The move between accounts this spend turned out to be, with what was typed. */
 	const [moving, setMoving] = useState<MoveStart | null>(null);
@@ -503,7 +505,7 @@ export function TransactionForm({
 						    A subscription whose price went up, or a plan filed under the wrong
 						    category, used to mean opening eleven more rows by hand, and
 						    whoever opened one left ten disagreeing with it. */}
-							{editing.installmentNumber < editing.installmentCount ? (
+							{editing.installmentNumber < editing.installmentCount && mayReachOnwards ? (
 								<Segmented
 									label={t("transactions.reach")}
 									value={reach}

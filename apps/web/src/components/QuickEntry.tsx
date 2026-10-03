@@ -15,6 +15,7 @@ import { afterRecordsChange } from "../lib/afterRecords.ts";
 import { lastLandingUsed, lastWayUsed, rememberLandingUsed } from "../lib/lastWay.ts";
 import { sayWhy } from "../lib/sayWhy.ts";
 import { useCofre } from "../storage/CofreProvider.tsx";
+import { useWhatIMayDo } from "../storage/roles.ts";
 import { Value } from "./Value.tsx";
 
 export type QuickEntryProps = {
@@ -37,6 +38,7 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 	/** What was written last, kept so it can be taken back without hunting for it. */
 	const [written, setWritten] = useState<{ description: string; ids: string[] } | null>(null);
 	const [problem, setProblem] = useState<string | null>(null);
+	const mayUndo = useWhatIMayDo(spaceId).mayCall("transactions.removeMany");
 
 	const usable = useMemo(
 		() => accounts.filter((account) => account.archivedAt === null),
@@ -243,9 +245,11 @@ export function QuickEntry({ spaceId, accounts, today }: QuickEntryProps) {
 								})
 							: t("quick.written", { description: written.description })}
 					</span>
-					<Button size="small" variant="quiet" onClick={() => undo.mutate()}>
-						{t("quick.undo")}
-					</Button>
+					{mayUndo ? (
+						<Button size="small" variant="quiet" onClick={() => undo.mutate()}>
+							{t("quick.undo")}
+						</Button>
+					) : null}
 				</p>
 			) : null}
 		</form>

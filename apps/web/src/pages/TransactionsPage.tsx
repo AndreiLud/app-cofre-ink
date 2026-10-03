@@ -138,17 +138,31 @@ export function TransactionsPage() {
 	const mayWrite = mayCall("transactions.create");
 	const mayUpdate = mayCall("transactions.update");
 	/** Moving between invoices reads the whole invoice, which closes to whoever sees only theirs. */
-	const mayMoveInvoice = mayUpdate && !seesOwnRowsOnly;
+	const mayMoveInvoice = mayCall("invoices.move") && !seesOwnRowsOnly;
 	const mayDelete = mayCall("transactions.remove");
+	const mayDeletePlan = mayCall("transactions.removeGroup");
+	// What a selection offers, each by the call it makes.
+	const maySettleMany = mayCall("transactions.settleMany");
+	const mayChangeMany = mayCall("transactions.updateMany");
+	const mayDeleteMany = mayCall("transactions.removeMany");
 	const mayTeach = mayCall("rules.create");
 	const mayShare = mayCall("sharing.split");
 	const mayReconcile = mayCall("transactions.reconcile");
 	const mayRefund = mayCall("transactions.refund");
 	const mayMakeAMove = mayCall("transactions.toTransfer");
 	/** The checkboxes are worth drawing when at least one thing can be done with them. */
-	const mayPick = mayUpdate || mayDelete;
+	const mayPick = maySettleMany || mayChangeMany || mayDeleteMany;
 	/** And the menu of a row, when at least one item of it would be drawn. */
-	const mayActOnARow = mayUpdate || mayTeach || mayShare || mayReconcile || mayDelete;
+	const mayActOnARow =
+		mayUpdate ||
+		mayTeach ||
+		mayShare ||
+		mayReconcile ||
+		mayDelete ||
+		mayDeletePlan ||
+		mayMoveInvoice ||
+		mayRefund ||
+		mayMakeAMove;
 
 	const categories = useQuery({
 		queryKey: ["categories", spaceId],
@@ -602,16 +616,18 @@ export function TransactionsPage() {
 					<span className="font-medium text-ink">
 						{t("transactions.picked", { count: picked.length })}
 					</span>
-					{mayUpdate ? (
+					{maySettleMany ? (
+						<Button
+							size="small"
+							variant="secondary"
+							onClick={() => settlePicked.mutate()}
+							disabled={settlePicked.isPending}
+						>
+							{t("transactions.settle")}
+						</Button>
+					) : null}
+					{mayChangeMany ? (
 						<>
-							<Button
-								size="small"
-								variant="secondary"
-								onClick={() => settlePicked.mutate()}
-								disabled={settlePicked.isPending}
-							>
-								{t("transactions.settle")}
-							</Button>
 							<label className="flex items-center gap-2 text-quiet">
 								{t("transactions.moveTo")}
 								<select
@@ -666,7 +682,7 @@ export function TransactionsPage() {
 							</label>
 						</>
 					) : null}
-					{mayDelete ? (
+					{mayDeleteMany ? (
 						<Button
 							size="small"
 							variant="destructive"
@@ -861,7 +877,7 @@ export function TransactionsPage() {
 														{t("actions.delete")}
 													</MenuItem>
 												) : null}
-												{mayDelete && row.installmentGroup ? (
+												{mayDeletePlan && row.installmentGroup ? (
 													<MenuItem
 														onSelect={() =>
 															setDropping({

@@ -46,6 +46,8 @@ type ProbeContext = {
 	cardId: string;
 	cardAccountId: string;
 	categoryId: string;
+	/** A purchase in two parts on the card, for the calls that take a whole plan. */
+	groupId: string;
 };
 
 type Probe = {
@@ -166,15 +168,47 @@ const PROBES: Probe[] = [
 			session.transactions.update(where.transactionId, { description: "Outro" }),
 	},
 	{
+		// Editing several at once, from the selection on the records screen.
+		method: "transactions.updateMany",
+		permission: "transaction.update",
+		run: (session, where) =>
+			session.transactions.updateMany([where.transactionId], { description: "Outro" }),
+	},
+	{
+		// Editing a part of a plan and the parts after it.
+		method: "transactions.updateFrom",
+		permission: "transaction.update",
+		run: (session, where) =>
+			session.transactions.updateFrom(where.transactionId, { description: "Outro" }),
+	},
+	{
 		method: "transactions.remove",
 		permission: "transaction.delete",
 		run: (session, where) => session.transactions.remove(where.transactionId),
+	},
+	{
+		// Removing a selection, and undoing what the quick entry just wrote.
+		method: "transactions.removeMany",
+		permission: "transaction.delete",
+		run: (session, where) => session.transactions.removeMany([where.transactionId]),
+	},
+	{
+		// Removing every part of a plan at once.
+		method: "transactions.removeGroup",
+		permission: "transaction.delete",
+		run: (session, where) => session.transactions.removeGroup(where.groupId),
 	},
 	{
 		// The button on the overview that says a promise happened.
 		method: "transactions.settle",
 		permission: "transaction.update",
 		run: (session, where) => session.transactions.settle(where.transactionId, "2026-09-29"),
+	},
+	{
+		// "Aconteceram todos", on the overview and on a selection.
+		method: "transactions.settleMany",
+		permission: "transaction.update",
+		run: (session, where) => session.transactions.settleMany([where.transactionId], "2026-09-29"),
 	},
 	{
 		// And the one beside it that pays a card invoice, which writes a transfer.
@@ -188,6 +222,36 @@ const PROBES: Probe[] = [
 				happenedOn: "2026-09-29",
 				month: "2026-10",
 				description: "Pagamento",
+			}),
+	},
+	{
+		// Every invoice before one marked paid, which writes a payment for each.
+		method: "invoices.markPaidUntil",
+		permission: "transaction.create",
+		run: (session, where) =>
+			session.invoices.markPaidUntil({
+				accountId: where.cardAccountId,
+				month: "2026-11",
+				fromAccountId: where.accountId,
+				today: "2026-10-29",
+				description: "Pagamento {{month}}",
+			}),
+	},
+	{
+		// A purchase moved to the next invoice, from the invoice and from the records.
+		method: "invoices.move",
+		permission: "transaction.update",
+		run: (session, where) => session.invoices.move(where.transactionId, "later"),
+	},
+	{
+		// "Esta fatura fechou em", which moves the purchases of the days between.
+		method: "invoices.closedOn",
+		permission: "transaction.update",
+		run: (session, where) =>
+			session.invoices.closedOn({
+				accountId: where.cardAccountId,
+				month: "2026-10",
+				day: "2026-10-04",
 			}),
 	},
 	{
@@ -943,15 +1007,44 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 								name: "Mercado",
 								kind: "expense",
 							});
+							const plan = (session: Session) =>
+								session.transactions.create({
+									spaceId: space.id,
+									kind: "expense",
+									amount: 2000,
+									happenedOn: "2026-09-10",
+									description: "Fone em duas vezes",
+									accountId: cardAccount.id,
+									installments: 2,
+								});
+							const [part] = await plan(fixture.asAna);
+
+							// A logger sees only what they wrote, so the calls about a record are asked
+							// about records of their own. Asked about Ana's, the answer was "there is
+							// no such thing" before the permission was read, and a wrong refusal of a
+							// logger's own record could never show.
+							const asLogger = role === "logger";
+							const [own] = asLogger
+								? await fixture.asJoao.transactions.create({
+										spaceId: space.id,
+										kind: "expense",
+										amount: 1000,
+										happenedOn: "2026-09-10",
+										description: "Cafe do Joao",
+										accountId: account.id,
+									})
+								: [record];
+							const [ownPart] = asLogger ? await plan(fixture.asJoao) : [part];
 
 							const where = {
 								spaceId: space.id,
 								accountId: account.id,
-								transactionId: record?.id ?? "",
+								transactionId: own?.id ?? "",
 								guestId: fixture.carla.id,
 								cardId: card.id,
 								cardAccountId: cardAccount.id,
 								categoryId: category.id,
+								groupId: ownPart?.installmentGroup ?? "",
 							};
 
 							if (allowed) {
@@ -967,23 +1060,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 								(error: unknown) => error,
 							);
 							expect(refusal, "it went through when it should not have").not.toBeNull();
-
-							// A logger cannot see a record somebody else wrote, so a refusal
-							// over one of those arrives as "there is no such thing", which
-							// says even less than "you may not".
-							const invisibleToLogger =
-								role === "logger" &&
-								(probe.permission === "transaction.update" ||
-									probe.permission === "transaction.delete" ||
-									probe.permission === "transaction.reconcile");
-
-							if (invisibleToLogger) {
-								expect(refusal instanceof PermissionError || refusal instanceof NotFoundError).toBe(
-									true,
-								);
-							} else {
-								expect(refusal).toBeInstanceOf(PermissionError);
-							}
+							expect(refusal).toBeInstanceOf(PermissionError);
 						} finally {
 							await fixture.close();
 						}
@@ -1049,6 +1126,15 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 						name: "Mercado",
 						kind: "expense",
 					});
+					const [part] = await fixture.asAna.transactions.create({
+						spaceId: space.id,
+						kind: "expense",
+						amount: 2000,
+						happenedOn: "2026-09-10",
+						description: "Fone em duas vezes",
+						accountId: cardAccount.id,
+						installments: 2,
+					});
 					const where = {
 						spaceId: space.id,
 						accountId: account.id,
@@ -1057,6 +1143,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 						cardId: card.id,
 						cardAccountId: cardAccount.id,
 						categoryId: category.id,
+						groupId: part?.installmentGroup ?? "",
 					};
 
 					for (const probe of PROBES) {

@@ -99,8 +99,11 @@ export function InvoicePage() {
 	const [closedDay, setClosedDay] = useState("");
 
 	const mine = iMay;
+	// Each button by the call it makes.
 	const mayPay = mine.mayCall("invoices.pay");
-	const mayMove = mine.mayCall("transactions.update");
+	const mayPayOld = mine.mayCall("invoices.markPaidUntil");
+	const mayMove = mine.mayCall("invoices.move");
+	const mayReclose = mine.mayCall("invoices.closedOn");
 
 	// The archived ones too, because a card put away with its last invoice still owed is a
 	// card somebody still has to pay.
@@ -672,12 +675,12 @@ export function InvoicePage() {
 				{/* The two do not depend on each other. The earlier invoices used to be offered only
 				    beside a payment of this one, so an open invoice with nothing on it, which is
 				    what somebody who has just updated sees first, hid every invoice they owe. */}
-				{mayPay && ((state && amountToPay(state) > 0) || owingBefore.length > 0) ? (
+				{(mayPay && state && amountToPay(state) > 0) || (mayPayOld && owingBefore.length > 0) ? (
 					<div className="flex flex-wrap gap-2 pt-2">
-						{state && amountToPay(state) > 0 ? (
+						{mayPay && state && amountToPay(state) > 0 ? (
 							<Button onClick={() => openPayment(state)}>{t("invoice.pay")}</Button>
 						) : null}
-						{owingBefore.length > 0 ? (
+						{mayPayOld && owingBefore.length > 0 ? (
 							<Button variant="secondary" onClick={() => setClearingOld(true)}>
 								{t("invoice.payOld", { count: owingBefore.length })}
 							</Button>
@@ -768,7 +771,7 @@ export function InvoicePage() {
 			{/* The bank closes a day either side of the day this application expected, because
 			    of a weekend or a holiday, and everything charged in between is on the wrong
 			    invoice. Saying which day it really closed moves all of them at once. */}
-			{mayMove && cycle ? (
+			{mayReclose && cycle ? (
 				<Disclosure summary={t("invoice.reallyClosedOn")}>
 					<p className="max-w-[62ch] text-quiet text-sm">{t("invoice.reallyClosedOnHint")}</p>
 					<div className="mt-3 flex flex-wrap items-end gap-3">
