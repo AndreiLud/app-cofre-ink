@@ -22,6 +22,7 @@ import { BACKUP_FORMAT, BACKUP_VERSION } from "../repositories/backup.ts";
 import { createUser } from "../repositories/users.ts";
 import type { Session } from "../session.ts";
 import { runAdviceConformance } from "./advice.ts";
+import { runArrangementConformance } from "./arrangements.ts";
 import { runCardConformance } from "./cards.ts";
 import { runCategoryConformance } from "./categories.ts";
 import { runErasureConformance } from "./erasure.ts";
@@ -252,6 +253,55 @@ const PROBES: Probe[] = [
 				accountId: where.cardAccountId,
 				month: "2026-10",
 				day: "2026-10-04",
+			}),
+	},
+	{
+		// Paying an invoice with another card. Here with the same card, which a member who may
+		// write is refused for that reason and not for want of permission.
+		method: "invoices.payWithCard",
+		permission: "transaction.create",
+		run: (session, where) =>
+			session.invoices.payWithCard({
+				accountId: where.cardAccountId,
+				month: "2026-10",
+				cardAccountId: where.cardAccountId,
+				amount: 1000,
+				charged: 1000,
+				eachPart: false,
+				parts: 1,
+				happenedOn: "2026-10-05",
+				today: "2026-10-05",
+				description: "Pagamento",
+				costDescription: "Juros",
+			}),
+	},
+	{
+		// Splitting the invoice that holds the first part of the plan in two.
+		method: "invoices.split",
+		permission: "transaction.create",
+		run: (session, where) =>
+			session.invoices.split({
+				accountId: where.cardAccountId,
+				month: "2026-10",
+				entry: 0,
+				parts: 2,
+				amount: 2000,
+				eachPart: false,
+				today: "2026-10-05",
+				description: "Parcelamento",
+				costDescription: "Juros",
+				entryDescription: "Entrada",
+				taxDescription: "IOF",
+			}),
+	},
+	{
+		method: "invoices.undoPlan",
+		permission: "transaction.delete",
+		run: (session, where) =>
+			session.invoices.undoPlan({
+				accountId: where.cardAccountId,
+				month: "2026-10",
+				today: "2026-10-05",
 			}),
 	},
 	{
@@ -1052,6 +1102,7 @@ export function runConformanceSuite(adapter: AdapterUnderTest): void {
 		runHappenedConformance(adapter);
 		runCardConformance(adapter);
 		runInvoiceConformance(adapter);
+		runArrangementConformance(adapter);
 		runCategoryConformance(adapter);
 		runRuleConformance(adapter);
 		runRecurrenceRepairConformance(adapter);

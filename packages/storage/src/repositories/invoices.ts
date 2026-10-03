@@ -11,6 +11,7 @@
 // of the subtraction.
 
 import {
+	addMonths,
 	addMonthsToMonth,
 	amountToPay,
 	type CalendarDate,
@@ -18,23 +19,33 @@ import {
 	type CardCycle,
 	compareCalendarDates,
 	daysBetween,
+	InvoiceSplitError,
 	type InvoiceState,
 	invoiceMonthOf,
+	invoiceSplit,
 	invoiceStateOf,
 	invoicesInTurn,
 	limitLeftOf,
+	MOST_PARTS,
 	parseCalendarDate,
 	parseCalendarMonth,
 	todayIn,
+	uuidV7,
 } from "@cofre/core";
+import { transactions } from "@cofre/db";
 import { assertCan, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
 import { happenedBy, stillToComeOn } from "../happened.ts";
 import type { Account, Transaction } from "../models.ts";
+import { softDeleteRow, updateRow } from "../writer.ts";
 import type { AccountsRepository } from "./accounts.ts";
 import type { RepositoryContext } from "./context.ts";
-import type { TransactionsRepository } from "./transactions.ts";
+import {
+	type ArrangementRow,
+	type TransactionsRepository,
+	writeArrangement,
+} from "./transactions.ts";
 
 /** One card, and where its invoices stand today. */
 export type CardStanding = {
@@ -87,8 +98,11 @@ function nothingOn(today: CalendarDate): InvoiceState {
 		dueOn: today,
 		charged: 0,
 		paid: 0,
+		rolled: 0,
+		byCard: 0,
 		scheduled: 0,
 		scheduledOn: null,
+		scheduledBy: null,
 		opening: 0,
 		carriedIn: 0,
 		carriedOut: 0,
@@ -165,8 +179,13 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 	type InvoiceSum = {
 		charged: number;
 		paid: number;
+		/** Taken on by the card itself, splitting the invoice into parts. */
+		rolled: number;
+		/** Paid by another card. */
+		byCard: number;
 		scheduled: number;
 		scheduledOn: CalendarDate | null;
+		scheduledBy: "parts" | "card" | null;
 		inOtherCurrencies: number;
 		withoutRate: number;
 	};
@@ -201,6 +220,20 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 	 * card owed 500 more. And a transfer that arrives from another card is not a payment of
 	 * the invoice its row names, because that invoice is the one of the card it left, so it
 	 * is a payment with no invoice named, like one written by hand.
+	 *
+	 * Since 2.0.0 a transfer out of a card may name the invoice of the card it leaves as well,
+	 * in `origin_invoice_month`, which only paying with another card and splitting an invoice
+	 * write. So the sums are two reads, one per side, by the rule `touchesOn` in the core
+	 * states and the conformance suite holds this to:
+	 *
+	 * 1. what the card charged: a purchase or a refund on its invoice, and a transfer out of it
+	 *    as a purchase on the invoice of its origin, or on its one invoice when it names none.
+	 *    A transfer out counts from its day, like a payment, so a split agreed for a day to
+	 *    come moves nothing from one invoice to the next before that day;
+	 * 2. what paid it: a transfer into it naming the invoice, from an account of money (paid),
+	 *    from the card itself (rolled, a split) or from another card that named the invoice of
+	 *    its own side (by card). One from another card that names nothing of its own side is
+	 *    from before 2.0.0, and pays with no invoice named.
 	 */
 	async function sums(
 		accountId: string,
@@ -208,7 +241,6 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 		today: CalendarDate,
 		asItStood: boolean,
 	): Promise<Map<CalendarMonth, InvoiceSum>> {
-		const payment = `t."counter_account_id" = ? AND COALESCE(src."kind", '') <> 'credit'`;
 		// As it stood on a day that has gone, only what existed by then: a record whose day had
 		// come, and every part of a purchase in parts whose first part had, because the bank
 		// puts the whole plan on the card the day of the purchase. A payment dated later had
@@ -219,55 +251,99 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 			           WHERE p."installment_group" = t."installment_group" AND p."deleted_at" IS NULL)
 			     END) <= ?`
 			: "";
-		const rows = await context.driver.all(
-			`SELECT t."invoice_month" AS month,
-			   COALESCE(SUM(CASE WHEN t."account_id" = ?
-			     THEN CASE WHEN t."kind" = 'transfer' THEN t."amount_in_base" ELSE -t."amount_in_base" END
-			     ELSE 0 END), 0) AS charged,
-			   COALESCE(SUM(CASE WHEN ${payment} AND ${happenedBy("t")}
-			     THEN t."amount_in_base" ELSE 0 END), 0) AS paid,
-			   COALESCE(SUM(CASE WHEN ${payment} AND ${stillToComeOn("t")}
-			     THEN t."amount_in_base" ELSE 0 END), 0) AS scheduled,
-			   MAX(CASE WHEN ${payment} AND ${stillToComeOn("t")}
-			     THEN t."happened_on" ELSE NULL END) AS scheduled_on,
-			   COALESCE(SUM(CASE WHEN t."currency" <> ? THEN 1 ELSE 0 END), 0) AS in_other_currencies,
+		const stoodParams = asItStood ? [today] : [];
+		const currencies = `COALESCE(SUM(CASE WHEN t."currency" <> ? THEN 1 ELSE 0 END), 0) AS in_other_currencies,
 			   COALESCE(SUM(CASE WHEN t."currency" <> ? AND t."fx_rate" IS NULL THEN 1 ELSE 0 END), 0)
-			     AS without_rate
+			     AS without_rate`;
+
+		const charges = await context.driver.all(
+			`SELECT CASE WHEN t."kind" = 'transfer'
+			       THEN COALESCE(t."origin_invoice_month", t."invoice_month")
+			       ELSE t."invoice_month" END AS month,
+			   COALESCE(SUM(CASE WHEN t."kind" = 'transfer' THEN t."amount_in_base"
+			     ELSE -t."amount_in_base" END), 0) AS charged,
+			   ${currencies}
+			 FROM "transactions" t
+			 WHERE t."deleted_at" IS NULL AND t."account_id" = ?
+			   AND (t."kind" <> 'transfer' OR ${happenedBy("t")})
+			   ${stood}
+			 GROUP BY CASE WHEN t."kind" = 'transfer'
+			       THEN COALESCE(t."origin_invoice_month", t."invoice_month")
+			       ELSE t."invoice_month" END`,
+			[baseCurrency, baseCurrency, accountId, today, ...stoodParams],
+		);
+
+		const fromItself = `t."account_id" = ?`;
+		const fromAnotherCard = `t."account_id" <> ? AND COALESCE(src."kind", '') = 'credit'`;
+		const fromMoney = `COALESCE(src."kind", '') <> 'credit'`;
+		const payments = await context.driver.all(
+			`SELECT t."invoice_month" AS month,
+			   COALESCE(SUM(CASE WHEN ${fromMoney} AND ${happenedBy("t")}
+			     THEN t."amount_in_base" ELSE 0 END), 0) AS paid,
+			   COALESCE(SUM(CASE WHEN ${fromItself} AND ${happenedBy("t")}
+			     THEN t."amount_in_base" ELSE 0 END), 0) AS rolled,
+			   COALESCE(SUM(CASE WHEN ${fromAnotherCard} AND ${happenedBy("t")}
+			     THEN t."amount_in_base" ELSE 0 END), 0) AS by_card,
+			   COALESCE(SUM(CASE WHEN ${stillToComeOn("t")}
+			     THEN t."amount_in_base" ELSE 0 END), 0) AS scheduled,
+			   MAX(CASE WHEN ${stillToComeOn("t")} THEN t."happened_on" ELSE NULL END) AS scheduled_on,
+			   MAX(CASE WHEN ${stillToComeOn("t")} AND ${fromItself} THEN 'parts'
+			     WHEN ${stillToComeOn("t")} AND ${fromAnotherCard} THEN 'card' ELSE NULL END)
+			     AS scheduled_by,
+			   ${currencies}
 			 FROM "transactions" t
 			 LEFT JOIN "accounts" src ON src."id" = t."account_id"
-			 WHERE t."deleted_at" IS NULL AND t."invoice_month" IS NOT NULL
-			   AND (t."account_id" = ? OR ${payment})
+			 WHERE t."deleted_at" IS NULL AND t."kind" = 'transfer' AND t."counter_account_id" = ?
+			   AND t."invoice_month" IS NOT NULL
+			   AND (${fromMoney} OR t."origin_invoice_month" IS NOT NULL)
 			   ${stood}
 			 GROUP BY t."invoice_month"`,
 			[
-				accountId,
-				accountId,
 				today,
 				accountId,
 				today,
 				accountId,
 				today,
+				today,
+				today,
+				today,
+				accountId,
+				today,
+				accountId,
 				baseCurrency,
 				baseCurrency,
 				accountId,
-				accountId,
-				...(asItStood ? [today] : []),
+				...stoodParams,
 			],
 		);
 
 		const found = new Map<CalendarMonth, InvoiceSum>();
-		for (const row of rows) {
-			found.set(String(row.month), {
-				charged: asNumber(row.charged),
-				paid: asNumber(row.paid),
-				scheduled: asNumber(row.scheduled),
-				scheduledOn:
-					row.scheduled_on === null || row.scheduled_on === undefined
-						? null
-						: String(row.scheduled_on),
-				inOtherCurrencies: asNumber(row.in_other_currencies),
-				withoutRate: asNumber(row.without_rate),
-			});
+		const sumOf = (month: CalendarMonth) => {
+			const already = found.get(month) ?? emptySum();
+			found.set(month, already);
+			return already;
+		};
+		for (const row of charges) {
+			if (row.month === null || row.month === undefined) continue;
+			const sum = sumOf(String(row.month));
+			sum.charged += asNumber(row.charged);
+			sum.inOtherCurrencies += asNumber(row.in_other_currencies);
+			sum.withoutRate += asNumber(row.without_rate);
+		}
+		for (const row of payments) {
+			const sum = sumOf(String(row.month));
+			sum.paid += asNumber(row.paid);
+			sum.rolled += asNumber(row.rolled);
+			sum.byCard += asNumber(row.by_card);
+			sum.scheduled += asNumber(row.scheduled);
+			sum.scheduledOn =
+				row.scheduled_on === null || row.scheduled_on === undefined
+					? sum.scheduledOn
+					: String(row.scheduled_on);
+			sum.scheduledBy =
+				row.scheduled_by === "parts" || row.scheduled_by === "card" ? row.scheduled_by : null;
+			sum.inOtherCurrencies += asNumber(row.in_other_currencies);
+			sum.withoutRate += asNumber(row.without_rate);
 		}
 		return found;
 	}
@@ -276,19 +352,23 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 	 * A transfer into the card that names no invoice, oldest first, once its day has come.
 	 * Until then it is money still in the bank, and it pays nothing down.
 	 *
-	 * A transfer from another card names an invoice, and it is the invoice of the card it
-	 * left, so for this card it names none.
+	 * A transfer from another card written before 2.0.0 names an invoice, and it is the invoice
+	 * of the card it left, so for this card it names none. One that names the invoice of its
+	 * own side too, which only paying with another card writes, names this card's invoice in
+	 * the other column, and is read with the sums.
 	 */
 	async function unmarkedPayments(accountId: string, today: CalendarDate): Promise<Transaction[]> {
 		const rows = await context.driver.all(
 			// In the currency of the space, like the sums it pays down.
 			`SELECT t."id", t."amount_in_base" AS "amount", t."happened_on" FROM "transactions" t
 			 LEFT JOIN "accounts" src ON src."id" = t."account_id"
-			 WHERE t."counter_account_id" = ? AND t."deleted_at" IS NULL AND t."kind" = 'transfer'
-			   AND (t."invoice_month" IS NULL OR COALESCE(src."kind", '') = 'credit')
+			 WHERE t."counter_account_id" = ? AND t."account_id" <> ? AND t."deleted_at" IS NULL
+			   AND t."kind" = 'transfer'
+			   AND (t."invoice_month" IS NULL
+			     OR (COALESCE(src."kind", '') = 'credit' AND t."origin_invoice_month" IS NULL))
 			   AND ${happenedBy("t")}
 			 ORDER BY t."happened_on", t."created_at"`,
-			[accountId, today],
+			[accountId, accountId, today],
 		);
 		return rows as unknown as Transaction[];
 	}
@@ -366,7 +446,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 			const sum = totals.get(month) ?? emptySum();
 			let paid = sum.paid;
 			if (loose > 0) {
-				const owed = Math.max(0, sum.charged - paid);
+				const owed = Math.max(0, sum.charged - paid - sum.rolled - sum.byCard);
 				const used = Math.min(loose, owed);
 				paid += used;
 				loose -= used;
@@ -388,8 +468,11 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 					cycle,
 					charged: sum.charged,
 					paid: paidOf.get(month) ?? sum.paid,
+					rolled: sum.rolled,
+					byCard: sum.byCard,
 					scheduled: sum.scheduled,
 					scheduledOn: sum.scheduledOn,
+					scheduledBy: sum.scheduledBy,
 					opening: opening?.month === month ? opening.amount : 0,
 					today,
 					inOtherCurrencies: sum.inOtherCurrencies,
@@ -399,12 +482,93 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 		);
 	}
 
+	/**
+	 * An invoice that may be paid with another card or split, and where it stands.
+	 *
+	 * Refused when it holds a purchase with no rate, which has no honest total to arrange;
+	 * when it was arranged already; and when a payment of it is waiting for a day still to
+	 * come, which the arrangement would pay a second time. One such payment may be named to
+	 * be taken as the entry of a split instead, and only one.
+	 */
+	async function arrangeable(
+		accountId: string,
+		month: CalendarMonth,
+		today: CalendarDate,
+		waitingId: string | null = null,
+	): Promise<{ account: Account; cycle: CardCycle; state: InvoiceState }> {
+		parseCalendarDate(today);
+		const { account, cycle } = await cardAccount(accountId);
+		assertCan(context.actor(), account.spaceId, "transaction.create");
+		refuseIfNarrowed(account.spaceId);
+		const state =
+			(await statesOf(accountId, today)).find((one) => one.month === month) ??
+			invoiceStateOf({ month, cycle, charged: 0, paid: 0, today });
+		if (state.withoutRate > 0) {
+			throw new RuleError(
+				"invoiceWithoutRate",
+				"a purchase on this invoice has no rate, so it has no total to arrange",
+			);
+		}
+		if (state.rolled > 0 || state.byCard > 0 || state.scheduledBy !== null) {
+			throw new RuleError(
+				"invoiceAlreadyArranged",
+				"this invoice was already split or paid with another card",
+			);
+		}
+		if (state.scheduled > 0) {
+			const waiting = waitingId ? await needs.transactions.get(waitingId) : null;
+			const isThePayment =
+				waiting !== null &&
+				waiting.kind === "transfer" &&
+				waiting.counterAccountId === accountId &&
+				waiting.invoiceMonth === month &&
+				waiting.amountInBase === state.scheduled;
+			if (!isThePayment) {
+				throw new RuleError(
+					"invoiceHasAPaymentAhead",
+					"a payment of this invoice is waiting for its day, and would pay it a second time",
+				);
+			}
+		}
+		if (state.left <= 0) {
+			throw new RuleError("nothingOwed", "nothing is owed on this invoice");
+		}
+		return { account, cycle, state };
+	}
+
+	/** Every account of an arrangement counts in the currency of the space. */
+	async function sameCurrency(spaceId: string, accounts: readonly Account[]): Promise<void> {
+		const base = await baseCurrencyOf(spaceId);
+		if (accounts.some((one) => one.currency !== base)) {
+			throw new RuleError(
+				"cardInAnotherCurrency",
+				"an invoice is arranged between cards that count in the currency of the space",
+			);
+		}
+	}
+
+	/** The arithmetic of the core, with its refusals in the words of a rule. */
+	function splitOf(input: Parameters<typeof invoiceSplit>[0]): ReturnType<typeof invoiceSplit> {
+		if (input.parts > MOST_PARTS) {
+			throw new RuleError("tooManyInstallments", `a plan has at most ${MOST_PARTS} parts`);
+		}
+		try {
+			return invoiceSplit(input);
+		} catch (error) {
+			if (error instanceof InvoiceSplitError) throw new RuleError("splitDoesNotAdd", error.message);
+			throw error;
+		}
+	}
+
 	function emptySum(): InvoiceSum {
 		return {
 			charged: 0,
 			paid: 0,
+			rolled: 0,
+			byCard: 0,
 			scheduled: 0,
 			scheduledOn: null,
+			scheduledBy: null,
 			inOtherCurrencies: 0,
 			withoutRate: 0,
 		};
@@ -573,6 +737,329 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 			});
 			if (!written) throw new NotFoundError("transaction", input.month);
 			return written;
+		},
+
+		/**
+		 * Paying an invoice with another card, in parts. Part 2, C.3 of 2.0.0.
+		 *
+		 * The invoice of A is paid by B: each part is a transfer from B to A, dated the day of the
+		 * payment, that pays A's invoice and is a purchase on one invoice of B, the first one
+		 * open that day and each next one after it. What B charges beyond what A owed is a cost,
+		 * a purchase on B on the same invoice as its part. No account of money moves. Everything
+		 * or nothing, in one transaction.
+		 */
+		async payWithCard(input: {
+			accountId: string;
+			month: CalendarMonth;
+			cardAccountId: string;
+			/** What A receives. */
+			amount: number;
+			/** What B charges, each part or all of them. */
+			charged: number;
+			eachPart: boolean;
+			parts: number;
+			happenedOn: CalendarDate;
+			today: CalendarDate;
+			categoryId?: string | null;
+			/** What each part is called, and its cost, the number of the part added after it. */
+			description: string;
+			costDescription: string;
+		}): Promise<{ parts: number; cost: number }> {
+			parseCalendarMonth(input.month);
+			parseCalendarDate(input.happenedOn);
+			const { account, state } = await arrangeable(input.accountId, input.month, input.today);
+			if (input.cardAccountId === input.accountId) {
+				throw new RuleError("sameCard", "an invoice is not paid with the card it belongs to");
+			}
+			const { account: payer, cycle: payerCycle } = await cardAccount(input.cardAccountId);
+			if (payer.spaceId !== account.spaceId) {
+				throw new RuleError(
+					"cardOfAnotherSpace",
+					"an invoice is paid with a card of the same space",
+				);
+			}
+			await sameCurrency(account.spaceId, [account, payer]);
+			if (payer.archivedAt !== null) {
+				throw new RuleError(
+					"accountIsArchived",
+					"this account is archived, bring it back before writing to it",
+				);
+			}
+			if (input.amount > amountToPay(state)) {
+				throw new RuleError("moreThanIsOwed", "this pays more than is left on the invoice");
+			}
+			const split = splitOf({
+				owed: input.amount,
+				entry: 0,
+				parts: input.parts,
+				amount: input.charged,
+				eachPart: input.eachPart,
+			});
+
+			const first = invoiceMonthOf(input.happenedOn, payerCycle);
+			const numbered = (text: string, index: number) =>
+				input.parts > 1 ? `${text} ${index + 1}/${input.parts}` : text;
+			const rows: ArrangementRow[] = [];
+			split.principal.forEach((principal, index) => {
+				const month = addMonthsToMonth(first, index);
+				rows.push({
+					kind: "transfer",
+					amount: principal,
+					happenedOn: input.happenedOn,
+					description: numbered(input.description, index),
+					accountId: payer.id,
+					counterAccountId: account.id,
+					invoiceMonth: input.month,
+					originInvoiceMonth: month,
+					installmentNumber: index + 1,
+					installmentCount: input.parts,
+				});
+				const cost = split.cost[index] ?? 0;
+				if (cost > 0) {
+					rows.push({
+						kind: "expense",
+						amount: cost,
+						happenedOn: addMonths(input.happenedOn, index),
+						description: numbered(input.costDescription, index),
+						accountId: payer.id,
+						invoiceMonth: month,
+						installmentNumber: index + 1,
+						installmentCount: input.parts,
+						categoryId: input.categoryId ?? null,
+					});
+				}
+			});
+			await context.driver.transaction(async (tx) => {
+				await writeArrangement(
+					context,
+					{ ...context.write(), driver: tx },
+					account.spaceId,
+					uuidV7(),
+					rows,
+				);
+			});
+			return { parts: input.parts, cost: split.totalCost };
+		},
+
+		/**
+		 * Splitting an invoice into parts the card itself charges. Part 2, C.4 of 2.0.0.
+		 *
+		 * An entry, when there is one, is an ordinary payment of the invoice out of an account
+		 * of money. The rest is taken on by the card: each part is a transfer from the card to
+		 * itself, dated the day of the agreement, that pays the invoice and is a purchase on one
+		 * invoice after it, the first one open that day and each next one. Its balance does not
+		 * move by it. What the bank charges beyond what was owed is a cost on the same invoice
+		 * as its part, and a tax charged apart, when there is one, a purchase on the first.
+		 */
+		async split(input: {
+			accountId: string;
+			month: CalendarMonth;
+			entry: number;
+			entryFromAccountId?: string | null;
+			/** A payment of this invoice dated after today, taken as the entry instead. */
+			useAsEntry?: string | null;
+			parts: number;
+			amount: number;
+			eachPart: boolean;
+			/** The invoice of the first part. The one open on the day of the agreement, by default. */
+			firstMonth?: CalendarMonth | null;
+			/** The day of the agreement. The day the invoice falls due, by default. */
+			agreedOn?: CalendarDate | null;
+			today: CalendarDate;
+			categoryId?: string | null;
+			/** A tax charged apart, as the IOF is, on the first invoice. */
+			tax?: number;
+			description: string;
+			costDescription: string;
+			entryDescription: string;
+			taxDescription: string;
+		}): Promise<{ parts: number; cost: number }> {
+			parseCalendarMonth(input.month);
+			const { account, cycle, state } = await arrangeable(
+				input.accountId,
+				input.month,
+				input.today,
+				input.useAsEntry ?? null,
+			);
+			await sameCurrency(account.spaceId, [account]);
+			const agreedOn = input.agreedOn ?? state.dueOn;
+			parseCalendarDate(agreedOn);
+			const first = input.firstMonth ?? invoiceMonthOf(agreedOn, cycle);
+			parseCalendarMonth(first);
+			if (first <= input.month) {
+				throw new RuleError(
+					"partsAfterTheInvoice",
+					"the parts of an invoice land on the invoices after it",
+				);
+			}
+
+			// The entry: a payment of this invoice still waiting for its day, taken as it is, or
+			// money typed now out of an account of money.
+			let entry = input.entry;
+			let waiting: Transaction | null = null;
+			if (input.useAsEntry) {
+				waiting = await needs.transactions.get(input.useAsEntry);
+				entry = waiting.amountInBase;
+			} else if (entry > 0) {
+				if (!input.entryFromAccountId) {
+					throw new RuleError("entryNeedsAnAccount", "an entry is paid out of an account");
+				}
+				const from = await needs.accounts.get(input.entryFromAccountId);
+				if (
+					!["checking", "savings", "cash"].includes(from.kind) ||
+					from.spaceId !== account.spaceId
+				) {
+					throw new RuleError(
+						"entryFromMoney",
+						"an entry is paid out of a current account, savings or cash of the same space",
+					);
+				}
+			}
+			const tax = input.tax ?? 0;
+			if (!Number.isSafeInteger(tax) || tax < 0) {
+				throw new RuleError("amountIsPositiveInteger", "a tax is a whole number of minor units");
+			}
+			const split = splitOf({
+				owed: state.left,
+				entry,
+				parts: input.parts,
+				amount: input.amount,
+				eachPart: input.eachPart,
+			});
+
+			const numbered = (text: string, index: number) =>
+				input.parts > 1 ? `${text} ${index + 1}/${input.parts}` : text;
+			const rows: ArrangementRow[] = [];
+			if (entry > 0 && !waiting && input.entryFromAccountId) {
+				rows.push({
+					kind: "transfer",
+					amount: entry,
+					happenedOn: agreedOn,
+					description: input.entryDescription,
+					accountId: input.entryFromAccountId,
+					counterAccountId: account.id,
+					invoiceMonth: input.month,
+					installmentNumber: null,
+					installmentCount: null,
+				});
+			}
+			split.principal.forEach((principal, index) => {
+				const month = addMonthsToMonth(first, index);
+				rows.push({
+					kind: "transfer",
+					amount: principal,
+					happenedOn: agreedOn,
+					description: numbered(input.description, index),
+					accountId: account.id,
+					counterAccountId: account.id,
+					invoiceMonth: input.month,
+					originInvoiceMonth: month,
+					installmentNumber: index + 1,
+					installmentCount: input.parts,
+				});
+				const cost = split.cost[index] ?? 0;
+				if (cost > 0) {
+					rows.push({
+						kind: "expense",
+						amount: cost,
+						happenedOn: addMonths(agreedOn, index),
+						description: numbered(input.costDescription, index),
+						accountId: account.id,
+						invoiceMonth: month,
+						installmentNumber: index + 1,
+						installmentCount: input.parts,
+						categoryId: input.categoryId ?? null,
+					});
+				}
+			});
+			if (tax > 0) {
+				rows.push({
+					kind: "expense",
+					amount: tax,
+					happenedOn: agreedOn,
+					description: input.taxDescription,
+					accountId: account.id,
+					invoiceMonth: first,
+					installmentNumber: null,
+					installmentCount: null,
+					categoryId: input.categoryId ?? null,
+				});
+			}
+
+			const group = uuidV7();
+			await context.driver.transaction(async (tx) => {
+				const write = { ...context.write(), driver: tx };
+				await writeArrangement(context, write, account.spaceId, group, rows);
+				// The payment taken as the entry joins the arrangement, and loses the mark of the
+				// month screen, which would otherwise write it again as its own.
+				if (waiting) {
+					await updateRow(write, {
+						table: transactions,
+						spaceId: account.spaceId,
+						id: waiting.id,
+						values: { installment_group: group, external_id: null },
+					});
+				}
+			});
+			return { parts: input.parts, cost: split.totalCost + tax };
+		},
+
+		/**
+		 * Taking back a split, or a payment with another card: every row of it, or none.
+		 *
+		 * Refused once a row of it was checked against the bank, or once an invoice of its parts
+		 * was paid, because those are facts the arrangement no longer owns.
+		 */
+		async undoPlan(input: {
+			accountId: string;
+			month: CalendarMonth;
+			today: CalendarDate;
+		}): Promise<number> {
+			parseCalendarMonth(input.month);
+			const { account } = await cardAccount(input.accountId);
+			assertCan(context.actor(), account.spaceId, "transaction.delete");
+			refuseIfNarrowed(account.spaceId);
+
+			const groups = await context.driver.all(
+				`SELECT DISTINCT "installment_group" AS "group" FROM "transactions"
+				 WHERE "counter_account_id" = ? AND "invoice_month" = ? AND "deleted_at" IS NULL
+				   AND "kind" = 'transfer' AND "origin_invoice_month" IS NOT NULL
+				   AND "installment_group" IS NOT NULL`,
+				[input.accountId, input.month],
+			);
+			const group = groups[0]?.group;
+			if (group === undefined || group === null) {
+				throw new RuleError("noPlan", "this invoice was not split nor paid with another card");
+			}
+			const rows = await needs.transactions.list({
+				spaceId: account.spaceId,
+				installmentGroup: String(group),
+			});
+			if (rows.some((row) => row.reconciledAt !== null)) {
+				throw new RuleError(
+					"planHasReconciledRow",
+					"a row of this arrangement was checked against the bank",
+				);
+			}
+			// The invoices the parts landed on, on the card that charges them.
+			for (const row of rows) {
+				if (row.kind !== "transfer" || row.originInvoiceMonth === null) continue;
+				const states = await statesOf(row.accountId, input.today);
+				const landed = states.find((state) => state.month === row.originInvoiceMonth);
+				if (landed && landed.paid + landed.rolled + landed.byCard > 0) {
+					throw new RuleError(
+						"planInvoicePaid",
+						"an invoice of the parts was already paid, so the arrangement stays",
+					);
+				}
+			}
+			await context.driver.transaction(async (tx) => {
+				const write = { ...context.write(), driver: tx };
+				for (const row of rows) {
+					await softDeleteRow(write, { table: transactions, spaceId: row.spaceId, id: row.id });
+				}
+			});
+			return rows.length;
 		},
 
 		/**

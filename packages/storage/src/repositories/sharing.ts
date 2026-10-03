@@ -69,7 +69,7 @@ const SETTLEMENT_SELECT = `SELECT "id", "space_id", "from_user_id", "to_user_id"
 const TRANSACTION_SELECT = `SELECT "id", "space_id", "kind", "status", "amount", "currency",
 	"fx_rate", "amount_in_base", "happened_on", "description", "account_id",
 	"counter_account_id", "notes", "reconciled_at", "installment_group", "installment_number",
-	"installment_count", "invoice_month", "invoice_month_by_hand", "category_id", "priority",
+	"installment_count", "invoice_month", "invoice_month_by_hand", "origin_invoice_month", "category_id", "priority",
 	"recurrence_id", "paid_by",
 	"created_by", "created_at", "updated_at"
 	FROM "transactions"`;
@@ -130,6 +130,21 @@ export function createSharingRepository(context: RepositoryContext) {
 					"onlyExpensesAreSplit",
 					"only an expense is divided between people, because only an expense is a cost",
 				);
+			}
+			// The cost of a split invoice, or of paying one with another card, changes only with
+			// the arrangement it belongs to.
+			if (found.installmentGroup !== null) {
+				const arranged = await context.driver.all(
+					`SELECT 1 FROM "transactions" WHERE "installment_group" = ? AND "space_id" = ?
+					 AND "origin_invoice_month" IS NOT NULL AND "deleted_at" IS NULL`,
+					[found.installmentGroup, found.spaceId],
+				);
+				if (arranged.length > 0) {
+					throw new RuleError(
+						"partOfAnArrangement",
+						"this row is part of a split invoice or of a payment with another card, undo that to change it",
+					);
+				}
 			}
 
 			const members = await membersOf(found.spaceId);

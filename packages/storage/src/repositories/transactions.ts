@@ -37,15 +37,22 @@ import {
 	toTransaction,
 } from "../models.ts";
 import { marks } from "../sql.ts";
-import { insertRow, softDeleteRow, updateRow } from "../writer.ts";
+import { insertRow, softDeleteRow, updateRow, type WriteContext } from "../writer.ts";
 import type { RepositoryContext } from "./context.ts";
 
+// With the invoice an arrangement of the row's group settled, when it belongs to one: a split
+// of an invoice, or its payment with another card. Read with the row because every check that
+// locks such a row, and every screen that says why, needs it, and a second read per row would be
+// the same subquery asked a hundred times.
 const SELECT = `SELECT "id", "space_id", "kind", "status", "amount", "currency", "fx_rate",
 	"amount_in_base", "happened_on", "description", "account_id", "counter_account_id", "notes",
 	"reconciled_at", "installment_group", "installment_number", "installment_count",
-	"invoice_month", "invoice_month_by_hand", "category_id", "priority", "recurrence_id",
-	"paid_by", "external_id", "card_id", "created_by", "created_at", "updated_at"
-	FROM "transactions"`;
+	"invoice_month", "invoice_month_by_hand", "origin_invoice_month", "category_id", "priority", "recurrence_id",
+	"paid_by", "external_id", "card_id", "created_by", "created_at", "updated_at",
+	(SELECT MAX(p."invoice_month") FROM "transactions" p
+	 WHERE p."installment_group" = "t"."installment_group" AND p."space_id" = "t"."space_id"
+	   AND p."origin_invoice_month" IS NOT NULL AND p."deleted_at" IS NULL) AS "arranged_for"
+	FROM "transactions" "t"`;
 
 export type CreateTransactionInput = {
 	spaceId: string;
@@ -214,6 +221,121 @@ function cycleOf(account: Account): CardCycle | undefined {
 	return { closingDay: account.closingDay, dueDay: account.dueDay };
 }
 
+/** One row of an arrangement: a part of paying an invoice with another card, or of splitting one. */
+export type ArrangementRow = {
+	kind: "expense" | "transfer";
+	/** Positive, like every amount handed in. */
+	amount: number;
+	happenedOn: CalendarDate;
+	description: string;
+	accountId: string;
+	counterAccountId?: string | null;
+	/** Chosen, always: the invoice paid, for a transfer, or the one charged, for a cost. */
+	invoiceMonth: CalendarMonth;
+	/** The invoice of the card a transfer leaves. */
+	originInvoiceMonth?: CalendarMonth | null;
+	/** Which part, for a principal and its cost alike. Nothing for an entry or a tax. */
+	installmentNumber: number | null;
+	installmentCount: number | null;
+	categoryId?: string | null;
+};
+
+/**
+ * The one path that writes a transfer out of a credit card.
+ *
+ * `create` refuses that, because money does not leave a card (decision 2 of 2.0.0), and
+ * refuses a transfer in parts and one from an account to itself. Two arrangements need all
+ * three, and nothing else may: paying an invoice with another card, which is a transfer from
+ * that card in parts, and splitting an invoice, which is a transfer from the card to itself
+ * in parts. Registry 0063 says why the two exceptions are only these.
+ *
+ * Everything else `create` checks is checked here again: the permission to write, the sign,
+ * the day and the month, that every account is in the space and in use, and the category.
+ * Every row carries the same group, which is how the arrangement is read, locked and undone.
+ * Written with the writer of the caller, inside its transaction, so nothing is half written.
+ */
+export async function writeArrangement(
+	context: RepositoryContext,
+	write: WriteContext,
+	spaceId: string,
+	group: string,
+	rows: readonly ArrangementRow[],
+): Promise<string[]> {
+	assertCan(context.actor(), spaceId, "transaction.create");
+	const ids: string[] = [];
+	for (const row of rows) {
+		parseCalendarDate(row.happenedOn);
+		parseCalendarMonth(row.invoiceMonth);
+		if (row.originInvoiceMonth) parseCalendarMonth(row.originInvoiceMonth);
+		const amount = signFor(row.kind, row.amount);
+		if (row.description.trim() === "") {
+			throw new RuleError(
+				"descriptionIsRequired",
+				"a record needs a description to be found later",
+			);
+		}
+		const touched = [row.accountId, ...(row.counterAccountId ? [row.counterAccountId] : [])];
+		for (const id of touched) {
+			const found = await write.driver.all(
+				`SELECT "archived_at" FROM "accounts" WHERE "id" = ? AND "space_id" = ? AND "deleted_at" IS NULL`,
+				[id, spaceId],
+			);
+			if (found.length === 0) throw new NotFoundError("account", id);
+			if (found[0]?.archived_at !== null && found[0]?.archived_at !== undefined) {
+				throw new RuleError(
+					"accountIsArchived",
+					"this account is archived, bring it back before writing to it",
+				);
+			}
+		}
+		if (row.categoryId) {
+			const category = await write.driver.all(
+				`SELECT "id" FROM "categories" WHERE "id" = ? AND "space_id" = ? AND "deleted_at" IS NULL`,
+				[row.categoryId, spaceId],
+			);
+			if (category.length === 0) throw new NotFoundError("category", row.categoryId);
+		}
+		const currency = await write.driver.all(
+			`SELECT "base_currency" FROM "spaces" WHERE "id" = ? AND "deleted_at" IS NULL`,
+			[spaceId],
+		);
+		ids.push(
+			await insertRow(write, {
+				table: transactions,
+				spaceId,
+				values: {
+					kind: row.kind,
+					status: "settled",
+					amount,
+					// The arrangement is between cards of the currency of the space, which the
+					// callers check, so the figure in that currency is the amount itself.
+					currency: String(currency[0]?.base_currency ?? "BRL"),
+					fx_rate: null,
+					amount_in_base: amount,
+					happened_on: row.happenedOn,
+					description: row.description.trim(),
+					account_id: row.accountId,
+					counter_account_id: row.counterAccountId ?? null,
+					notes: null,
+					reconciled_at: null,
+					installment_group: group,
+					installment_number: row.installmentNumber,
+					installment_count: row.installmentCount,
+					invoice_month: row.invoiceMonth,
+					invoice_month_by_hand: 1,
+					origin_invoice_month: row.originInvoiceMonth ?? null,
+					category_id: row.categoryId ?? null,
+					priority: null,
+					external_id: null,
+					card_id: null,
+					created_by: context.actor().userId,
+				},
+			}),
+		);
+	}
+	return ids;
+}
+
 export function createTransactionsRepository(context: RepositoryContext) {
 	/**
 	 * A category has to live in the same space as the record that points at it. Without
@@ -364,8 +486,19 @@ export function createTransactionsRepository(context: RepositoryContext) {
 	/**
 	 * A record that was ticked off against the bank does not change under anyone, and a
 	 * logger never reaches a row somebody else wrote.
+	 *
+	 * Nor does a row of a split invoice, or of an invoice paid with another card. Removing only
+	 * the part that paid it would leave the invoice owing again with its cost still charged, so
+	 * the rows of an arrangement change together, by undoing it. Every path that edits, moves,
+	 * removes or turns a row into another kind asks here, which is why the lock lives here.
 	 */
 	function assertChangeable(found: Transaction, verb: "changing" | "removing"): void {
+		if (found.arrangedFor !== null) {
+			throw new RuleError(
+				"partOfAnArrangement",
+				"this row is part of a split invoice or of a payment with another card, undo that to change it",
+			);
+		}
 		if (found.reconciledAt !== null) {
 			throw new RuleError(
 				"reconciledIsFrozen",
@@ -717,7 +850,19 @@ export function createTransactionsRepository(context: RepositoryContext) {
 				params.push(...hidden, actor.userId);
 			}
 
-			if (filter.accountId) {
+			if (filter.accountId && filter.invoiceMonth) {
+				// One invoice of a card, by the rule `touchesOn` states: what the card charged to it,
+				// a transfer out of the card on the invoice of its origin, and what paid it. A part
+				// of paying another card's invoice names that invoice in `invoice_month`, and was
+				// missing from the invoice of this card it is a purchase on.
+				where.push(
+					`(("account_id" = ? AND (CASE WHEN "kind" = 'transfer'
+					     THEN COALESCE("origin_invoice_month", "invoice_month")
+					     ELSE "invoice_month" END) = ?)
+					  OR ("counter_account_id" = ? AND "invoice_month" = ?))`,
+				);
+				params.push(filter.accountId, filter.invoiceMonth, filter.accountId, filter.invoiceMonth);
+			} else if (filter.accountId) {
 				where.push(`("account_id" = ? OR "counter_account_id" = ?)`);
 				params.push(filter.accountId, filter.accountId);
 			}
@@ -749,7 +894,7 @@ export function createTransactionsRepository(context: RepositoryContext) {
 				where.push(`"happened_on" <= ?`);
 				params.push(filter.to);
 			}
-			if (filter.invoiceMonth) {
+			if (filter.invoiceMonth && !filter.accountId) {
 				where.push(`"invoice_month" = ?`);
 				params.push(filter.invoiceMonth);
 			}

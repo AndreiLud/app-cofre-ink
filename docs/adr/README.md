@@ -68,3 +68,4 @@ new one.
 | [0059](0059_a_repair_asked_again_after_rows_arrive.md) | a repair asked again after rows arrive, and the invoice of a series joins them | accepted |
 | [0060](0060_what_the_repository_keeps_and_the_image_carries.md) | what the repository keeps, what git ignores, and what the image carries | accepted |
 | [0062](0062_a_month_on_paper_as_it_stood.md) | a month on paper as it stood, and the day a month counts as over | accepted |
+| [0063](0063_an_invoice_paid_with_a_card_or_in_parts.md) | an invoice paid with another card, or in parts | accepted |

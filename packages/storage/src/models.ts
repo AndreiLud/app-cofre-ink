@@ -196,6 +196,17 @@ export type Transaction = {
 	 * the day this app expected. Nothing recalculates it afterwards.
 	 */
 	invoiceMonthByHand: boolean;
+	/**
+	 * The invoice of the card a transfer leaves, set only by paying an invoice with another
+	 * card and by splitting one into parts. Empty, a transfer out of a card is a purchase on
+	 * the invoice above, which is how every transfer before 2.0.0 is read.
+	 */
+	originInvoiceMonth: string | null;
+	/**
+	 * The invoice settled by the arrangement this row is part of: a split, or a payment with
+	 * another card. Such a row changes only by undoing the arrangement. Nothing on any other row.
+	 */
+	arrangedFor: string | null;
 	categoryId: string | null;
 	/** Empty means the priority of its category, which is the usual case. */
 	priority: SpendingPriority | null;
@@ -503,6 +514,8 @@ export function toTransaction(row: Row): Transaction {
 		installmentCount: asOptionalNumber(row.installment_count),
 		invoiceMonth: asOptionalText(row.invoice_month),
 		invoiceMonthByHand: asOptionalNumber(row.invoice_month_by_hand) === 1,
+		originInvoiceMonth: asOptionalText(row.origin_invoice_month),
+		arrangedFor: asOptionalText(row.arranged_for),
 		categoryId: asOptionalText(row.category_id),
 		priority: asOptionalText(row.priority) as SpendingPriority | null,
 		recurrenceId: asOptionalText(row.recurrence_id),

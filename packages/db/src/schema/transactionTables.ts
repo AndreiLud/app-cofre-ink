@@ -87,6 +87,20 @@ export const TRANSACTION_INVOICE_COLUMNS = [
 	{ name: "invoice_month_by_hand", type: "integer" as const },
 ];
 
+/**
+ * Added by migration 0019. The invoice of the card a transfer leaves, when it leaves one.
+ *
+ * A row has one `invoice_month`, and a transfer out of a card touches two invoices: the one
+ * it pays at the other end, and the one of the card it leaves, where it is a purchase. Only
+ * two writers set this, paying an invoice with another card and splitting an invoice into
+ * parts, and both write it once. Empty on everything else, including every transfer written
+ * before 2.0.0, which is then read the old way: its one invoice is the one of the card it
+ * left, and it pays the other end with no invoice named.
+ */
+export const TRANSACTION_ORIGIN_INVOICE_COLUMNS = [
+	{ name: "origin_invoice_month", type: "text" as const },
+];
+
 export const TRANSACTION_CARD_COLUMNS = [
 	{
 		name: "card_id",
@@ -138,6 +152,7 @@ export const transactions = defineTable({
 		 */
 		{ name: "invoice_month", type: "text" },
 		...TRANSACTION_INVOICE_COLUMNS,
+		...TRANSACTION_ORIGIN_INVOICE_COLUMNS,
 		...TRANSACTION_CATEGORY_COLUMNS,
 		...TRANSACTION_RECURRENCE_COLUMNS,
 		...TRANSACTION_PAYER_COLUMNS,

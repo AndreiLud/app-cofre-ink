@@ -32,6 +32,7 @@ import {
 	TRANSACTION_CATEGORY_COLUMNS,
 	TRANSACTION_IMPORT_COLUMNS,
 	TRANSACTION_INVOICE_COLUMNS,
+	TRANSACTION_ORIGIN_INVOICE_COLUMNS,
 	TRANSACTION_PAYER_COLUMNS,
 	TRANSACTION_RECURRENCE_COLUMNS,
 	TRANSACTION_TABLES,
@@ -232,6 +233,17 @@ export const MIGRATIONS: readonly Migration[] = [
 			ACCOUNT_KNOWN_BALANCE_COLUMNS.filter(
 				(column) => !context.hasColumn("accounts", column.name),
 			).map((column) => addColumnSql("accounts", column, context.dialect)),
+	},
+	{
+		/**
+		 * The invoice of the card a transfer leaves, for paying an invoice with another card
+		 * and splitting one into parts. Empty on every row that exists, which reads as before.
+		 */
+		id: "0019_origin_invoice",
+		statements: (context) =>
+			TRANSACTION_ORIGIN_INVOICE_COLUMNS.filter(
+				(column) => !context.hasColumn("transactions", column.name),
+			).map((column) => addColumnSql("transactions", column, context.dialect)),
 	},
 ];
 

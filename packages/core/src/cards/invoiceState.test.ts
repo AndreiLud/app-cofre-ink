@@ -38,6 +38,49 @@ describe("the days of an invoice", () => {
 	});
 });
 
+describe("an invoice split into parts, or paid with another card", () => {
+	// Part 2, C.6.1 and C.14.1 of the request for 2.0.0: R$ 3.000,00 charged, R$ 500,00 paid as
+	// the entry and R$ 2.500,00 taken on by the card in parts.
+	it("is in parts, owes nothing and is never late", () => {
+		const one = state({ charged: 300_000, paid: 50_000, rolled: 250_000, today: "2026-12-15" });
+		expect(one.standing).toBe("inParts");
+		expect(one.left).toBe(0);
+		expect(one.late).toBe(false);
+		expect(amountToPay(one)).toBe(0);
+	});
+
+	it("is paid when another card paid it", () => {
+		const one = state({ charged: 200_000, byCard: 200_000 });
+		expect(one.standing).toBe("paid");
+		expect(one.byCard).toBe(200_000);
+	});
+
+	it("hands on what is paid beyond it, whatever paid it", () => {
+		const [first, second] = invoicesInTurn([
+			{
+				month: "2026-10",
+				cycle: early,
+				charged: 100_000,
+				paid: 0,
+				byCard: 120_000,
+				today: "2026-11-01",
+			},
+			{ month: "2026-11", cycle: early, charged: 50_000, paid: 0, today: "2026-11-01" },
+		]);
+		expect(first?.carriedOut).toBe(20_000);
+		expect(second?.left).toBe(30_000);
+	});
+
+	// The parts sit on the invoices after it, so the limit is what is left of them.
+	it("takes the parts still to come off the limit", () => {
+		const months = ["2026-11", "2026-12", "2027-01", "2027-02", "2027-03", "2027-04"];
+		const parts = months.map((month) =>
+			invoiceStateOf({ month, cycle: early, charged: 48_000, paid: 0, today: "2026-10-10" }),
+		);
+		expect(limitLeftOf({ creditLimit: 500_000, states: parts })).toBe(212_000);
+	});
+});
+
 describe("where an invoice stands", () => {
 	it("is open while nothing has been paid", () => {
 		const one = state();

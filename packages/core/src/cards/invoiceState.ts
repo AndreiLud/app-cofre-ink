@@ -18,8 +18,11 @@ import { type CardCycle, invoiceClosingDate, invoiceDueDate, invoicePeriod } fro
  *
  * Paying more than was charged is a real thing people do, on purpose, to leave the card
  * with credit on it, so it has a name of its own rather than being folded into paid.
+ *
+ * An invoice split into parts is settled and still being paid, in the invoices after it, so
+ * it has a name of its own too and is never late. One paid with another card is paid.
  */
-export type InvoiceStanding = "open" | "partlyPaid" | "paid" | "inCredit";
+export type InvoiceStanding = "open" | "partlyPaid" | "paid" | "inCredit" | "inParts";
 
 export type InvoiceInput = {
 	month: CalendarMonth;
@@ -28,6 +31,13 @@ export type InvoiceInput = {
 	charged: number;
 	/** What has been paid against it, as a positive number. Only payments whose day has come. */
 	paid: number;
+	/**
+	 * What the card itself took on, splitting this invoice into parts that the invoices after
+	 * it charge, and what another card paid of it. Both settle it like money does, from the day
+	 * of the arrangement, and neither leaves an account. Nothing for an invoice with neither.
+	 */
+	rolled?: number;
+	byCard?: number;
 	/**
 	 * What is marked to pay it on a day still to come, and the last of those days.
 	 *
@@ -38,6 +48,11 @@ export type InvoiceInput = {
 	 */
 	scheduled?: number;
 	scheduledOn?: CalendarDate | null;
+	/**
+	 * What the payment waiting for its day is, when it is not money: a split into parts agreed
+	 * for a day to come, or a payment with another card on that day. The screens say which.
+	 */
+	scheduledBy?: "parts" | "card" | null;
 	/**
 	 * How much of what was charged is the debt the card already had when it was written
 	 * down, which is an opening balance and not a purchase. Part of `charged`, said apart
@@ -68,10 +83,16 @@ export type InvoiceState = {
 	dueOn: CalendarDate;
 	charged: number;
 	paid: number;
+	/** Taken on by the card itself, in parts on the invoices after this one. */
+	rolled: number;
+	/** Paid by another card. */
+	byCard: number;
 	/** Marked to be paid on a day still to come, which is not paid yet. */
 	scheduled: number;
 	/** The last day of those payments, or nothing when none is waiting. */
 	scheduledOn: CalendarDate | null;
+	/** Whether what is waiting is a split into parts or another card, rather than money. */
+	scheduledBy: "parts" | "card" | null;
 	/** The part of what was charged that is the card's opening balance. */
 	opening: number;
 	/** Credit from the invoices before this one that pays part of it. */
@@ -111,15 +132,27 @@ export function invoiceStateOf(input: InvoiceInput): InvoiceState {
 	const dueOn = invoiceDueDate(input.month, input.cycle);
 	const carriedIn = input.carriedIn ?? 0;
 	const carriedOut = input.carriedOut ?? 0;
-	// Paid by money and by the credit of the invoices before it alike.
-	const covered = input.paid + carriedIn;
+	const rolled = input.rolled ?? 0;
+	const byCard = input.byCard ?? 0;
+	// Paid by money, by the card itself in parts, by another card and by the credit of the
+	// invoices before it alike.
+	const covered = input.paid + rolled + byCard + carriedIn;
 	const left = input.charged - covered + carriedOut;
 
 	// An invoice that charged nothing and was paid nothing is open rather than paid,
 	// because there is nothing to have paid, and a card with no purchases on it saying
-	// "paid" reads as an answer to a question nobody asked.
+	// "paid" reads as an answer to a question nobody asked. One split into parts that owes
+	// nothing more is in parts, whatever credit a refund left on it.
 	const standing: InvoiceStanding =
-		left < 0 ? "inCredit" : covered === 0 ? "open" : left === 0 ? "paid" : "partlyPaid";
+		left <= 0 && rolled > 0
+			? "inParts"
+			: left < 0
+				? "inCredit"
+				: covered === 0
+					? "open"
+					: left === 0
+						? "paid"
+						: "partlyPaid";
 
 	const daysToClose = daysBetween(input.today, closesOn);
 	const daysToDue = daysBetween(input.today, dueOn);
@@ -132,8 +165,11 @@ export function invoiceStateOf(input: InvoiceInput): InvoiceState {
 		dueOn,
 		charged: input.charged,
 		paid: input.paid,
+		rolled,
+		byCard,
 		scheduled: input.scheduled ?? 0,
 		scheduledOn: (input.scheduled ?? 0) > 0 ? (input.scheduledOn ?? null) : null,
+		scheduledBy: (input.scheduled ?? 0) > 0 ? (input.scheduledBy ?? null) : null,
 		opening: input.opening ?? 0,
 		carriedIn,
 		carriedOut,
@@ -163,7 +199,7 @@ export function invoicesInTurn(inputs: readonly InvoiceInput[]): InvoiceState[] 
 	const states: InvoiceState[] = [];
 	let carry = 0;
 	inOrder.forEach((input, index) => {
-		const surplus = input.paid + carry - input.charged;
+		const surplus = input.paid + (input.rolled ?? 0) + (input.byCard ?? 0) + carry - input.charged;
 		const handsOn = index < inOrder.length - 1 && surplus > 0 ? surplus : 0;
 		states.push(invoiceStateOf({ ...input, carriedIn: carry, carriedOut: handsOn }));
 		carry = handsOn;
