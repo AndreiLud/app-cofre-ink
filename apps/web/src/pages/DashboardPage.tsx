@@ -707,6 +707,7 @@ export function DashboardPage() {
 		kind: row.kind,
 		invoice: false,
 		repeats: row.recurrenceId !== null,
+		spaceId: row.spaceId,
 	}));
 	const bills = billsFallingDue({
 		today,
@@ -1237,7 +1238,7 @@ export function DashboardPage() {
 								<DueRow
 									key={row.id}
 									row={row}
-									mayUpdate={mayUpdate}
+									spaceId={spaceId}
 									onSettle={() => settle.mutate(row.id)}
 									label={t("dashboard.happened")}
 								/>
@@ -1254,7 +1255,7 @@ export function DashboardPage() {
 								<DueRow
 									key={row.id}
 									row={row}
-									mayUpdate={mayUpdate}
+									spaceId={spaceId}
 									onSettle={() => settle.mutate(row.id)}
 									label={t("dashboard.received")}
 								/>
@@ -1674,6 +1675,8 @@ type Due = {
 	invoice: boolean;
 	/** Written by a series, which the line says. */
 	repeats?: boolean;
+	/** On a record: its space, whose role decides whether it may be said to have happened. */
+	spaceId?: string;
 	/** On an invoice: the day a payment already written for it leaves the bank. */
 	scheduledOn?: string | null;
 	/** On an invoice: whether anything is left that no payment covers yet. */
@@ -1930,16 +1933,20 @@ function InvoiceLink({
 
 function DueRow({
 	row,
-	mayUpdate,
+	spaceId,
 	onSettle,
 	label,
 }: {
 	row: Due;
-	mayUpdate: boolean;
+	/** The space that is open, for a row that does not say its own. */
+	spaceId: string;
 	onSettle: () => void;
 	label: string;
 }) {
 	const { t } = useTranslation();
+	// By the role in the record's own space: in "Todos" this list holds every space, and a viewer
+	// of one of them was offered a button the model then refused.
+	const mayUpdate = useWhatIMayDo(row.spaceId ?? spaceId).mayCall("transactions.settle");
 	return (
 		<li className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2">
 			<span className="flex min-w-0 items-baseline gap-2">

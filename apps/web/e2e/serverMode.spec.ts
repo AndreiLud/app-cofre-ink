@@ -534,6 +534,61 @@ test.describe("server mode", () => {
 		await expect(bia.getByText("Vale da casa").first()).toBeVisible();
 	});
 
+	// Found reading the code for the report of 2.0.0: in "Todos", the button that says a record
+	// happened, on the list of what falls due, followed the role in the space that was open, so a
+	// viewer of another space was offered it on that space's records and refused when pressing.
+	test("offers to say a record happened only where the role allows it, in every space", async ({
+		browser,
+	}) => {
+		const bia = await arrive(browser, { name: "Bia", email: uniqueEmail("bia") });
+		await openSetting(bia, "Gerenciar espaços");
+		await bia.getByRole("button", { name: "Novo espaço" }).click();
+		await bia.getByLabel("Nome do espaço").fill("Casa");
+		await bia.getByRole("button", { name: "Salvar" }).click();
+		await expect(bia.getByRole("banner")).toContainText("Casa");
+		await go(bia, "Contas");
+		await bia.getByRole("button", { name: "Nova conta" }).first().click();
+		await bia.getByRole("dialog").getByLabel("Nome").fill("Conta conjunta");
+		await bia.getByRole("button", { name: "Salvar" }).click();
+		await expect(bia.getByRole("cell", { name: "Conta conjunta" })).toBeVisible();
+
+		// Three days from today, so it is among what falls due whatever day this runs on.
+		const ahead = new Date(Date.now() + 3 * 86_400_000).toLocaleDateString("en-CA", {
+			timeZone: "America/Sao_Paulo",
+		});
+		await go(bia, "Lançamentos");
+		await bia.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = bia.getByRole("dialog");
+		await form.getByLabel("Valor", { exact: true }).fill("90,00");
+		await form.getByLabel("Descrição").fill("Gás da casa");
+		await form.getByLabel("Dia").fill(ahead);
+		await bia.getByRole("button", { name: "Salvar" }).click();
+		await expect(form).toHaveCount(0);
+
+		await openSetting(bia, "Gerenciar espaços");
+		await bia.getByRole("button", { name: "Convidar" }).first().click();
+		await bia.getByLabel("Papel").selectOption({ label: "Leitor" });
+		await bia.getByRole("button", { name: "Gerar link" }).click();
+		const link = await bia.getByRole("dialog").locator("p.font-mono").innerText();
+		await bia.keyboard.press("Escape");
+
+		const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
+		await ana.goto(link);
+		await ana.getByRole("button", { name: "Entrar no espaço" }).click();
+		await expect(ana.getByRole("banner")).toContainText("Casa");
+		await ana.getByRole("button", { name: "Você está no espaço" }).click();
+		await ana.getByRole("menuitem", { name: "Pessoal" }).click();
+		await go(ana, "Painel");
+		await ana.getByText("Todos", { exact: true }).click();
+
+		const line = ana
+			.locator("section#vence")
+			.getByRole("listitem")
+			.filter({ hasText: "Gás da casa" });
+		await expect(line).toBeVisible({ timeout: 20_000 });
+		await expect(line.getByRole("button", { name: "Aconteceu" })).toHaveCount(0);
+	});
+
 	/**
 	 * Two shared spaces with different people in them, which is the ordinary shape of a
 	 * life: a house with one person and a trip with another. The division used to offer
