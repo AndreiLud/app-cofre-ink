@@ -896,6 +896,14 @@ test.describe("the card invoice", () => {
 		await expect(record(page, "Livraria")).toBeVisible();
 	});
 
+	// Found reading the code for the report of 2.0.0: the state of an invoice and its due day were
+	// joined by a space alone, "Em aberto vence em 10/11".
+	test("says the state of an invoice and its due day as one sentence", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Faturas");
+		await expect(page.getByText("Em aberto, vence em 10/11", { exact: true })).toBeVisible();
+	});
+
 	test("moves a purchase the bank closed onto another invoice, and keeps it there", async ({
 		page,
 	}) => {

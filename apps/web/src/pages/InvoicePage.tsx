@@ -780,11 +780,15 @@ export function InvoicePage() {
 				) : null}
 				{/* The day it falls due matters while something is owed on it. On one that is
 				    settled it is a date nobody has to do anything about. */}
+				{/* One sentence, with a comma: the word and the day were joined by a space alone,
+				    "Em aberto vence em 10/11". */}
 				<p className="text-sm text-quiet">
-					{t(`invoice.standing.${state?.standing ?? "open"}`)}
 					{dueOn && (state?.left ?? 0) > 0
-						? ` ${t("invoice.dueOn", { day: dayAndMonth(dueOn) })}`
-						: ""}
+						? t("invoice.standingDue", {
+								standing: t(`invoice.standing.${state?.standing ?? "open"}`),
+								day: dayAndMonth(dueOn),
+							})
+						: t(`invoice.standing.${state?.standing ?? "open"}`)}
 				</p>
 
 				{state && state.paid !== 0 && state.withoutRate === 0 ? (

@@ -1213,7 +1213,6 @@
 		"pastHeadline_other": "{{card}}: the {{month}} invoice fell due {{count}} days ago",
 		"period": "Purchases from {{from}} to {{to}}",
 		"inCredit": "in credit for you,",
-		"dueOn": "falls due on {{day}}",
 		"empty": "No purchases on this invoice.",
 		"caption": "Purchases on the card {{card}} in the {{month}} invoice, with day, description and amount",
 		"paidHeadline": "{{card}}: the {{month}} invoice is paid",
@@ -1326,7 +1325,8 @@
 		"chargeInterestBody": "It goes in as spending on the open invoice, in the category Fees and interest. Type what the bank charged.",
 		"interestOf": "Interest on the {{month}} invoice",
 		"inPartsHeadline": "{{card}}: the {{month}} invoice was split into parts",
-		"importInvoice": "Import an invoice"
+		"importInvoice": "Import an invoice",
+		"standingDue": "{{standing}}, falls due on {{day}}"
 	},
 	"transactionKind": {
 		"expense": "Money out",
