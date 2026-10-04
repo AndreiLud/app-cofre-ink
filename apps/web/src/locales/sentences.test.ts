@@ -22,4 +22,23 @@ describe("what a sentence tells somebody to do", () => {
 		expect(pt.invoice.noRateBody).toContain("lance de novo");
 		expect(en.invoice.noRateBody).toContain("write it again");
 	});
+
+	// Found reading the code for the report of 2.0.0: the month screen said it writes on the last
+	// day of the month, which is not true of the month somebody is in; spoke of one card and "a
+	// fourth" record; said a payment not yet due goes in as planned, which nothing writes since
+	// 2.0.0; and said nothing of an invoice paid with another card or split.
+	it("says what the month screen writes, as it writes it", () => {
+		expect(pt.theMonth.whatItWritesBody).toContain("no dia de hoje quando o mês é este");
+		expect(en.theMonth.whatItWritesBody).toContain("today when the month is this one");
+		expect(pt.theMonth.whatItWritesBody).toContain("Para cada cartão vem mais um");
+		expect(en.theMonth.whatItWritesBody).toContain("For each card there is one more");
+		expect(pt.theMonth.whatItWritesBody).not.toMatch(/previsto|um quarto/);
+		expect(en.theMonth.whatItWritesBody).not.toMatch(/planned|a fourth/);
+		expect(pt.theMonth.whatItWritesBody).toContain("parcelou não ganha pagamento");
+		expect(en.theMonth.whatItWritesBody).toContain("split into parts gets no payment");
+		expect(pt.theMonth.whereHint).toContain("o pagamento de cada fatura sai dela");
+		expect(en.theMonth.whereHint).toContain("the payment of each invoice leaves it");
+		expect(pt.theMonth.limitsTotalOnly).toContain("por prioridade");
+		expect(en.theMonth.limitsTotalOnly).toContain("on a priority");
+	});
 });
