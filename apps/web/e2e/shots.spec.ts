@@ -49,13 +49,30 @@ const SCREENS: { name: string; section?: string; at?: string; waitFor: string }[
 	{ name: "contas", section: "Contas", waitFor: "Conta" },
 	{ name: "lancamentos", section: "Lançamentos", waitFor: "Novo lançamento" },
 	{ name: "mes", at: "/mes", waitFor: "Comparado com um mês comum" },
-	{ name: "relatorio", at: "/relatorio?mes=2026-10", waitFor: "O mês" },
+	// "Por categoria" is drawn once every reading of the file has arrived. "O mês" used to be
+	// waited for, which was there before any of them, and the picture showed the file loading.
+	{ name: "relatorio", at: "/relatorio?mes=2026-10", waitFor: "Por categoria" },
 	{ name: "investimentos", at: "/investimentos", waitFor: "Comparado com o CDI" },
 ];
 
 test.describe("shots", () => {
 	test.skip(process.env.SHOTS !== "1", "Run with SHOTS=1 when the screens have changed.");
 	test.setTimeout(180_000);
+
+	// The photo at the top of the README, which docs/imagens/painel.png is a copy of: the overview of
+	// the demonstration, light, 1280 by 860 and not the whole page (part 2, L.9.3 of the request for
+	// 2.0.0). Written here and copied by hand, so a run of the camera never changes a file git keeps.
+	test("a foto do README", async ({ page }) => {
+		await page.addInitScript(() => {
+			window.localStorage.setItem("cofreTheme", "light");
+		});
+		await page.setViewportSize({ width: 1280, height: 860 });
+		await openCofre(page);
+		await go(page, "Painel");
+		await expect(page.getByText("Você tem").first()).toBeVisible();
+		await page.waitForTimeout(500);
+		await page.screenshot({ path: `${SHOTS}readme_painel.png` });
+	});
 
 	for (const screen of SCREENS) {
 		for (const theme of THEMES) {
@@ -68,6 +85,8 @@ test.describe("shots", () => {
 				if (screen.at) await page.goto(screen.at);
 				else if (screen.section) await go(page, screen.section);
 				await expect(page.getByText(screen.waitFor).first()).toBeVisible();
+				// A screen still reading something shows a pulsing bar where it will go.
+				await expect(page.locator(".animate-pulse")).toHaveCount(0);
 
 				for (const size of WIDTHS) {
 					await page.setViewportSize({ width: size.width, height: size.height });
@@ -106,6 +125,10 @@ test.describe("shots", () => {
 			await openCofre(page);
 			await page.goto(month.at);
 			await expect(page.getByText(month.waitFor).first()).toBeVisible();
+			// The button is off until every reading of the file has arrived.
+			await expect(
+				page.getByRole("button", { name: /^(Salvar em PDF|Save as PDF)$/ }),
+			).toBeEnabled();
 			// Let the charts finish drawing themselves, because a PDF is one frame.
 			await page.waitForTimeout(1500);
 
@@ -175,6 +198,10 @@ test.describe("shots", () => {
 		// Once the purchase has left this invoice. The picture used to be taken as the menu
 		// closed, and showed the purchase still on it with the old total.
 		await expect(page.getByRole("row").filter({ hasText: "Cinema" })).toHaveCount(0);
+		// And once the total has followed it, from the top: the picture had the rows of after the
+		// move under the total of before, and the header drawn over the title of a scrolled page.
+		await expect(page.getByText("R$ 401,40", { exact: true }).first()).toBeVisible();
+		await page.evaluate(() => window.scrollTo(0, 0));
 		await page.screenshot({ path: `${SHOTS}fatura_compra_movida.png`, fullPage: true });
 	});
 
@@ -394,6 +421,10 @@ test.describe("shots", () => {
 		// The invoice that closed on the third, one before the open one the screen opens on.
 		await page.getByRole("button", { name: "Fatura anterior", exact: true }).click();
 		await expect(page.getByRole("heading", { level: 1 })).toContainText("novembro");
+		// Once the invoice has been read: the picture was taken on the month's name alone, with a
+		// bar where the total goes and no word of it having closed.
+		await expect(page.getByRole("heading", { level: 1 })).toContainText("fechou");
+		await expect(page.getByRole("button", { name: "Pagar fatura" })).toBeVisible();
 		await page.screenshot({
 			path: `${SHOTS}fatura_fechada_antes_do_vencimento.png`,
 			fullPage: true,

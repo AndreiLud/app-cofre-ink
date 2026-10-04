@@ -874,6 +874,19 @@ test.describe("the card invoice", () => {
 		await expect(record(page, "Livraria")).toBeVisible();
 	});
 
+	// Found reviewing the pictures of 2.0.0: after Cinema moved, the invoice listed 27,90, 299,00
+	// and 74,50 under a total of R$ 433,40, the total from before the move.
+	test("takes a purchase moved from the invoice screen out of its total", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Faturas");
+		await expect(page.getByText("R$ 433,40", { exact: true }).first()).toBeVisible();
+		await record(page, "Cinema").getByRole("button", { name: "Ações do lançamento" }).click();
+		await page.getByRole("menuitem", { name: "Mover para a próxima fatura" }).click();
+		await expect(record(page, "Cinema")).toHaveCount(0);
+		await expect(page.getByText("R$ 401,40", { exact: true }).first()).toBeVisible();
+		await expect(page.getByText("R$ 433,40", { exact: true })).toHaveCount(0);
+	});
+
 	test("asks before moving a purchase off an invoice that has a payment", async ({ page }) => {
 		await openCofre(page);
 		await go(page, "Faturas");
