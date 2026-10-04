@@ -637,6 +637,82 @@ test.describe("server mode", () => {
 		).toBeVisible();
 	});
 
+	// Part 2, G.1.2 of the request for 2.0.0: a logger sees the series of the house on their screen,
+	// without the sentence, the button or a menu, and none of their days among what falls due or
+	// on the calendar, which are made of their own records; a viewer sees them without a menu.
+	test("shows a logger and a viewer the series of the house, and nothing to do with them", async ({
+		browser,
+	}) => {
+		const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
+		await openSetting(ana, "Gerenciar espaços");
+		await ana.getByRole("button", { name: "Novo espaço" }).click();
+		await ana.getByLabel("Nome do espaço").fill("Casa");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(ana.getByRole("banner")).toContainText("Casa");
+
+		await go(ana, "Contas");
+		await ana.getByRole("button", { name: "Nova conta" }).first().click();
+		await ana.getByRole("dialog").getByLabel("Nome").fill("Conta conjunta");
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(ana.getByRole("cell", { name: "Conta conjunta" })).toBeVisible();
+
+		// Every week from today, so its next day is always inside the fifteen days ahead.
+		await go(ana, "Lançamentos");
+		await ana.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = ana.getByRole("dialog");
+		await form.getByLabel("Valor", { exact: true }).fill("120,00");
+		await form.getByLabel("Descrição").fill("Diarista");
+		await form.getByLabel("Repete").selectOption({ label: "Toda semana" });
+		await ana.getByRole("button", { name: "Salvar" }).click();
+		await expect(form).toHaveCount(0);
+
+		const invite = async (role: string) => {
+			await openSetting(ana, "Gerenciar espaços");
+			await ana.getByRole("button", { name: "Convidar" }).first().click();
+			await ana.getByLabel("Papel").selectOption({ label: role });
+			await ana.getByRole("button", { name: "Gerar link" }).click();
+			const link = await ana.getByRole("dialog").locator("p.font-mono").innerText();
+			await ana.keyboard.press("Escape");
+			await expect(ana.getByRole("dialog")).toHaveCount(0);
+			return link;
+		};
+		const join = async (name: string, link: string) => {
+			const page = await arrive(browser, { name, email: uniqueEmail(name.toLowerCase()) });
+			await page.goto(link);
+			await page.getByRole("button", { name: "Entrar no espaço" }).click();
+			await expect(page.getByRole("banner")).toContainText("Casa");
+			return page;
+		};
+		const bia = await join("Bia", await invite("Registrador"));
+		const joao = await join("Joao", await invite("Leitor"));
+
+		// Whoever runs the house: the sentence, the menu, and the next week among what falls due.
+		await ana.goto("/recorrentes");
+		await expect(ana.getByText(/Todo mês o que se repete tira/)).toBeVisible();
+		await expect(ana.getByRole("button", { name: "O que fazer com Diarista" })).toBeVisible();
+		await go(ana, "Painel");
+		await expect(ana.locator("section#vence")).toContainText("Diarista");
+
+		// The logger: the series, and nothing else about it.
+		await bia.goto("/recorrentes");
+		await expect(bia.getByText("Diarista").first()).toBeVisible();
+		await expect(bia.getByText(/Todo mês o que se repete tira/)).toHaveCount(0);
+		await expect(bia.getByRole("button", { name: "Nova recorrência" })).toHaveCount(0);
+		await expect(bia.getByRole("button", { name: "O que fazer com Diarista" })).toHaveCount(0);
+		await go(bia, "Painel");
+		await expect(bia.getByRole("heading", { level: 1 })).toBeVisible();
+		await expect(bia.locator("section#vence").getByText("Diarista")).toHaveCount(0);
+		await bia.goto("/calendario");
+		await expect(bia.getByRole("heading", { level: 1 })).toBeVisible();
+		await expect(bia.getByText("Diarista")).toHaveCount(0);
+
+		// The viewer: the series and the sentence, and no menu and no button.
+		await joao.goto("/recorrentes");
+		await expect(joao.getByText(/Todo mês o que se repete tira/)).toBeVisible();
+		await expect(joao.getByRole("button", { name: "Nova recorrência" })).toHaveCount(0);
+		await expect(joao.getByRole("button", { name: "O que fazer com Diarista" })).toHaveCount(0);
+	});
+
 	// Part 1, G.1.2 of the request for 2.0.0: on a server the payment of the month screen lost
 	// the invoice it pays, so it paid the oldest invoice still owed. This suite runs on the real
 	// day, so the card closes late in the month and its payment falls due early in the next:
