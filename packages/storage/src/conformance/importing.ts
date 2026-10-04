@@ -472,6 +472,22 @@ export function runImportingConformance(adapter: AdapterUnderTest): void {
 					rule: "importChangedSince",
 				});
 				expect(await on.transactions.list({ spaceId })).toHaveLength(1);
+				await on.transactions.remove(second.ids[1] ?? "");
+
+				// Found reading the code for the report of 2.0.0: a record corrected after the import
+				// went with the rest, and the correction with it.
+				const third = await on.imports.create({
+					spaceId,
+					accountId: setup.checking.id,
+					records: lines,
+				});
+				await on.transactions.update(third.ids[1] ?? "", { description: "Mercado do bairro" });
+				await expect(on.imports.undo(third.ids)).rejects.toMatchObject({
+					rule: "importChangedSince",
+				});
+				expect(
+					(await on.transactions.list({ spaceId })).map((one) => one.description).sort(),
+				).toEqual(["Mercado do bairro", "Padaria"]);
 			} finally {
 				await setup.fixture.close();
 			}

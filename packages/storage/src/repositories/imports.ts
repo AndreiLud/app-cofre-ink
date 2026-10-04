@@ -795,7 +795,21 @@ export function createImportsRepository(context: RepositoryContext) {
 					found.push({ id: String(row.id), spaceId });
 				}
 			}
-			if (found.length !== asked.length) {
+			// Removed, or changed: a record somebody corrected after the import is theirs now, and
+			// taking it back would take the correction with it. Only the removed ones were looked
+			// for, so an edited record went with the rest. The change log says which were written
+			// again after their insert.
+			let edited = 0;
+			for (let start = 0; start < found.length && edited === 0; start += 500) {
+				const chunk = found.slice(start, start + 500).map((row) => row.id);
+				const [row] = await context.driver.all(
+					`SELECT COUNT(*) AS "edited" FROM "changes"
+					 WHERE "entity" = ? AND "operation" = 'update' AND "entity_id" IN (${marks(chunk.length)})`,
+					[transactions.name, ...chunk],
+				);
+				edited = Number(row?.edited ?? 0);
+			}
+			if (found.length !== asked.length || edited > 0) {
 				throw new RuleError(
 					"importChangedSince",
 					"some of what this import wrote was already changed or removed, so it is not taken back",
