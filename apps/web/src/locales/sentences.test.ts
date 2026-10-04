@@ -61,4 +61,13 @@ describe("what a sentence tells somebody to do", () => {
 		expect(pt.shell.reload).toBe("Recarregar a página");
 		expect(en.shell.reload).toBe("Reload the page");
 	});
+
+	// Found reviewing the pictures of 2.0.0: in the dialog that splits an invoice, the amount and
+	// the choice of whether it is the total or each part were both called "Valor das parcelas".
+	it("names the amount of the parts and the way it is read apart", () => {
+		expect(pt.invoice.partsAmountIs).toBe("Como ler o valor");
+		expect(en.invoice.partsAmountIs).toBe("How to read the amount");
+		expect(pt.invoice.partsAmountIs).not.toBe(pt.invoice.partsAmount);
+		expect(en.invoice.partsAmountIs).not.toBe(en.invoice.partsAmount);
+	});
 });

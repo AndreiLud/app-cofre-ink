@@ -323,8 +323,10 @@ export function PayInvoiceDialog({
 					inputMode="decimal"
 				/>
 			</div>
+			{/* A name of its own: the field above is "Valor das parcelas" too, and a screen reader
+			    said two controls with one name. */}
 			<Segmented
-				label={t("invoice.partsAmount")}
+				label={t("invoice.partsAmountIs")}
 				value={eachPart ? "each" : "total"}
 				onChange={(value) => setEachPart(value === "each")}
 				options={[

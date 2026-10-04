@@ -1330,7 +1330,8 @@
 		"importInvoice": "Importar fatura",
 		"standingDue": "{{standing}}, vence em {{day}}",
 		"standingWasDue": "{{standing}}, venceu em {{day}}",
-		"scheduledTag": "agendado"
+		"scheduledTag": "agendado",
+		"partsAmountIs": "Como ler o valor"
 	},
 	"transactionKind": {
 		"expense": "Saída",
