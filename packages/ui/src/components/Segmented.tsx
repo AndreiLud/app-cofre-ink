@@ -29,7 +29,11 @@ export function Segmented<T extends string>({
 	const name = useId();
 
 	return (
-		<fieldset className={cn("flex flex-col gap-1.5", className)}>
+		// A fieldset grows to the width of what is in it unless told it may be narrower, and the
+		// options would not wrap, so three long ones ("Com dinheiro de uma conta", "Com outro
+		// cartão de crédito", "Parcelando") ran out of the dialog that pays an invoice, on a wide
+		// screen as well. Now the group keeps to its column and a long option breaks its line.
+		<fieldset className={cn("flex min-w-0 flex-col gap-1.5", className)}>
 			<legend className="mb-1.5 text-sm font-medium text-ink">{label}</legend>
 			{/* A track with the chosen one raised out of it, which is what a switch looks
 			    like everywhere else, so nobody has to learn this one. */}
@@ -38,7 +42,7 @@ export function Segmented<T extends string>({
 					<label
 						key={option.value}
 						className={cn(
-							"flex flex-1 cursor-pointer items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm",
+							"flex min-w-0 flex-1 cursor-pointer items-center justify-center text-balance rounded-sm px-3 py-1.5 text-center text-sm",
 							"transition-colors duration-150",
 							"has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent",
 							option.value === value

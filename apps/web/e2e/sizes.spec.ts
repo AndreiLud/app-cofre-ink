@@ -154,3 +154,28 @@ test("the bar of a telephone writes every section in full", async ({ page }) => 
 	expect(cut).toEqual([]);
 	await expect(bar.getByRole("link")).toHaveCount(5);
 });
+
+// Found reviewing the pictures of 2.0.0: in the dialog that pays an invoice, the three ways of
+// paying were one row that never wrapped, wider than the dialog, and "Parcelando" was cut at its
+// edge, on a wide screen too.
+for (const size of [SIZES[0], SIZES[2]]) {
+	test(`the ways of paying an invoice fit in its dialog on a ${size?.name}`, async ({ page }) => {
+		await page.setViewportSize({ width: size?.width ?? 0, height: size?.height ?? 0 });
+		await openCofre(page);
+		await page.goto("/faturas");
+		await page.getByRole("button", { name: "Pagar fatura" }).first().click();
+		const dialog = page.getByRole("dialog");
+		const ways = dialog.getByRole("group", { name: "Como pagar" });
+		await expect(ways.getByText("Parcelando", { exact: true })).toBeVisible();
+		// A fieldset grows to fit what is in it, so what spilled was the group out of the dialog,
+		// and every option has to end inside the edge of the group's own column.
+		const spill = await ways.evaluate((group) => {
+			const column = group.parentElement?.getBoundingClientRect();
+			if (!column) return ["no column"];
+			return [group, ...group.querySelectorAll("label")]
+				.filter((element) => element.getBoundingClientRect().right > column.right + 1)
+				.map((element) => element.textContent?.trim() ?? "");
+		});
+		expect(spill).toEqual([]);
+	});
+}
