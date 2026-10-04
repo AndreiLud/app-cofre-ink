@@ -739,6 +739,15 @@ export function DashboardPage() {
 	const dues: DueLine[] = [...goingSoon, ...comingSoon].sort((one, other) =>
 		one.on < other.on ? -1 : 1,
 	);
+	/** Whether what falls due is still being read: the records, and the cards the invoices are of. */
+	const duesPending =
+		upcoming.isPending || (consolidated ? cardsEverywhere.isPending : cards.isPending);
+	/** Whether where the money is is still being read: the accounts, what they hold and the holdings. */
+	const wherePending =
+		holdings.isPending ||
+		(consolidated
+			? everywhere.isPending || balancesEverywhere.isPending
+			: accounts.isPending || balances.isPending);
 	/** The invoices past their due day, which the block of late things answers. */
 	const toAnswer = bills.late.flatMap((bill) => (bill.invoice ? [bill.invoice] : []));
 
@@ -938,12 +947,22 @@ export function DashboardPage() {
 				) : null}
 
 				{/* The four questions the product brief promises an answer to, on one line.
-				    Not before everything the first of them adds up is in: the balances of every
-				    space in "Todos", and the holdings. It showed the total without the holdings
-				    for a moment and then with them, two answers to one question a second apart. */}
+				    Not before everything they add up is in: the balances of every space in
+				    "Todos", the holdings, the cards, what is left of the month and the saving rule.
+				    It showed the total without the holdings for a moment and then with them, and
+				    what was left to spend without the invoices due this month until the cards came,
+				    two answers to one question a second apart. */}
 				{balances.isPending ||
 				holdings.isPending ||
-				(consolidated && (everywhere.isPending || balancesEverywhere.isPending)) ? (
+				cards.isPending ||
+				restOfMonth.isPending ||
+				savings.isPending ||
+				(consolidated &&
+					(everywhere.isPending ||
+						balancesEverywhere.isPending ||
+						cardsEverywhere.isPending ||
+						restEverywhere.isPending ||
+						savingsEverywhere.isPending)) ? (
 					<Skeleton lines={2} />
 				) : (
 					<div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-4">
@@ -1225,8 +1244,10 @@ export function DashboardPage() {
 					</Link>
 				}
 			>
-				{upcoming.isPending ? <Skeleton lines={3} /> : null}
-				{!upcoming.isPending && dues.length === 0 ? (
+				{/* The records and the invoices of the cards: with the records alone, the list
+				    said "Nada previsto" over an invoice due in five days until the cards came. */}
+				{duesPending ? <Skeleton lines={3} /> : null}
+				{!duesPending && dues.length === 0 ? (
 					<p className="text-quiet text-sm">{t("dashboard.nothingDue")}</p>
 				) : null}
 
@@ -1439,8 +1460,10 @@ export function DashboardPage() {
 					</Link>
 				}
 			>
-				{accounts.isPending ? <Skeleton lines={4} /> : null}
-				{!accounts.isPending && shownAccounts.length === 0 && ready ? (
+				{/* With what each account holds: the investment accounts read R$ 0,00 until the
+				    holdings came. */}
+				{wherePending ? <Skeleton lines={4} /> : null}
+				{!wherePending && shownAccounts.length === 0 && ready ? (
 					<EmptyState
 						icon="wallet"
 						title={t("accounts.emptyTitle")}
@@ -1458,7 +1481,7 @@ export function DashboardPage() {
 					/>
 				) : null}
 
-				{GROUPS.map((group) => {
+				{(wherePending ? [] : GROUPS).map((group) => {
 					const found = shownAccounts.filter((account) => group.kinds.includes(account.kind));
 					if (found.length === 0) return null;
 					// Cards in the order somebody has to deal with them, and three or more of them as

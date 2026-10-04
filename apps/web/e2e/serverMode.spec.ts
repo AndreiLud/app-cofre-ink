@@ -961,6 +961,51 @@ test("draws the month on paper only once every reading of it has arrived", async
 	await expect(ana.getByRole("cell", { name: /^\d{4,}%$/ })).toHaveCount(0);
 });
 
+// Found by the audit of 2.0.0: before the cards arrived, the overview said what was left to spend
+// without the invoices due this month and "Nada previsto" over an invoice due in five days, and
+// before the holdings arrived it listed the investment accounts at R$ 0,00. Each part waits for
+// every reading it is made of.
+test("draws each part of the overview only once its readings have arrived", async ({ browser }) => {
+	const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
+	await go(ana, "Contas");
+	await ana.getByRole("button", { name: "Nova conta" }).first().click();
+	const dialog = ana.getByRole("dialog");
+	await dialog.getByLabel("Nome").fill("Banco");
+	await dialog.getByLabel("Saldo de abertura").fill("1.000,00");
+	await ana.getByRole("button", { name: "Salvar" }).click();
+	await expect(dialog).toHaveCount(0);
+
+	// One reading at a time takes its time, as on a slow connection, from a page loaded again:
+	// Contas has already read the cards and the holdings, and a screen opened after it would take
+	// them from what it remembers.
+	const slow = async (what: "invoices" | "holdings") => {
+		await ana.unrouteAll();
+		await ana.route(
+			(url) => url.pathname.endsWith(`/${what}`) && url.pathname.startsWith("/api/spaces/"),
+			async (route) => {
+				await new Promise((resolve) => setTimeout(resolve, 4000));
+				await route.continue();
+			},
+		);
+		await ana.goto("/");
+	};
+
+	// The cards: the four figures and what falls due wait for them.
+	await slow("invoices");
+	await expect(ana.getByRole("heading", { name: "Vence nos próximos dias" })).toBeVisible();
+	await expect(ana.getByText("Ainda dá para gastar")).toHaveCount(0);
+	await expect(ana.getByText("Nada previsto")).toHaveCount(0);
+	await expect(ana.getByText("Ainda dá para gastar")).toBeVisible({ timeout: 15_000 });
+	await expect(ana.getByText("Nada previsto")).toBeVisible();
+
+	// The holdings: where the money is waits for them.
+	await slow("holdings");
+	const where = ana.locator("section").filter({ hasText: "Onde o dinheiro está" });
+	await expect(where).toBeVisible();
+	await expect(where.getByText("R$ 1.000,00")).toHaveCount(0);
+	await expect(where.getByText("R$ 1.000,00")).toBeVisible({ timeout: 15_000 });
+});
+
 // Part 2, K.8.5 of the request for 2.0.0: the version on the screen, the button that asks GitHub
 // through the server, and a page that does not write to a server of another major version.
 test.describe("the version, and who asks GitHub", () => {
