@@ -112,6 +112,47 @@ describe("what a holding is worth", () => {
 		});
 	});
 
+	// Found reading the code for the report of 2.0.0: a Tesouro Selic of three units at R$
+	// 1.523,40 follows the Selic, and the price of one unit its purchase writes down, or any price
+	// typed for it later, was read as the value of the whole holding, so it was worth R$ 1.523,40
+	// instead of R$ 4.570,20.
+	it("reads a price typed for a product counted in units as the price of one unit", () => {
+		const selic = (
+			prices: { day: "2026-10-28" | "2026-10-20"; unitPrice: number; writtenAt: number }[],
+			moves: Parameters<typeof valueOfHolding>[0]["moves"] = [],
+		) =>
+			valueOfHolding({
+				facts: facts("treasurySelic", {
+					indexer: "selic",
+					quantity: 3 * QUANTITY_SCALE,
+					unitPrice: 152_340,
+					cost: 450_000,
+					writtenOn: "2026-10-01",
+				}),
+				prices,
+				moves,
+				series: NO_SERIES,
+				on: "2026-10-28",
+			}).value;
+		expect(selic([{ day: "2026-10-28", unitPrice: 152_340, writtenAt: 1_000 }])).toBe(457_020);
+		expect(selic([{ day: "2026-10-28", unitPrice: 160_000, writtenAt: 1_000 }])).toBe(480_000);
+		// A unit bought before the price was typed is one of the units it prices.
+		expect(
+			selic(
+				[{ day: "2026-10-20", unitPrice: 160_000, writtenAt: 2_000 }],
+				[
+					{
+						day: "2026-10-10",
+						kind: "in",
+						amount: 155_000,
+						quantity: QUANTITY_SCALE,
+						writtenAt: 500,
+					},
+				],
+			),
+		).toBe(640_000);
+	});
+
 	it("adds up the holdings of an account, and leaves out an account with none", () => {
 		expect(
 			worthByAccount([

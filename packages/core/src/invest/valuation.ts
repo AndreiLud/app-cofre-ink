@@ -84,6 +84,37 @@ function sameDayAfter(moves: readonly HoldingMoveFact[], typed: TypedPrice): num
 		.reduce((sum, move) => sum + (move.kind === "in" ? move.amount : -move.amount), 0);
 }
 
+/**
+ * The whole of what a value typed says the holding was worth.
+ *
+ * A price typed for a product counted in units, a Tesouro Selic or a share, is the price of one
+ * unit, so the whole is that price times the units held when it was typed. A product counted by
+ * value is one unit whose price is the whole, and comes out as it was typed. The Tesouro Selic of
+ * three units was read at the price of one, from the very price its purchase writes down.
+ */
+function typedWhole(
+	facts: HoldingFacts,
+	moves: readonly HoldingMoveFact[],
+	typed: TypedPrice,
+): number {
+	const units = moves
+		.filter(
+			(move) =>
+				move.quantity !== null &&
+				move.kind !== "income" &&
+				(compareCalendarDates(move.day, typed.day) < 0 ||
+					(move.day === typed.day &&
+						(typed.writtenAt === undefined ||
+							move.writtenAt === undefined ||
+							move.writtenAt < typed.writtenAt))),
+		)
+		.reduce(
+			(sum, move) => sum + (move.kind === "in" ? (move.quantity ?? 0) : -(move.quantity ?? 0)),
+			facts.quantity,
+		);
+	return Math.round((units * typed.unitPrice) / QUANTITY_SCALE);
+}
+
 /** The daily series the estimates read. */
 export type DailySeries = {
 	cdiDaily: readonly IndexDay[];
@@ -171,7 +202,7 @@ export function valueOfHolding(input: {
 		// The newest value typed, which is the whole value of a product counted by value, and what
 		// went in and came out after it; with none typed, the opening and every movement.
 		const from = newest
-			? { day: newest.day, value: newest.unitPrice + sameDayAfter(moves, newest) }
+			? { day: newest.day, value: typedWhole(facts, moves, newest) + sameDayAfter(moves, newest) }
 			: { day: facts.boughtOn ?? facts.writtenOn, value: opening };
 		const after = movementsOf(moves, on).filter(
 			(move) => newest === null || compareCalendarDates(from.day, move.day) < 0,
@@ -195,7 +226,7 @@ export function valueOfHolding(input: {
 				? input.series.savings
 				: input.series.cdiDaily;
 	const from = newest
-		? { day: newest.day, value: newest.unitPrice + sameDayAfter(moves, newest) }
+		? { day: newest.day, value: typedWhole(facts, moves, newest) + sameDayAfter(moves, newest) }
 		: null;
 	const deposits = movementsOf(moves, on);
 	if (from === null) deposits.push({ day: facts.boughtOn ?? facts.writtenOn, amount: opening });
