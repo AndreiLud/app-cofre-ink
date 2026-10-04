@@ -148,7 +148,8 @@
 		"partOfMonth": "No mês em que você está, o hábito conta só os dias que ainda faltam, porque o saldo de hoje já contém os dias que passaram.",
 		"after": "Depois de {{month}} ainda há {{amount}} em parcelas, até {{last}}.",
 		"thinHistoryBody_one": "Só tenho 1 mês para estimar o seu mês de sempre, então a parte do hábito é um chute educado. Quanto mais meses registrados, melhor ela fica.",
-		"thinHistoryBody_other": "Só tenho {{count}} meses para estimar o seu mês de sempre, então a parte do hábito é um chute educado. Quanto mais meses registrados, melhor ela fica."
+		"thinHistoryBody_other": "Só tenho {{count}} meses para estimar o seu mês de sempre, então a parte do hábito é um chute educado. Quanto mais meses registrados, melhor ela fica.",
+		"thinHistoryBody_zero": "Ainda não tenho nenhum mês para estimar o seu mês de sempre, então os meses à frente têm só o que já está lançado. Quanto mais meses registrados, melhor eles ficam."
 	},
 	"investments": {
 		"headline": "Você tem {{amount}} guardados",
@@ -381,7 +382,9 @@
 		"yearsPart_other": "{{count}} anos",
 		"monthsPart_one": "1 mês",
 		"monthsPart_other": "{{count}} meses",
-		"yearsAndMonths": "{{years}} e {{months}}"
+		"yearsAndMonths": "{{years}} e {{months}}",
+		"covers_zero": "O que você tem hoje ainda não cobre um mês do seu custo de vida atual.",
+		"monthsPart_zero": "menos de um mês"
 	},
 	"reports": {
 		"headlineLeft": "Em {{month}} sobrou {{amount}}",

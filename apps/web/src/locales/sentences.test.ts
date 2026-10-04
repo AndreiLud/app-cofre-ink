@@ -86,6 +86,21 @@ describe("what a sentence tells somebody to do", () => {
 		expect(pt.importing.willSort_other).toContain("{{count}} já entram categorizados");
 	});
 
+	// Found comparing the two rounds of the audit of 2.0.0: Portuguese says nought in the singular
+	// (the plural rules give 0 the form of 1), so a singular that writes "1" said one where there
+	// was none. A count that can be nought has a sentence of its own for it.
+	it("says nought where a count can be nought, and never one", () => {
+		for (const said of [pt, en]) {
+			expect(said.projection.thinHistoryBody_zero).not.toMatch(/\b1\b/);
+			expect(said.investments.covers_zero).not.toMatch(/\b1\b/);
+			expect(said.investments.monthsPart_zero).not.toMatch(/\b1\b/);
+		}
+		expect(pt.investments.covers_zero).toBe(
+			"O que você tem hoje ainda não cobre um mês do seu custo de vida atual.",
+		);
+		expect(pt.investments.monthsPart_zero).toBe("menos de um mês");
+	});
+
 	// Found reviewing the pictures of 2.0.0: in the dialog that splits an invoice, the amount and
 	// the choice of whether it is the total or each part were both called "Valor das parcelas".
 	it("names the amount of the parts and the way it is read apart", () => {

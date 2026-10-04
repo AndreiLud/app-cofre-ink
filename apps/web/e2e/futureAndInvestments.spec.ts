@@ -53,6 +53,27 @@ test.describe("the months ahead", () => {
 		).toBeVisible();
 		await expect(page.getByText("1 meses", { exact: false })).toHaveCount(0);
 	});
+
+	// Found comparing the two rounds of the audit of 2.0.0: Portuguese says nought in the
+	// singular, so with no month behind it the sentence above, in its singular, said "Só tenho 1
+	// mês" in an empty space. It says that there is no month yet.
+	test("says there is no month of history when there is none", async ({ page }) => {
+		await openCofre(page, { demo: false });
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByLabel("Nome").fill("Banco");
+		await dialog.getByLabel("Saldo de abertura").fill("1.000,00");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(dialog).toHaveCount(0);
+		await page.goto("/projecao");
+		await expect(
+			page.getByText("Ainda não tenho nenhum mês para estimar o seu mês de sempre", {
+				exact: false,
+			}),
+		).toBeVisible();
+		await expect(page.getByText("Só tenho 1 mês", { exact: false })).toHaveCount(0);
+	});
 });
 
 /** What the Banco Central answers, for the request it is: three days of the CDI at 0,050788%. */

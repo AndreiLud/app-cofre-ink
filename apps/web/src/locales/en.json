@@ -148,7 +148,8 @@
 		"partOfMonth": "In the month you are in, the habit counts only the days still to come, because today's balance already holds the days that have gone.",
 		"after": "After {{month}} there is still {{amount}} in instalments, until {{last}}.",
 		"thinHistoryBody_one": "I have only 1 month to work your usual month out from, so the habit is an educated guess. The more months you record, the better it gets.",
-		"thinHistoryBody_other": "I have only {{count}} months to work your usual month out from, so the habit is an educated guess. The more months you record, the better it gets."
+		"thinHistoryBody_other": "I have only {{count}} months to work your usual month out from, so the habit is an educated guess. The more months you record, the better it gets.",
+		"thinHistoryBody_zero": "I have no month yet to work your usual month out from, so the months ahead hold only what is already written down. The more months you record, the better they get."
 	},
 	"investments": {
 		"headline": "You have {{amount}} put aside",
@@ -381,7 +382,9 @@
 		"yearsPart_other": "{{count}} years",
 		"monthsPart_one": "1 month",
 		"monthsPart_other": "{{count}} months",
-		"yearsAndMonths": "{{years}} and {{months}}"
+		"yearsAndMonths": "{{years}} and {{months}}",
+		"covers_zero": "What you have today does not yet cover a month of your current cost of living.",
+		"monthsPart_zero": "less than a month"
 	},
 	"reports": {
 		"headlineLeft": "{{month}} left {{amount}} over",
