@@ -349,6 +349,44 @@ test.describe("reading a card invoice in", () => {
 		await expect(page.getByRole("cell", { name: "Já está aqui" })).toBeVisible();
 	});
 
+	// The reader said everything was ready above a payment that still waited for its card.
+	test("does not call a statement ready while a card payment waits for its card", async ({
+		page,
+	}) => {
+		await twoCards(page);
+		await go(page, "Dados");
+		await page.getByRole("button", { name: "Abrir a importação" }).click();
+		await page.getByLabel("Arquivo do banco").setInputFiles({
+			name: "extrato.pdf",
+			mimeType: "application/pdf",
+			buffer: Buffer.from(
+				buildPdf({
+					content: drawLines([
+						"Banco Exemplo",
+						"Extrato de conta corrente",
+						"Agencia 0001 Conta 12345-6",
+						"01/10/2026 Saldo anterior 5.000,00",
+						"03/10/2026 PIX RECEBIDO 200,00 5.200,00",
+						"10/10/2026 PAG FATURA CARTAO 433,40 4.766,60",
+					]),
+					compress: true,
+				}),
+			),
+		});
+		await expect(page.getByText("Isto parece um extrato")).toBeVisible();
+		await expect(
+			page.getByText('"PAG FATURA CARTAO" pagou a fatura de um cartão. Diga qual para gravar.'),
+		).toBeVisible();
+		await expect(page.getByText("Está tudo pronto", { exact: false })).toHaveCount(0);
+
+		await page.getByLabel("Cartão pago por PAG FATURA CARTAO").selectOption({ label: "Nubank" });
+		await expect(
+			page.getByText(
+				"Está tudo pronto: 2 lançamentos para Banco, nada em dúvida e nada repetido. É só gravar.",
+			),
+		).toBeVisible();
+	});
+
 	// E.18: an import could only be taken back record by record.
 	test("takes back an invoice with a new plan and a payment, leaving everything as it was", async ({
 		page,

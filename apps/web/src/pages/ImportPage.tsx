@@ -1324,8 +1324,13 @@ export function ImportPage() {
 					) : null}
 
 					{/* Nothing to correct and nothing in doubt: say so, so the person presses
-					    the button instead of reading every line looking for a catch. */}
-					{unsure === 0 && duplicates === 0 && read.records.length > 0 && chosen ? (
+					    the button instead of reading every line looking for a catch. A payment still
+					    waiting for its card is something to do, so it is not said then. */}
+					{unsure === 0 &&
+					duplicates === 0 &&
+					waiting === undefined &&
+					read.records.length > 0 &&
+					chosen ? (
 						<Callout tone="neutral">
 							{t("importing.allClear", { count: keeping.length, account: chosen.name })}
 						</Callout>
