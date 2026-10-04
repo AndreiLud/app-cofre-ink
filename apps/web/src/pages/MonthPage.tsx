@@ -1078,7 +1078,8 @@ export function MonthPage() {
 						</Table>
 					</Panel>
 					<p className="text-sm text-quiet">
-						<Link to={ROUTES.transactions} className="underline">
+						{/* With the month on the screen: it opened the list of the month it is. */}
+						<Link to={ROUTES.transactions} search={{ mes: shown }} className="underline">
 							{t("theMonth.seeTheList")}
 						</Link>
 					</p>
@@ -1172,7 +1173,7 @@ export function MonthPage() {
 						</>
 					)}
 					<p className="mt-4 text-sm text-quiet">
-						<Link to={ROUTES.reports} className="underline">
+						<Link to={ROUTES.reports} search={{ mes: shown }} className="underline">
 							{t("theMonth.tookSeeReports")}
 						</Link>
 					</p>

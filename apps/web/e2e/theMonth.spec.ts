@@ -38,6 +38,23 @@ async function balanceOf(page: Page, account: string): Promise<string> {
 }
 
 test.describe("a month in three numbers", () => {
+	// Found reading the code for the report of 2.0.0: the links of the month screen opened the list
+	// and the reports of the month it is, with September on the screen.
+	test("takes the month on the screen to the list and to the reports", async ({ page }) => {
+		await openCofre(page);
+		await page.goto("/mes?mes=2026-09");
+		await page.getByLabel("Quanto entrou").fill("6.120,00");
+		await page.getByLabel("Quanto você gastou").fill("1.000,00");
+		await page.getByRole("button", { name: "Guardar o mês" }).click();
+		await expect(page.getByText("Está tudo no lugar de sempre")).toBeVisible();
+		await expect(
+			page.getByRole("link", { name: "Ver na lista, junto com todo o resto" }),
+		).toHaveAttribute("href", /mes=2026-09/);
+		await expect(
+			page.getByRole("link", { name: "Ver todas as categorias, com os totais, nos Relatórios" }),
+		).toHaveAttribute("href", /mes=2026-09/);
+	});
+
 	test("writes the records, and the rest of the application reads them", async ({ page }) => {
 		await openCofre(page);
 
