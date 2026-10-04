@@ -1611,7 +1611,6 @@
 			"remembered": "It is the account the last file of this shape went into.",
 			"cardDigits": "Recognised by the four digits of the card."
 		},
-		"willSort": "{{count}} arrive already sorted by your rules.",
 		"allClear_one": "Everything is ready: 1 record for {{account}}, nothing in doubt and nothing repeated. Just write it.",
 		"allClear_other": "Everything is ready: {{count}} records for {{account}}, nothing in doubt and nothing repeated. Just write it.",
 		"found_one": "1 record read from a {{format}} file.",
@@ -1734,7 +1733,9 @@
 		"undoKeepsRemoved_other": "The {{count}} records it took out, purchases refunds took back or what the invoice detailed, do not come back.",
 		"undoConfirm": "Undo",
 		"undone_one": "The import was undone: 1 record went.",
-		"undone_other": "The import was undone: {{count}} records went."
+		"undone_other": "The import was undone: {{count}} records went.",
+		"willSort_one": "1 arrives already sorted by your rules.",
+		"willSort_other": "{{count}} arrive already sorted by your rules."
 	},
 	"demo": {
 		"notice": "Made up data, for demonstration only."

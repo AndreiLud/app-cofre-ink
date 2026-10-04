@@ -78,6 +78,14 @@ describe("what a sentence tells somebody to do", () => {
 		}
 	});
 
+	// Found looking for sentences with a count and no singular after the audit of 2.0.0: an import
+	// with one line sorted by a rule said "1 já entram categorizados pelas suas regras".
+	it("says one line sorted by a rule in the singular", () => {
+		expect(pt.importing.willSort_one).toBe("1 já entra categorizado pelas suas regras.");
+		expect(en.importing.willSort_one).toBe("1 arrives already sorted by your rules.");
+		expect(pt.importing.willSort_other).toContain("{{count}} já entram categorizados");
+	});
+
 	// Found reviewing the pictures of 2.0.0: in the dialog that splits an invoice, the amount and
 	// the choice of whether it is the total or each part were both called "Valor das parcelas".
 	it("names the amount of the parts and the way it is read apart", () => {

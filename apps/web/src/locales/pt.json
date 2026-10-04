@@ -1611,7 +1611,6 @@
 			"remembered": "Foi a conta da última vez que você importou um arquivo assim.",
 			"cardDigits": "Reconheci pelos quatro dígitos do cartão."
 		},
-		"willSort": "{{count}} já entram categorizados pelas suas regras.",
 		"allClear_one": "Está tudo pronto: 1 lançamento para {{account}}, nada em dúvida e nada repetido. É só gravar.",
 		"allClear_other": "Está tudo pronto: {{count}} lançamentos para {{account}}, nada em dúvida e nada repetido. É só gravar.",
 		"found_one": "1 lançamento lido de um arquivo {{format}}.",
@@ -1734,7 +1733,9 @@
 		"undoKeepsRemoved_other": "Os {{count}} lançamentos que ela tirou, compras desfeitas por estorno ou o que a fatura detalhou, não voltam.",
 		"undoConfirm": "Desfazer",
 		"undone_one": "A importação foi desfeita: 1 lançamento saiu.",
-		"undone_other": "A importação foi desfeita: {{count}} lançamentos saíram."
+		"undone_other": "A importação foi desfeita: {{count}} lançamentos saíram.",
+		"willSort_one": "1 já entra categorizado pelas suas regras.",
+		"willSort_other": "{{count}} já entram categorizados pelas suas regras."
 	},
 	"demo": {
 		"notice": "Dados fictícios, só para demonstração."
