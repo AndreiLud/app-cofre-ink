@@ -160,7 +160,7 @@ the net one beside it where income tax is known.
 
 Money goes in with **Guardar** (Put in), from an account of money, comes out with
 **Resgatar** (Take out), saying what reached the account after tax, and an income it pays is
-**Proventos**. Nothing goes into or out of an investment account without a holding, and a
+**Proventos** (Income paid). Nothing goes into or out of an investment account without a holding, and a
 goal or the saving rule may point at one holding rather than at the whole account.
 [Decision record 0069](../adr/0069_a_holding_is_a_product.md) has the reasoning.
 
