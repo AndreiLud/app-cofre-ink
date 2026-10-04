@@ -130,10 +130,12 @@ export function HoldingForm({
 
 	// Opening resets it, once, from the holding being corrected or to nothing.
 	const opened = useRef(false);
+	const pickedByHand = useRef(false);
 	useEffect(() => {
 		const opening = open && !opened.current;
 		opened.current = open;
 		if (!opening) return;
+		pickedByHand.current = false;
 		setProblem(null);
 		setNewAccount("");
 		setFromId("");
@@ -184,6 +186,19 @@ export function HoldingForm({
 				(mayOpenAccount ? NEW_ACCOUNT : ""),
 		);
 	}, [open, editing, accounts, startAccount, mayOpenAccount, i18n.resolvedLanguage, currency]);
+
+	// The accounts may still be on their way when the form opens, which chose a new account in a
+	// space that has some, and nothing chose again once they arrived. Until somebody picks one, the
+	// first that arrives is the one.
+	const firstUsable =
+		investmentAccounts.find((account) => account.id === startAccount)?.id ??
+		investmentAccounts[0]?.id ??
+		null;
+	useEffect(() => {
+		if (!open || editing || pickedByHand.current || firstUsable === null) return;
+		if (accountId !== "" && accountId !== NEW_ACCOUNT) return;
+		setAccountId(firstUsable);
+	}, [open, editing, accountId, firstUsable]);
 
 	function choose(id: ProductId) {
 		const chosen = catalogProduct(id);
@@ -536,7 +551,10 @@ export function HoldingForm({
 					<Select
 						label={t("investments.institution")}
 						value={accountId}
-						onChange={(event) => setAccountId(event.target.value)}
+						onChange={(event) => {
+							pickedByHand.current = true;
+							setAccountId(event.target.value);
+						}}
 						hint={t("investments.institutionHint")}
 						options={[
 							...(accountId === ""

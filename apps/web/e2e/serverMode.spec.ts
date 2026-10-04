@@ -759,6 +759,35 @@ test.describe("server mode", () => {
 	});
 });
 
+// Found while updating the tests for the demonstration of 2.0.0: the form of a new holding chose
+// its institution once, as it opened, so a form opened before the accounts arrived chose a new
+// account in a space that already had one, and nothing chose again once they came.
+test("chooses the investment account that arrives after the form of a holding opened", async ({
+	browser,
+}) => {
+	const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
+	await go(ana, "Contas");
+	await ana.getByRole("button", { name: "Nova conta" }).first().click();
+	const dialog = ana.getByRole("dialog");
+	await dialog.getByLabel("Nome").fill("Corretora");
+	await dialog.getByLabel("Tipo").selectOption("investment");
+	await ana.getByRole("button", { name: "Salvar" }).click();
+	await expect(dialog).toHaveCount(0);
+
+	// The accounts take their time, as they do on a slow connection.
+	await ana.route("**/api/spaces/*/accounts*", async (route) => {
+		await new Promise((resolve) => setTimeout(resolve, 3000));
+		await route.continue();
+	});
+	await ana.goto("/investimentos");
+	await ana.getByRole("button", { name: "Novo investimento" }).click();
+	const form = ana.getByRole("dialog");
+	await form.getByRole("button", { name: "Caixinha", exact: true }).click();
+	await expect(form.getByLabel("Instituição").locator("option:checked")).toHaveText("Corretora", {
+		timeout: 15_000,
+	});
+});
+
 // Part 2, K.8.5 of the request for 2.0.0: the version on the screen, the button that asks GitHub
 // through the server, and a page that does not write to a server of another major version.
 test.describe("the version, and who asks GitHub", () => {
