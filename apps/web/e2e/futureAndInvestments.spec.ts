@@ -5,7 +5,7 @@
 // holding that was typed in turn into a portfolio that is worth something.
 
 import { expect, type Page, test } from "@playwright/test";
-import { go, openCofre, total } from "./support.ts";
+import { fourCards, go, openCofre, total } from "./support.ts";
 
 test.describe("the months ahead", () => {
 	test("says what each month is made of, and lets a scenario change it", async ({ page }) => {
@@ -41,6 +41,17 @@ test.describe("the months ahead", () => {
 		// And going back to how it is brings the first number back.
 		await page.getByRole("button", { name: "Como está" }).click();
 		expect(await lastRow.innerText()).toBe(asItIs);
+	});
+
+	// Found by the audit of 2.0.0: with one month behind it, the projection said "Só tenho 1
+	// meses". The four cards of the suite have September behind them and nothing before.
+	test("says one month of history in the singular", async ({ page }) => {
+		await fourCards(page);
+		await page.goto("/projecao");
+		await expect(
+			page.getByText("Só tenho 1 mês para estimar o seu mês de sempre", { exact: false }),
+		).toBeVisible();
+		await expect(page.getByText("1 meses", { exact: false })).toHaveCount(0);
 	});
 });
 

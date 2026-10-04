@@ -145,9 +145,10 @@
 		"emptyTitle": "Sem meses para projetar",
 		"emptyBody": "A projeção usa o que você já registrou. Lance alguns meses e ela aparece.",
 		"thinHistoryTitle": "Pouco histórico",
-		"thinHistoryBody": "Só tenho {{count}} meses para estimar o seu mês de sempre, então a parte do hábito é um chute educado. Quanto mais meses registrados, melhor ela fica.",
 		"partOfMonth": "No mês em que você está, o hábito conta só os dias que ainda faltam, porque o saldo de hoje já contém os dias que passaram.",
-		"after": "Depois de {{month}} ainda há {{amount}} em parcelas, até {{last}}."
+		"after": "Depois de {{month}} ainda há {{amount}} em parcelas, até {{last}}.",
+		"thinHistoryBody_one": "Só tenho 1 mês para estimar o seu mês de sempre, então a parte do hábito é um chute educado. Quanto mais meses registrados, melhor ela fica.",
+		"thinHistoryBody_other": "Só tenho {{count}} meses para estimar o seu mês de sempre, então a parte do hábito é um chute educado. Quanto mais meses registrados, melhor ela fica."
 	},
 	"investments": {
 		"headline": "Você tem {{amount}} guardados",
