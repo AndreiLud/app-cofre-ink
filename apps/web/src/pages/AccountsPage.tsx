@@ -495,6 +495,9 @@ export function AccountsPage() {
 		},
 		onSuccess: () => {
 			setOpen(false);
+			// Every field starts over, the kind with them: after a card, "Nova conta" opened as a
+			// card again, with the cycle and no opening balance, for the bank written next.
+			setKind("checking");
 			setName("");
 			setBalance("");
 			setInstitution("");

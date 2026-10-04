@@ -20,6 +20,27 @@ test.describe("accounts", () => {
 		await expect(total(page)).toContainText("1.234,56");
 	});
 
+	// Found by the audit of 2.0.0: after a card was written, "Nova conta" opened as a card again,
+	// with the two days of the cycle and no opening balance, while the name and the digits started
+	// over. Somebody writing the bank after the card typed it into the wrong form.
+	test("opens a new account as a current account after a card was written", async ({ page }) => {
+		await openCofre(page, { demo: false });
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByLabel("Nome").fill("Nubank");
+		await dialog.getByLabel("Tipo").selectOption("credit");
+		await dialog.getByLabel("Dia do fechamento").selectOption("3");
+		await dialog.getByLabel("Dia do vencimento").selectOption("10");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(dialog).toHaveCount(0);
+
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		await expect(dialog.getByLabel("Tipo")).toHaveValue("checking");
+		await expect(dialog.getByLabel("Saldo de abertura")).toBeVisible();
+		await expect(dialog.getByLabel("Dia do fechamento")).toHaveCount(0);
+	});
+
 	test("shows what is in an account now, and not what was in it at the start", async ({ page }) => {
 		await openCofre(page);
 		await go(page, "Contas");
