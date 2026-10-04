@@ -14,7 +14,7 @@ device without you pressing something.
 | Repository | [`AndreiLud/app-cofre-ink`](https://github.com/AndreiLud/app-cofre-ink) |
 | Donate | [PayPal](https://www.paypal.com/donate/?hosted_button_id=6P3GYKL7PULEN) |
 
-![The overview, with the balance, what the figures found and where the money is](docs/imagens/painel.png)
+![The overview of the demonstration: what you have, what is left to spend this month, what falls due by its end and what is still to put aside, then the two cards and the meal voucher, and what the figures found](docs/imagens/painel.png)
 
 <a id="in_english"></a>
 
