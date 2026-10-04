@@ -23,6 +23,16 @@ describe("what a sentence tells somebody to do", () => {
 		expect(en.invoice.noRateBody).toContain("write it again");
 	});
 
+	// Found reading the code for the report of 2.0.0: the import said a repeat is found by the day,
+	// the amount and the start of the description, and since part 2, E.15 the description plays no
+	// part: the amount and the days do, and a move or a series is proof enough.
+	it("says how the import finds what is already here, as it finds it", () => {
+		expect(pt.importing.duplicatesBody).not.toMatch(/descrição/);
+		expect(en.importing.duplicatesBody).not.toMatch(/description/);
+		expect(pt.importing.duplicatesBody).toContain("a até três dias (dez num pagamento de fatura)");
+		expect(en.importing.duplicatesBody).toContain("within three days (ten for an invoice payment)");
+	});
+
 	// Found reading the code for the report of 2.0.0: the month screen said it writes on the last
 	// day of the month, which is not true of the month somebody is in; spoke of one card and "a
 	// fourth" record; said a payment not yet due goes in as planned, which nothing writes since

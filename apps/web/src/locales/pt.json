@@ -1620,7 +1620,7 @@
 		},
 		"duplicatesTitle_one": "1 parece já estar aqui",
 		"duplicatesTitle_other": "{{count}} parecem já estar aqui",
-		"duplicatesBody": "Quando o banco deu o mesmo identificador, o lançamento vem desmarcado e travado. Quando só a data, o valor e o começo da descrição batem, fica com você decidir.",
+		"duplicatesBody": "Quando o banco deu o mesmo identificador, o lançamento vem desmarcado e travado. Quando uma movimentação que toca esta conta, ou um lançamento de uma série, tem o mesmo valor a até três dias (dez num pagamento de fatura), ele vem desmarcado como já está aqui. Quando só o valor bate num dia perto, ele parece o mesmo e fica com você decidir: numa fatura vem desmarcado, num extrato, marcado.",
 		"caption": "Lançamentos lidos do arquivo, com data, descrição, valor e se já existem",
 		"keep": "Gravar",
 		"keepRow": "Gravar {{description}}",

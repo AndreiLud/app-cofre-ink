@@ -1620,7 +1620,7 @@
 		},
 		"duplicatesTitle_one": "1 looks like it is already here",
 		"duplicatesTitle_other": "{{count}} look like they are already here",
-		"duplicatesBody": "When the bank gave the same identifier the record comes unticked and locked. When only the day, the amount and the start of the description match, it is yours to decide.",
+		"duplicatesBody": "When the bank gave the same identifier the record comes unticked and locked. When a move touching this account, or a record of a series, has the same amount within three days (ten for an invoice payment), it comes unticked as already here. When only the amount matches on a day nearby, it looks the same and is yours to decide: unticked on an invoice, ticked on a statement.",
 		"caption": "Records read from the file, with date, description, amount and whether they are already here",
 		"keep": "Write",
 		"keepRow": "Write {{description}}",
