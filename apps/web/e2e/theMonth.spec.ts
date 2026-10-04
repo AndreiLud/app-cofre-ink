@@ -303,6 +303,23 @@ test.describe("a month in three numbers", () => {
 		);
 	});
 
+	// Found by the audit of 2.0.0: on the fifth of November, "No que foi" ranked R$ 446,90 of
+	// records dated later in the month (the headphones on the 21st, the chair on the 17th and the
+	// subscription on the 22nd) under "R$ 0,00 neste" on the same screen.
+	test("ranks only what has happened by today", async ({ page }) => {
+		await openCofre(page);
+		await page.clock.setFixedTime(new Date("2026-11-05T12:00:00-03:00"));
+		await page.reload();
+		await go(page, "O mês");
+		await expect(page.getByRole("heading", { level: 1 })).toContainText("Novembro");
+		await expect(
+			page.getByText("Já lançado: R$ 0,00 de entrada e R$ 446,90 de gasto."),
+		).toBeVisible();
+		await expect(
+			page.locator("section").filter({ hasText: "No que foi" }).filter({ hasText: "Hobby" }),
+		).toHaveCount(0);
+	});
+
 	test("ranks what the month went on, and leaves the typed totals out of it", async ({ page }) => {
 		await openCofre(page);
 		await go(page, "O mês");

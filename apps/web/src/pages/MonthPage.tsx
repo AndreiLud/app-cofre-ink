@@ -482,7 +482,12 @@ export function MonthPage() {
 	 * of a truncated month is a ranking of whichever thousand came back.
 	 */
 	const truncated = (records.data ?? []).length >= 1000;
-	const took = reads && !truncated ? whatTookIt(records.data ?? []) : null;
+	// What has happened by today, as the figures beside it: on the fifth of a month this ranked the
+	// records dated later in it under "R$ 0,00 neste".
+	const took =
+		reads && !truncated
+			? whatTookIt((records.data ?? []).filter((row) => hasHappened(row, today)))
+			: null;
 	const nameOfCategory = (categoryId: string | null) =>
 		categoryId === null
 			? t("reports.noCategory")
