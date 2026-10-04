@@ -266,7 +266,14 @@ export function TransactionsPage() {
 	const narrowedBy = {
 		spaceId,
 		kind: filters.kind === "" ? undefined : filters.kind,
-		status: filters.status === "" ? undefined : filters.status,
+		// "Previsto" and "Realizado" by the day, as the rows below mark them. A record dated ahead
+		// is a fact that waits for its day since 2.0.0, and asking the status alone found none of
+		// them under "Previsto" and every one of them under "Realizado".
+		...(filters.status === "planned"
+			? { stillToComeOn: today }
+			: filters.status === "settled"
+				? { happenedBy: today }
+				: {}),
 		accountId: filters.accountId === "" ? undefined : filters.accountId,
 		cardId: filters.cardId === "" ? undefined : filters.cardId,
 		search: filters.search === "" ? undefined : filters.search,

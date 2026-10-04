@@ -288,6 +288,31 @@ test.describe("records", () => {
 		await expect(record(page, "Seguro do carro")).toContainText("Previsto");
 	});
 
+	// Found reading the code for the report of 2.0.0: the filter "Situação" asked the status
+	// column, so "Previsto" found none of the records dated ahead the rows themselves mark
+	// "Previsto", and "Aconteceu" found all of them.
+	test("filters by what is still to come by its day, as the rows mark it", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = page.getByRole("dialog");
+		await form.getByLabel("Valor", { exact: true }).fill("75,00");
+		await form.getByLabel("Descrição").fill("Seguro do carro");
+		await form.getByLabel("Pago com").selectOption({ label: "Conta corrente" });
+		await form.getByLabel("Dia").fill("2026-10-30");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(form).toHaveCount(0);
+		await expect(record(page, "Seguro do carro")).toContainText("Previsto");
+
+		await page.getByRole("button", { name: "Mais filtros" }).click();
+		await page.getByLabel("Situação").selectOption({ label: "Previsto" });
+		await expect(record(page, "Seguro do carro")).toBeVisible();
+		await expect(record(page, "Café da esquina")).toHaveCount(0);
+		await page.getByLabel("Situação").selectOption({ label: "Aconteceu" });
+		await expect(record(page, "Café da esquina")).toBeVisible();
+		await expect(record(page, "Seguro do carro")).toHaveCount(0);
+	});
+
 	// Part 1, B.7 of the request for 2.0.0: the form offered the meal card as somewhere money
 	// comes in and somewhere a move starts, and creating either was refused.
 	test("never offers a benefit card for money coming in or a move starting", async ({ page }) => {
