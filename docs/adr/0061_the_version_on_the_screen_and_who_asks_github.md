@@ -72,7 +72,9 @@ does not know in its database refuses to start, and says to run the version that
 to restore the copy.
 
 **Going back** is restoring the copy of the first step and running the version before. Never an
-older version over a database a newer one migrated, which is what the refusal above stops.
+older version over a database a newer one migrated, which is what the refusal above stops from
+2.0.0 on. A version of 1.x has no such refusal: over a database 2.0.0 migrated it starts without
+a word, which is one more reason every way of updating starts with the copy.
 
 ## Consequences
 

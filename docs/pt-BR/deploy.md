@@ -424,9 +424,10 @@ Com uma imagem construída em casa: `git pull`, depois
 servidor, copie o arquivo do banco para algum lugar fora do clone, `git pull`, `pnpm install`,
 `pnpm build`, e suba de novo.
 
-Para voltar, restaure a cópia do primeiro passo e suba a versão anterior. Nunca suba uma versão
-anterior sobre um banco que uma mais nova já migrou: ela se recusa a subir e diz qual versão
-subir no lugar.
+Para voltar, restaure a cópia do primeiro passo e suba a versão anterior sobre ela. Nunca suba
+uma versão anterior sobre um banco que uma mais nova já migrou. Da 2.0.0 em diante, a versão
+anterior se recusa a subir e diz qual versão subir no lugar; uma versão 1.x não sabe recusar,
+sobe calada e grava linhas que a 2.0.0 lê de outro jeito.
 
 O `:2` nunca chega a uma versão 3. Quando uma for publicada, leia as notas dela e então troque o
 `COFRE_TAG` no `.env`.

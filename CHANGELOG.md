@@ -68,9 +68,12 @@ is refused by 1.x.
 > 4. **Whoever follows `latest` with `docker run` gets 2.0.0, with its migrations, on the next
 >    pull.** Pin `:1.2.1` to stay on 1.x, or take the copy first. From now on `latest` names
 >    only the highest version published.
-> 5. **There is no going back over a migrated database.** A version older than the one that
->    migrated it refuses to start, and says to run that version or to restore the copy. Going
->    back is restoring the copy and running the version before.
+> 5. **There is no going back over a migrated database.** From 2.0.0 on, a version older than
+>    the one that migrated a database refuses to start over it, and says to run that version or
+>    to restore the copy. A version of 1.x does not know how to refuse: started over a database
+>    2.0.0 migrated, it starts without a word and writes rows 2.0.0 reads differently. Going
+>    back is always restoring the copy taken before the update and running the version before
+>    over it.
 > 6. **A backup written by 2.0.0 is refused by 1.x**, which says it is newer, instead of
 >    quietly losing what 2.0.0 writes.
 > 7. **A saved filter keeps the month it was saved with.** One saved before 2.0.0 opens on its
@@ -128,9 +131,11 @@ is refused by 1.x.
 > 4. **Quem segue `latest` com `docker run` recebe a 2.0.0, com as migrações, no próximo pull.**
 >    Fixe `:1.2.1` para ficar na 1.x, ou tire a cópia antes. Daqui em diante `latest` aponta só
 >    para a maior versão publicada.
-> 5. **Não há volta sobre um banco migrado.** Uma versão mais velha que a que migrou o banco se
->    recusa a subir, e diz para subir aquela versão ou restaurar a cópia. Voltar é restaurar a
->    cópia e subir a versão anterior.
+> 5. **Não há volta sobre um banco migrado.** Da 2.0.0 em diante, uma versão mais velha que a
+>    que migrou o banco se recusa a subir sobre ele, e diz para subir aquela versão ou restaurar
+>    a cópia. Uma versão 1.x não sabe recusar: subida sobre um banco que a 2.0.0 migrou, ela
+>    sobe calada e grava linhas que a 2.0.0 lê de outro jeito. Voltar é sempre restaurar a cópia
+>    feita antes da atualização e subir a versão anterior sobre ela.
 > 6. **Um backup escrito pela 2.0.0 é recusado pela 1.x**, que diz que ele é mais novo, em vez
 >    de perder calada o que a 2.0.0 grava.
 > 7. **Um filtro salvo guarda o mês com que foi salvo.** Um salvo antes da 2.0.0 abre no mês

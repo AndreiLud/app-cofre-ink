@@ -421,9 +421,10 @@ With an image built here: `git pull`, then
 stop the server, copy the database file somewhere outside the clone, `git pull`,
 `pnpm install`, `pnpm build`, and start it again.
 
-To go back, restore the copy of the first step and run the version before. Never run an
-older version over a database a newer one has already migrated: it refuses to start, and
-says which version to run instead.
+To go back, restore the copy of the first step and run the version before over it. Never run
+an older version over a database a newer one has already migrated. From 2.0.0 on, the older
+version refuses to start and says which version to run instead; a version of 1.x does not
+know how to refuse, starts without a word and writes rows 2.0.0 reads differently.
 
 `:2` never reaches a version 3. When one is published, read its notes, and then change
 `COFRE_TAG` in `.env`.
