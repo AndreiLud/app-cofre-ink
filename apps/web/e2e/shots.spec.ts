@@ -146,8 +146,10 @@ test.describe("shots", () => {
 		await expect(dialog).toBeVisible();
 		await page.screenshot({ path: `${SHOTS}fatura_pagar_dialogo.png`, fullPage: true });
 
-		// Part of it, which is the whole reason the amount is a field and not a sentence.
+		// Part of it, which is the whole reason the amount is a field and not a sentence, paid
+		// today: the dialog opens on the due day, which would schedule it instead.
 		await dialog.getByLabel("Valor", { exact: true }).fill("100,00");
+		await dialog.getByLabel("Dia", { exact: true }).fill("2026-10-28");
 		await dialog.getByRole("button", { name: "Pagar" }).click();
 		await expect(page.getByRole("dialog")).toHaveCount(0);
 
