@@ -65,6 +65,23 @@ test.describe("what repeats", () => {
 		).toBeVisible();
 	});
 
+	// Found reading the code for the report of 2.0.0: "Repete" on the form of a record dated on a
+	// day already gone wrote the days since then as well, which count in the balance at once, with
+	// nothing said, where the screen of the series says it before saving (part 2, G.6).
+	test("says which days gone a record that repeats writes as well", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = page.getByRole("dialog");
+		await form.getByLabel("Valor", { exact: true }).fill("149,00");
+		await form.getByLabel("Descrição").fill("Academia");
+		await form.getByLabel("Dia").fill("2026-08-05");
+		await form.getByLabel("Repete").selectOption("monthly");
+		await expect(form).toContainText(
+			/Começando em 05\/08, a série também lança 2 ocorrências que já passaram \(05\/09 e 05\/10\), R\$\s298,00 ao todo, e elas entram no saldo\./,
+		);
+	});
+
 	// Found reading the code for the report of 2.0.0: editing a record of a series from the next
 	// time on called its amount "of each part" and locked its day, as a plan's parts are, when the
 	// day of a series is one of the things a change from the next time on may change.

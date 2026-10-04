@@ -991,7 +991,9 @@
 		"noRepeat": "Não repete",
 		"repeatsHint": "Grava este e os próximos, cada um no seu dia. Para mudar ou parar, use Recorrentes.",
 		"repeats": "repete",
-		"seeSeries": "Ver a recorrência"
+		"seeSeries": "Ver a recorrência",
+		"repeatsPast_one": "Começando em {{day}}, a série também lança uma ocorrência que já passou ({{days}}), de {{amount}}, e ela entra no saldo.",
+		"repeatsPast_other": "Começando em {{day}}, a série também lança {{count}} ocorrências que já passaram ({{days}}), {{amount}} ao todo, e elas entram no saldo."
 	},
 	"rulesSection": {
 		"title": "Regras que categorizam sozinhas",

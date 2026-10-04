@@ -17,6 +17,7 @@ import {
 	isSpendable,
 	MAX_INSTALLMENTS,
 	money,
+	occurrencesBetween,
 } from "@cofre/core";
 import type {
 	Account,
@@ -211,6 +212,27 @@ export function TransactionForm({
 		}
 	})();
 	const planTotal = eachPart ? typedCents * partCount : typedCents;
+
+	/**
+	 * The days a series started on a day already gone writes as well as the one typed, which
+	 * count in the balance at once. The screen of the series says so before it saves; this form
+	 * wrote them with nothing said.
+	 */
+	const dayAndMonth = (day: string) => `${day.slice(8, 10)}/${day.slice(5, 7)}`;
+	const repeatsPast = (() => {
+		if (editing || repeats === "" || happenedOn === "" || happenedOn >= today) return [];
+		try {
+			const yesterday = new Date(`${today}T12:00:00Z`);
+			yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+			return occurrencesBetween(
+				{ frequency: repeats, startsOn: happenedOn as CalendarDate, endsOn: null },
+				happenedOn as CalendarDate,
+				yesterday.toISOString().slice(0, 10) as CalendarDate,
+			).filter((day) => day !== happenedOn);
+		} catch {
+			return [];
+		}
+	})();
 	const paidCount = paidBefore.trim() === "" ? 0 : Number(paidBefore);
 	const planSaid = (() => {
 		if (partCount <= 1 || typedCents <= 0) return null;
@@ -809,7 +831,20 @@ export function TransactionForm({
 							onChange={(event) =>
 								setRepeats(event.target.value as "" | "weekly" | "monthly" | "yearly")
 							}
-							hint={repeats === "" ? undefined : t("transactions.repeatsHint")}
+							hint={
+								repeatsPast.length > 0
+									? t("transactions.repeatsPast", {
+											count: repeatsPast.length,
+											day: dayAndMonth(happenedOn),
+											days: new Intl.ListFormat(i18n.resolvedLanguage === "en" ? "en" : "pt-BR", {
+												type: "conjunction",
+											}).format(repeatsPast.map(dayAndMonth)),
+											amount: asMoneyHere(typedCents * repeatsPast.length),
+										})
+									: repeats === ""
+										? undefined
+										: t("transactions.repeatsHint")
+							}
 							options={[
 								{ value: "", label: t("transactions.noRepeat") },
 								{ value: "weekly", label: t("recurrences.every.weekly") },

@@ -991,7 +991,9 @@
 		"noRepeat": "Does not repeat",
 		"repeatsHint": "Writes this one and the next ones, each on its day. To change or stop it, use Recurring.",
 		"repeats": "repeats",
-		"seeSeries": "See the recurrence"
+		"seeSeries": "See the recurrence",
+		"repeatsPast_one": "Starting on {{day}}, the series also writes one occurrence already gone ({{days}}), of {{amount}}, and it counts in the balance.",
+		"repeatsPast_other": "Starting on {{day}}, the series also writes {{count}} occurrences already gone ({{days}}), {{amount}} in all, and they count in the balance."
 	},
 	"rulesSection": {
 		"title": "Rules that sort on their own",
