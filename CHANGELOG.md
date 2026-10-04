@@ -22,9 +22,11 @@ is refused by 1.x.
 > **What reads differently.** Every one of these is the old reading being wrong.
 >
 > 1. **A record dated ahead counts on its day, by itself.** The promises 1.1.0 to 1.2.1 wrote
->    for days still to come become facts the first time 2.0.0 opens, and count when their day
->    comes. Promises from 1.0, and promises brought back from a file, stay promises, and the
->    overview lists them to be answered at once.
+>    become facts the first time 2.0.0 opens, whatever their day, and count from it. One whose
+>    day has already gone, which the overview listed as late, counts as having happened on that
+>    day and leaves the late list: if it did not happen, delete it. Promises from 1.0, and
+>    promises brought back from a file, stay promises, and the overview lists them to be
+>    answered at once.
 > 2. **A card invoice is a bill on its due day.** A payment counts from the day it was made,
 >    what was paid beyond an invoice passes to the next one, a card written down with a debt
 >    carries it as an invoice, and a transfer out of a credit card is a purchase on its
@@ -79,9 +81,11 @@ is refused by 1.x.
 > **O que lê diferente.** Em todos os casos, a leitura antiga é que estava errada.
 >
 > 1. **Um lançamento com data adiante conta no dia dele, sozinho.** As promessas que a 1.1.0 a
->    1.2.1 escreveram para dias que ainda vão chegar viram fatos na primeira vez que a 2.0.0
->    abre, e contam quando o dia delas chega. Promessas da 1.0, e promessas trazidas de um
->    arquivo, continuam promessas, e o Painel lista elas para responder de uma vez.
+>    1.2.1 escreveram viram fatos na primeira vez que a 2.0.0 abre, qualquer que seja o dia
+>    delas, e contam a partir dele. Uma cujo dia já passou, que o Painel listava como atrasada,
+>    conta como acontecida naquele dia e sai dos atrasados: se não aconteceu, apague. Promessas
+>    da 1.0, e promessas trazidas de um arquivo, continuam promessas, e o Painel lista elas para
+>    responder de uma vez.
 > 2. **Uma fatura de cartão é uma conta no dia do vencimento.** Um pagamento conta do dia em
 >    que foi feito, o que se pagou além de uma fatura passa para a seguinte, um cartão
 >    cadastrado com dívida leva essa dívida como uma fatura, e uma transferência que sai de um
