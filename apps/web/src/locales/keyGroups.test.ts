@@ -45,6 +45,55 @@ describe("the keys a screen builds from a code", () => {
 		expect(missing.sort()).toEqual([]);
 	});
 
+	// Found by the audit of 2.0.0: the invoice screen of somebody who sees only their own records
+	// had the title `invoice.title`, a key no language holds, printed as it is. The translation
+	// script asks whether every key of the files is used, not whether every key used is in them.
+	it("hold every key a screen writes whole, in both languages", () => {
+		// The first argument of every t(), read up to the comma or the bracket that ends it, so a key
+		// chosen in a condition inside the call is read too; a quoted word in it shaped like a key
+		// is a key. Names of calls, such as mayCall("accounts.remove"), are not in it.
+		const keys = new Set<string>();
+		for (const text of Object.values(SOURCES)) {
+			for (const call of text.matchAll(/\bt\(/g)) {
+				let depth = 0;
+				let end = (call.index ?? 0) + call[0].length;
+				for (; end < text.length; end += 1) {
+					const char = text[end];
+					if (char === "(" || char === "[" || char === "{") depth += 1;
+					else if (char === ")" || char === "]" || char === "}") {
+						if (depth === 0) break;
+						depth -= 1;
+					} else if (char === "," && depth === 0) break;
+				}
+				const first = text.slice((call.index ?? 0) + call[0].length, end);
+				for (const found of first.matchAll(/"([a-zA-Z]+(?:\.[a-zA-Z0-9]+)+)"/g)) {
+					keys.add(found[1] ?? "");
+				}
+			}
+		}
+		expect(keys.has("invoice.standingDue")).toBe(true);
+		expect(keys.has("invoice.standingWasDue")).toBe(true);
+		const resolves = (messages: unknown, path: string) => {
+			const at = (key: string) => {
+				let node: unknown = messages;
+				for (const part of key.split(".")) {
+					if (node === null || typeof node !== "object") return undefined;
+					node = (node as Record<string, unknown>)[part];
+				}
+				return node;
+			};
+			const node = at(path);
+			// A string, a group read whole, or a sentence said in the singular and the plural.
+			return (
+				(typeof node === "string" && node !== "") ||
+				(node !== null && typeof node === "object") ||
+				typeof at(`${path}_other`) === "string"
+			);
+		};
+		const missing = [...keys].filter((key) => !resolves(pt, key) || !resolves(en, key));
+		expect(missing.sort()).toEqual([]);
+	});
+
 	// Part 2, H.8.4 of 2.0.0: the translation script sees investments.products.* and
 	// investments.fields.* only by their prefix, so a product of the catalog with no name, or a
 	// field with no label, would pass it and print a key on the form.

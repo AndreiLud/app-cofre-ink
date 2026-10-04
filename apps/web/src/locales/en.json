@@ -1336,7 +1336,8 @@
 		"standingDue": "{{standing}}, falls due on {{day}}",
 		"standingWasDue": "{{standing}}, fell due on {{day}}",
 		"scheduledTag": "scheduled",
-		"partsAmountIs": "How to read the amount"
+		"partsAmountIs": "How to read the amount",
+		"title": "Invoices"
 	},
 	"transactionKind": {
 		"expense": "Money out",

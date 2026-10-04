@@ -1336,7 +1336,8 @@
 		"standingDue": "{{standing}}, vence em {{day}}",
 		"standingWasDue": "{{standing}}, venceu em {{day}}",
 		"scheduledTag": "agendado",
-		"partsAmountIs": "Como ler o valor"
+		"partsAmountIs": "Como ler o valor",
+		"title": "Faturas"
 	},
 	"transactionKind": {
 		"expense": "Saída",
