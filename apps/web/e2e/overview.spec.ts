@@ -330,6 +330,40 @@ test.describe("the overview", () => {
 		await expect(page.getByText(/moedas diferentes \(BRL, EUR\)/)).toBeVisible();
 	});
 
+	// Found by the audit of 2.0.0: under "Todos", the month so far, what weighed most and the usual
+	// month were read from the open space alone, so R$ 300,00 spent in Casa were nowhere in it.
+	test("adds up the month so far of every space under Todos", async ({ page }) => {
+		await openCofre(page);
+		await openSetting(page, "Gerenciar espaços");
+		await page
+			.getByRole("listitem")
+			.filter({ hasText: "Casa" })
+			.getByRole("button", { name: "Entrar" })
+			.click();
+		await expect(page.getByRole("banner")).toContainText("Casa");
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = page.getByRole("dialog");
+		await form.getByLabel("Pago com").selectOption({ label: "Conta conjunta" });
+		await form.getByLabel("Valor", { exact: true }).fill("300,00");
+		await form.getByLabel("Descrição").fill("Feira da casa");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(form).toHaveCount(0);
+
+		await openSetting(page, "Gerenciar espaços");
+		await page
+			.getByRole("listitem")
+			.filter({ hasText: "Pessoal" })
+			.getByRole("button", { name: "Entrar" })
+			.click();
+		await expect(page.getByRole("banner")).toContainText("Pessoal");
+		await go(page, "Painel");
+		const soFar = page.locator("section").filter({ hasText: "O mês até agora" });
+		await expect(soFar).toContainText("R$ 1.024,30");
+		await page.getByRole("group", { name: "Mostrar" }).getByText("Todos", { exact: true }).click();
+		await expect(soFar).toContainText("R$ 1.324,30");
+	});
+
 	// Part 1, E.2 of the request for 2.0.0. With no rule, "Guardar e metas" said "A regra pede
 	// R$ 0,00. Guardados R$ 0,00." and the paper printed both lines at nought, because the
 	// answer always comes back as an object. And the line at the top had it the other way

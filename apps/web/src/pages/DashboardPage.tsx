@@ -402,11 +402,19 @@ export function DashboardPage() {
 	 * A record dated ahead is a fact held back by its day, so a total to the end of the month
 	 * counted the rent of the twenty fifth on the second.
 	 */
+	// Under "Todos", every space this person can read, which is what a report with no space is,
+	// as Relatórios reads it: the month so far, what weighed most and the usual month were read
+	// from the open space alone under a heading about all of them.
+	const reportsOf = consolidated ? undefined : spaceId;
 	const thisMonth = useQuery({
-		queryKey: ["reports", spaceId, "totals", month, today],
+		queryKey: ["reports", reportsOf ?? "everywhere", "totals", month, today],
 		enabled: Boolean(session && currentSpace),
 		queryFn: () =>
-			session?.reports.totals({ spaceId, from: `${month}-01` as CalendarDate, to: today }) ?? null,
+			session?.reports.totals({
+				spaceId: reportsOf,
+				from: `${month}-01` as CalendarDate,
+				to: today,
+			}) ?? null,
 	});
 
 	const categories = useQuery({
@@ -418,21 +426,24 @@ export function DashboardPage() {
 	// The rest of "O mês até agora" as proposal 3 drew it: the months a usual one is made
 	// of, read the way the month screen reads them, and what weighed most so far.
 	const monthsBefore = useQuery({
-		queryKey: ["reports", "byMonth", spaceId, month, today],
+		queryKey: ["reports", "byMonth", reportsOf ?? "everywhere", month, today],
 		enabled: Boolean(session && currentSpace),
 		queryFn: () =>
 			session?.reports.byMonth({
-				spaceId,
+				spaceId: reportsOf,
 				from: dateInMonth(addMonthsToMonth(month, -USUAL_WINDOW), 1),
 				to: today,
 			}) ?? [],
 	});
 	const heaviest = useQuery({
-		queryKey: ["reports", spaceId, "byCategory", month, today],
+		queryKey: ["reports", reportsOf ?? "everywhere", "byCategory", month, today],
 		enabled: Boolean(session && currentSpace),
 		queryFn: () =>
-			session?.reports.byCategory({ spaceId, from: `${month}-01` as CalendarDate, to: today }) ??
-			[],
+			session?.reports.byCategory({
+				spaceId: reportsOf,
+				from: `${month}-01` as CalendarDate,
+				to: today,
+			}) ?? [],
 	});
 
 	const findings = useQuery({
