@@ -179,3 +179,25 @@ for (const size of [SIZES[0], SIZES[2]]) {
 		expect(spill).toEqual([]);
 	});
 }
+
+// Found in the pictures taken after the switch was made to break its lines: with room to spare,
+// the overview's "Este espaço" broke onto two lines beside a "Todos" with space left over, because
+// every option had the same width whatever its words.
+test("a switch with room keeps each option on one line", async ({ page }) => {
+	await page.setViewportSize({ width: SIZES[2]?.width ?? 1280, height: SIZES[2]?.height ?? 800 });
+	await openCofre(page);
+	const shown = page.getByRole("group", { name: "Mostrar" });
+	await expect(shown.getByText("Este espaço", { exact: true })).toBeVisible();
+	// The lines the words of each option take, counted on the words and not on the option, which
+	// stretches to the height of the tallest one.
+	const lines = await shown.evaluate((group) =>
+		[...group.querySelectorAll("label")].map((label) => {
+			const words = [...label.childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
+			if (!words) return 0;
+			const range = document.createRange();
+			range.selectNodeContents(words);
+			return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size;
+		}),
+	);
+	expect(lines).toEqual([1, 1]);
+});
