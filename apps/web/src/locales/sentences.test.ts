@@ -62,6 +62,22 @@ describe("what a sentence tells somebody to do", () => {
 		expect(en.shell.reload).toBe("Reload the page");
 	});
 
+	// Found reviewing the pictures of 2.0.0: the forms of a holding said the day was beside the
+	// amount, where it sits below it; the forms of an FII, an ETF and a BDR said "a share is not
+	// divided"; and two examples named a real bank and a real fund.
+	it("describes the form of a holding as it is, for every product on the exchange", () => {
+		expect(pt.investments.amountHint).not.toMatch(/ao lado/);
+		expect(en.investments.amountHint).not.toMatch(/beside/);
+		expect(pt.investments.amountHint).toContain("Com o dia em que colocou");
+		expect(pt.investments.wholeUnits).not.toMatch(/ação/);
+		expect(en.investments.wholeUnits).not.toMatch(/share/);
+		for (const said of [pt, en]) {
+			expect(Object.values(said.investments.namePlaceholders).join(" ")).not.toMatch(
+				/\bXP\b|Inter\b/,
+			);
+		}
+	});
+
 	// Found reviewing the pictures of 2.0.0: in the dialog that splits an invoice, the amount and
 	// the choice of whether it is the total or each part were both called "Valor das parcelas".
 	it("names the amount of the parts and the way it is read apart", () => {
