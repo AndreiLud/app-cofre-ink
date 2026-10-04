@@ -47,6 +47,14 @@ four of its parts were read with the data of today:
    holdings, by name.
 6. The summary has one line per benefit card under the line of the benefit, and the month
    reads day by day in a table of its own.
+7. The months after a month that has gone read the cards and the records the same way as
+   item 2, through `projections.monthsAhead({ asItStood: true })`: a record dated after the
+   day counts only as a part of a purchase whose first part had come. They were read with
+   today's records, so the file of September said R$ 120,00 in parts were still to come
+   until April, from a chair bought in October, under the sentence that every figure was as
+   it stood on the thirtieth. The rule is written once, `stoodBy` in
+   `packages/storage/src/happened.ts`, and the cards read it from there too. Added after the
+   pictures of 2.0.0 were reviewed.
 
 ## Consequences
 

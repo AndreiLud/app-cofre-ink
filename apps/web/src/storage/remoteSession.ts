@@ -764,6 +764,7 @@ export function createRemoteSession(
 				months: number;
 				window?: number;
 				today: CalendarDate;
+				asItStood?: boolean;
 			}) => {
 				const query = new URLSearchParams({
 					from: input.from,
@@ -771,6 +772,7 @@ export function createRemoteSession(
 					today: input.today,
 				});
 				if (input.window !== undefined) query.set("window", String(input.window));
+				if (input.asItStood) query.set("asItStood", "true");
 				return get<Projection>(`/api/spaces/${input.spaceId}/projection?${query.toString()}`);
 			},
 		},

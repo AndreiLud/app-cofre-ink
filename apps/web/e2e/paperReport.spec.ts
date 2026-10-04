@@ -296,4 +296,18 @@ test.describe("the month on paper", () => {
 
 		await expect(page.getByText(/as they stood on August 31, 2026/)).toBeVisible();
 	});
+
+	// Found reviewing the pictures of 2.0.0: the file of September, as it stood on the thirtieth,
+	// said R$ 120,00 in parts were still to come until April 2027. They are the office chair of
+	// the demonstration, bought in six on the seventeenth of October.
+	test("leaves a plan bought after the month out of the months after it", async ({ page }) => {
+		await openCofre(page);
+		await page.goto("/relatorio?mes=2026-09");
+		await expect(page.getByText(/como estavam em 30 de setembro de 2026/)).toBeVisible();
+		await expect(page.getByRole("heading", { name: "Os meses à frente" })).toBeVisible();
+		// The six months after September have been read, the last of them March of 2027.
+		await expect(page.getByRole("cell", { name: /^mar\. de (20)?27$/ })).toBeVisible();
+		// The space after R$ is the one that does not break.
+		await expect(page.getByText(/ainda há R\$\s[\d.,]+ em parcelas/)).toHaveCount(0);
+	});
 });

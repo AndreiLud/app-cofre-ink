@@ -152,7 +152,7 @@ written before 2.0.0 has none and is read as it always was.
 | `GET` | `/api/reports` | one route for every report. `kind` is one of totals, byCategory, incomeByCategory, byPriority, byMonth, byDay. Needs `from` and `to` |
 | `GET` | `/api/spaces/:id/advice` | the findings, heaviest first. Needs `today` |
 | `GET` | `/api/spaces/:id/reading` | the verdict and the four vital signs. Needs `today` |
-| `GET` | `/api/spaces/:id/projection` | the months ahead. Needs `from` as a month and `today` as a day, which is what the opening balance is counted up to and what decides which invoices are still owed |
+| `GET` | `/api/spaces/:id/projection` | the months ahead. Needs `from` as a month and `today` as a day, which is what the opening balance is counted up to and what decides which invoices are still owed. `asItStood=true` reads them with only what existed on that day, as the month on paper does for a month that has gone |
 | `GET` `POST` | `/api/spaces/:id/scenarios` | saved adjustments to a projection |
 | `PATCH` `DELETE` | `/api/scenarios/:id` | edit, remove |
 

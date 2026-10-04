@@ -261,7 +261,7 @@ export function PaperReportPage() {
 		queryFn: () => session?.advice.reading({ spaceId, today: asOf }) ?? null,
 	});
 	const projection = useQuery({
-		queryKey: ["projection", spaceId, month, asOf],
+		queryKey: ["projection", spaceId, month, asOf, past ? "asItStood" : "now"],
 		enabled: on,
 		queryFn: () =>
 			session?.projections.monthsAhead({
@@ -272,6 +272,9 @@ export function PaperReportPage() {
 				// in November is a report on August, so the months after it are the months
 				// that were ahead then and not the ones ahead now.
 				today: asOf,
+				// And with what existed then: the file of September counted the parts of a chair
+				// bought in October, which the cards of the same file already left out.
+				asItStood: past,
 			}) ?? null,
 	});
 

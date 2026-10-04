@@ -394,6 +394,8 @@ export type CofreSession = {
 			window?: number;
 			/** The day it opens on, which is what the opening balance counts up to. */
 			today: CalendarDate;
+			/** With only what existed on that day, for a month on paper that has gone. */
+			asItStood?: boolean;
 		}) => Promise<Projection>;
 	};
 	scenarios: {

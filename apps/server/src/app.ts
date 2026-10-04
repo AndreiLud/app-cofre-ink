@@ -1769,6 +1769,8 @@ export function createApp(dependencies: AppDependencies) {
 				months: z.coerce.number().int().min(1).max(36).optional(),
 				window: z.coerce.number().int().min(1).max(24).optional(),
 				today: calendarDate,
+				// The months after a month on paper that has gone, read as it stood.
+				asItStood: z.enum(["true"]).optional(),
 			})
 			.parse(context.req.query());
 
@@ -1779,6 +1781,7 @@ export function createApp(dependencies: AppDependencies) {
 				months: query.months ?? 12,
 				window: query.window,
 				today: query.today,
+				asItStood: query.asItStood === "true",
 			}),
 		);
 	});

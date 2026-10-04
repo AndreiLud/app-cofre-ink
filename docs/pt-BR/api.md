@@ -150,7 +150,7 @@ transferência gravada antes da 2.0.0 não tem nenhuma e é lida como sempre foi
 | `GET` | `/api/reports` | uma rota para todo relatório. `kind` é totals, byCategory, incomeByCategory, byPriority, byMonth ou byDay. Precisa de `from` e `to` |
 | `GET` | `/api/spaces/:id/advice` | os achados, do mais pesado ao mais leve. Precisa de `today` |
 | `GET` | `/api/spaces/:id/reading` | o veredito e os quatro sinais vitais. Precisa de `today` |
-| `GET` | `/api/spaces/:id/projection` | os meses à frente. Precisa de `from` como mês e de `today` como dia, que é até onde o saldo de abertura é contado e o que decide quais faturas ainda estão em aberto |
+| `GET` | `/api/spaces/:id/projection` | os meses à frente. Precisa de `from` como mês e de `today` como dia, que é até onde o saldo de abertura é contado e o que decide quais faturas ainda estão em aberto. `asItStood=true` lê os meses só com o que existia naquele dia, como faz o mês no papel de um mês que já passou |
 | `GET` `POST` | `/api/spaces/:id/scenarios` | ajustes salvos sobre uma projeção |
 | `PATCH` `DELETE` | `/api/scenarios/:id` | editar, remover |
 

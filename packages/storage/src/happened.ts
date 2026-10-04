@@ -46,6 +46,24 @@ export function stillToComeOn(alias: string | null): string {
 	return `(${column}"status" = 'planned' OR ${column}"happened_on" > ?)`;
 }
 
+/**
+ * Existed by a day that has gone: its day had come, or it is a part of a purchase in parts whose
+ * first part had, because the bank puts the whole plan on the card the day of the purchase. One
+ * parameter, the day. The alias is required, because the plan is read from the same table.
+ *
+ * What "as it stood" means for a record, registry 0062. The cards of the month on paper read it
+ * from 2.0.0, and the months ahead of that file wrote their own nothing until a chair bought in
+ * October turned up in the file of September.
+ */
+export function stoodBy(alias: string): string {
+	const column = prefix(alias);
+	return `(CASE WHEN ${column}"installment_group" IS NULL THEN ${column}"happened_on"
+	     ELSE (SELECT MIN(sibling."happened_on") FROM "transactions" sibling
+	           WHERE sibling."installment_group" = ${column}"installment_group"
+	             AND sibling."deleted_at" IS NULL)
+	     END) <= ?`;
+}
+
 /** The same question about a record already read, for code that holds rows rather than SQL. */
 export function hasHappened(
 	record: { status: string; happenedOn: CalendarDate },

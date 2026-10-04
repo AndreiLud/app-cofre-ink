@@ -28,7 +28,7 @@ import { assertCan, seesOwnRowsOnly } from "../actor.ts";
 import { notOnABenefitCard } from "../benefitCards.ts";
 import type { SqlValue } from "../driver.ts";
 import { asNumber } from "../driver.ts";
-import { stillToComeOn } from "../happened.ts";
+import { stillToComeOn, stoodBy } from "../happened.ts";
 import { toRecurrence } from "../models.ts";
 import type { AccountsRepository } from "./accounts.ts";
 import type { RepositoryContext } from "./context.ts";
@@ -52,6 +52,15 @@ export type ProjectionInput = {
 	 * gone is a report as that month ended rather than as today.
 	 */
 	today: CalendarDate;
+	/**
+	 * With only what existed on that day, for a day that has gone: a record whose day had come,
+	 * and every part of a purchase whose first part had (registry 0062).
+	 *
+	 * The month on paper asks this for a month that has gone. Read with today's records, the
+	 * file of September counted the parts of a chair bought in October among the months after
+	 * it, while its own table of cards, read as it stood, left the chair out.
+	 */
+	asItStood?: boolean;
 };
 
 export type Projection = {
@@ -108,9 +117,13 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 		spaceId: string,
 		from: CalendarMonth,
 		to: CalendarMonth,
-		options: { notCountedYet?: CalendarDate; withoutCards?: boolean } = {},
+		options: { notCountedYet?: CalendarDate; withoutCards?: boolean; stoodOn?: CalendarDate } = {},
 	): Promise<MonthlyAmounts[]> {
 		const only = mine(spaceId, "t");
+		const stood =
+			options.stoodOn === undefined
+				? { clause: "", params: [] as SqlValue[] }
+				: { clause: `AND ${stoodBy("t")}`, params: [options.stoodOn] as SqlValue[] };
 
 		/**
 		 * Everything the opening balance has not already counted, and nothing else.
@@ -146,11 +159,12 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 			   AND t."happened_on" >= ? AND t."happened_on" <= ?
 			   AND ${notOnABenefitCard('t."account_id"')}
 			   ${notCounted.clause}
+			   ${stood.clause}
 			   ${options.withoutCards ? `AND a."kind" <> 'credit'` : ""}
 			   ${only.clause}
 			 GROUP BY SUBSTR(t."happened_on", 1, 7)
 			 ORDER BY month`,
-			[spaceId, `${from}-01`, lastDayOf(to), ...notCounted.params, ...only.params],
+			[spaceId, `${from}-01`, lastDayOf(to), ...notCounted.params, ...stood.params, ...only.params],
 		);
 
 		return rows.map((row) => ({
@@ -265,6 +279,7 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 		from: CalendarMonth,
 		to: CalendarMonth,
 		today: CalendarDate,
+		asItStood: boolean,
 	): Promise<{ months: MonthlyAmounts[]; beyond: { amount: number; last: CalendarMonth | null } }> {
 		const beyond = { amount: 0, last: null as CalendarMonth | null };
 		if (seesOwnRowsOnly(context.actor(), spaceId)) return { months: [], beyond };
@@ -279,7 +294,7 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 
 		const byMonth = new Map<string, MonthlyAmounts>();
 		for (const card of cards) {
-			for (const state of await needs.invoices.list(card.id, today)) {
+			for (const state of await needs.invoices.list(card.id, today, { asItStood })) {
 				if (state.left <= 0) continue;
 				const falls = monthOf(state.dueOn);
 				const month = falls < from ? from : falls;
@@ -416,11 +431,13 @@ export function createProjectionsRepository(context: RepositoryContext, needs: P
 			// purchase. The months behind still count the purchase in the month it happened,
 			// because the habit is about what a household spends and not about when the bank
 			// notices.
+			const asItStood = input.asItStood === true;
 			const planned = await amountsByMonth(input.spaceId, input.from, to, {
 				notCountedYet: input.today,
 				withoutCards: true,
+				...(asItStood ? { stoodOn: input.today } : {}),
 			});
-			const invoices = await invoicesByMonth(input.spaceId, input.from, to, input.today);
+			const invoices = await invoicesByMonth(input.spaceId, input.from, to, input.today, asItStood);
 			const written = together(planned, invoices.months);
 
 			return {

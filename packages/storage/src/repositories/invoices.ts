@@ -36,7 +36,7 @@ import { transactions } from "@cofre/db";
 import { assertCan, seesOwnRowsOnly } from "../actor.ts";
 import { asNumber } from "../driver.ts";
 import { NotFoundError, RuleError } from "../errors.ts";
-import { happenedBy, stillToComeOn } from "../happened.ts";
+import { happenedBy, stillToComeOn, stoodBy } from "../happened.ts";
 import type { Account, Transaction } from "../models.ts";
 import { softDeleteRow, updateRow } from "../writer.ts";
 import type { AccountsRepository } from "./accounts.ts";
@@ -250,12 +250,7 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 		// come, and every part of a purchase in parts whose first part had, because the bank
 		// puts the whole plan on the card the day of the purchase. A payment dated later had
 		// not been made, so it is neither paid nor scheduled.
-		const stood = asItStood
-			? `AND (CASE WHEN t."installment_group" IS NULL THEN t."happened_on"
-			     ELSE (SELECT MIN(p."happened_on") FROM "transactions" p
-			           WHERE p."installment_group" = t."installment_group" AND p."deleted_at" IS NULL)
-			     END) <= ?`
-			: "";
+		const stood = asItStood ? `AND ${stoodBy("t")}` : "";
 		const stoodParams = asItStood ? [today] : [];
 		const currencies = `COALESCE(SUM(CASE WHEN t."currency" <> ? THEN 1 ELSE 0 END), 0) AS in_other_currencies,
 			   COALESCE(SUM(CASE WHEN t."currency" <> ? AND t."fx_rate" IS NULL THEN 1 ELSE 0 END), 0)
@@ -580,12 +575,21 @@ export function createInvoicesRepository(context: RepositoryContext, needs: Invo
 	}
 
 	return {
-		/** Every invoice of one card, oldest first. */
-		async list(accountId: string, today: CalendarDate): Promise<InvoiceState[]> {
+		/**
+		 * Every invoice of one card, oldest first.
+		 *
+		 * As it stood on a day that has gone, with only what existed by then, for the months
+		 * after a month on paper, which read the cards the way its table of cards does.
+		 */
+		async list(
+			accountId: string,
+			today: CalendarDate,
+			options: { asItStood?: boolean } = {},
+		): Promise<InvoiceState[]> {
 			const account = await needs.accounts.get(accountId);
 			assertCan(context.actor(), account.spaceId, "transaction.read");
 			refuseIfNarrowed(account.spaceId);
-			return statesOf(accountId, today);
+			return statesOf(accountId, today, options.asItStood === true);
 		},
 
 		/** One invoice of one card, whether or not anything is on it. */

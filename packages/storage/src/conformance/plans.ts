@@ -190,6 +190,57 @@ export function runPlanOfPartsConformance(adapter: AdapterUnderTest): void {
 			}
 		});
 
+		// Found reviewing the pictures of 2.0.0: the file of September, which says its figures are as
+		// they stood on the thirtieth, said R$ 120,00 in parts were still to come until April 2027,
+		// from a chair bought on the seventeenth of October. As it stood, a plan counts once its
+		// first part had come, which is what the cards of that file already read (registry 0062).
+		it("reads the months ahead of a day that has gone without a plan bought after it", async () => {
+			const setup = await ready(adapter);
+			try {
+				const { on, spaceId } = setup;
+				for (const [description, amount, happenedOn] of [
+					["Sofá", 60_000, "2026-09-15"],
+					["Cadeira", 72_000, "2026-10-17"],
+				] as const) {
+					await on.transactions.create({
+						spaceId,
+						kind: "expense",
+						amount,
+						happenedOn,
+						description,
+						accountId: setup.card.id,
+						installments: 6,
+					});
+				}
+				const read = (asItStood: boolean) =>
+					on.projections.monthsAhead({
+						spaceId,
+						from: "2026-10",
+						months: 6,
+						today: "2026-09-30",
+						asItStood,
+					});
+
+				// The sofa's six parts fall due from the tenth of October to the tenth of March, all
+				// inside the six months. The chair's fall due from November to April, the last one
+				// after them.
+				const now = await read(false);
+				expect(now.after).toEqual({ amount: 12_000, last: "2027-04" });
+				expect(now.months.map((month) => month.expenseFrom.written)).toEqual([
+					10_000, 22_000, 22_000, 22_000, 22_000, 22_000,
+				]);
+
+				// As it stood on the thirtieth, the sofa is there and the chair is not.
+				const stood = await read(true);
+				expect(stood.after).toBeNull();
+				expect(stood.months.map((month) => month.expenseFrom.written)).toEqual([
+					10_000, 10_000, 10_000, 10_000, 10_000, 10_000,
+				]);
+			} finally {
+				await setup.fixture.close();
+			}
+		});
+
 		// D.6: converted part by part, US$ 1.000,00 in forty eight at 5,4321 came to R$ 5.432,00.
 		it("converts a plan in another currency once, so it adds up", async () => {
 			const setup = await ready(adapter);
