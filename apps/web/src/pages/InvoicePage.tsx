@@ -167,31 +167,28 @@ export function InvoicePage() {
 				placeOf(left.id) - placeOf(right.id) ||
 				left.name.localeCompare(right.name, i18n.resolvedLanguage),
 		);
-	const invoiceAccount =
-		invoiceAccounts.find((one) => one.id === asked.cartao) ?? invoiceAccounts[0] ?? null;
-
 	/**
-	 * The card the screen opened on, written into the address once it is known.
+	 * The card the screen opened on, kept once it is known.
 	 *
 	 * With no card in the address the screen showed the most urgent one, worked out again on
 	 * every reading, so paying it, which makes it the least urgent, moved the screen to another
-	 * card at the moment somebody looked for what they had just done. It replaces the entry
-	 * rather than adding one, so going back still leaves the screen.
+	 * card at the moment somebody looked for what they had just done. Kept here and not written
+	 * into the address, which would draw the list again under whatever somebody had just opened
+	 * on it; and only once nothing is on its way, because a reading kept from another screen is
+	 * there before the fresh one, from before the last purchases, and its order is not this one.
 	 */
-	// Only once nothing is on its way: a reading kept from another screen is there before the
-	// fresh one, from before the last purchases were written, and the order it gives was being
-	// written into the address before the card that was late came back late.
-	const openedOn = invoiceAccount?.id ?? null;
+	const [openedOn, setOpenedOn] = useState<string | null>(null);
 	const settled =
 		!accounts.isPending && !standing.isPending && !accounts.isFetching && !standing.isFetching;
+	const mostUrgent = invoiceAccounts[0]?.id ?? null;
 	useEffect(() => {
-		if (asked.cartao || openedOn === null || !settled) return;
-		void navigate({
-			to: ROUTES.invoices,
-			search: { cartao: openedOn, mes: asked.mes },
-			replace: true,
-		});
-	}, [asked.cartao, asked.mes, openedOn, settled, navigate]);
+		if (openedOn === null && settled && mostUrgent !== null) setOpenedOn(mostUrgent);
+	}, [openedOn, settled, mostUrgent]);
+	const invoiceAccount =
+		invoiceAccounts.find((one) => one.id === asked.cartao) ??
+		invoiceAccounts.find((one) => one.id === openedOn) ??
+		invoiceAccounts[0] ??
+		null;
 
 	/** A card as the switch names it, with what somebody has to know before choosing it. */
 	const cardLabel = (one: Account) => {
