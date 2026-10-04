@@ -297,6 +297,17 @@ test.describe("the month on paper", () => {
 		await expect(page.getByText(/as they stood on August 31, 2026/)).toBeVisible();
 	});
 
+	// Found reviewing the pictures of 2.0.0: the file of September in English wrote its months as
+	// "Jul 26" and "Sep 26", and its days as "Sep 14" and "Sep 22", so a month read as a day.
+	test("writes a month with its whole year, so it never reads as a day", async ({ page }) => {
+		await openCofre(page);
+		await page.goto("/relatorio?mes=2026-09&lang=en");
+		await expect(page.getByRole("heading", { name: "The last twelve months" })).toBeVisible();
+		await expect(page.getByRole("cell", { name: "Sep 2026", exact: true })).toBeVisible();
+		await expect(page.getByRole("cell", { name: "Jul 2026", exact: true })).toBeVisible();
+		await expect(page.getByRole("cell", { name: "Sep 26", exact: true })).toHaveCount(0);
+	});
+
 	// Found reviewing the pictures of 2.0.0: the file of September, as it stood on the thirtieth,
 	// said R$ 120,00 in parts were still to come until April 2027. They are the office chair of
 	// the demonstration, bought in six on the seventeenth of October.

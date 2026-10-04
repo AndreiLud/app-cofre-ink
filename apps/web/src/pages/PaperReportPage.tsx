@@ -139,8 +139,10 @@ export function PaperReportPage() {
 		new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "UTC" }).format(
 			new Date(`${day}T00:00:00Z`),
 		);
+	// With the whole year: with two digits, "Sep 26" in English is the twenty sixth of September
+	// on a page whose days are written "Sep 22".
 	const shortMonth = (value: string) =>
-		new Intl.DateTimeFormat(locale, { month: "short", year: "2-digit", timeZone: "UTC" }).format(
+		new Intl.DateTimeFormat(locale, { month: "short", year: "numeric", timeZone: "UTC" }).format(
 			new Date(`${value}-01T00:00:00Z`),
 		);
 
