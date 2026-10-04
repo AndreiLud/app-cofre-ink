@@ -83,6 +83,25 @@ describe("the month itself", () => {
 		late.thisMonth = { month: "2026-09", income: 600_000, expense: 250_000 };
 		expect(one(findEverything(late), "betterThanUsual").amounts.saved).toBe(150_000);
 	});
+
+	// Found by the audit of 2.0.0: on the thirty first of October, which counts October as closed,
+	// the months the check up reads hold October itself, and the finding compared October with a
+	// usual month made of October too: "R$ 1.553,70 a menos", against R$ 2.578,00, while the month
+	// screen said R$ 1.562,70 against the R$ 2.587,00 of July to September.
+	it("compares the month with the months before it, also on its last day", () => {
+		const last = quiet();
+		last.today = "2026-10-31";
+		last.thisMonth = { month: "2026-10", income: 612_000, expense: 102_430 };
+		last.before = [
+			{ month: "2026-10", income: 612_000, expense: 102_430 },
+			{ month: "2026-09", income: 612_000, expense: 258_700 },
+			{ month: "2026-08", income: 612_000, expense: 256_900 },
+			{ month: "2026-07", income: 612_000, expense: 261_100 },
+		];
+		const finding = one(findEverything(last), "betterThanUsual");
+		expect(finding.amounts.usual).toBe(258_700);
+		expect(finding.amounts.saved).toBe(156_270);
+	});
 });
 
 describe("a category against its usual month", () => {

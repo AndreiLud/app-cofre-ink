@@ -303,8 +303,12 @@ function aboutTheMonth(snapshot: Snapshot): Finding[] {
 		});
 	}
 
-	const usual = median(before.map((month) => month.expense));
-	if (usual > 0 && before.length >= 3) {
+	// The months before this one. On its last day a month counts as closed and is among the months
+	// read, and comparing it with a usual month made of itself said R$ 1.553,70 less where the
+	// month screen, comparing with July to September, said R$ 1.562,70.
+	const behind = before.filter((month) => month.month !== thisMonth.month);
+	const usual = median(behind.map((month) => month.expense));
+	if (usual > 0 && behind.length >= 3) {
 		const saved = usual - thisMonth.expense;
 		// Only once the month is far enough along that the comparison means anything.
 		// The same comparison the month screen makes, and not a stricter one. Sharing the
