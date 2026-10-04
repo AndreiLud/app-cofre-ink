@@ -20,6 +20,35 @@ test.describe("more than one card", () => {
 		await expect(heading).toContainText("Nubank: a fatura de novembro fecha");
 	});
 
+	// Found reviewing the pictures of 2.0.0: on the twenty eighth, the Nubank invoice that fell due
+	// on the twenty second said "Em aberto, vence em 22/10", while the switch above called it late.
+	// And a payment scheduled for the fifth was listed under "Como foi paga" as if it had been made.
+	test("says a late invoice fell due, and marks a payment whose day has not come", async ({
+		page,
+	}) => {
+		await fourCards(page);
+		await go(page, "Faturas");
+		// Once the screen has opened on the late card, which it chooses when the cards are read.
+		const heading = page.getByRole("heading", { level: 1 });
+		await expect(heading).toContainText("Nubank: a fatura de novembro fecha");
+		await page.getByRole("button", { name: "Fatura anterior", exact: true }).click();
+		await expect(heading).toContainText("Nubank: a fatura de outubro");
+		await expect(page.getByText("Em aberto, venceu em 22/10", { exact: true })).toBeVisible();
+		await expect(page.getByText("vence em 22/10")).toHaveCount(0);
+
+		await page.getByRole("group", { name: "Cartão" }).getByText("Itaú", { exact: true }).click();
+		await page.getByRole("button", { name: "Fatura anterior", exact: true }).click();
+		await page.getByRole("button", { name: "Pagar fatura" }).click();
+		const paying = page.getByRole("dialog");
+		await paying.getByLabel("Dia", { exact: true }).fill("2026-11-05");
+		await paying.getByRole("button", { name: "Pagar" }).click();
+		await expect(paying).toHaveCount(0);
+		const paid = page.locator("section").filter({ hasText: "Como foi paga" }).getByRole("listitem");
+		await expect(paid).toHaveCount(1);
+		await expect(paid).toContainText("05/11");
+		await expect(paid).toContainText("agendado");
+	});
+
 	// Part 2, B.10.1 and G.1.3 of the request for 2.0.0: the demonstration had one card, so no
 	// screen of it showed what two look like, and its subscription was a line that never came
 	// back the next month.

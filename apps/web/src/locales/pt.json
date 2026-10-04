@@ -1328,7 +1328,9 @@
 		"interestOf": "Juros da fatura de {{month}}",
 		"inPartsHeadline": "{{card}}: a fatura de {{month}} foi parcelada",
 		"importInvoice": "Importar fatura",
-		"standingDue": "{{standing}}, vence em {{day}}"
+		"standingDue": "{{standing}}, vence em {{day}}",
+		"standingWasDue": "{{standing}}, venceu em {{day}}",
+		"scheduledTag": "agendado"
 	},
 	"transactionKind": {
 		"expense": "Saída",

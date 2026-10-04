@@ -1328,7 +1328,9 @@
 		"interestOf": "Interest on the {{month}} invoice",
 		"inPartsHeadline": "{{card}}: the {{month}} invoice was split into parts",
 		"importInvoice": "Import an invoice",
-		"standingDue": "{{standing}}, falls due on {{day}}"
+		"standingDue": "{{standing}}, falls due on {{day}}",
+		"standingWasDue": "{{standing}}, fell due on {{day}}",
+		"scheduledTag": "scheduled"
 	},
 	"transactionKind": {
 		"expense": "Money out",

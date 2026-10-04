@@ -781,10 +781,12 @@ export function InvoicePage() {
 				{/* The day it falls due matters while something is owed on it. On one that is
 				    settled it is a date nobody has to do anything about. */}
 				{/* One sentence, with a comma: the word and the day were joined by a space alone,
-				    "Em aberto vence em 10/11". */}
+				    "Em aberto vence em 10/11". In the past tense once the day has gone: on the
+				    twenty eighth the invoice due on the twenty second said "vence em 22/10" under a
+				    switch that called it late. */}
 				<p className="text-sm text-quiet">
 					{dueOn && (state?.left ?? 0) > 0
-						? t("invoice.standingDue", {
+						? t(dueOn < today ? "invoice.standingWasDue" : "invoice.standingDue", {
 								standing: t(`invoice.standing.${state?.standing ?? "open"}`),
 								day: dayAndMonth(dueOn),
 							})
@@ -929,6 +931,11 @@ export function InvoicePage() {
 								<span>
 									<span className="font-mono text-quiet">{dayAndMonth(row.happenedOn)}</span>{" "}
 									{row.description}
+									{/* A payment whose day has not come is listed here too, under a title in
+									    the past tense, so it says it is still waiting for its day. */}
+									{row.happenedOn > today ? (
+										<span className="text-quiet"> ({t("invoice.scheduledTag")})</span>
+									) : null}
 								</span>
 								<Value
 									amount={row.amountInBase}
