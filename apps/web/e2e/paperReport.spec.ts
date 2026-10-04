@@ -308,6 +308,21 @@ test.describe("the month on paper", () => {
 		await expect(page.getByRole("cell", { name: "Sep 26", exact: true })).toHaveCount(0);
 	});
 
+	// Found by the audit of 2.0.0: on the twenty eighth, the file of October started the months ahead
+	// in November from the money of today, and left out the three days of October still to come,
+	// which the Projeção screen counts: November ended at R$ 37.277,90 on paper and R$ 37.619,81 on
+	// the screen, the same question with two answers.
+	test("ends each month ahead on the balance the projection ends it on", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Projeção");
+		const november = page.getByRole("row").filter({ hasText: /^nov/i }).first();
+		await expect(november).toContainText("R$ 37.619,81");
+
+		await page.goto("/relatorio?mes=2026-10");
+		const ahead = page.getByRole("table", { name: "O que os próximos meses devem somar" });
+		await expect(ahead.getByRole("row").filter({ hasText: /^nov/ })).toContainText("R$ 37.619,81");
+	});
+
 	// Found reviewing the pictures of 2.0.0: the file of September, as it stood on the thirtieth,
 	// said R$ 120,00 in parts were still to come until April 2027. They are the office chair of
 	// the demonstration, bought in six on the seventeenth of October.

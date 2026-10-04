@@ -268,8 +268,12 @@ export function PaperReportPage() {
 		queryFn: () =>
 			session?.projections.monthsAhead({
 				spaceId,
-				from: addMonthsToMonth(month, 1),
-				months: 6,
+				// From the month of the file, whose row is not printed: the months after it open on
+				// the money at its end, as the Projeção screen opens them. Asked from the next month
+				// with today's money, the days of this month still to come were in no month at all,
+				// and November ended R$ 341,91 apart on paper and on the screen.
+				from: month,
+				months: 7,
 				// As the month ended, for a month that has gone. A report on August printed
 				// in November is a report on August, so the months after it are the months
 				// that were ahead then and not the ones ahead now.
@@ -711,7 +715,7 @@ export function PaperReportPage() {
 									</TableRow>
 								</TableHead>
 								<TableBody>
-									{projection.data.months.map((one) => (
+									{projection.data.months.slice(1).map((one) => (
 										<TableRow key={one.month}>
 											<TableCell>{shortMonth(one.month)}</TableCell>
 											<TableCell numeric={true}>
@@ -728,7 +732,7 @@ export function PaperReportPage() {
 								</TableBody>
 							</Table>
 							{/* What the cards still charge after the six months on paper. */}
-							{projection.data.after && projection.data.months.length > 0 ? (
+							{projection.data.after && projection.data.months.length > 1 ? (
 								<p className="text-sm">
 									{t("projection.after", {
 										month: longMonth(projection.data.months.at(-1)?.month ?? ""),

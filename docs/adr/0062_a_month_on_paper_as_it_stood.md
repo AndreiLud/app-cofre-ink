@@ -55,6 +55,11 @@ four of its parts were read with the data of today:
    it stood on the thirtieth. The rule is written once, `stoodBy` in
    `packages/storage/src/happened.ts`, and the cards read it from there too. Added after the
    pictures of 2.0.0 were reviewed.
+8. The months ahead are asked from the month of the file, whose own row is not printed, so the
+   months after a month still in course open on the money at its end, as the Projeção screen
+   opens them. Asked from the next month with the money of today, the days of the month still
+   to come were in no month at all, and on the twenty eighth of October November ended
+   R$ 341,91 apart on paper and on the screen. Found by the audit of 2.0.0.
 
 ## Consequences
 
