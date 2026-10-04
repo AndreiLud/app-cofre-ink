@@ -121,6 +121,20 @@ test.describe("accounts", () => {
 		);
 	});
 
+	// Found reading the code for the report of 2.0.0: how much is on a new benefit card was asked
+	// before its allowance, and dropped on saving with nothing said when the allowance was empty.
+	test("asks how much is on a benefit card only once it has an allowance", async ({ page }) => {
+		await openCofre(page, { demo: false });
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByLabel("Nome").fill("VR");
+		await dialog.getByLabel("Tipo").selectOption("voucher");
+		await expect(dialog.getByLabel("Quanto tem no cartão hoje")).toHaveCount(0);
+		await dialog.getByLabel("Valor por mês").fill("900,00");
+		await expect(dialog.getByLabel("Quanto tem no cartão hoje")).toBeVisible();
+	});
+
 	// Part 1, B.2 of the request for 2.0.0: the accounts screen showed the balance of the meal
 	// card, minus 56, where the overview showed what is on it.
 	test("shows on the meal card's row what the overview says is on it", async ({ page }) => {

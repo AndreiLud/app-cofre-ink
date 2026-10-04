@@ -1241,8 +1241,10 @@ export function AccountsPage() {
 							/>
 							{/* Decision 3 of 2.0.0: on a card that carries, what is on it today,
 							    when somebody knows. Left empty, the allowance of this period is
-							    what it holds, with what was spent in the period. */}
-							{carriesByDefault(benefit) ? (
+							    what it holds, with what was spent in the period. Only once there
+							    is an allowance to count from: with none, what was typed here was
+							    dropped on saving with nothing said. */}
+							{carriesByDefault(benefit) && quota.trim() !== "" ? (
 								<Field
 									label={t("accounts.knownToday")}
 									hint={t("accounts.knownTodayHint")}
