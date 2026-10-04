@@ -262,4 +262,25 @@ test.describe("what is put aside", () => {
 		// have is what it was.
 		await expect(total(page)).toHaveText(before);
 	});
+
+	// Found reviewing the pictures of 2.0.0: "chegaria lá em 24 anos e 1 meses". The demonstration
+	// with a caixinha of R$ 10.000,00 put in on the twenty eighth of September gets there in
+	// twenty four years and one month.
+	test("says one month in the singular, and leaves out a month of none", async ({ page }) => {
+		await openCofre(page);
+		await page.goto("/investimentos");
+		await expect(
+			page.getByText("chegaria lá em 25 anos e 4 meses.", { exact: false }),
+		).toBeVisible();
+		await page.getByRole("button", { name: "Novo investimento" }).click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByRole("button", { name: "Caixinha", exact: true }).click();
+		await dialog.getByLabel("Nome", { exact: true }).fill("Reserva");
+		await dialog.getByLabel("Quanto colocou").fill("10.000,00");
+		await dialog.getByLabel("Quando colocou").fill("2026-09-28");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(dialog).toHaveCount(0);
+		await expect(page.getByText("chegaria lá em 24 anos e 1 mês.", { exact: false })).toBeVisible();
+		await expect(page.getByText("1 meses", { exact: false })).toHaveCount(0);
+	});
 });

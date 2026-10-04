@@ -189,7 +189,7 @@
 		"covers_one": "What you have today covers 1 month of your current cost of living.",
 		"covers_other": "What you have today covers {{count}} months of your current cost of living.",
 		"independence": "To live on what it earns, without touching the principal, you would need {{target}}. You are {{percent}} per cent of the way there.",
-		"independenceWhen": "Putting aside what is set above, you would get there in {{years}} years and {{months}} months.",
+		"independenceWhen": "Putting aside what is set above, you would get there in {{when}}.",
 		"independenceNever": "Putting aside what is set above, you never get there. Raise what you put aside each month, or what it earns.",
 		"emptyTitle": "No holdings written down",
 		"emptyBody": "Write down what you already have. A caixinha, a poupança and a CDB grow by themselves with the indices; the rest by the price you type now and then.",
@@ -375,7 +375,12 @@
 		"leaves": "{{amount}} leaves {{account}}.",
 		"removeTitle": "Delete {{name}}?",
 		"removeDescription": "The holding, its movements and the money they moved all go together.",
-		"removeConfirm": "Delete the holding"
+		"removeConfirm": "Delete the holding",
+		"yearsPart_one": "1 year",
+		"yearsPart_other": "{{count}} years",
+		"monthsPart_one": "1 month",
+		"monthsPart_other": "{{count}} months",
+		"yearsAndMonths": "{{years}} and {{months}}"
 	},
 	"reports": {
 		"headlineLeft": "{{month}} left {{amount}} over",

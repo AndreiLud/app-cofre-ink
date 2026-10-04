@@ -189,7 +189,7 @@
 		"covers_one": "O que você tem hoje cobre 1 mês do seu custo de vida atual.",
 		"covers_other": "O que você tem hoje cobre {{count}} meses do seu custo de vida atual.",
 		"independence": "Para viver do que rende, sem mexer no principal, você precisaria de {{target}}. Você está em {{percent}} por cento disso.",
-		"independenceWhen": "Guardando o que está aí em cima, chegaria lá em {{years}} anos e {{months}} meses.",
+		"independenceWhen": "Guardando o que está aí em cima, chegaria lá em {{when}}.",
 		"independenceNever": "Guardando o que está aí em cima, não chega lá. Aumente o quanto guarda por mês ou o quanto rende.",
 		"emptyTitle": "Nenhum investimento cadastrado",
 		"emptyBody": "Cadastre o que você já tem. Caixinha, poupança e CDB crescem sozinhos pelos índices; o resto, pelo preço que você digita de vez em quando.",
@@ -375,7 +375,12 @@
 		"leaves": "{{amount}} saem de {{account}}.",
 		"removeTitle": "Apagar {{name}}?",
 		"removeDescription": "A aplicação, os movimentos dela e o dinheiro que eles moveram saem juntos.",
-		"removeConfirm": "Apagar a aplicação"
+		"removeConfirm": "Apagar a aplicação",
+		"yearsPart_one": "1 ano",
+		"yearsPart_other": "{{count}} anos",
+		"monthsPart_one": "1 mês",
+		"monthsPart_other": "{{count}} meses",
+		"yearsAndMonths": "{{years}} e {{months}}"
 	},
 	"reports": {
 		"headlineLeft": "Em {{month}} sobrou {{amount}}",

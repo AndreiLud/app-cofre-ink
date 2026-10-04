@@ -79,6 +79,17 @@ export function InvestmentsPage() {
 	const money = (cents: number) =>
 		new Intl.NumberFormat(locale, { style: "currency", currency }).format(cents / 100);
 	const day = (value: string) => shortDay(value, i18n.resolvedLanguage);
+	/** A number of months as years and months, each with its own plural, and none of nought. */
+	const durationWords = (months: number) => {
+		const years = Math.floor(months / 12);
+		const rest = months % 12;
+		const yearsSaid = t("investments.yearsPart", { count: years });
+		const monthsSaid = t("investments.monthsPart", { count: rest });
+		if (years > 0 && rest > 0) {
+			return t("investments.yearsAndMonths", { years: yearsSaid, months: monthsSaid });
+		}
+		return years > 0 ? yearsSaid : monthsSaid;
+	};
 
 	/** The form: open for a new holding, or with the holding being corrected. */
 	const [form, setForm] = useState<{ editing: HoldingValue | null } | null>(null);
@@ -612,9 +623,10 @@ export function InvestmentsPage() {
 							<p className="text-quiet text-sm">{t("investments.independenceNever")}</p>
 						) : (
 							<p className="text-quiet text-sm">
+								{/* Each part with its own plural, and a part of nought left out: it said
+								    "24 anos e 1 meses". */}
 								{t("investments.independenceWhen", {
-									years: Math.floor(independent.months / 12),
-									months: independent.months % 12,
+									when: durationWords(independent.months),
 								})}
 							</p>
 						)}
