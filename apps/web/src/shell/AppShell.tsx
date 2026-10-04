@@ -236,13 +236,18 @@ function Bar() {
 			className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-panel md:hidden print:hidden"
 			style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
 		>
+			{/* Each tab takes an equal share, but never less than its own word: with equal
+			    shares and nothing more, "Planejamento" needed 72.3 pixels of a 72 pixel tab at
+			    360, was cut on a runner whose letters come out a fraction wider, and was cut
+			    everywhere at 320 along with "Lançamentos". A tab whose word does not fit now
+			    takes what it lacks from the others, which have room to spare. */}
 			<div className="flex">
 				{sections.map((section) => (
 					<Link
 						key={section.label}
 						to={section.to}
 						aria-current={currentOf(section, here, path)}
-						className={`flex min-w-0 flex-1 flex-col items-center gap-1 pt-2 pb-2.5 text-[0.6875rem] leading-none transition-colors ${
+						className={`flex flex-1 flex-col items-center gap-1 pt-2 pb-2.5 text-[0.6875rem] leading-none transition-colors ${
 							section === here ? "font-medium text-ink" : "text-quiet"
 						}`}
 					>
@@ -254,7 +259,7 @@ function Bar() {
 						>
 							<Icon name={section.icon} size="medium" />
 						</span>
-						<span className="max-w-full truncate px-0.5">{section.label}</span>
+						<span className="whitespace-nowrap px-0.5">{section.label}</span>
 					</Link>
 				))}
 			</div>

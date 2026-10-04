@@ -140,20 +140,40 @@ test("the sections are reachable on a telephone without opening anything", async
 });
 
 // Part 1, E.7 and part 2, I.2 of 2.0.0: the bar of six cut "Lançamen..." and "Planejame...".
-test("the bar of a telephone writes every section in full", async ({ page }) => {
-	await page.setViewportSize({ width: 360, height: 720 });
-	await openCofre(page);
+// With five equal tabs "Planejamento" still needed 72.3 pixels of a 72 pixel tab at 360, which
+// passed here and failed on the Linux runner, and at 320 it was cut along with "Lançamentos"
+// on any machine. Each word is measured against its tab, and the bar against the screen.
+for (const width of [360, 320]) {
+	test(`the bar of a telephone writes every section in full at ${width}`, async ({ page }) => {
+		await page.setViewportSize({ width, height: 720 });
+		await openCofre(page);
 
-	const bar = page.getByRole("navigation", { name: "Seções do aplicativo" });
-	await expect(bar.getByRole("link", { name: "Ajustes" })).toBeVisible();
-	const cut = await bar.evaluate((element) =>
-		[...element.querySelectorAll("a span:last-child")]
-			.filter((label) => label.scrollWidth > label.clientWidth)
-			.map((label) => label.textContent),
-	);
-	expect(cut).toEqual([]);
-	await expect(bar.getByRole("link")).toHaveCount(5);
-});
+		const bar = page.getByRole("navigation", { name: "Seções do aplicativo" });
+		await expect(bar.getByRole("link", { name: "Ajustes" })).toBeVisible();
+		const cut = await bar.evaluate((element) =>
+			[...element.querySelectorAll("a")]
+				.filter((link) => {
+					const label = link.querySelector("span:last-child");
+					if (!label) return true;
+					// The width of the letters, which a cut label still lays out in full, and
+					// its padding, against the tab. A layout unit is a sixty fourth of a pixel.
+					const words = document.createRange();
+					words.selectNodeContents(label);
+					const style = getComputedStyle(label);
+					const needs =
+						words.getBoundingClientRect().width +
+						Number.parseFloat(style.paddingLeft) +
+						Number.parseFloat(style.paddingRight);
+					return needs > link.getBoundingClientRect().width + 0.05;
+				})
+				.map((link) => link.textContent),
+		);
+		expect(cut).toEqual([]);
+		const wider = await bar.evaluate((element) => element.scrollWidth > element.clientWidth);
+		expect(wider).toBe(false);
+		await expect(bar.getByRole("link")).toHaveCount(5);
+	});
+}
 
 // Found reviewing the pictures of 2.0.0: in the dialog that pays an invoice, the three ways of
 // paying were one row that never wrapped, wider than the dialog, and "Parcelando" was cut at its
