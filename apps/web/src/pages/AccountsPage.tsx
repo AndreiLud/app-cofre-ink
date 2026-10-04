@@ -15,6 +15,7 @@ import {
 	worthByAccount,
 } from "@cofre/core";
 import type { Account, AccountKind, BenefitKind, Card, CardKind } from "@cofre/storage";
+import { RuleError } from "@cofre/storage";
 import {
 	Button,
 	Callout,
@@ -377,6 +378,18 @@ export function AccountsPage() {
 					debitAccountId,
 				});
 				return null;
+			}
+
+			// The plastic of a credit account or a voucher is made after the account, so what the
+			// plastic would be refused for is asked first: the account used to be made, the plastic
+			// refused, and saving again made a second account with the same name.
+			if (kind === "credit" || kind === "voucher") {
+				if (digits !== null && !/^\d{4}$/.test(digits)) {
+					throw new RuleError("lastFourIsFourDigits", "a card is named by its four digits");
+				}
+				if (kind === "credit" && works === "multiple" && !debitAccountId) {
+					throw new RuleError("cardNeedsDebitAccount", "a multiple card spends a balance too");
+				}
 			}
 
 			// Nothing for a card or a benefit card, whatever is in the field, because the

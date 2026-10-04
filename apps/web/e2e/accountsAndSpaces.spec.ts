@@ -382,6 +382,28 @@ test.describe("accounts", () => {
 		);
 	});
 
+	// Found reading the code for the report of 2.0.0: a credit account was made before its plastic,
+	// so digits the plastic refused left the account made, and saving again made a second one.
+	test("makes no account when the card that comes with it would be refused", async ({ page }) => {
+		await openCofre(page, { demo: false });
+		await go(page, "Contas");
+		await page.getByRole("button", { name: "Nova conta" }).first().click();
+		const dialog = page.getByRole("dialog");
+		await dialog.getByLabel("Nome").fill("Nubank");
+		await dialog.getByLabel("Tipo").selectOption("credit");
+		await dialog.getByLabel("Dia do fechamento").selectOption("3");
+		await dialog.getByLabel("Dia do vencimento").selectOption("10");
+		await dialog.getByLabel("Quatro últimos dígitos").fill("12");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(dialog.getByText("Escreva os quatro últimos dígitos do cartão.")).toBeVisible();
+		await page.keyboard.press("Escape");
+		// Read again, because a refusal does not refresh the table.
+		await page.reload();
+		await go(page, "Contas");
+		await expect(page.getByRole("button", { name: "Nova conta" }).first()).toBeVisible();
+		await expect(page.getByRole("cell", { name: "Nubank", exact: true })).toHaveCount(0);
+	});
+
 	test("hides an archived account until it is asked for", async ({ page }) => {
 		await openCofre(page);
 
