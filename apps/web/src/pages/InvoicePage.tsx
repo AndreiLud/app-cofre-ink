@@ -50,7 +50,7 @@ import {
 } from "@cofre/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PayInvoiceDialog, type PayWay } from "../components/PayInvoiceDialog.tsx";
 import { Value } from "../components/Value.tsx";
@@ -169,6 +169,29 @@ export function InvoicePage() {
 		);
 	const invoiceAccount =
 		invoiceAccounts.find((one) => one.id === asked.cartao) ?? invoiceAccounts[0] ?? null;
+
+	/**
+	 * The card the screen opened on, written into the address once it is known.
+	 *
+	 * With no card in the address the screen showed the most urgent one, worked out again on
+	 * every reading, so paying it, which makes it the least urgent, moved the screen to another
+	 * card at the moment somebody looked for what they had just done. It replaces the entry
+	 * rather than adding one, so going back still leaves the screen.
+	 */
+	// Only once nothing is on its way: a reading kept from another screen is there before the
+	// fresh one, from before the last purchases were written, and the order it gives was being
+	// written into the address before the card that was late came back late.
+	const openedOn = invoiceAccount?.id ?? null;
+	const settled =
+		!accounts.isPending && !standing.isPending && !accounts.isFetching && !standing.isFetching;
+	useEffect(() => {
+		if (asked.cartao || openedOn === null || !settled) return;
+		void navigate({
+			to: ROUTES.invoices,
+			search: { cartao: openedOn, mes: asked.mes },
+			replace: true,
+		});
+	}, [asked.cartao, asked.mes, openedOn, settled, navigate]);
 
 	/** A card as the switch names it, with what somebody has to know before choosing it. */
 	const cardLabel = (one: Account) => {
