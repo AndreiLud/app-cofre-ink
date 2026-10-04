@@ -993,7 +993,9 @@
 		"repeats": "repete",
 		"seeSeries": "Ver a recorrência",
 		"repeatsPast_one": "Começando em {{day}}, a série também lança uma ocorrência que já passou ({{days}}), de {{amount}}, e ela entra no saldo.",
-		"repeatsPast_other": "Começando em {{day}}, a série também lança {{count}} ocorrências que já passaram ({{days}}), {{amount}} ao todo, e elas entram no saldo."
+		"repeatsPast_other": "Começando em {{day}}, a série também lança {{count}} ocorrências que já passaram ({{days}}), {{amount}} ao todo, e elas entram no saldo.",
+		"addingUpWithAhead_one": "Somando o que está na lista, com o lançamento que ainda vai acontecer: entradas {{income}}, saídas {{expense}}",
+		"addingUpWithAhead_other": "Somando o que está na lista, com os {{count}} que ainda vão acontecer: entradas {{income}}, saídas {{expense}}"
 	},
 	"rulesSection": {
 		"title": "Regras que categorizam sozinhas",

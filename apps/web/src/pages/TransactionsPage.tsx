@@ -1208,12 +1208,20 @@ export function TransactionsPage() {
 					    never "Entrou" and "Saiu", which are the money that came and went. */}
 					<div className="space-y-2 border-t border-line bg-sunken px-4 py-3 text-sm">
 						{more(records, rows.length, listedCount)}
+						{/* With the closed group above, which the count over this line leaves out: a
+						    reader adding the months of the table found the months ahead missing. */}
 						{summary.data ? (
 							<p className="text-ink">
-								{t("transactions.addingUp", {
-									income: said(summary.data.income),
-									expense: said(summary.data.expense),
-								})}
+								{aheadCount > 0
+									? t("transactions.addingUpWithAhead", {
+											count: aheadCount,
+											income: said(summary.data.income),
+											expense: said(summary.data.expense),
+										})
+									: t("transactions.addingUp", {
+											income: said(summary.data.income),
+											expense: said(summary.data.expense),
+										})}
 							</p>
 						) : null}
 					</div>

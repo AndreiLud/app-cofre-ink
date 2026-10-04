@@ -47,8 +47,12 @@ test.describe("the list of a year", () => {
 		await expect(monthGroup(page, "Setembro de 2026")).toContainText(
 			"entradas R$ 0,00, saídas R$ 45,00",
 		);
+		// The sum takes in the closed group above, which the count under the table does not: said,
+		// because a reader adding up the months in the table found R$ 50,00 missing.
 		await expect(
-			page.getByText("Somando o que está na lista: entradas R$ 0,00, saídas R$ 127,00"),
+			page.getByText(
+				"Somando o que está na lista, com o lançamento que ainda vai acontecer: entradas R$ 0,00, saídas R$ 127,00",
+			),
 		).toBeVisible();
 
 		// December is after this month, so it waits in a closed group at the top.
