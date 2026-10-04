@@ -2,9 +2,22 @@
 // it shows up. It exists so that a person can see the product working before typing
 // anything, and so that the shared space has more than one member to look at.
 
-import { addDays, todayIn } from "@cofre/core";
+import { addDays, DEFAULT_CATEGORIES, type DefaultCategory, todayIn } from "@cofre/core";
 import type { Driver, Session, User } from "@cofre/storage";
 import { createUser, findUserByEmail, openSession } from "@cofre/storage";
+
+/** One unit, the way a holding counts it: quantities are scaled by ten to the eighth. */
+const UNIT = 100_000_000;
+
+/** The names a category of the starting set has, in either language. */
+function namesOf(key: string, list: readonly DefaultCategory[] = DEFAULT_CATEGORIES): string[] {
+	for (const one of list) {
+		if (one.key === key) return [one.pt, one.en];
+		const inside = one.children ? namesOf(key, one.children) : [];
+		if (inside.length > 0) return inside;
+	}
+	return [];
+}
 
 export type SeedResult = {
 	sharedSpaceId: string;
@@ -78,16 +91,46 @@ export async function seedDemo(
 		lastFour: "8302",
 		debitAccountId: voucher.id,
 	});
+	// And a second plastic on the same invoice, which is how two people share one card: what
+	// either of them buys is one bill, and the list says which plastic bought it.
+	await session.cards.create({
+		spaceId,
+		kind: "credit",
+		name: "Cartão adicional",
+		lastFour: "2291",
+		creditAccountId: card.id,
+	});
 
-	// A few weeks of a person who exists only here. Everything is settled on purpose:
-	// what is planned belongs to the person using the app, not to the example.
+	// A second card of credit, on a cycle of its own: it closes on the fifteenth and falls due
+	// on the twenty second, so what is on it falls due after the first card's, and on the day
+	// the browser suite runs, more than fifteen days ahead.
+	const second = await session.accounts.create({
+		spaceId,
+		kind: "credit",
+		name: "Horizonte",
+		institution: "Banco fictício",
+		initialBalance: 0,
+		closingDay: 15,
+		dueDay: 22,
+		creditLimit: 300_000,
+	});
+
+	// A few weeks of a person who exists only here. Nothing is dated ahead but what a
+	// series writes, which is what a series is for.
 	const today = todayIn("America/Sao_Paulo");
 	const day = (back: number) => addDays(today, -back);
 
 	// The records are sorted into the starting set, so the categories screen and the
-	// reports have something true to show from the first minute.
+	// reports have something true to show from the first minute. Found by the key of the
+	// starting set and not by a name typed here: two names typed here had drifted from the
+	// set ("Aluguel" for "Aluguel ou financiamento", "Luz" for "Água, luz e gás"), so the
+	// rent and the bills of every month were nobody's, and a space set up in English found
+	// none of them.
 	const sorted = await session.categories.list(spaceId);
-	const find = (name: string) => sorted.find((category) => category.name === name)?.id ?? null;
+	const find = (key: string) => {
+		const names = namesOf(key);
+		return sorted.find((category) => names.includes(category.name))?.id ?? null;
+	};
 
 	const written: Array<Parameters<typeof session.transactions.create>[0]> = [
 		{
@@ -97,7 +140,7 @@ export async function seedDemo(
 			happenedOn: day(16),
 			description: "Salário",
 			accountId: checking.id,
-			categoryId: find("Salário"),
+			categoryId: find("salary"),
 		},
 		{
 			spaceId,
@@ -106,7 +149,7 @@ export async function seedDemo(
 			happenedOn: day(14),
 			description: "Feira da semana",
 			accountId: checking.id,
-			categoryId: find("Mercado"),
+			categoryId: find("groceries"),
 		},
 		{
 			spaceId,
@@ -116,7 +159,7 @@ export async function seedDemo(
 			description: "Livraria",
 			accountId: card.id,
 			cardId: multiple.id,
-			categoryId: find("Cursos e livros"),
+			categoryId: find("courses"),
 		},
 		{
 			spaceId,
@@ -126,17 +169,7 @@ export async function seedDemo(
 			description: "Cinema",
 			accountId: card.id,
 			cardId: multiple.id,
-			categoryId: find("Cinema, show e teatro"),
-		},
-		{
-			spaceId,
-			kind: "expense",
-			amount: 2_790,
-			happenedOn: day(6),
-			description: "Streaming",
-			accountId: card.id,
-			cardId: multiple.id,
-			categoryId: find("Streaming"),
+			categoryId: find("culture"),
 		},
 		{
 			spaceId,
@@ -146,7 +179,7 @@ export async function seedDemo(
 			description: "Almoço perto do trabalho",
 			accountId: voucher.id,
 			cardId: mealCard.id,
-			categoryId: find("Restaurante"),
+			categoryId: find("restaurant"),
 		},
 		{
 			spaceId,
@@ -155,7 +188,7 @@ export async function seedDemo(
 			happenedOn: day(2),
 			description: "Café da esquina",
 			accountId: wallet.id,
-			categoryId: find("Restaurante"),
+			categoryId: find("restaurant"),
 		},
 		{
 			spaceId,
@@ -166,9 +199,44 @@ export async function seedDemo(
 			accountId: checking.id,
 			counterAccountId: wallet.id,
 		},
+		// What the second card holds, every one of them on the invoice that closes on the
+		// fifteenth of next month.
+		{
+			spaceId,
+			kind: "expense",
+			amount: 4_890,
+			happenedOn: day(3),
+			description: "Farmácia",
+			accountId: second.id,
+			categoryId: find("pharmacy"),
+		},
+		{
+			spaceId,
+			kind: "expense",
+			amount: 12_900,
+			happenedOn: day(8),
+			description: "Presente de aniversário",
+			accountId: second.id,
+			categoryId: find("gifts"),
+		},
 	];
 
 	for (const record of written) await session.transactions.create(record);
+
+	// The subscription, as a series: the line of its last charge is the first of the
+	// series, and the charges of the next months are written by the series, on the same
+	// card, each on its invoice.
+	await session.recurrences.startWith({
+		spaceId,
+		kind: "expense",
+		amount: 2_790,
+		happenedOn: day(6),
+		description: "Streaming",
+		accountId: card.id,
+		cardId: multiple.id,
+		categoryId: find("streaming"),
+		frequency: "monthly",
+	});
 
 	// Something split into parts, which is what makes the invoice screen worth opening.
 	await session.transactions.create({
@@ -177,10 +245,21 @@ export async function seedDemo(
 		amount: 89_700,
 		happenedOn: day(7),
 		description: "Fone de ouvido",
-		categoryId: find("Hobby"),
+		categoryId: find("hobby"),
 		accountId: card.id,
 		cardId: multiple.id,
 		installments: 3,
+	});
+	// And one on the second card, in six.
+	await session.transactions.create({
+		spaceId,
+		kind: "expense",
+		amount: 72_000,
+		happenedOn: day(11),
+		description: "Cadeira de escritório",
+		categoryId: find("homeCare"),
+		accountId: second.id,
+		installments: 6,
 	});
 
 	// Three months behind, so that the screens that look backwards have something to
@@ -199,7 +278,7 @@ export async function seedDemo(
 			happenedOn: day(shift + 16),
 			description: "Salário",
 			accountId: checking.id,
-			categoryId: find("Salário"),
+			categoryId: find("salary"),
 		});
 		await session.transactions.create({
 			spaceId,
@@ -208,7 +287,7 @@ export async function seedDemo(
 			happenedOn: day(shift + 14),
 			description: "Aluguel",
 			accountId: checking.id,
-			categoryId: find("Aluguel"),
+			categoryId: find("rent"),
 		});
 		await session.transactions.create({
 			spaceId,
@@ -217,7 +296,7 @@ export async function seedDemo(
 			happenedOn: day(shift + 11),
 			description: "Mercado do mês",
 			accountId: checking.id,
-			categoryId: find("Mercado"),
+			categoryId: find("groceries"),
 		});
 		await session.transactions.create({
 			spaceId,
@@ -226,11 +305,13 @@ export async function seedDemo(
 			happenedOn: day(shift + 6),
 			description: "Contas de casa",
 			accountId: checking.id,
-			categoryId: find("Luz"),
+			categoryId: find("utilities"),
 		});
 	}
 
-	// And something put aside, so the investments screen is not an empty page either.
+	// And something put aside, so the investments screen is not an empty page either: the
+	// treasury, a CDB, a fund traded on the exchange written down as what it is, and a real
+	// estate fund, at a broker.
 	const broker = await session.accounts.create({
 		spaceId,
 		kind: "investment",
@@ -243,19 +324,67 @@ export async function seedDemo(
 		spaceId,
 		accountId: broker.id,
 		name: "Tesouro Selic 2029",
-		kind: "fixedIncome",
-		quantity: 3 * 100_000_000,
+		product: "treasurySelic",
+		indexer: "selic",
+		maturesOn: "2029-03-01",
+		quantity: 3 * UNIT,
 		unitPrice: 152_340,
 		cost: 450_000,
 	});
 	await session.investments.create({
 		spaceId,
 		accountId: broker.id,
-		name: "Fundo de índice",
-		kind: "fund",
-		quantity: 12 * 100_000_000,
+		name: "BOVA11",
+		ticker: "BOVA11",
+		product: "etf",
+		quantity: 12 * UNIT,
 		unitPrice: 9_870,
 		cost: 110_000,
+	});
+	await session.investments.create({
+		spaceId,
+		accountId: broker.id,
+		name: "HGLG11",
+		ticker: "HGLG11",
+		product: "realEstateFund",
+		quantity: 10 * UNIT,
+		unitPrice: 15_820,
+		cost: 160_000,
+	});
+	// Bought this month, so the months before it are read without it.
+	await session.investments.create({
+		spaceId,
+		accountId: broker.id,
+		name: "CDB Banco fictício",
+		product: "cdb",
+		issuer: "Banco fictício",
+		indexer: "cdi",
+		rate: 11_000,
+		liquidity: "atMaturity",
+		maturesOn: "2028-10-02",
+		quantity: UNIT,
+		unitPrice: 200_000,
+		boughtOn: day(20),
+	});
+
+	// And a caixinha in the bank, which was already there before anybody wrote anything
+	// down, so no account gives money to it: a holding written down with nothing moved.
+	const boxes = await session.accounts.create({
+		spaceId,
+		kind: "investment",
+		name: "Caixinhas",
+		institution: "Banco fictício",
+		initialBalance: 0,
+	});
+	await session.investments.create({
+		spaceId,
+		accountId: boxes.id,
+		name: "Emergência",
+		product: "box",
+		indexer: "cdi",
+		rate: 10_000,
+		quantity: UNIT,
+		unitPrice: 300_000,
 	});
 
 	// A second person, so the shared space is a real shared space. The same browser can

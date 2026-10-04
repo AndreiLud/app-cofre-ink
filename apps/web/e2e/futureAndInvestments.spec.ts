@@ -65,11 +65,15 @@ async function bancoCentral(page: Page): Promise<void> {
 	});
 }
 
-/** Opens the form, chooses what the holding is, and leaves the second step open. */
+/**
+ * Opens the form, chooses what the holding is, and leaves the second step open, at the broker of
+ * the demonstration, which since 2.0.0 is one of two investment accounts in it.
+ */
 async function newHolding(page: Page, product: string) {
 	await page.getByRole("button", { name: "Novo investimento" }).click();
 	const dialog = page.getByRole("dialog");
 	await dialog.getByRole("button", { name: product, exact: true }).click();
+	await dialog.getByLabel("Instituição").selectOption({ label: "Corretora" });
 	return dialog;
 }
 
@@ -220,14 +224,16 @@ test.describe("what is put aside", () => {
 		await expect(guardar.getByLabel("De onde sai o dinheiro")).toHaveValue(/.+/);
 		await page.getByRole("button", { name: "Salvar" }).click();
 
-		// The demonstration's Tesouro Selic at R$ 4.570,20 and its fund at R$ 1.184,40, and the
-		// caixinha at R$ 1.500,00: the broker is worth R$ 7.254,60 on every screen.
+		// The demonstration's Tesouro Selic at R$ 4.570,20, BOVA11 at R$ 1.184,40, HGLG11 at R$
+		// 1.582,00 and the CDB at the R$ 2.000,00 put in, with no index fetched, and the caixinha at
+		// R$ 1.500,00: the broker is worth R$ 10.836,60 on every screen. The screen adds the
+		// caixinha of R$ 3.000,00 in the other investment account, R$ 13.836,60.
 		await expect(holdingRow(page, "Viagem")).toContainText("R$ 1.500,00");
-		await expect(page.getByRole("heading", { level: 1 })).toContainText("R$ 7.254,60");
+		await expect(page.getByRole("heading", { level: 1 })).toContainText("R$ 13.836,60");
 
 		await go(page, "Contas");
 		await expect(page.getByRole("row").filter({ hasText: "Corretora" })).toContainText(
-			"R$ 7.254,60",
+			"R$ 10.836,60",
 		);
 
 		await go(page, "Painel");
@@ -236,7 +242,7 @@ test.describe("what is put aside", () => {
 				.locator("section")
 				.filter({ hasText: "Onde o dinheiro está" })
 				.getByRole("link", { name: /Corretora/ }),
-		).toContainText("R$ 7.254,60");
+		).toContainText("R$ 10.836,60");
 		// Money moved from the current account into a holding of the same person: what they
 		// have is what it was.
 		await expect(total(page)).toHaveText(before);

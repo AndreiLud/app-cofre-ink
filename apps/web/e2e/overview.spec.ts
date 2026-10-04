@@ -43,7 +43,8 @@ test.describe("the overview", () => {
 		// The sample data owes money on the card and holds money on a meal voucher. Neither
 		// is money somebody has: one is a debt and the other buys lunch.
 		const headline = await total(page).innerText();
-		await expect(page.getByText("na fatura que vence")).toBeVisible();
+		// Once for each of the two cards of the demonstration.
+		await expect(page.getByText("na fatura que vence")).toHaveCount(2);
 
 		// Both appear under where the money is, grouped and named for what they are.
 		await expect(page.getByText("Cartões", { exact: true })).toBeVisible();

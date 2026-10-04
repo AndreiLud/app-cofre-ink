@@ -386,12 +386,15 @@ test.describe("accounts", () => {
 		await openCofre(page);
 
 		await go(page, "Contas");
-		await page.getByRole("button", { name: "Ações da conta" }).first().click();
+		// By its name: the first row was the wallet until the demonstration of 2.0.0 brought an
+		// account called Caixinhas, which comes before it.
+		const wallet = page.getByRole("row").filter({ hasText: "Carteira" });
+		await wallet.getByRole("button", { name: "Ações da conta" }).click();
 		await page.getByRole("menuitem", { name: "Arquivar" }).click();
 
 		// The same menu now offers the opposite, which is how this knows the write
 		// landed before it goes looking for the consequence on another screen.
-		await page.getByRole("button", { name: "Ações da conta" }).first().click();
+		await wallet.getByRole("button", { name: "Ações da conta" }).click();
 		await expect(page.getByRole("menuitem", { name: "Desarquivar" })).toBeVisible();
 		await page.keyboard.press("Escape");
 

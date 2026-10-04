@@ -536,10 +536,11 @@ test.describe("records", () => {
 		await openCofre(page);
 		await go(page, "Lançamentos");
 
-		// Two records today, so whatever month the list opens on holds both of them.
+		// Two records today, so whatever month the list opens on holds both of them. Not
+		// "Farmácia", which the demonstration has on its second card since 2.0.0.
 		for (const [amount, description] of [
 			["30,00", "Padaria da esquina"],
-			["80,00", "Farmácia"],
+			["80,00", "Drogaria do bairro"],
 		]) {
 			await page.getByRole("button", { name: "Novo lançamento" }).first().click();
 			await page
@@ -554,7 +555,7 @@ test.describe("records", () => {
 			await expect(page.getByRole("dialog")).toHaveCount(0);
 		}
 		await expect(record(page, "Padaria da esquina")).toBeVisible();
-		await expect(record(page, "Farmácia")).toBeVisible();
+		await expect(record(page, "Drogaria do bairro")).toBeVisible();
 
 		const month = await page.getByLabel("Mês", { exact: true }).inputValue();
 
@@ -569,12 +570,12 @@ test.describe("records", () => {
 		await expect(page.getByLabel("Mês", { exact: true })).toHaveValue(month);
 		await expect(page.getByRole("button", { name: "1 filtro ativo" })).toBeVisible();
 		await expect(record(page, "Padaria da esquina")).toBeVisible();
-		await expect(record(page, "Farmácia")).toHaveCount(0);
+		await expect(record(page, "Drogaria do bairro")).toHaveCount(0);
 
 		// And a filter changed by hand goes into the address, so the list stays a link.
-		await page.getByLabel("Buscar").fill("farmácia");
-		await expect(page).toHaveURL(/busca=farm/);
-		await expect(record(page, "Farmácia")).toBeVisible();
+		await page.getByLabel("Buscar").fill("drogaria");
+		await expect(page).toHaveURL(/busca=drogaria/);
+		await expect(record(page, "Drogaria do bairro")).toBeVisible();
 	});
 
 	test("leads to the statement import from the records screen", async ({ page }) => {

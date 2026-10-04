@@ -20,6 +20,48 @@ test.describe("more than one card", () => {
 		await expect(heading).toContainText("Nubank: a fatura de novembro fecha");
 	});
 
+	// Part 2, B.10.1 and G.1.3 of the request for 2.0.0: the demonstration had one card, so no
+	// screen of it showed what two look like, and its subscription was a line that never came
+	// back the next month.
+	test("carries a second card, a second plastic and a series in the demonstration", async ({
+		page,
+	}) => {
+		await openCofre(page);
+		await go(page, "Faturas");
+		// The first card falls due first, so the invoices open on it.
+		const heading = page.getByRole("heading", { level: 1 });
+		await expect(heading).toContainText("Cartão de crédito:");
+		await page
+			.getByRole("group", { name: "Cartão" })
+			.getByText("Horizonte", { exact: true })
+			.click();
+		// Everything on the second card is on the invoice that closes on the fifteenth of
+		// November: 48,90 and 129,00, and the first of six parts of 720,00.
+		await expect(heading).toContainText("Horizonte: a fatura de novembro fecha");
+		await expect(record(page, "Farmácia")).toBeVisible();
+		await expect(record(page, "Cadeira de escritório 1/6")).toContainText("R$ 120,00");
+		await expect(page.getByRole("main")).toContainText("R$ 297,90");
+
+		// Due on the twenty second, more than fifteen days ahead, so not on the overview's list.
+		await go(page, "Painel");
+		const due = page.locator("section").filter({ hasText: "Vence nos próximos dias" });
+		await expect(due.first()).toBeVisible();
+		await expect(due.getByText("Horizonte")).toHaveCount(0);
+
+		// The extra plastic is on the first card.
+		await go(page, "Contas");
+		await expect(page.getByText("Cartão adicional")).toBeVisible();
+		await expect(page.getByText(/2291/).first()).toBeVisible();
+
+		// The subscription is one line in October, marked as a series, and the series writes
+		// November on the same card.
+		await go(page, "Lançamentos");
+		await expect(record(page, "Streaming")).toHaveCount(1);
+		await expect(record(page, "Streaming")).toContainText("repete");
+		await page.getByLabel("Mês", { exact: true }).fill("2026-11");
+		await expect(record(page, "Streaming")).toHaveCount(1);
+	});
+
 	// Part 2, B.3.5 and B.3.7: in "Todos" the overview links to a card of another space, and the
 	// invoices, which read the space that is open, showed another card with nothing said.
 	test("says a card of another space is that space's, and opens it there", async ({ page }) => {
@@ -51,11 +93,12 @@ test.describe("more than one card", () => {
 		await expect(page.getByRole("banner")).toContainText("Pessoal");
 		await go(page, "Painel");
 		await page.getByText("Todos", { exact: true }).click();
+		// From the list of cards: with the second card of the demonstration there are three, and
+		// three or more are one line at the top.
 		await page
-			.locator("div.flex-wrap")
-			.filter({ has: page.getByText("Cartão da casa", { exact: true }) })
-			.filter({ has: page.getByRole("link", { name: "Pagar fatura" }) })
-			.last()
+			.locator("#cartoes")
+			.getByRole("listitem")
+			.filter({ hasText: "Cartão da casa" })
 			.getByRole("link", { name: "Pagar fatura" })
 			.click();
 
@@ -250,14 +293,15 @@ test.describe("more than one card", () => {
 		await expect(form).toHaveCount(0);
 
 		const heading = page.getByRole("heading", { level: 1 });
-		// The sample card, second in the order behind the late one: its line at the top.
+		// The sample card, behind the late one: its line in the list of cards, because with the
+		// second card of the demonstration there are three, and three are one line at the top.
 		await go(page, "Painel");
-		const top = page
-			.locator("div.flex-wrap")
-			.filter({ has: page.getByText("Cartão de crédito", { exact: true }) })
-			.filter({ has: page.getByRole("link", { name: "Pagar fatura" }) })
-			.last();
-		await top.getByRole("link", { name: "Pagar fatura" }).click();
+		await page
+			.locator("#cartoes")
+			.getByRole("listitem")
+			.filter({ hasText: "Cartão de crédito" })
+			.getByRole("link", { name: "Pagar fatura" })
+			.click();
 		await expect(heading).toContainText("Cartão de crédito: a fatura de novembro");
 
 		// Its row in what falls due in the next days.
@@ -317,6 +361,15 @@ test.describe("more than one card", () => {
 			.getByRole("button", { name: "Ações da conta" })
 			.click();
 		await page.getByRole("menuitem", { name: "Editar cartão Cartão do banco" }).click();
+		await page.getByRole("button", { name: "Apagar cartão" }).click();
+		await expect(page.getByRole("dialog")).toHaveCount(0);
+		// And the second plastic the demonstration has on the same invoice since 2.0.0.
+		await page
+			.getByRole("row")
+			.filter({ has: page.getByRole("cell", { name: "Cartão de crédito", exact: true }) })
+			.getByRole("button", { name: "Ações da conta" })
+			.click();
+		await page.getByRole("menuitem", { name: "Editar cartão Cartão adicional" }).click();
 		await page.getByRole("button", { name: "Apagar cartão" }).click();
 		await expect(page.getByRole("dialog")).toHaveCount(0);
 

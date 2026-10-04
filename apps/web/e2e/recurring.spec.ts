@@ -59,8 +59,9 @@ test.describe("what repeats", () => {
 
 		await go(page, "Recorrentes");
 		await expect(line(page, "Academia")).toContainText("Todo mês");
+		// With the subscription the demonstration has as a series since 2.0.0, R$ 27,90.
 		await expect(
-			page.getByText("Todo mês o que se repete tira R$ 149,00 e põe R$ 0,00."),
+			page.getByText("Todo mês o que se repete tira R$ 176,90 e põe R$ 0,00."),
 		).toBeVisible();
 	});
 

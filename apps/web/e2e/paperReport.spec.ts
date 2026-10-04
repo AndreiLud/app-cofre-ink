@@ -174,12 +174,39 @@ test.describe("the month on paper", () => {
 	 */
 	test("names the money nobody sorted, in words", async ({ page }) => {
 		await openCofre(page);
+		// The demonstration sorts every record it writes, so the one nobody sorted is written
+		// here: an expense of August with no category, and so with no priority either.
+		await go(page, "Lançamentos");
+		await page.getByRole("button", { name: "Novo lançamento" }).first().click();
+		const form = page.getByRole("dialog");
+		await form.getByLabel("Valor", { exact: true }).fill("45,00");
+		await form.getByLabel("Descrição").fill("Algo sem nome");
+		await form.getByLabel("Dia").fill("2026-08-20");
+		await page.getByRole("button", { name: "Salvar" }).click();
+		await expect(form).toHaveCount(0);
 		await page.goto("/relatorio?mes=2026-08");
 
 		await expect(page.getByText(/priority\./)).toHaveCount(0);
 		await expect(page.getByText(/^[a-z]+\.[a-zA-Z]+$/)).toHaveCount(0);
 		await expect(page.getByRole("cell", { name: "Sem categoria" })).toBeVisible();
 		await expect(page.getByRole("cell", { name: "Sem prioridade" })).toBeVisible();
+	});
+
+	// Part 1, I.1 of the request for 2.0.0: the demonstration looked its rent and its bills up
+	// as "Aluguel" and "Luz", which the starting set calls "Aluguel ou financiamento" and "Água,
+	// luz e gás", so the file of September opened with R$ 1.693,00 nobody had sorted.
+	test("sorts the rent and the bills of the demonstration", async ({ page }) => {
+		await openCofre(page);
+		await page.goto("/relatorio?mes=2026-09");
+		await expect(page.getByRole("heading", { level: 1 })).toContainText("Pessoal");
+
+		await expect(
+			page.getByRole("row").filter({ hasText: "Aluguel ou financiamento" }).first(),
+		).toContainText("R$ 1.480,00");
+		await expect(
+			page.getByRole("row").filter({ hasText: "Água, luz e gás" }).first(),
+		).toContainText("R$ 213,00");
+		await expect(page.getByRole("cell", { name: "Sem categoria" })).toHaveCount(0);
 	});
 
 	// Part 1, F of the request for 2.0.0: the file of September printed in October priced the

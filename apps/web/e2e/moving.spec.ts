@@ -161,11 +161,12 @@ test.describe("moving money between accounts", () => {
 			await page.getByRole("dialog").getByRole("button", { name: "Trazer de volta" }).click();
 			await expect(page.getByText("Restaurado", { exact: true })).toBeVisible({ timeout: 20_000 });
 
-			// October of the sample came in 6,120 and 900 of benefit and went out 726.40, and the
-			// payment written twice is in both.
+			// October of the sample came in 6,120 and 900 of benefit and went out 726.40, with the
+			// 297.90 the second card of the demonstration holds since 2.0.0, and the payment written
+			// twice is in both.
 			await go(page, "Painel");
 			await expect(figure(page, "Entrou")).toHaveText("R$ 8.254,56");
-			await expect(figure(page, "Saiu")).toHaveText("-R$ 1.960,96");
+			await expect(figure(page, "Saiu")).toHaveText("-R$ 2.258,86");
 
 			await go(page, "Lançamentos");
 			await record(page, "PAGAMENTO FATURA").getByRole("button", { name: "Ações" }).click();
@@ -189,8 +190,9 @@ test.describe("moving money between accounts", () => {
 			await expect(page.getByText(/crédito a (seu )?favor/)).toHaveCount(0);
 
 			await go(page, "Painel");
+			// The 726.40 of the sample and the 297.90 of its second card.
 			await expect(figure(page, "Entrou")).toHaveText("R$ 7.020,00");
-			await expect(figure(page, "Saiu")).toHaveText("-R$ 726,40");
+			await expect(figure(page, "Saiu")).toHaveText("-R$ 1.024,30");
 		} finally {
 			await first.close();
 			await second.close();

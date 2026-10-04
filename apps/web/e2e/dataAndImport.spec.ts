@@ -120,7 +120,7 @@ test.describe("reading a statement", () => {
 		const invoice = buildPdf({
 			content: drawLines([
 				"Nubank",
-				"Fatura do cartao de credito",
+				"Fatura do cartao de credito final 4417",
 				"Vencimento: 10/02/2026",
 				"Total desta fatura R$ 1.234,56",
 				"Data Descricao Valor",
@@ -144,9 +144,11 @@ test.describe("reading a statement", () => {
 		await expect(page.getByText("Nubank · vence em 2026-02-10")).toBeVisible();
 
 		// And it picked the card by itself, saying why. An invoice offers cards only, so the
-		// list is called that (part 2, E.7 of the request for 2.0.0).
+		// list is called that (part 2, E.7 of the request for 2.0.0). The demonstration has two
+		// cards since 2.0.0, so it goes by the digits the invoice prints, which are those of the
+		// plastic of the first card.
 		await expect(page.getByLabel("Cartão", { exact: true })).toHaveValue(/.+/);
-		await expect(page.getByText(/É uma fatura, e este é o seu único cartão/)).toBeVisible();
+		await expect(page.getByText("Reconheci pelos quatro dígitos do cartão.")).toBeVisible();
 
 		// A charge is money leaving, a payment received is money arriving.
 		await expect(page.getByRole("cell", { name: "-R$ 18,40" })).toBeVisible();
