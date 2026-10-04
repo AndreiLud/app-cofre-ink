@@ -65,6 +65,21 @@ test.describe("what repeats", () => {
 		).toBeVisible();
 	});
 
+	// Found reading the code for the report of 2.0.0: editing a record of a series from the next
+	// time on called its amount "of each part" and locked its day, as a plan's parts are, when the
+	// day of a series is one of the things a change from the next time on may change.
+	test("edits a series from the next time on with its amount and its day", async ({ page }) => {
+		await openCofre(page);
+		await go(page, "Lançamentos");
+		await record(page, "Streaming").getByRole("button", { name: "Ações" }).click();
+		await page.getByRole("menuitem", { name: "Editar" }).click();
+		const form = page.getByRole("dialog");
+		await form.getByText("Este e os próximos", { exact: true }).click();
+		await expect(form.getByLabel("Valor", { exact: true })).toBeVisible();
+		await expect(form.getByLabel("Valor de cada parcela")).toHaveCount(0);
+		await expect(form.getByLabel("Dia")).toBeEnabled();
+	});
+
 	test("says which days already gone it writes, and leaves them out when asked", async ({
 		page,
 	}) => {

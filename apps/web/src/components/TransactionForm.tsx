@@ -88,6 +88,8 @@ export function TransactionForm({
 	 * would change a month somebody has already read.
 	 */
 	const [reach, setReach] = useState<"this" | "onwards">("this");
+	/** The parts of a plan ahead, as against a series from the next time on. */
+	const planOnwards = reach === "onwards" && (editing?.installmentGroup ?? null) !== null;
 	const whatIMay = useWhatIMayDo(spaceId);
 	const mayReachOnwards = whatIMay.mayCall("transactions.updateFrom");
 	/**
@@ -625,7 +627,7 @@ export function TransactionForm({
 					<div className="grid gap-4 md:grid-cols-2">
 						<Field
 							label={
-								reach === "onwards" || (eachPart && partCount > 1 && !editing)
+								planOnwards || (eachPart && partCount > 1 && !editing)
 									? t("transactions.amountEachPart")
 									: t("transactions.amount")
 							}
@@ -645,9 +647,11 @@ export function TransactionForm({
 							required={true}
 							// Off while the change reaches the parts ahead, because each of them
 							// falls on its own day a month apart and one day written over all of
-							// them would pile the whole purchase onto one afternoon.
-							disabled={reach === "onwards"}
-							hint={reach === "onwards" ? t("transactions.dayIsPerPart") : undefined}
+							// them would pile the whole purchase onto one afternoon. Not for a
+							// series, whose day from the next time on is one of the things a change
+							// may change.
+							disabled={planOnwards}
+							hint={planOnwards ? t("transactions.dayIsPerPart") : undefined}
 						/>
 					</div>
 
