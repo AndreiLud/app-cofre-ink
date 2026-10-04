@@ -5,6 +5,279 @@ Every release, what changed in it, and what to do about it if you are running th
 Versions follow semantic versioning. The first number changes when something that worked
 breaks, the second when something is added, the third when something is corrected.
 
+## 2.0.0
+
+Released on 3 October 2026. A whole audit of 1.2.0 and 1.2.1 found about seventy faults that
+the tests had walked past, ten of them a wrong number on the screen, and this release corrects
+every one with a test that fails against the code before it. It also adds what the audit
+showed was missing: several cards dealt with in the order they fall due, an invoice paid with
+another card or in parts, plans of up to 48 parts, a reader that knows an invoice from a
+statement, the list of a whole year, series that change from the next time on, holdings that
+are products, and the version on the screen. It is a major version because a page and a
+server of 2.0.0 no longer write to a page or a server of 1.x, and because a backup of 2.0.0
+is refused by 1.x.
+
+> **If you are updating from 1.x, read this.**
+>
+> **What reads differently.** Every one of these is the old reading being wrong.
+>
+> 1. **A record dated ahead counts on its day, by itself.** The promises 1.1.0 to 1.2.1 wrote
+>    for days still to come become facts the first time 2.0.0 opens, and count when their day
+>    comes. Promises from 1.0, and promises brought back from a file, stay promises, and the
+>    overview lists them to be answered at once.
+> 2. **A card invoice is a bill on its due day.** A payment counts from the day it was made,
+>    what was paid beyond an invoice passes to the next one, a card written down with a debt
+>    carries it as an invoice, and a transfer out of a credit card is a purchase on its
+>    invoice. The check up reads the money in the accounts less what the cards owe.
+> 3. **A benefit card counts from the day its allowance counts from**, its allowance counts in
+>    a report only once it has landed, a change of allowance applies from the next landing,
+>    a top up adds to it, and the benefit is income on every screen that reads income: the
+>    overview, the month screen, the twelve months, the flow, the check up and the paper.
+>    What is spent on it is out of every reading of the household's money.
+> 4. **Money put aside in a savings account is out of what is left to spend this month.**
+> 5. **A plan has at most 48 parts.** The line of one text read up to 99 and the core and the
+>    server took 420. More is refused with a sentence, never cut. A plan written before with
+>    more parts goes on being read, changed and restored as it is.
+> 6. **What somebody owes in a shared space counts from the day of each record**, and dividing
+>    a part of a plan divides the whole plan.
+> 7. **A series is written whenever the application opens, in every space,** and no longer only
+>    when the calendar is open. A series from before keeps writing from the first day of the
+>    month it was written down in. Its screen moved to Records, Recorrentes.
+>
+> **What a holding becomes.** A holding is now a product: a caixinha, a CDB, a share, a
+> Tesouro. One from before 2.0.0 is listed as what it was, a fixed income one under fixed
+> income, priced at the price it carries, and "Você tem" for money left at a broker does not
+> change. To give an old holding a product, open its menu, choose Edit and pick the product.
+>
+> **What you need to do.**
+>
+> 1. **Update the server and every open page together.** A page of 2.0.0 in front of a server
+>    of 1.x reads everything and writes nothing, and says so on every screen. A device of 1.x
+>    is refused when it exchanges changes with a server of 2.0.0.
+> 2. **Take a copy of the server before updating**, in a folder outside the clone. A copy made
+>    from the interface does not carry the accounts people sign in with. The guide on
+>    [updating](docs/en/deploy.md#updating) has the commands for each way of installing, and the
+>    data screen of 2.0.0 shows the ones for yours.
+> 3. **A server installed with `compose.yaml` from this repository built its own image until
+>    now, and from 2.0.0 runs the published one**, `ghcr.io/andreilud/app-cofre-ink:2`, with the
+>    same `docker compose up -d` and the same volume, `cofre_cofreData`. Building from the
+>    source is `compose.build.yaml`, added to the first file. `:2` follows version 2 and never
+>    reaches a version 3: changing `COFRE_TAG` in `.env` is how a new major is chosen.
+> 4. **Whoever follows `latest` with `docker run` gets 2.0.0, with its migrations, on the next
+>    pull.** Pin `:1.2.1` to stay on 1.x, or take the copy first. From now on `latest` names
+>    only the highest version published.
+> 5. **There is no going back over a migrated database.** A version older than the one that
+>    migrated it refuses to start, and says to run that version or to restore the copy. Going
+>    back is restoring the copy and running the version before.
+> 6. **A backup written by 2.0.0 is refused by 1.x**, which says it is newer, instead of
+>    quietly losing what 2.0.0 writes.
+> 7. **A saved filter keeps the month it was saved with.** One saved before 2.0.0 opens on its
+>    month; save it again on "this month" to have it follow the calendar.
+>
+> **Se você está atualizando da 1.x, leia isto.**
+>
+> **O que lê diferente.** Em todos os casos, a leitura antiga é que estava errada.
+>
+> 1. **Um lançamento com data adiante conta no dia dele, sozinho.** As promessas que a 1.1.0 a
+>    1.2.1 escreveram para dias que ainda vão chegar viram fatos na primeira vez que a 2.0.0
+>    abre, e contam quando o dia delas chega. Promessas da 1.0, e promessas trazidas de um
+>    arquivo, continuam promessas, e o Painel lista elas para responder de uma vez.
+> 2. **Uma fatura de cartão é uma conta no dia do vencimento.** Um pagamento conta do dia em
+>    que foi feito, o que se pagou além de uma fatura passa para a seguinte, um cartão
+>    cadastrado com dívida leva essa dívida como uma fatura, e uma transferência que sai de um
+>    cartão de crédito é uma compra na fatura dele. O diagnóstico lê o dinheiro das contas
+>    menos o que os cartões devem.
+> 3. **Um cartão de benefício conta a partir do dia em que o valor mensal conta**, o valor
+>    mensal entra num relatório só depois de cair, uma mudança dele vale do próximo crédito em
+>    diante, uma recarga soma, e o benefício é renda em toda tela que lê renda: o Painel, a
+>    tela O mês, os doze meses, o fluxo, o diagnóstico e o PDF. O que se gasta nele fica fora
+>    de toda leitura do dinheiro da casa.
+> 4. **O dinheiro guardado numa poupança fica fora do que ainda dá para gastar no mês.**
+> 5. **Um plano tem no máximo 48 parcelas.** O lançamento rápido lia até 99, e o núcleo e o
+>    servidor aceitavam 420. Mais que isso é recusado com uma frase, nunca cortado. Um plano
+>    gravado antes com mais parcelas continua sendo lido, mudado e restaurado como está.
+> 6. **O que alguém deve num espaço compartilhado conta a partir do dia de cada lançamento**, e
+>    dividir uma parcela divide o plano inteiro.
+> 7. **Uma série é escrita sempre que o aplicativo abre, em todo espaço,** e não mais só com o
+>    calendário aberto. Uma série de antes continua escrevendo a partir do primeiro dia do mês
+>    em que foi cadastrada. A tela dela foi para Lançamentos, Recorrentes.
+>
+> **O que uma aplicação vira.** Uma aplicação agora é um produto: uma caixinha, um CDB, uma
+> ação, um Tesouro. Uma de antes da 2.0.0 aparece como era, uma de renda fixa em renda fixa,
+> pelo preço que ela tem, e o "Você tem" de quem deixa dinheiro na corretora não muda. Para dar
+> um produto a uma aplicação antiga, abra o menu dela, escolha Editar e escolha o produto.
+>
+> **O que você precisa fazer.**
+>
+> 1. **Atualize o servidor e toda página aberta juntos.** Uma página da 2.0.0 diante de um
+>    servidor da 1.x lê tudo e não grava nada, e diz isso em toda tela. Um aparelho da 1.x é
+>    recusado quando troca mudanças com um servidor da 2.0.0.
+> 2. **Tire uma cópia do servidor antes de atualizar**, numa pasta fora do clone. A cópia feita
+>    pela tela não leva as contas de acesso. O guia de [atualizar](docs/pt-BR/deploy.md#atualizar)
+>    tem os comandos de cada jeito de instalar, e a tela Dados da 2.0.0 mostra os do seu.
+> 3. **Um servidor instalado com o `compose.yaml` deste repositório construía a própria imagem
+>    até agora, e da 2.0.0 em diante roda a publicada**, `ghcr.io/andreilud/app-cofre-ink:2`,
+>    com o mesmo `docker compose up -d` e o mesmo volume, `cofre_cofreData`. Construir a partir
+>    do código é o `compose.build.yaml`, somado ao primeiro arquivo. A `:2` segue a versão 2 e
+>    nunca chega numa versão 3: trocar `COFRE_TAG` no `.env` é como se escolhe uma versão maior
+>    nova.
+> 4. **Quem segue `latest` com `docker run` recebe a 2.0.0, com as migrações, no próximo pull.**
+>    Fixe `:1.2.1` para ficar na 1.x, ou tire a cópia antes. Daqui em diante `latest` aponta só
+>    para a maior versão publicada.
+> 5. **Não há volta sobre um banco migrado.** Uma versão mais velha que a que migrou o banco se
+>    recusa a subir, e diz para subir aquela versão ou restaurar a cópia. Voltar é restaurar a
+>    cópia e subir a versão anterior.
+> 6. **Um backup escrito pela 2.0.0 é recusado pela 1.x**, que diz que ele é mais novo, em vez
+>    de perder calada o que a 2.0.0 grava.
+> 7. **Um filtro salvo guarda o mês com que foi salvo.** Um salvo antes da 2.0.0 abre no mês
+>    dele; salve de novo em "este mês" para ele acompanhar o calendário.
+
+### Added
+
+**Several cards, in the order they are dealt with.** The overview, the invoices and the month
+screen order cards by what falls due first, add three or more into one line with each one
+behind it, and say which card made each purchase on an invoice that two plastics share. The
+invoices open on the most urgent card, and the card and the month are in the address, so going
+back goes back. A second plastic is added to an invoice that exists, a card put away that
+still owes goes on being counted, and a card is asked for its days before anything is charged
+to it. Registry 0058.
+
+**An invoice paid three ways**, on one dialog: from an account, at once or in part, including
+a payment scheduled for a day before it falls due; with another card, at once or in parts,
+with what that card charges beyond the invoice written as a cost; or split with the bank, with
+an entry and a tax charged apart. The last two are undone whole while no invoice of their parts
+was paid, and lock what they wrote meanwhile. Registry 0063.
+
+**Plans of up to 48 parts on any money out**, typed as the whole or as each part, on the form
+and on one line (`48x de 99,90`), and a purchase begun before Cofre written from the part after
+the ones already paid ("Já paguei 10"). The check up reads every part ahead, and the months
+ahead say what runs past them. Registry 0064.
+
+**Only money out and money in on the form, and moving money between your accounts as a door
+of its own**, from the accounts screen, from each account, from a benefit card (a top up), from
+the saving rule and from each goal. A record that was really money moved becomes the move it
+was, from its menu, and joins the same move written on the other account. Registry 0057.
+
+**A benefit card that says what is on it today**, a refund of a purchase on it, and the
+history of its allowance. Registries 0053 to 0056.
+
+**A reader that knows what a document is.** It tells an invoice from a statement and the bank
+from what only one of them prints, reads the sign of each line by the kind of document,
+checks the document against its own total, reads a part printed on an invoice as a plan and
+finds it again, pairs a refund with its purchase, knows the lines of a split invoice and of
+another card, reads a statement in PDF with its debit and credit columns and the card it paid,
+says how each line is already here, and takes a whole import back in one go. Registries 0065
+and 0066.
+
+**The list of a whole year, or of every month**, grouped by month, with what the whole list
+adds up to and not only the page, the months ahead in a closed group, and the period in the
+address. Registry 0067.
+
+**What repeats has a screen**, under Records, one writer that runs for every space, a card,
+"Repete" on the form, and a change that applies from the next time on as a chain, never
+rewriting what was written. Registry 0068.
+
+**Holdings that are products**, from a catalog of seventeen, each asking only its own fields;
+a caixinha, a poupança, a CDB, an LCI or an LCA at the CDI, and the Tesouro Selic, estimated
+from the daily rates of the Banco Central and said up to which day; money put in, taken out
+with the tax said, and income, each moving money from or to an account; a goal or the saving
+rule kept in one holding; and each holding against the CDI. Registry 0069.
+
+**The version on the screen**, under the danger zone, and on a server a button that asks GitHub
+which version was published last, only when pressed, with the notes and the commands that
+update the copy for the way it was installed. Registry 0061.
+
+**The month on paper day by day**, with each benefit card in it.
+
+### Changed
+
+**Five sections again**, with planning and reports in one. Registry 0070.
+
+**One rule for what falls due**: a card invoice is a bill on its due day on the overview, on the
+check up and in its sentences, and the reserve is the money in the accounts less what the
+cards owe. Registry 0071.
+
+**A month that has gone reads as it stood on its last day**, on paper and on the check up: its
+holdings, its cards and the day it counts as over. Registry 0062.
+
+**A record dated ahead is a fact that counts on its day**, which is decision 3 of 1.1.0 done at
+last. Registry 0050. And a repair that travels: what a release before wrote and this one reads
+differently is put right through the change log when a space opens and after rows arrive, on
+every device. Registries 0051 and 0059.
+
+**The compose file runs the published image on the line of 2**, `latest` names only the highest
+version, and every update starts with a copy outside the clone. See the note above.
+
+**A backup is version 2**, refused by 1.x.
+
+**The demonstration shows more of what is there**: a second card on a cycle of its own with a
+plan in six, a second plastic on the first card, the subscription as a series, and a caixinha,
+a CDB, an ETF and a real estate fund among the holdings.
+
+### Fixed
+
+On cards and invoices: a payment counted from the day of the invoice instead of its own; every
+invoice before the one on screen was marked paid; the opening balance of an old card counted
+nowhere; a transfer out of a credit card was not a purchase on its invoice; an overpayment
+stayed where it was; a record moved invoice when nothing that decides its invoice changed; a
+corrected closing day moved purchases that did not belong; a part of a plan moved alone; an
+invoice was overdue on its due day; on a server, the payment the month screen wrote lost the
+invoice it paid, and those already written are repaired; a month or a day that does not exist,
+such as a thirteenth month of 2026, was accepted and broke every reading of the space's invoices, and one already
+written is cleared.
+
+On benefit cards: the day of the allowance could be left empty; the allowance counted in
+reports before it landed; spending before the card was written down was ignored, so the
+demonstration said R$ 900,00 of R$ 900,00 after a lunch of R$ 56,00; a change of allowance
+rewrote the months already gone; a top up by Pix vanished; an old income on a card was counted
+twice; the accounts screen showed its balance instead of what is on it; the line said there was
+no allowance to a logger, and to everybody while the members loaded; its spending was in the
+readings of the household's money.
+
+On the form and the line of text: money in stayed on the card the form opened on; instalments
+were offered only on a credit card; a card put away lost its purchases; a record could not turn
+from money out to money in; "it did not happen" took a record away without asking; ticking a
+promise off against the bank left it a promise; an account could be renamed to nothing; the
+line read cards wrong and put income on a card.
+
+On the overview, the month screen and the paper: the saving rule was said to be missing while
+it loaded; a logger's figures included the household's holdings; "Todos" priced only the open
+space's holdings and added different currencies; the month screen said things the month did
+not hold; four sentences about cards and accounts sent people the wrong way; money in another
+currency was added as typed in the limits, the saving rule, the check up and the month screen;
+the paper printed keys instead of words, a sign on what went out, and a limit without its
+category's name.
+
+On accessibility: no message was announced, the focus fell to the page after confirming late
+records, fifteen links held a button, and the overview was marked as the current section on
+three screens that are not it.
+
+On a server: the status of an answer was read after its body, so a proxy's error page reached
+the screen as a fault in reading it; an opening balance could be typed on the edit of a new
+card; changing the currency of an empty space left its accounts in the old one; a database a
+newer version migrated was opened in silence.
+
+In the demonstration, the rent and the bills were looked up by names the starting categories
+do not have, so the file of September opened with R$ 1.693,00 nobody had sorted.
+
+Found while this release was being checked: a Tesouro Selic of three units was worth the price
+of one, because a price typed for a holding estimated from an index was read as the whole of
+it; the form of a new holding, opened before the accounts arrived, chose a new account in a
+space that had one; and the invoice screen, opened with no card in the address, moved to
+another card the moment the one on it was paid. From before 2.0.0, the same reading found
+that the month screen described what it writes as it wrote it in 1.1.0 and its two links
+lost the month on the screen; that in "Todos" the button that says a record happened
+followed the role in the open space; that a credit account was made even when its card was
+then refused, so saving again made a second one; and that the state of an invoice and its
+due day ran together with no comma. All of them are corrected.
+
+### For the record
+
+The notes of 1.2.1, which the release page shows as its tag carried them, named the role
+Registrador in the English of the code, where it is the logger, and said the sentence about a
+missing allowance was gone for everybody, which it was not until this release. Both are
+corrected in the section of 1.2.1 below, and here.
+
 ## 1.2.1
 
 Released on 2 October 2026, hours after 1.2.0 and for one reason: the report written about
