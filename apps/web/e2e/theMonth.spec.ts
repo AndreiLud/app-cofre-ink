@@ -190,6 +190,9 @@ test.describe("a month in three numbers", () => {
 		await expect(page.getByText("Está tudo no lugar de sempre")).toBeVisible();
 
 		await page.goto("/lancamentos?mes=tudo");
+		// The payment of Itaú falls due on the fifth of November, which on every month is in the
+		// group of what is still to come, closed until somebody opens it (part 2, F.3.2).
+		await page.getByText("Ainda vão acontecer").click();
 		await expect(row(page, /^.*Fatura de outubro de 2026 \(Nubank\)/)).toContainText("Nubank");
 		await expect(row(page, /Fatura de outubro de 2026 \(Itaú\)/)).toContainText("Itaú");
 		await expect(row(page, /Pagamento da fatura de outubro de 2026 \(Nubank\)/)).toContainText(
