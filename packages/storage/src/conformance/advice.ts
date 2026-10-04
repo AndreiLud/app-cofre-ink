@@ -319,8 +319,11 @@ export function runAdviceConformance(adapter: AdapterUnderTest): void {
 				expect(signs.get("savingRate")?.state).toBe("good");
 
 				// Five hundred to start plus six hundred kept is eleven thousand on hand,
-				// which is two months and three quarters of ordinary spending.
-				expect(signs.get("reserve")?.amounts.onHand).toBe(1_100_000);
+				// which is two months and three quarters of ordinary spending. No card owes
+				// anything, so the reserve is all of the money in the accounts.
+				expect(signs.get("reserve")?.amounts.money).toBe(1_100_000);
+				expect(signs.get("reserve")?.amounts.cards).toBe(0);
+				expect(signs.get("reserve")?.amounts.reserve).toBe(1_100_000);
 				expect(signs.get("reserve")?.value).toBe(28);
 				expect(signs.get("reserve")?.state).toBe("fair");
 
