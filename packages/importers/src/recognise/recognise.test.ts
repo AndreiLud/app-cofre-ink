@@ -72,6 +72,35 @@ describe("a statement", () => {
 		expect(said).not.toContain("Saldo anterior");
 		expect(said).not.toContain("Pagina");
 	});
+
+	// Found by the audit of 2.0.0: a statement of a bank the list does not know, with the payment
+	// of a Nubank invoice among its entries, was read as Nubank's, and the reader opened it on the
+	// account this browser remembered for Nubank.
+	it("names the bank from the page and not from an entry that pays another", () => {
+		const unknown = recogniseStatement(
+			[
+				"Banco Exemplo",
+				"Extrato de conta corrente",
+				"Agencia 0001 Conta 12345-6",
+				"01/10/2026 Saldo anterior 5.000,00",
+				"05/10/2026 PIX RECEBIDO JOAO 250,00 5.250,00",
+				"10/10/2026 PAG FATURA NUBANK 433,40 4.816,60",
+			],
+			{ today },
+		);
+		expect(unknown.institution).toBeNull();
+
+		const inter = recogniseStatement(
+			[
+				"Banco Inter",
+				"Extrato de conta corrente",
+				"01/10/2026 Saldo anterior 5.000,00",
+				"10/10/2026 PAG FATURA NUBANK 433,40 4.566,60",
+			],
+			{ today },
+		);
+		expect(inter.institution).toBe("Inter");
+	});
 });
 
 describe("a card invoice", () => {

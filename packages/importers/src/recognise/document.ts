@@ -531,7 +531,15 @@ export function kindOf(lines: readonly string[]): DocumentKind {
  * found inside any word, so "IOF compra internacional" under "C6 Bank" was Inter.
  */
 export function institutionOf(lines: readonly string[]): string | null {
-	const head = fold(lines.slice(0, 25).join(" "));
+	// From the lines that are not entries, as the kind of the document is read: a statement of
+	// a bank this list does not know, with "PAG FATURA NUBANK" among its entries, was named
+	// Nubank, and opened on the account remembered for Nubank.
+	const head = fold(
+		lines
+			.filter((line) => !isEntry(line))
+			.slice(0, 25)
+			.join(" "),
+	);
 	let first: { name: string; at: number } | null = null;
 	for (const name of INSTITUTIONS) {
 		const escaped = fold(name).replace(/ /g, "\\s+");
