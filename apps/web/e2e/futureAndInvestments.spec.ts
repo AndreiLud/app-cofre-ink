@@ -144,6 +144,21 @@ test.describe("what is put aside", () => {
 		await expect(page.getByText("Somando, rendeu R$ 0,00 a mais que o CDI.")).toBeVisible();
 	});
 
+	// Found reading the code for the report of 2.0.0: a CDB, an LCI and an LCA asked "Quanto tem
+	// hoje" whatever they followed, and one at the CDI stored that as money put in on the day it
+	// was bought, so it grew from it and counted the yield twice.
+	test("asks a CDB at the CDI what was put in, and one at the IPCA what it holds", async ({
+		page,
+	}) => {
+		await openCofre(page);
+		await go(page, "Investimentos");
+		const dialog = await newHolding(page, "CDB ou RDB");
+		await expect(dialog.getByLabel("Quanto colocou")).toBeVisible();
+		await expect(dialog.getByLabel("Quanto tem hoje")).toHaveCount(0);
+		await dialog.getByLabel("Rende por").selectOption("ipca");
+		await expect(dialog.getByLabel("Quanto tem hoje")).toBeVisible();
+	});
+
 	test("says it has no indices before anybody asks for them", async ({ page }) => {
 		await openCofre(page);
 		await go(page, "Investimentos");

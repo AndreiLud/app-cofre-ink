@@ -14,6 +14,7 @@ import {
 	type CalendarDate,
 	type CurrencyCode,
 	productOf as catalogProduct,
+	type Indexer,
 	PRODUCTS,
 	type Product,
 	type ProductField,
@@ -431,7 +432,10 @@ export function HoldingForm({
 					/>
 				);
 			case "amount": {
-				const typed = chosen.valuation(null) === "typed";
+				// By what it follows, as chosen: a CDB at the CDI is estimated from what was put in
+				// on its day, and only one at the IPCA is a value typed from the statement. Read with
+				// no index, every CDB asked for what it holds today and stored it as a deposit.
+				const typed = chosen.valuation(indexer === "" ? null : (indexer as Indexer)) === "typed";
 				return (
 					<Field
 						key={field}
