@@ -301,11 +301,44 @@ export function PaperReportPage() {
 
 	const period = totals.data ?? { income: 0, expense: 0, benefits: 0, left: 0 };
 
+	/**
+	 * Whether every reading this file prints has arrived.
+	 *
+	 * Each part was drawn as its own reading came, so for a moment the month said R$ 0,00 in, out
+	 * and left over a list of categories that added up to more, each one a share of a total of
+	 * nothing ("2990000%"), and "Salvar em PDF" printed exactly that. The file is one document and
+	 * is shown, and saved, whole. A reading that failed has arrived too: it is left out as before.
+	 */
+	const ready =
+		on &&
+		mine.ready &&
+		[
+			totals,
+			byCategory,
+			byPriority,
+			byDay,
+			benefitsByCard,
+			byMonth,
+			accounts,
+			balances,
+			holdings,
+			cards,
+			budgets,
+			categories,
+			savings,
+			goals,
+			projection,
+			...(past ? [holdingsNow] : []),
+			...(mine.seesOwnRowsOnly ? [] : [reading]),
+		].every((one) => !one.isPending);
+
 	return (
 		<div className="mx-auto max-w-3xl space-y-8">
 			<div className="flex flex-wrap items-end justify-between gap-3 print:hidden">
 				<p className="text-quiet text-sm">{t("paper.chooseInReports")}</p>
-				<Button onClick={() => window.print()}>{t("paper.save")}</Button>
+				<Button onClick={() => window.print()} disabled={!ready}>
+					{t("paper.save")}
+				</Button>
 			</div>
 
 			<header className="space-y-1">
@@ -321,425 +354,437 @@ export function PaperReportPage() {
 				{mine.seesOwnRowsOnly ? <p className="text-quiet text-sm">{t("paper.yoursOnly")}</p> : null}
 			</header>
 
-			{totals.isPending ? <Skeleton lines={6} /> : null}
+			{ready ? null : <Skeleton lines={6} />}
 
-			<Part title={t("paper.summary")}>
-				<Table caption={t("paper.summaryCaption", { month: monthName })}>
-					<TableHead>
-						<TableRow>
-							<TableHeader>{t("paper.what")}</TableHeader>
-							<TableHeader numeric={true}>{t("paper.howMuch")}</TableHeader>
-						</TableRow>
-					</TableHead>
-					<TableBody>
-						<Line name={t("reports.income")} amount={period.income} currency={currency} />
-						{period.benefits > 0 ? (
-							<>
-								<Line name={t("paper.benefitsLine")} amount={period.benefits} currency={currency} />
-								{(benefitsByCard.data ?? []).map((card) => (
-									<Line
-										key={card.accountId}
-										name={t("paper.benefitOn", { card: card.name })}
-										amount={card.amount}
-										currency={currency}
-									/>
-								))}
-							</>
-						) : null}
-						{/* Without a sign, like every table below it: this line said "Saiu" with a
+			{ready ? (
+				<>
+					<Part title={t("paper.summary")}>
+						<Table caption={t("paper.summaryCaption", { month: monthName })}>
+							<TableHead>
+								<TableRow>
+									<TableHeader>{t("paper.what")}</TableHeader>
+									<TableHeader numeric={true}>{t("paper.howMuch")}</TableHeader>
+								</TableRow>
+							</TableHead>
+							<TableBody>
+								<Line name={t("reports.income")} amount={period.income} currency={currency} />
+								{period.benefits > 0 ? (
+									<>
+										<Line
+											name={t("paper.benefitsLine")}
+											amount={period.benefits}
+											currency={currency}
+										/>
+										{(benefitsByCard.data ?? []).map((card) => (
+											<Line
+												key={card.accountId}
+												name={t("paper.benefitOn", { card: card.name })}
+												amount={card.amount}
+												currency={currency}
+											/>
+										))}
+									</>
+								) : null}
+								{/* Without a sign, like every table below it: this line said "Saiu" with a
 						    minus over tables that said the same money without one. The name says
 						    which way the money went. */}
-						<Line name={t("reports.expense")} amount={period.expense} currency={currency} />
-						<Line
-							name={t("dashboard.leftOver")}
-							amount={period.left}
-							currency={currency}
-							tone="auto"
-						/>
-						<Line
-							name={t("paper.moneyAtTheEnd")}
-							amount={moneyOnHand(counted)}
-							currency={currency}
-						/>
-						<Line
-							name={t("paper.spendableAtTheEnd")}
-							amount={spendableNow(counted)}
-							currency={currency}
-						/>
-					</TableBody>
-				</Table>
-			</Part>
+								<Line name={t("reports.expense")} amount={period.expense} currency={currency} />
+								<Line
+									name={t("dashboard.leftOver")}
+									amount={period.left}
+									currency={currency}
+									tone="auto"
+								/>
+								<Line
+									name={t("paper.moneyAtTheEnd")}
+									amount={moneyOnHand(counted)}
+									currency={currency}
+								/>
+								<Line
+									name={t("paper.spendableAtTheEnd")}
+									amount={spendableNow(counted)}
+									currency={currency}
+								/>
+							</TableBody>
+						</Table>
+					</Part>
 
-			{(cards.data ?? []).length > 0 ? (
-				<Part title={t("paper.cards")}>
-					<Table caption={t("paper.cardsCaption")}>
-						<TableHead>
-							<TableRow>
-								<TableHeader>{t("paper.card")}</TableHeader>
-								<TableHeader>{t("paper.state")}</TableHeader>
-								<TableHeader numeric={true}>{t("paper.charged")}</TableHeader>
-								<TableHeader numeric={true}>{t("paper.stillToPay")}</TableHeader>
-							</TableRow>
-						</TableHead>
-						<TableBody>
-							{/* Every invoice that closed and is still owed, oldest first, and then the
+					{(cards.data ?? []).length > 0 ? (
+						<Part title={t("paper.cards")}>
+							<Table caption={t("paper.cardsCaption")}>
+								<TableHead>
+									<TableRow>
+										<TableHeader>{t("paper.card")}</TableHeader>
+										<TableHeader>{t("paper.state")}</TableHeader>
+										<TableHeader numeric={true}>{t("paper.charged")}</TableHeader>
+										<TableHeader numeric={true}>{t("paper.stillToPay")}</TableHeader>
+									</TableRow>
+								</TableHead>
+								<TableBody>
+									{/* Every invoice that closed and is still owed, oldest first, and then the
 							    open one. Only the open one was here, so a bill closed and not paid on
 							    the last day of the month was missing from the file of that month. */}
-							{(cards.data ?? []).flatMap((card) =>
-								[...card.owing, card.open].map((invoice) => (
-									<TableRow key={`${card.account.id}${invoice.month}`}>
-										<TableCell>
-											{card.account.name}
-											<span className="block text-quiet text-xs">{shortMonth(invoice.month)}</span>
-										</TableCell>
-										<TableCell>{t(`invoice.standing.${invoice.standing}`)}</TableCell>
-										{/* In the currency of the space, which is what an invoice is summed in:
+									{(cards.data ?? []).flatMap((card) =>
+										[...card.owing, card.open].map((invoice) => (
+											<TableRow key={`${card.account.id}${invoice.month}`}>
+												<TableCell>
+													{card.account.name}
+													<span className="block text-quiet text-xs">
+														{shortMonth(invoice.month)}
+													</span>
+												</TableCell>
+												<TableCell>{t(`invoice.standing.${invoice.standing}`)}</TableCell>
+												{/* In the currency of the space, which is what an invoice is summed in:
 										    each purchase at the rate written down with it. A card holding a
 										    purchase with no rate has no honest total and says so. */}
-										<TableCell numeric={true}>
-											{invoice.withoutRate > 0 ? (
-												t("paper.noTotal")
-											) : (
-												<Value amount={invoice.charged} currency={currency} />
-											)}
-										</TableCell>
-										<TableCell numeric={true}>
-											{invoice.withoutRate > 0 ? (
-												t("paper.noTotal")
-											) : (
-												<Value amount={invoice.left} currency={currency} />
-											)}
-										</TableCell>
-									</TableRow>
-								)),
-							)}
-						</TableBody>
-					</Table>
-				</Part>
-			) : null}
+												<TableCell numeric={true}>
+													{invoice.withoutRate > 0 ? (
+														t("paper.noTotal")
+													) : (
+														<Value amount={invoice.charged} currency={currency} />
+													)}
+												</TableCell>
+												<TableCell numeric={true}>
+													{invoice.withoutRate > 0 ? (
+														t("paper.noTotal")
+													) : (
+														<Value amount={invoice.left} currency={currency} />
+													)}
+												</TableCell>
+											</TableRow>
+										)),
+									)}
+								</TableBody>
+							</Table>
+						</Part>
+					) : null}
 
-			{(byCategory.data ?? []).length > 0 ? (
-				<Part title={t("paper.byCategory")}>
-					<Table caption={t("reports.categoryCaption", { month: monthName })}>
-						<TableHead>
-							<TableRow>
-								<TableHeader>{t("reports.category")}</TableHeader>
-								<TableHeader numeric={true}>{t("reports.amount")}</TableHeader>
-								<TableHeader numeric={true}>{t("paper.share")}</TableHeader>
-							</TableRow>
-						</TableHead>
-						<TableBody>
-							{(byCategory.data ?? []).map((one) => (
-								<TableRow key={one.categoryId ?? "none"}>
-									{/* Money nobody sorted is a line of its own and not a blank one.
+					{(byCategory.data ?? []).length > 0 ? (
+						<Part title={t("paper.byCategory")}>
+							<Table caption={t("reports.categoryCaption", { month: monthName })}>
+								<TableHead>
+									<TableRow>
+										<TableHeader>{t("reports.category")}</TableHeader>
+										<TableHeader numeric={true}>{t("reports.amount")}</TableHeader>
+										<TableHeader numeric={true}>{t("paper.share")}</TableHeader>
+									</TableRow>
+								</TableHead>
+								<TableBody>
+									{(byCategory.data ?? []).map((one) => (
+										<TableRow key={one.categoryId ?? "none"}>
+											{/* Money nobody sorted is a line of its own and not a blank one.
 									    The screen next door has said so all along, and this printed
 									    an empty cell against two thirds of a month. */}
-									<TableCell>{one.name ?? t("reports.noCategory")}</TableCell>
-									<TableCell numeric={true}>
-										<Value amount={one.total} currency={currency} />
-									</TableCell>
-									<TableCell numeric={true}>
-										{Math.round((one.total / Math.max(1, period.expense)) * 100)}%
-									</TableCell>
-								</TableRow>
-							))}
-						</TableBody>
-					</Table>
-				</Part>
-			) : null}
+											<TableCell>{one.name ?? t("reports.noCategory")}</TableCell>
+											<TableCell numeric={true}>
+												<Value amount={one.total} currency={currency} />
+											</TableCell>
+											<TableCell numeric={true}>
+												{Math.round((one.total / Math.max(1, period.expense)) * 100)}%
+											</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</Part>
+					) : null}
 
-			{(byPriority.data ?? []).length > 0 ? (
-				<Part title={t("paper.byPriority")}>
-					<Table caption={t("paper.priorityCaption")}>
-						<TableHead>
-							<TableRow>
-								<TableHeader>{t("transactions.priority")}</TableHeader>
-								<TableHeader numeric={true}>{t("reports.amount")}</TableHeader>
-							</TableRow>
-						</TableHead>
-						<TableBody>
-							{(byPriority.data ?? []).map((one) => (
-								<Line
-									key={one.priority ?? "none"}
-									// A record with no priority on it has none, and asking for the
-									// sentence of a priority called nothing printed the key itself:
-									// a row headed "priority.null" in the file somebody hands over.
-									name={one.priority ? t(`priority.${one.priority}`) : t("reports.noPriority")}
-									amount={one.total}
-									currency={currency}
-								/>
-							))}
-						</TableBody>
-					</Table>
-				</Part>
-			) : null}
-
-			{(byDay.data ?? []).length > 0 ? (
-				<Part title={t("paper.byDay")}>
-					<Table caption={t("paper.byDayCaption", { month: monthName })}>
-						<TableHead>
-							<TableRow>
-								<TableHeader>{t("paper.day")}</TableHeader>
-								<TableHeader numeric={true}>{t("reports.expense")}</TableHeader>
-							</TableRow>
-						</TableHead>
-						<TableBody>
-							{(byDay.data ?? []).map((one) => (
-								<Line
-									key={one.day}
-									name={dayOfMonth(one.day)}
-									amount={one.total}
-									currency={currency}
-								/>
-							))}
-						</TableBody>
-					</Table>
-				</Part>
-			) : null}
-
-			{(byMonth.data ?? []).length > 0 ? (
-				<Part title={t("paper.twelveMonths")}>
-					<Table caption={t("reports.monthsCaption")}>
-						<TableHead>
-							<TableRow>
-								<TableHeader>{t("reports.month")}</TableHeader>
-								<TableHeader numeric={true}>{t("reports.income")}</TableHeader>
-								<TableHeader numeric={true}>{t("reports.expense")}</TableHeader>
-								<TableHeader numeric={true}>{t("reports.left")}</TableHeader>
-							</TableRow>
-						</TableHead>
-						<TableBody>
-							{(byMonth.data ?? []).map((one) => (
-								<TableRow key={one.month}>
-									<TableCell>{shortMonth(one.month)}</TableCell>
-									{/* What came in is the income and the benefit together, as the
-									    overview and the summary above say of the same month. */}
-									<TableCell numeric={true}>
-										<Value amount={one.income + one.benefits} currency={currency} />
-										{one.benefits > 0 ? (
-											<span className="block text-quiet text-xs">
-												{t("reports.ofWhichBenefits", { amount: money(one.benefits) })}
-											</span>
-										) : null}
-									</TableCell>
-									<TableCell numeric={true}>
-										<Value amount={one.expense} currency={currency} />
-									</TableCell>
-									<TableCell numeric={true}>
-										<Value
-											amount={one.income + one.benefits - one.expense}
+					{(byPriority.data ?? []).length > 0 ? (
+						<Part title={t("paper.byPriority")}>
+							<Table caption={t("paper.priorityCaption")}>
+								<TableHead>
+									<TableRow>
+										<TableHeader>{t("transactions.priority")}</TableHeader>
+										<TableHeader numeric={true}>{t("reports.amount")}</TableHeader>
+									</TableRow>
+								</TableHead>
+								<TableBody>
+									{(byPriority.data ?? []).map((one) => (
+										<Line
+											key={one.priority ?? "none"}
+											// A record with no priority on it has none, and asking for the
+											// sentence of a priority called nothing printed the key itself:
+											// a row headed "priority.null" in the file somebody hands over.
+											name={one.priority ? t(`priority.${one.priority}`) : t("reports.noPriority")}
+											amount={one.total}
 											currency={currency}
-											tone="auto"
 										/>
-									</TableCell>
-								</TableRow>
-							))}
-						</TableBody>
-					</Table>
-				</Part>
-			) : null}
+									))}
+								</TableBody>
+							</Table>
+						</Part>
+					) : null}
 
-			{(budgets.data ?? []).length > 0 ? (
-				<Part title={t("paper.budget")}>
-					<Table caption={t("paper.budgetCaption", { month: monthName })}>
-						<TableHead>
-							<TableRow>
-								{/* What the limit is on, which is everything, a priority or a
+					{(byDay.data ?? []).length > 0 ? (
+						<Part title={t("paper.byDay")}>
+							<Table caption={t("paper.byDayCaption", { month: monthName })}>
+								<TableHead>
+									<TableRow>
+										<TableHeader>{t("paper.day")}</TableHeader>
+										<TableHeader numeric={true}>{t("reports.expense")}</TableHeader>
+									</TableRow>
+								</TableHead>
+								<TableBody>
+									{(byDay.data ?? []).map((one) => (
+										<Line
+											key={one.day}
+											name={dayOfMonth(one.day)}
+											amount={one.total}
+											currency={currency}
+										/>
+									))}
+								</TableBody>
+							</Table>
+						</Part>
+					) : null}
+
+					{(byMonth.data ?? []).length > 0 ? (
+						<Part title={t("paper.twelveMonths")}>
+							<Table caption={t("reports.monthsCaption")}>
+								<TableHead>
+									<TableRow>
+										<TableHeader>{t("reports.month")}</TableHeader>
+										<TableHeader numeric={true}>{t("reports.income")}</TableHeader>
+										<TableHeader numeric={true}>{t("reports.expense")}</TableHeader>
+										<TableHeader numeric={true}>{t("reports.left")}</TableHeader>
+									</TableRow>
+								</TableHead>
+								<TableBody>
+									{(byMonth.data ?? []).map((one) => (
+										<TableRow key={one.month}>
+											<TableCell>{shortMonth(one.month)}</TableCell>
+											{/* What came in is the income and the benefit together, as the
+									    overview and the summary above say of the same month. */}
+											<TableCell numeric={true}>
+												<Value amount={one.income + one.benefits} currency={currency} />
+												{one.benefits > 0 ? (
+													<span className="block text-quiet text-xs">
+														{t("reports.ofWhichBenefits", { amount: money(one.benefits) })}
+													</span>
+												) : null}
+											</TableCell>
+											<TableCell numeric={true}>
+												<Value amount={one.expense} currency={currency} />
+											</TableCell>
+											<TableCell numeric={true}>
+												<Value
+													amount={one.income + one.benefits - one.expense}
+													currency={currency}
+													tone="auto"
+												/>
+											</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</Part>
+					) : null}
+
+					{(budgets.data ?? []).length > 0 ? (
+						<Part title={t("paper.budget")}>
+							<Table caption={t("paper.budgetCaption", { month: monthName })}>
+								<TableHead>
+									<TableRow>
+										{/* What the limit is on, which is everything, a priority or a
 								    category, and never a limit. This column was headed with the
 								    same word as the one two along, so the English table read
 								    "Limit, Spent, The limit, State". */}
-								<TableHeader>{t("paper.what")}</TableHeader>
-								<TableHeader numeric={true}>{t("paper.spent")}</TableHeader>
-								<TableHeader numeric={true}>{t("paper.limitAmount")}</TableHeader>
-								<TableHeader>{t("paper.state")}</TableHeader>
-							</TableRow>
-						</TableHead>
-						<TableBody>
-							{(budgets.data ?? []).map((limit) => (
-								<TableRow key={limit.id}>
-									<TableCell>
-										{limit.scope === "total"
-											? t("budget.everything")
-											: limit.scope === "priority"
-												? t(`priority.${limit.priority ?? "important"}`)
-												: ((categories.data ?? []).find((one) => one.id === limit.categoryId)
-														?.name ?? t("reports.noCategory"))}
-									</TableCell>
-									<TableCell numeric={true}>
-										<Value amount={limit.progress.spent} currency={currency} />
-									</TableCell>
-									<TableCell numeric={true}>
-										<Value amount={limit.progress.limit} currency={currency} />
-									</TableCell>
-									<TableCell>{t(`budget.state.${limit.progress.state}`)}</TableCell>
-								</TableRow>
-							))}
-						</TableBody>
-					</Table>
-				</Part>
-			) : null}
-
-			<Part title={t("paper.saving")}>
-				<Table caption={t("paper.savingCaption")}>
-					<TableHead>
-						<TableRow>
-							<TableHeader>{t("paper.what")}</TableHeader>
-							<TableHeader numeric={true}>{t("paper.howMuch")}</TableHeader>
-						</TableRow>
-					</TableHead>
-					<TableBody>
-						{/* Two lines at nought said a rule asked for nothing, on a space with no rule. */}
-						{savings.data?.rule ? (
-							<>
-								<Line
-									name={t("dashboard.ruleAsks")}
-									amount={savings.data.expected}
-									currency={currency}
-								/>
-								<Line
-									name={t("dashboard.savedSoFar")}
-									amount={savings.data.put}
-									currency={currency}
-								/>
-							</>
-						) : (
-							<TableRow>
-								<TableCell>{t("dashboard.noRuleShort")}</TableCell>
-								<TableCell numeric={true} />
-							</TableRow>
-						)}
-						{(goals.data ?? []).map((goal) => (
-							<TableRow key={goal.id}>
-								<TableCell>{goal.name}</TableCell>
-								<TableCell numeric={true}>
-									<Value amount={goal.saved} currency={currency} /> {t("dashboard.ofTarget")}{" "}
-									<Value amount={goal.targetAmount} currency={currency} />
-								</TableCell>
-							</TableRow>
-						))}
-					</TableBody>
-				</Table>
-			</Part>
-
-			{reading.data ? (
-				<Part title={t("paper.checkUp")}>
-					<p className="font-serif text-lg">{t(`advisor.verdict.${reading.data.verdict}`)}</p>
-					<Table caption={t("paper.signsCaption")}>
-						<TableHead>
-							<TableRow>
-								<TableHeader>{t("paper.sign")}</TableHeader>
-								<TableHeader>{t("paper.state")}</TableHeader>
-							</TableRow>
-						</TableHead>
-						<TableBody>
-							{reading.data.signs.map((sign) => (
-								<TableRow key={sign.code}>
-									<TableCell>{t(`sign.${sign.code}`)}</TableCell>
-									<TableCell>{t(`signState.${sign.state}`)}</TableCell>
-								</TableRow>
-							))}
-						</TableBody>
-					</Table>
-					{reading.data.plan.steps.length > 0 ? (
-						<ol className="list-decimal space-y-1 pl-5 text-sm">
-							{reading.data.plan.steps.map((step) => (
-								<li key={`${step.code}${step.subject ?? ""}`}>
-									<span className="font-medium">{stepTitle(t, step)}.</span>{" "}
-									{stepSaid(t, step, money)}
-								</li>
-							))}
-						</ol>
+										<TableHeader>{t("paper.what")}</TableHeader>
+										<TableHeader numeric={true}>{t("paper.spent")}</TableHeader>
+										<TableHeader numeric={true}>{t("paper.limitAmount")}</TableHeader>
+										<TableHeader>{t("paper.state")}</TableHeader>
+									</TableRow>
+								</TableHead>
+								<TableBody>
+									{(budgets.data ?? []).map((limit) => (
+										<TableRow key={limit.id}>
+											<TableCell>
+												{limit.scope === "total"
+													? t("budget.everything")
+													: limit.scope === "priority"
+														? t(`priority.${limit.priority ?? "important"}`)
+														: ((categories.data ?? []).find((one) => one.id === limit.categoryId)
+																?.name ?? t("reports.noCategory"))}
+											</TableCell>
+											<TableCell numeric={true}>
+												<Value amount={limit.progress.spent} currency={currency} />
+											</TableCell>
+											<TableCell numeric={true}>
+												<Value amount={limit.progress.limit} currency={currency} />
+											</TableCell>
+											<TableCell>{t(`budget.state.${limit.progress.state}`)}</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</Part>
 					) : null}
-				</Part>
-			) : null}
 
-			{projection.data ? (
-				<Part title={t("paper.monthsAhead")}>
-					<Table caption={t("paper.monthsAheadCaption")}>
-						<TableHead>
-							<TableRow>
-								<TableHeader>{t("reports.month")}</TableHeader>
-								<TableHeader numeric={true}>{t("reports.income")}</TableHeader>
-								<TableHeader numeric={true}>{t("reports.expense")}</TableHeader>
-								<TableHeader numeric={true}>{t("paper.balanceAtTheEnd")}</TableHeader>
-							</TableRow>
-						</TableHead>
-						<TableBody>
-							{projection.data.months.map((one) => (
-								<TableRow key={one.month}>
-									<TableCell>{shortMonth(one.month)}</TableCell>
-									<TableCell numeric={true}>
-										<Value amount={one.income} currency={currency} />
-									</TableCell>
-									<TableCell numeric={true}>
-										<Value amount={one.expense} currency={currency} />
-									</TableCell>
-									<TableCell numeric={true}>
-										<Value amount={one.balance} currency={currency} tone="auto" />
-									</TableCell>
+					<Part title={t("paper.saving")}>
+						<Table caption={t("paper.savingCaption")}>
+							<TableHead>
+								<TableRow>
+									<TableHeader>{t("paper.what")}</TableHeader>
+									<TableHeader numeric={true}>{t("paper.howMuch")}</TableHeader>
 								</TableRow>
-							))}
-						</TableBody>
-					</Table>
-					{/* What the cards still charge after the six months on paper. */}
-					{projection.data.after && projection.data.months.length > 0 ? (
-						<p className="text-sm">
-							{t("projection.after", {
-								month: longMonth(projection.data.months.at(-1)?.month ?? ""),
-								amount: money(projection.data.after.amount),
-								last: longMonth(projection.data.after.last ?? ""),
-							})}
-						</p>
-					) : null}
-				</Part>
-			) : null}
+							</TableHead>
+							<TableBody>
+								{/* Two lines at nought said a rule asked for nothing, on a space with no rule. */}
+								{savings.data?.rule ? (
+									<>
+										<Line
+											name={t("dashboard.ruleAsks")}
+											amount={savings.data.expected}
+											currency={currency}
+										/>
+										<Line
+											name={t("dashboard.savedSoFar")}
+											amount={savings.data.put}
+											currency={currency}
+										/>
+									</>
+								) : (
+									<TableRow>
+										<TableCell>{t("dashboard.noRuleShort")}</TableCell>
+										<TableCell numeric={true} />
+									</TableRow>
+								)}
+								{(goals.data ?? []).map((goal) => (
+									<TableRow key={goal.id}>
+										<TableCell>{goal.name}</TableCell>
+										<TableCell numeric={true}>
+											<Value amount={goal.saved} currency={currency} /> {t("dashboard.ofTarget")}{" "}
+											<Value amount={goal.targetAmount} currency={currency} />
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
+					</Part>
 
-			{(holdings.data ?? []).length > 0 ? (
-				<Part title={t("paper.investments")}>
-					<Table caption={t("paper.investmentsCaption")}>
-						<TableHead>
-							<TableRow>
-								<TableHeader>{t("investments.name")}</TableHeader>
-								<TableHeader numeric={true}>
-									{past ? t("paper.worthOn", { day: dayName(to) }) : t("investments.value")}
-								</TableHeader>
-								<TableHeader numeric={true}>{t("investments.gain")}</TableHeader>
-							</TableRow>
-						</TableHead>
-						<TableBody>
-							{(holdings.data ?? []).map((one) => (
-								<TableRow key={one.id}>
-									<TableCell>
-										{one.name}
-										{/* Read at a price from after the day, which is the only one it has.
+					{reading.data ? (
+						<Part title={t("paper.checkUp")}>
+							<p className="font-serif text-lg">{t(`advisor.verdict.${reading.data.verdict}`)}</p>
+							<Table caption={t("paper.signsCaption")}>
+								<TableHead>
+									<TableRow>
+										<TableHeader>{t("paper.sign")}</TableHeader>
+										<TableHeader>{t("paper.state")}</TableHeader>
+									</TableRow>
+								</TableHead>
+								<TableBody>
+									{reading.data.signs.map((sign) => (
+										<TableRow key={sign.code}>
+											<TableCell>{t(`sign.${sign.code}`)}</TableCell>
+											<TableCell>{t(`signState.${sign.state}`)}</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+							{reading.data.plan.steps.length > 0 ? (
+								<ol className="list-decimal space-y-1 pl-5 text-sm">
+									{reading.data.plan.steps.map((step) => (
+										<li key={`${step.code}${step.subject ?? ""}`}>
+											<span className="font-medium">{stepTitle(t, step)}.</span>{" "}
+											{stepSaid(t, step, money)}
+										</li>
+									))}
+								</ol>
+							) : null}
+						</Part>
+					) : null}
+
+					{projection.data ? (
+						<Part title={t("paper.monthsAhead")}>
+							<Table caption={t("paper.monthsAheadCaption")}>
+								<TableHead>
+									<TableRow>
+										<TableHeader>{t("reports.month")}</TableHeader>
+										<TableHeader numeric={true}>{t("reports.income")}</TableHeader>
+										<TableHeader numeric={true}>{t("reports.expense")}</TableHeader>
+										<TableHeader numeric={true}>{t("paper.balanceAtTheEnd")}</TableHeader>
+									</TableRow>
+								</TableHead>
+								<TableBody>
+									{projection.data.months.map((one) => (
+										<TableRow key={one.month}>
+											<TableCell>{shortMonth(one.month)}</TableCell>
+											<TableCell numeric={true}>
+												<Value amount={one.income} currency={currency} />
+											</TableCell>
+											<TableCell numeric={true}>
+												<Value amount={one.expense} currency={currency} />
+											</TableCell>
+											<TableCell numeric={true}>
+												<Value amount={one.balance} currency={currency} tone="auto" />
+											</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+							{/* What the cards still charge after the six months on paper. */}
+							{projection.data.after && projection.data.months.length > 0 ? (
+								<p className="text-sm">
+									{t("projection.after", {
+										month: longMonth(projection.data.months.at(-1)?.month ?? ""),
+										amount: money(projection.data.after.amount),
+										last: longMonth(projection.data.after.last ?? ""),
+									})}
+								</p>
+							) : null}
+						</Part>
+					) : null}
+
+					{(holdings.data ?? []).length > 0 ? (
+						<Part title={t("paper.investments")}>
+							<Table caption={t("paper.investmentsCaption")}>
+								<TableHead>
+									<TableRow>
+										<TableHeader>{t("investments.name")}</TableHeader>
+										<TableHeader numeric={true}>
+											{past ? t("paper.worthOn", { day: dayName(to) }) : t("investments.value")}
+										</TableHeader>
+										<TableHeader numeric={true}>{t("investments.gain")}</TableHeader>
+									</TableRow>
+								</TableHead>
+								<TableBody>
+									{(holdings.data ?? []).map((one) => (
+										<TableRow key={one.id}>
+											<TableCell>
+												{one.name}
+												{/* Read at a price from after the day, which is the only one it has.
 										    Said on the row, because the sentence at the top no longer covers it. */}
-										{pricedLater(one) ? (
-											<span className="block text-quiet text-xs">
-												{t("paper.pricedLater", { day: dayName(one.pricedOn ?? to) })}
-											</span>
-										) : null}
-										{/* An estimate says how far it went, always, on paper as on the screen. */}
-										{one.estimated && one.estimatedThrough ? (
-											<span className="block text-quiet text-xs">
-												{t("investments.estimatedThrough", { day: dayName(one.estimatedThrough) })}
-											</span>
-										) : null}
-									</TableCell>
-									<TableCell numeric={true}>
-										<Value amount={one.value} currency={one.currency} />
-									</TableCell>
-									<TableCell numeric={true}>
-										<Value amount={one.gain} currency={one.currency} tone="auto" />
-									</TableCell>
-								</TableRow>
-							))}
-						</TableBody>
-					</Table>
-				</Part>
-			) : past && (holdingsNow.data ?? []).length > 0 ? (
-				<Part title={t("paper.investments")}>
-					<p className="text-sm">{t("paper.noHoldingsThen", { day: dayName(to) })}</p>
-				</Part>
+												{pricedLater(one) ? (
+													<span className="block text-quiet text-xs">
+														{t("paper.pricedLater", { day: dayName(one.pricedOn ?? to) })}
+													</span>
+												) : null}
+												{/* An estimate says how far it went, always, on paper as on the screen. */}
+												{one.estimated && one.estimatedThrough ? (
+													<span className="block text-quiet text-xs">
+														{t("investments.estimatedThrough", {
+															day: dayName(one.estimatedThrough),
+														})}
+													</span>
+												) : null}
+											</TableCell>
+											<TableCell numeric={true}>
+												<Value amount={one.value} currency={one.currency} />
+											</TableCell>
+											<TableCell numeric={true}>
+												<Value amount={one.gain} currency={one.currency} tone="auto" />
+											</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</Part>
+					) : past && (holdingsNow.data ?? []).length > 0 ? (
+						<Part title={t("paper.investments")}>
+							<p className="text-sm">{t("paper.noHoldingsThen", { day: dayName(to) })}</p>
+						</Part>
+					) : null}
+				</>
 			) : null}
 
 			<p className="text-quiet text-xs">{t("paper.madeHere")}</p>

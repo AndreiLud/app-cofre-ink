@@ -919,6 +919,48 @@ test("chooses the investment account that arrives after the form of a holding op
 	});
 });
 
+// Found reviewing the pictures of 2.0.0: the month on paper drew its parts as each reading came,
+// so before the totals arrived it said R$ 0,00 in, out and left, divided every category by one
+// cent ("1000000%"), and "Salvar em PDF" printed that.
+test("draws the month on paper only once every reading of it has arrived", async ({ browser }) => {
+	const ana = await arrive(browser, { name: "Ana", email: uniqueEmail("ana") });
+	await go(ana, "Contas");
+	await ana.getByRole("button", { name: "Nova conta" }).first().click();
+	const dialog = ana.getByRole("dialog");
+	await dialog.getByLabel("Nome").fill("Banco");
+	await dialog.getByLabel("Saldo de abertura").fill("1.000,00");
+	await ana.getByRole("button", { name: "Salvar" }).click();
+	await expect(dialog).toHaveCount(0);
+	await go(ana, "Lançamentos");
+	await ana.getByRole("button", { name: "Novo lançamento" }).first().click();
+	const form = ana.getByRole("dialog");
+	await form.getByLabel("Pago com").selectOption({ label: "Banco" });
+	await form.getByLabel("Valor", { exact: true }).fill("100,00");
+	await form.getByLabel("Descrição").fill("Feira");
+	await ana.getByRole("button", { name: "Salvar" }).click();
+	await expect(form).toHaveCount(0);
+
+	// The totals of the month take their time, as they do on a slow connection.
+	await ana.route(
+		(url) => url.pathname === "/api/reports" && url.searchParams.get("kind") === "totals",
+		async (route) => {
+			await new Promise((resolve) => setTimeout(resolve, 4000));
+			await route.continue();
+		},
+	);
+	await ana.goto("/relatorio");
+	const save = ana.getByRole("button", { name: "Salvar em PDF" });
+	await expect(save).toBeDisabled();
+	await expect(ana.getByRole("heading", { name: "Por categoria" })).toHaveCount(0);
+	await expect(ana.getByRole("cell", { name: /^\d{4,}%$/ })).toHaveCount(0);
+
+	await expect(save).toBeEnabled({ timeout: 15_000 });
+	await expect(ana.getByRole("heading", { name: "Por categoria" })).toBeVisible();
+	await expect(ana.getByRole("cell", { name: "100%", exact: true })).toBeVisible();
+	// A cell at a time: a row's text runs its cells together, "R$ 100,00" and "100%" into "00100%".
+	await expect(ana.getByRole("cell", { name: /^\d{4,}%$/ })).toHaveCount(0);
+});
+
 // Part 2, K.8.5 of the request for 2.0.0: the version on the screen, the button that asks GitHub
 // through the server, and a page that does not write to a server of another major version.
 test.describe("the version, and who asks GitHub", () => {
