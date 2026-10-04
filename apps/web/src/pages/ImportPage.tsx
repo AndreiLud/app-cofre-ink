@@ -436,12 +436,24 @@ export function ImportPage() {
 	 * The way the file goes, which may be none yet: an invoice with two cards or more to choose
 	 * from and nothing in the file to choose by waits for the person.
 	 */
+	// A statement with nothing to go by opens on an account that holds money, a current account
+	// before a savings account before the wallet, since a statement comes from a bank. The list
+	// puts the cards first, and a statement in a table, which may be of a card too, opened on the
+	// first card of the space whenever it had one.
+	const ofKind = (kind: string) => (way: Way) =>
+		reachable.find((account) => account.id === way.accountId)?.kind === kind;
+	const holdsMoney = (list: Way[]) =>
+		list.find(ofKind("checking")) ?? list.find(ofKind("savings")) ?? list.find(ofKind("cash"));
 	const chosenWay: Way | null =
 		wayChosen !== null
 			? (ways.find((way) => way.value === wayChosen) ?? null)
 			: (wayOf(asked.cartao) ??
 				wayOf(guessed?.id, guessed?.cardId) ??
-				(isInvoice ? (ways.length === 1 ? (ways[0] ?? null) : null) : (ways[0] ?? null)));
+				(isInvoice
+					? ways.length === 1
+						? (ways[0] ?? null)
+						: null
+					: (holdsMoney(ways) ?? ways[0] ?? null)));
 	const chosen = reachable.find((account) => account.id === chosenWay?.accountId);
 
 	/** Digits the file names that belong to a card put away with nothing owed. */

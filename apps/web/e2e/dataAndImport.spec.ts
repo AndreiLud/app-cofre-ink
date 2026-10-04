@@ -63,6 +63,22 @@ test.describe("reading a statement", () => {
 		await expect(record(page, "Reembolso do plano")).toHaveCount(0);
 	});
 
+	// Found reading the code for the report of 2.0.0: a statement in a table with nothing in it to
+	// choose an account by opened on the first card of the space, because the list puts the cards
+	// first.
+	test("opens a statement with nothing to go by on an account that holds money", async ({
+		page,
+	}) => {
+		await openCofre(page);
+		await go(page, "Dados");
+		await page.getByRole("button", { name: "Abrir a importação" }).click();
+		await pickStatement(page, "extrato.csv", STATEMENT);
+		await expect(page.getByText("2 lançamentos lidos de um arquivo CSV.")).toBeVisible();
+		await expect(
+			page.getByLabel("Em qual conta", { exact: true }).locator("option:checked"),
+		).toHaveText("Conta corrente");
+	});
+
 	test("reads a card invoice as spending, although nothing in it is negative", async ({ page }) => {
 		await openCofre(page);
 
