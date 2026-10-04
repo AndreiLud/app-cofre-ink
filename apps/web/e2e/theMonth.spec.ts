@@ -292,6 +292,15 @@ test.describe("a month in three numbers", () => {
 		await expect(usual).toBeVisible();
 		await expect(usual).toContainText("num mês comum");
 		await expect(usual).toContainText("neste");
+
+		// Found reviewing the pictures of 2.0.0: the line about the benefit sat under "O que sai",
+		// while the R$ 900,00 it speaks of is in the R$ 7.020,00 of "O que entra".
+		const income = usual.getByRole("listitem").filter({ hasText: "O que entra" });
+		await expect(income).toContainText("R$ 7.020,00 neste");
+		await expect(income).toContainText("Inclui R$ 900,00 de benefícios");
+		await expect(usual.getByRole("listitem").filter({ hasText: "O que sai" })).not.toContainText(
+			"benefícios",
+		);
 	});
 
 	test("ranks what the month went on, and leaves the typed totals out of it", async ({ page }) => {

@@ -1114,14 +1114,16 @@ export function MonthPage() {
 										<span className="font-mono text-sm">
 											{t("theMonth.usualFigures", { usual: asMoney(was), now: asMoney(now) })}
 										</span>
+										{/* Under what came in, which the benefit is part of. It sat after the
+										    list, under "O que sai", as if the money out held it. */}
+										{label === "movement.income" && benefitsThisMonth > 0 ? (
+											<span className="basis-full text-quiet text-sm">
+												{t("reports.ofWhichBenefits", { amount: asMoney(benefitsThisMonth) })}
+											</span>
+										) : null}
 									</li>
 								))}
 							</ul>
-							{benefitsThisMonth > 0 ? (
-								<p className="mt-2 text-quiet text-sm">
-									{t("reports.ofWhichBenefits", { amount: asMoney(benefitsThisMonth) })}
-								</p>
-							) : null}
 							<p className="mt-4 border-line border-t pt-4 text-sm">
 								{usual.verdict === "tooEarly"
 									? t("theMonth.usualTooEarly", { month: monthName })
