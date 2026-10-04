@@ -431,7 +431,7 @@
 		"tryAgain": "Try again",
 		"skipToContent": "Skip to the content",
 		"chooseAgain": "Choose again where the data lives",
-		"reload": "Reload",
+		"reload": "Reload the page",
 		"pageOlder": "This page is from an earlier version than the server. Reload it.",
 		"pageReplaced": "A new version of this page was installed and this tab is still on the previous one. Reload to carry on.",
 		"serverOlder": "The server is on a version earlier than {{floor}} and this page on v{{version}}. Update the server before recording anything; until then you can look, not save."

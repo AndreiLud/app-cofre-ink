@@ -431,7 +431,7 @@
 		"tryAgain": "Tentar de novo",
 		"skipToContent": "Ir para o conteúdo",
 		"chooseAgain": "Escolher de novo onde ficam os dados",
-		"reload": "Recarregar",
+		"reload": "Recarregar a página",
 		"pageOlder": "Esta página é de uma versão anterior à do servidor. Recarregue.",
 		"pageReplaced": "Uma versão nova desta página foi instalada, e esta aba ainda está na anterior. Recarregue para continuar.",
 		"serverOlder": "O servidor está numa versão anterior à {{floor}} e esta página na v{{version}}. Atualize o servidor antes de lançar qualquer coisa; até lá dá para ver, não para gravar."

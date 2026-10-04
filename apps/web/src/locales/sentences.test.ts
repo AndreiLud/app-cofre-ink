@@ -51,4 +51,14 @@ describe("what a sentence tells somebody to do", () => {
 		expect(pt.theMonth.limitsTotalOnly).toContain("por prioridade");
 		expect(en.theMonth.limitsTotalOnly).toContain("on a priority");
 	});
+
+	// Found reviewing the pictures of 2.0.0: with a new version of the page installed, the overview
+	// had two buttons called "Recarregar", one that reloads the page and one that tops up a voucher,
+	// and a screen reader says only the name.
+	it("does not give the reload of the page the name of the top up of a voucher", () => {
+		expect(pt.shell.reload).not.toBe(pt.move.topUp);
+		expect(en.shell.reload).not.toBe(en.move.topUp);
+		expect(pt.shell.reload).toBe("Recarregar a página");
+		expect(en.shell.reload).toBe("Reload the page");
+	});
 });
